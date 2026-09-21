@@ -437,3 +437,44 @@ async def test_autocomplete_keeps_custom_areas_owner_scoped(
     auth_override("test-user-ds")
     res = await _autocomplete(client, "ban")
     assert res.json() == []
+
+
+@pytest.mark.asyncio
+async def test_input_caps_are_rejected_with_422(auth_override, client):
+    auth_override("test-user-wri")
+    too_long = "a" * 201
+    assert (
+        await client.get(f"/api/aois?name={too_long}", headers=AUTH)
+    ).status_code == 422
+    assert (
+        await client.get("/api/aois?name=Par%00is", headers=AUTH)
+    ).status_code == 422
+    assert (
+        await client.get("/api/aois?offset=10001", headers=AUTH)
+    ).status_code == 422
+    # The core validates the same way the router does: a parent after the
+    # comma does not make a one-letter autocomplete valid.
+    res = await _autocomplete(client, "a, bcd")
+    assert res.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_correction_is_skipped_for_a_long_phrase(auth_override, client):
+    """A phrase of many distinct words is not a typo to correct: the
+    correction costs one trigram lookup per word, so it is capped."""
+    auth_override("test-user-wri")
+    await _seed_reference_aoi("gadm", "BRA", "Brazil", "country")
+    async with async_session_maker() as session:
+        for statement in TOKENS_REBUILD_SQL:
+            await session.execute(text(statement))
+        await session.commit()
+
+    near = ["brasil", "brazl", "brazi", "brasi", "braxil", "brazul"]
+    res = await client.get(f"/api/aois?name={' '.join(near)}", headers=AUTH)
+    assert [r["src_id"] for r in res.json()] == ["BRA"]
+
+    res = await client.get(
+        f"/api/aois?name={' '.join(near + ['brzail'])}", headers=AUTH
+    )
+    assert res.status_code == 200
+    assert res.json() == []

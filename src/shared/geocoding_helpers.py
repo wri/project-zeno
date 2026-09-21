@@ -231,6 +231,19 @@ SearchMode = Literal["search", "autocomplete"]
 # replaces the list.
 AUTOCOMPLETE_MIN_CHARS = 2
 
+# Caps on what one search may cost. A place name is never this long; the
+# typo correction runs one trigram lookup per distinct token, so both the
+# length and the token count bound the work a request can demand. Paging past
+# ten thousand rows is not a use case, and a huge offset would otherwise sort
+# the whole table on disk.
+MAX_SEARCH_NAME_CHARS = 200
+MAX_SEARCH_OFFSET = 10_000
+_MAX_CORRECTION_LEXEMES = 6
+
+
+class SearchRequestError(ValueError):
+    """The caller's input cannot be searched as given (a 422 at the API)."""
+
 
 def _custom_scope_sql(requested: set[str]) -> str:
     """Owner-scope custom areas through ``user_aois``, the permission model.
@@ -488,7 +501,9 @@ async def _corrected_leaf_query(conn, leaf: str) -> Optional[str]:
     """
     rows = await conn.execute(text(_LEAF_TOKENS_SQL), {"leaf": leaf})
     tokens = [row[0] for row in rows]
-    if not tokens:
+    # No place name has this many words; a longer leaf is not a typo to fix,
+    # and each token costs a trigram lookup.
+    if not tokens or len(tokens) > _MAX_CORRECTION_LEXEMES:
         return None
     await conn.execute(text(_CORRECTION_THRESHOLD_SQL))
     groups = []
@@ -513,6 +528,43 @@ def _satisfies(result: pd.DataFrame, parsed: SearchText) -> bool:
     if parsed.context and not result["context_hit"].any():
         return False
     return True
+
+
+def _validate_request(
+    name: Optional[str],
+    parsed: SearchText,
+    limit: int,
+    offset: int,
+    mode: SearchMode,
+) -> None:
+    """Reject input the search cannot or must not serve.
+
+    One place for every rule, so the API and the geocoder cannot disagree
+    about what is valid. The API maps the error to 422.
+    """
+    if name is not None:
+        if len(name) > MAX_SEARCH_NAME_CHARS:
+            raise SearchRequestError(
+                f"name is longer than {MAX_SEARCH_NAME_CHARS} characters"
+            )
+        if "\x00" in name:
+            raise SearchRequestError("name contains a NUL character")
+    if limit < 1:
+        raise SearchRequestError("limit must be at least 1")
+    if not 0 <= offset <= MAX_SEARCH_OFFSET:
+        raise SearchRequestError(
+            f"offset must be between 0 and {MAX_SEARCH_OFFSET}"
+        )
+    if mode == "autocomplete":
+        if len(parsed.leaf) < AUTOCOMPLETE_MIN_CHARS:
+            raise SearchRequestError(
+                f"autocomplete needs a name of at least "
+                f"{AUTOCOMPLETE_MIN_CHARS} characters"
+            )
+        if offset:
+            raise SearchRequestError("autocomplete does not accept offset")
+    elif mode != "search":
+        raise SearchRequestError(f"unknown mode {mode!r}")
 
 
 async def search_aois(
@@ -554,9 +606,12 @@ async def search_aois(
         AOIs are excluded, and a custom area appears only for its owner.
 
     Raises:
-        ValueError: For an invalid source, for a missing ``user_id`` when
-            ``custom`` is searched, or for an autocomplete with too short a
-            name or a non-zero offset.
+        SearchRequestError: For input the search will not serve: a name over
+            ``MAX_SEARCH_NAME_CHARS`` or holding a NUL, a limit under 1, an
+            offset outside ``0..MAX_SEARCH_OFFSET``, or an autocomplete with
+            too short a name or a non-zero offset.
+        ValueError: For an invalid source, or for a missing ``user_id`` when
+            ``custom`` is searched.
     """
     if sources:
         requested = {normalize_aoi_source(s) for s in sources}
@@ -566,6 +621,9 @@ async def search_aois(
     if "custom" in requested and not user_id:
         raise ValueError("user_id required for custom areas")
 
+    parsed = parse_search_text(name or "")
+    _validate_request(name, parsed, limit, offset, mode)
+
     params: Dict[str, Any] = {
         "sources": sorted(requested),
         "limit": limit,
@@ -574,15 +632,6 @@ async def search_aois(
     if "custom" in requested:
         params["user_id"] = user_id
 
-    parsed = parse_search_text(name or "")
-    if mode == "autocomplete":
-        if len(parsed.leaf) < AUTOCOMPLETE_MIN_CHARS:
-            raise ValueError(
-                f"autocomplete needs at least {AUTOCOMPLETE_MIN_CHARS} "
-                "characters"
-            )
-        if offset:
-            raise ValueError("autocomplete does not page")
     if not parsed.leaf:
         sql_query = _BROWSE_SQL.format(
             custom_scope=_custom_scope_sql(requested)

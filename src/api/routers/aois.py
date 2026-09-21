@@ -12,7 +12,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from src.api.auth.dependencies import require_auth
 from src.api.schemas import AOISearchResult, UserModel
 from src.shared.geocoding_helpers import (
-    AUTOCOMPLETE_MIN_CHARS,
+    MAX_SEARCH_NAME_CHARS,
+    MAX_SEARCH_OFFSET,
+    SearchRequestError,
     normalize_aoi_source,
     search_aois,
 )
@@ -27,7 +29,9 @@ router = APIRouter()
 async def search_aois_endpoint(
     response: Response,
     name: Optional[str] = Query(
-        default=None, description="Fuzzy name to search for. Omit to browse."
+        default=None,
+        max_length=MAX_SEARCH_NAME_CHARS,
+        description="Name to search for. Omit to browse.",
     ),
     source: List[str] = Query(
         default=[],
@@ -37,7 +41,7 @@ async def search_aois_endpoint(
         ),
     ),
     limit: int = Query(default=50, ge=1, le=100),
-    offset: int = Query(default=0, ge=0),
+    offset: int = Query(default=0, ge=0, le=MAX_SEARCH_OFFSET),
     mode: Literal["search", "autocomplete"] = Query(
         default="search",
         description=(
@@ -49,7 +53,7 @@ async def search_aois_endpoint(
 ):
     """Search/browse AOIs by name and source type.
 
-    - Provide ``name`` to search. ``mode=search`` (the default) resolves a
+    - Provide ``name`` (at most 200 characters) to search. ``mode=search`` (the default) resolves a
       place name, "Place" or "Place, Parent": exact names and name variants
       first, then partial matches, with a typo correction when nothing
       matches as typed. ``mode=autocomplete`` completes a keystroke: names
@@ -74,20 +78,6 @@ async def search_aois_endpoint(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
-    if mode == "autocomplete":
-        if len((name or "").strip()) < AUTOCOMPLETE_MIN_CHARS:
-            raise HTTPException(
-                status_code=422,
-                detail=(
-                    "autocomplete needs a name of at least "
-                    f"{AUTOCOMPLETE_MIN_CHARS} characters"
-                ),
-            )
-        if offset:
-            raise HTTPException(
-                status_code=422, detail="autocomplete does not accept offset"
-            )
-
     try:
         # Fetch one extra row to determine whether more pages exist.
         df = await search_aois(
@@ -98,6 +88,8 @@ async def search_aois_endpoint(
             offset=offset,
             mode=mode,
         )
+    except SearchRequestError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 

@@ -108,11 +108,11 @@ def tsv_sql(
     )
 
 
-# Rebuild the distinct-token table from the live tsvectors. ``ts_stat`` reads
-# every vector once, so this runs at the end of ``build-aois`` and not on each
-# custom-area write. A custom-area name that adds a token nobody else uses is
-# still found by the exact and token tiers; only typo correction lags until the
-# next rebuild.
+# Rebuild the distinct-token table from the reference rows' tsvectors.
+# ``ts_stat`` reads every vector once, so this runs at the end of
+# ``build-aois``. Custom areas stay out: the table is shared by every user, and
+# a private area name must not steer another user's typo correction. A custom
+# area is still found by the exact and token tiers; it just gets no correction.
 TOKENS_REBUILD_SQL = [
     "TRUNCATE aoi_search_tokens",
     """
@@ -120,7 +120,8 @@ TOKENS_REBUILD_SQL = [
     SELECT word, ndoc
     FROM ts_stat(
         'SELECT search_tsv FROM aois '
-        'WHERE NOT is_disputed AND NOT is_deprecated AND search_tsv IS NOT NULL'
+        'WHERE NOT is_disputed AND NOT is_deprecated '
+        'AND source <> ''custom'' AND search_tsv IS NOT NULL'
     )
     """,
 ]

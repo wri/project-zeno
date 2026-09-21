@@ -17,6 +17,7 @@ from src.api.services.aoi_sync import (
     prune_orphan_custom_aois,
     upsert_custom_aoi,
 )
+from src.shared.aoi_search_sql import TOKENS_REBUILD_SQL
 from tests.conftest import async_session_maker, seed_reference_aoi
 
 AUTH = {"Authorization": "Bearer abc123"}
@@ -490,3 +491,24 @@ async def test_prune_does_not_commit(auth_override, client):
 
     aoi, _ = await _fetch_aoi(orphan)
     assert aoi is not None
+
+
+@pytest.mark.asyncio
+async def test_custom_area_names_stay_out_of_the_token_table(
+    auth_override, client
+):
+    """The token table is shared by every user, so a private name must not
+    become another user's typo correction."""
+    auth_override("test-user-wri")
+    await _create_area(client, "Zqxvba Reserve")
+    async with async_session_maker() as session:
+        for statement in TOKENS_REBUILD_SQL:
+            await session.execute(text(statement))
+        await session.commit()
+        tokens = {
+            row[0]
+            for row in await session.execute(
+                text("SELECT token FROM aoi_search_tokens")
+            )
+        }
+    assert "zqxvba" not in tokens

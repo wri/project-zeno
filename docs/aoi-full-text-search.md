@@ -196,6 +196,16 @@ planned for a later phase.
 
 ## Operating notes
 
+- **Input caps.** `name` is at most 200 characters and may not contain NUL;
+  `offset` is at most 10,000; typo correction runs only for a leaf of at most
+  six distinct words. All are enforced in `search_aois` (the API maps the
+  error to 422; the geocoder trims the model's string first). Without them a
+  long list of real words costs one trigram lookup per word, and a huge
+  offset sorts the whole table on disk.
+- **Token table and privacy.** `aoi_search_tokens` is shared by every user,
+  so custom-area names stay out of it; a custom area is still found by the
+  exact and token tiers, it just gets no typo correction.
+
 - **Deploy order.** The migration adds the search columns empty, and the new
   search reads only them. Run a full `build-aois` right after the migrate Job
   of the deploy that ships this; until it finishes, name search returns

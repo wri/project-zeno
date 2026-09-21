@@ -46,6 +46,7 @@ from src.shared.gadm_admin_types import GadmAdminTerm, resolve_gadm_admin_level
 from src.shared.geocoding_helpers import (
     AOI_SOURCE_ID_COLUMNS,
     HIERARCHY_SCORES,
+    MAX_SEARCH_NAME_CHARS,
     SUBREGION_TO_SUBTYPE_MAPPING,
     parse_search_text,
     search_aois,
@@ -101,6 +102,9 @@ async def query_aoi_database(
     """
     sources = [aoi_to_table[aoi_type]] if aoi_type is not None else None
     user_id = current_user_id()
+    # The model's string is not trusted to be a place name: cut it to what
+    # search accepts rather than fail the whole tool call on it.
+    place_name = place_name.replace("\x00", "")[:MAX_SEARCH_NAME_CHARS]
     return await search_aois(
         name=place_name,
         sources=sources,
