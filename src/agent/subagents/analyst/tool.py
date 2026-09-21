@@ -585,7 +585,9 @@ class Analyst:
             "insight": insight.primary_insight,
             "follow_up_suggestions": insight.follow_up_suggestions,
             "codeact_parts": codeact_parts,
-            "charts_data": [c.to_frontend_dict() for c in insight.charts],
+            "charts_data": [
+                c.to_frontend_dict(insight_id) for c in insight.charts
+            ],
             "messages": [
                 ToolMessage(
                     content=await _build_tool_message(
@@ -622,9 +624,12 @@ class Analyst:
 
         if len(aoi_names) != 1:
             return _error_command(
-                f"{dataset_name} supports one area at a time; comparisons "
-                "between areas are not available. Tell the user politely and "
-                "ask them to choose one area.",
+                f"Horizon shows {dataset_name} for one area at a time; it "
+                "does not yet support comparing or ranking areas. Tell the "
+                "user politely that this is a Horizon limitation, not a "
+                "limitation of the data, and ask them to choose one area. "
+                "No chart was produced for this request — do not describe "
+                "any chart, graph, or comparison as having been shown.",
                 tool_call_id,
             )
 
@@ -670,7 +675,9 @@ class Analyst:
                 "insight": insight.primary_insight,
                 "follow_up_suggestions": [],
                 "codeact_parts": [],
-                "charts_data": [c.to_frontend_dict() for c in insight.charts],
+                "charts_data": [
+                    c.to_frontend_dict(insight_id) for c in insight.charts
+                ],
                 "messages": [
                     ToolMessage(
                         content=await _build_curated_only_tool_message(

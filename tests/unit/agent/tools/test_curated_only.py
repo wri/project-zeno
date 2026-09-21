@@ -127,6 +127,25 @@ async def test_curated_only_insight_skips_every_model(curated_run):
     assert curated_run.await_args.kwargs["codeact_parts"] == []
 
 
+async def test_curated_only_charts_carry_grouped_ids(curated_run):
+    """The LGMS charts reach the frontend under one `chartBatchKey` group.
+
+    That shared `{insightId}-chart-{n}` prefix is what folds the three
+    net-flux roll-ups behind a single DETAIL pill instead of rendering four
+    unrelated cards.
+    """
+    command = await Analyst().analyze(
+        "net GHG flux",
+        statistics=[_lgms_statistics()],
+        tool_call_id="call-1",
+        language="en",
+    )
+
+    ids = [chart["id"] for chart in command.update["charts_data"]]
+
+    assert ids == [f"insight-1-chart-{position}" for position in range(4)]
+
+
 async def test_curated_only_tool_message_carries_no_values(curated_run):
     command = await Analyst().analyze(
         "show me the data",
