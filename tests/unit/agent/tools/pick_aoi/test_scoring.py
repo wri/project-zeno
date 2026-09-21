@@ -213,3 +213,46 @@ def test_selected_aoi_keeps_the_state_shape_of_an_aoi_selection_entry():
     # bbox is absent from the recorded fixture columns, so the model default
     # (the world bbox) must fill it.
     assert selected.bbox == WORLD_BBOX
+
+
+def test_the_search_rank_breaks_a_near_tie_on_the_name():
+    """ "Las Palmas, Spain" reads almost the same against the Canarian and the
+    Panamanian Las Palmas; the search's rank knows which one matched the
+    typed parent, and the scorer weighs it."""
+    rows = pd.DataFrame(
+        [
+            _row(
+                "PAN.13.5_1",
+                "Las Palmas, Veraguas, Panama",
+                subtype="district-county",
+                score=0.725,
+            ),
+            _row(
+                "ESP.14.1_1",
+                "Las Palmas, Islas Canarias, Spain",
+                subtype="district-county",
+                score=0.925,
+            ),
+        ]
+    )
+
+    selected = score_best_aoi(rows, ["Las Palmas, Spain"])
+
+    assert selected is not None and selected.src_id == "ESP.14.1_1"
+
+
+def test_a_frame_without_a_search_rank_still_scores():
+    rows = pd.DataFrame(
+        [
+            {
+                "src_id": "PRT.12_1",
+                "name": "Lisboa, Portugal",
+                "subtype": "state-province",
+                "source": "gadm",
+            }
+        ]
+    )
+
+    selected = score_best_aoi(rows, ["Lisboa, Portugal"])
+
+    assert selected is not None and selected.src_id == "PRT.12_1"

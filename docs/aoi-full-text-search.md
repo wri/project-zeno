@@ -151,11 +151,31 @@ semi-join. The geocoder's contract (`pick_aoi` → `search_aois(name: str)`)
 is unchanged in this phase; the multi-term fan-out and the Python scorer
 stay, now fed by a better-ranked candidate list.
 
-One geocoder behaviour did change on purpose: a place given with its parent
-("Para, Brazil") no longer triggers the "which one?" nudge. The search now
-returns the other countries' same-named places below the parent's match,
-where the old search missed them, and a user who named the country has
-already answered the question.
+Three geocoder behaviours did change on purpose, all because the search now
+returns every namesake where the old one missed most of them:
+
+- A place given with its parent ("Para, Brazil") no longer triggers the
+  "which one?" nudge; a user who named the country has already answered.
+- The nudge only offers namesakes of comparable prominence: Scotland the
+  state is not put to a vote against the US districts called Scotland, while
+  Amazonas in Brazil and Amazonas in Peru still are. (A selected country never
+  nudged, before or after: the check keys on a dotted GADM id.)
+- The deterministic scorer adds a fifth of the search's own rank to its
+  name comparison. The rank knows what the string comparison cannot: that a
+  row matched a stored name exactly and that the typed parent matched. "Las
+  Palmas, Spain" reads almost the same against the Canarian and the
+  Panamanian Las Palmas; the rank picks Spain.
+
+The candidate limit stays at 10 per term. With the new ranking the exact
+matches lead the list, so 10 was enough for every eval and tools-suite case,
+and a larger list would only lengthen the nudge's options for common names.
+
+One scorer limit worth knowing, exposed rather than caused by the recall:
+"Gunung Leuser National Park" now also retrieves the UNESCO reserve whose
+name embeds "National Park", and the scorer's exact-leaf bonus prefers it
+over the WDPA row whose designation is National Park. Telling those apart
+needs the designation as a field, which is the structured geocoder contract
+planned for a later phase.
 
 ## Rejected alternatives
 
@@ -184,8 +204,9 @@ already answered the question.
   indexes are declared on the ORM models so tests see the real plans.
 - `tests/tools/test_pick_aoi.py` replays recorded `query_aoi_database` frames
   in CI, so a retrieval change is only visible when that suite runs live
-  against a populated database. Any change in its live results is documented
-  in the PR with the query and the before/after candidates.
+  against a populated database. `scripts/record_aoi_pick_aoi_fixtures.py`
+  re-records the fixture from a database built by `build-aois`; run it and
+  commit the JSON whenever the search or the corpus changes.
 - The pg_trgm threshold is set with `SET LOCAL` inside the correction's
   transaction only. The per-request `CREATE EXTENSION` / `SET` / `COMMIT`
   preamble is gone.

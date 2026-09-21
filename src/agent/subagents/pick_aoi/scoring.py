@@ -26,6 +26,12 @@ _SIMILARITY_WEIGHT = 0.5
 _HIERARCHY_WEIGHT = 0.3
 _EXACT_SEGMENT_BONUS = 0.2
 _PREFIX_BONUS = 0.1
+# The search's own rank (``similarity_score``, in [0, 1]) encodes what the
+# string comparison here cannot see: whether the row matched an exact stored
+# name, and whether the parent the user typed matched too. "Las Palmas,
+# Spain" reads almost the same against the Canarian and the Panamanian Las
+# Palmas, and only the rank knows which one is in Spain.
+_DB_RANK_WEIGHT = 0.2
 
 # Punctuation that can wrap a name segment. Stored names carry trailing
 # commas ("NA, England, United Kingdom"), and an `aoi_choice` nudge option is
@@ -99,7 +105,8 @@ def _score_candidate(place_name: str, name: str, subtype: str) -> float:
     Weighted sum of accent-insensitive string similarity and an admin
     hierarchy preference, plus an exact-leaf-name bonus that falls back to a
     weaker prefix bonus. The leaf bonus is what separates "Pará" from
-    "Paraná" for the term "Para".
+    "Paraná" for the term "Para". ``best_candidate_row`` adds the search's
+    own rank on top; this function scores the name alone.
 
     Raises:
         ValueError: If ``subtype`` is not a known AOI subtype.
@@ -155,15 +162,23 @@ def best_candidate_row(
     best_position = 0
     best_score = 0.0
 
-    # Only the four columns that scoring and the tie-break read, so no row
-    # this function does not select is ever built as a dict.
+    # A frame from a search carries the search's rank; one built by hand (a
+    # test, a mocked query) may not, and then the rank term is zero.
+    if "similarity_score" in candidate_aois.columns:
+        db_ranks = candidate_aois["similarity_score"].fillna(0.0).tolist()
+    else:
+        db_ranks = [0.0] * len(candidate_aois)
+
+    # Only the columns that scoring and the tie-break read, so no row this
+    # function does not select is ever built as a dict.
     scoring_columns = zip(
         candidate_aois["name"],
         candidate_aois["subtype"],
         candidate_aois["source"],
         candidate_aois["src_id"],
+        db_ranks,
     )
-    for position, (name, subtype, source, src_id) in enumerate(
+    for position, (name, subtype, source, src_id, db_rank) in enumerate(
         scoring_columns
     ):
         hierarchy = _hierarchy_score(subtype)
@@ -175,7 +190,7 @@ def best_candidate_row(
                 term, term_leaf, candidate, candidate_leaf, hierarchy, matcher
             )
             for term, term_leaf in term_forms
-        )
+        ) + _DB_RANK_WEIGHT * float(db_rank)
         # Compare on explicit secondary keys rather than the score alone, so
         # equal scores resolve identically whatever order the rows arrived in.
         key = (-score, name, source, str(src_id))

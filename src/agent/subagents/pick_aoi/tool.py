@@ -45,6 +45,7 @@ from src.shared.database import get_connection_from_pool
 from src.shared.gadm_admin_types import GadmAdminTerm, resolve_gadm_admin_level
 from src.shared.geocoding_helpers import (
     AOI_SOURCE_ID_COLUMNS,
+    HIERARCHY_SCORES,
     SUBREGION_TO_SUBTYPE_MAPPING,
     parse_search_text,
     search_aois,
@@ -379,8 +380,20 @@ async def select_best_aoi(
     return selected_aoi
 
 
+# A same-named place in another country is offered as a choice only when it
+# is about as prominent as the selected one: a country against a state, or a
+# state against a state. The search now returns every namesake, and the
+# districts and municipalities called Scotland or California are not what
+# someone typing those names is asking about. One step of the hierarchy
+# scores is 0.1 between country and state, 0.2 below that.
+_NUDGE_PROMINENCE_MARGIN = 0.1
+
+
 async def check_multiple_matches(
-    src_id: str, short_name: str, results: pd.DataFrame
+    src_id: str,
+    short_name: str,
+    results: pd.DataFrame,
+    selected_subtype: Optional[str] = None,
 ) -> Optional[list[dict]]:
     # A place can now be resolved by a canonical name or an alternative
     # spelling while the place name itself matched nothing, so this can be
@@ -398,6 +411,15 @@ async def check_multiple_matches(
             (results.source == "gadm")
             & (~results.src_id.str.startswith(selected_country + "."))
         ]
+        if selected_subtype in HIERARCHY_SCORES:
+            floor = (
+                HIERARCHY_SCORES[selected_subtype] - _NUDGE_PROMINENCE_MARGIN
+            )
+            different_country_results = different_country_results[
+                different_country_results.subtype.map(HIERARCHY_SCORES)
+                .fillna(0.0)
+                .ge(floor)
+            ]
 
         # Find exact matches of the short name in different countries
         exact_matches_different_countries = different_country_results[
@@ -481,7 +503,7 @@ async def check_duplicate_aois(
         if selected_aoi.source == "gadm":
             short_name = selected_aoi.name.split(",")[0]
             candidates = await check_multiple_matches(
-                selected_aoi.src_id, short_name, result
+                selected_aoi.src_id, short_name, result, selected_aoi.subtype
             )
             if candidates:
                 options = [_format_aoi_candidate(c) for c in candidates]

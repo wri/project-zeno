@@ -790,3 +790,54 @@ async def test_a_place_resolved_only_by_an_alternative_raises_no_nudge(
 
     assert "nudge" not in command.update
     assert command.update["aoi_selection"]["aois"][0]["src_id"] == "USA.6_1"
+
+
+@pytest.mark.asyncio
+async def test_a_less_prominent_namesake_raises_no_nudge(monkeypatch):
+    """Scotland is a state; the US districts called Scotland are not a
+    question to ask back. The search now returns every namesake, so the
+    nudge weighs prominence."""
+    _patch_search(
+        monkeypatch,
+        {
+            "Scotland": [
+                _row(
+                    "GBR.3_1",
+                    "Scotland, United Kingdom",
+                    subtype="state-province",
+                ),
+                _row(
+                    "USA.7.8_1",
+                    "Scotland, Windham, Connecticut, United States",
+                    subtype="district-county",
+                ),
+            ]
+        },
+    )
+
+    command = await _lookup(
+        [ExtractedPlace(place="Scotland")], question="peatland in Scotland"
+    )
+
+    assert "nudge" not in command.update
+    assert command.update["aoi_selection"]["aois"][0]["src_id"] == "GBR.3_1"
+
+
+@pytest.mark.asyncio
+async def test_namesakes_of_the_same_prominence_still_nudge(monkeypatch):
+    _patch_search(
+        monkeypatch,
+        {
+            "Amazonas": [
+                _row("BRA.4_1", "Amazonas, Brazil", subtype="state-province"),
+                _row("PER.1_1", "Amazonas, Peru", subtype="state-province"),
+            ]
+        },
+    )
+
+    command = await _lookup(
+        [ExtractedPlace(place="Amazonas")], question="forest loss in Amazonas"
+    )
+
+    assert command.update["nudge"]["type"] == "aoi_choice"
+    assert len(command.update["nudge"]["options"]) == 2
