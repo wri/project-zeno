@@ -900,6 +900,13 @@ async def test_valid_selected_layer_survives_end_to_end():
         "livestock",
     ]
 
+    tool_message = command.update["messages"][0]
+    assert (
+        "Map layers available: lgms, lulucf, agriculture, cropland, "
+        "livestock" in tool_message.content
+    )
+    assert "Map layer displayed: agriculture" in tool_message.content
+
 
 async def test_selected_layer_none_for_single_layer_dataset():
     """selected_layer is always nulled for a dataset with <= 1 layer, even if
@@ -1188,9 +1195,9 @@ async def test_queries_return_no_dataset(query, start_date, end_date):
         f"but got dataset_id={command.update.get('dataset', {}).get('dataset_id')}"
     )
     nudge = command.update.get("nudge")
-    assert nudge is None, (
-        f"Expected no nudge for query '{query}' but got {nudge}"
-    )
+    assert (
+        nudge is None
+    ), f"Expected no nudge for query '{query}' but got {nudge}"
 
 
 @pytest.mark.parametrize(
