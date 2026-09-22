@@ -91,32 +91,6 @@ def _upsert_sql(scoped: bool) -> str:
     """
 
 
-def _names_sync_sql(scoped: bool) -> list[str]:
-    """The ``aoi_names`` rows of the mirrored custom areas: one ``primary``.
-
-    A custom area has no variants, so its names row is its leaf. A rename
-    leaves a stale row behind, so the first statement deletes every row that
-    no longer matches the leaf and the second inserts the current one. Both
-    read ``aois``, which the upsert has already written in this transaction.
-    """
-    where_area = "AND a.source_id = ANY(:src_ids)" if scoped else ""
-    return [
-        f"""
-        DELETE FROM aoi_names n USING aois a
-        WHERE n.aoi_id = a.id AND a.source = 'custom' {where_area}
-          AND NOT (n.kind = 'primary' AND n.name_norm = a.leaf_norm)
-        """,
-        f"""
-        INSERT INTO aoi_names (aoi_id, name, name_norm, kind)
-        SELECT a.id, a.leaf, a.leaf_norm, 'primary'
-        FROM aois a
-        WHERE a.source = 'custom' AND NOT a.is_deprecated
-          AND a.leaf IS NOT NULL {where_area}
-        ON CONFLICT (aoi_id, kind, name_norm) DO NOTHING
-        """,
-    ]
-
-
 # Count the custom areas whose geometry does not give a non-empty MultiPolygon.
 # Only the unscoped backfill uses this query, because it derives the shape twice.
 # That cost is acceptable once for the whole table, but not for each CRUD call.
@@ -172,11 +146,6 @@ async def upsert_custom_aoi(
     params = {"area_ids": ids} if scoped else {}
 
     result = await session.execute(text(_upsert_sql(scoped)), params)
-    names_params = (
-        {"src_ids": [str(i) for i in ids]} if ids is not None else {}
-    )
-    for statement in _names_sync_sql(scoped):
-        await session.execute(text(statement), names_params)
 
     if ids is not None:
         rows = await session.execute(

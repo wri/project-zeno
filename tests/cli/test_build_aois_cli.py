@@ -371,11 +371,12 @@ async def test_a_repaired_parent_leaves_its_childs_middle_segment_broken(
 
 @pytest.mark.asyncio
 async def test_gadm_rebuild_is_idempotent(gadm_staging):
-    """A second build upserts the same rows to the same names.
+    """A second build over unchanged data writes nothing and changes nothing.
 
     This is the ``ON CONFLICT ... DO UPDATE`` path every environment takes,
-    because build-aois is re-run rather than reset. The repair is re-derived
-    from staging on each run, which is what makes a re-ingest self-healing.
+    because build-aois is re-run rather than reset. A row whose columns all
+    match is left alone, so the rebuild neither bloats the heap nor clears
+    the visibility map the search's index-only scans depend on.
     """
     first = await _build("gadm")
     before = await _aoi_names("gadm")
@@ -383,7 +384,8 @@ async def test_gadm_rebuild_is_idempotent(gadm_staging):
     second = await _build("gadm")
     after = await _aoi_names("gadm")
 
-    assert first == second == len(_GADM_ROWS)
+    assert first == len(_GADM_ROWS)
+    assert second == 0
     assert before == after
     assert len(after) == len(_GADM_ROWS)
 
@@ -467,21 +469,18 @@ async def test_gadm_build_fills_the_search_columns(gadm_staging):
 
 
 @pytest.mark.asyncio
-async def test_gadm_names_hold_primary_variant_and_native(gadm_staging):
+async def test_gadm_names_hold_variants_and_native_spellings(gadm_staging):
+    """The leaf lives on aois; aoi_names holds the other spellings only."""
     await _build("gadm")
     inserted = await _build_names("gadm")
     names = await _names("gadm")
 
-    assert names["GBR.2_1"] == {
-        ("primary", "scotland"),
-        ("variant", "alba"),
-        ("variant", "scotia"),
-        ("native", "alba"),
-    }
-    assert names["GBR.1.1_1"] == {("primary", "barnsley")}
-    # No leaf, no primary row; the repaired parent gets its repaired name.
+    # One row per spelling: "Alba" is both a variant and the native name.
+    assert {norm for _, norm in names["GBR.2_1"]} == {"alba", "scotia"}
+    # A unit with no alternate spelling has no rows at all.
+    assert "GBR.1.1_1" not in names
+    assert "GBR.1_1" not in names
     assert "MHL.19_1" not in names
-    assert names["GBR.1_1"] == {("primary", "england")}
     # The variants are also tokens of the tsvector, at the leaf's weight.
     cols = await _search_columns("gadm")
     assert "'scotia':3A" in cols["GBR.2_1"]["tsv"]
@@ -543,12 +542,9 @@ async def test_wdpa_context_names_the_country_and_keeps_orig_name(
         assert cols["2"]["context"] == "Park, ZZZ"
 
         names = await _names("wdpa")
-        assert names["1"] == {
-            ("primary", "masirah island reserve"),
-            ("native", "محمية مصيرة"),
-        }
-        # A case-only difference is not a variant.
-        assert names["2"] == {("primary", "same name")}
+        assert names["1"] == {("native", "محمية مصيرة")}
+        # A case-only difference is not a variant, so the row has no names.
+        assert "2" not in names
 
 
 @pytest.mark.asyncio
@@ -571,10 +567,7 @@ async def test_kba_uses_national_name_with_international_variant():
         cols = await _search_columns("kba")
         assert cols["10"]["leaf"] == "Van Ovasi"
         assert cols["10"]["context"] == "Turkey"
-        assert (await _names("kba"))["10"] == {
-            ("primary", "van ovasi"),
-            ("international", "van plains"),
-        }
+        assert (await _names("kba"))["10"] == {("international", "van plains")}
 
 
 @pytest.mark.asyncio

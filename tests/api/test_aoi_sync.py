@@ -119,9 +119,7 @@ async def _fetch_names(aoi_id):
 
 
 @pytest.mark.asyncio
-async def test_create_fills_search_columns_and_primary_name(
-    auth_override, client
-):
+async def test_create_fills_search_columns(auth_override, client):
     auth_override("test-user-wri")
     area_id = await _create_area(client, "  Área do Rio  ")
 
@@ -132,11 +130,12 @@ async def test_create_fills_search_columns_and_primary_name(
     assert aoi["leaf_norm"] == "area do rio"
     assert aoi["context"] is None
     assert "'area':1A" in aoi["tsv"] and "'rio':3A" in aoi["tsv"]
-    assert await _fetch_names(aoi["id"]) == {("primary", "area do rio")}
+    # A custom area has no alternate spellings, so no aoi_names rows.
+    assert await _fetch_names(aoi["id"]) == set()
 
 
 @pytest.mark.asyncio
-async def test_patch_replaces_the_primary_name(auth_override, client):
+async def test_patch_updates_the_search_columns(auth_override, client):
     auth_override("test-user-wri")
     area_id = await _create_area(client, "Before")
 
@@ -147,21 +146,7 @@ async def test_patch_replaces_the_primary_name(auth_override, client):
 
     aoi, _ = await _fetch_aoi(area_id)
     assert aoi["leaf_norm"] == "after"
-    # The stale "before" row is gone, so search cannot find the old name.
-    assert await _fetch_names(aoi["id"]) == {("primary", "after")}
-
-
-@pytest.mark.asyncio
-async def test_delete_cascades_to_names(auth_override, client):
-    auth_override("test-user-wri")
-    area_id = await _create_area(client, "Doomed")
-    aoi, _ = await _fetch_aoi(area_id)
-    assert await _fetch_names(aoi["id"])
-
-    res = await client.delete(f"/api/custom_areas/{area_id}", headers=AUTH)
-    assert res.status_code == 204
-
-    assert await _fetch_names(aoi["id"]) == set()
+    assert "'after':1A" in aoi["tsv"] and "before" not in aoi["tsv"]
 
 
 @pytest.mark.asyncio

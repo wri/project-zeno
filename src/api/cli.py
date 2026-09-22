@@ -1282,6 +1282,10 @@ async def _build_reference_aois(
 ) -> int:
     """Transform one ``geometries_<source>`` table into ``aois`` (idempotent).
 
+    Returns the number of rows written. A row whose every column already
+    matches is left alone, so a rebuild over unchanged data writes nothing
+    and neither bloats the heap nor clears the visibility map.
+
     The INSERT runs in ``nchunks`` passes partitioned by a hash of the source
     id -- each pass its own statement and its own transaction. This bounds the
     open transaction and makes a late failure resumable (committed chunks are
@@ -1437,13 +1441,22 @@ async def _build_reference_aois(
             context = EXCLUDED.context,
             search_tsv = EXCLUDED.search_tsv,
             updated_at = now()
+        WHERE (aois.name, aois.subtype, aois.bbox, aois.area_km2, aois.iso3,
+               aois.admin_level, aois.is_disputed, aois.leaf, aois.leaf_norm,
+               aois.context, aois.search_tsv, aois.geometry::bytea)
+              IS DISTINCT FROM
+              (EXCLUDED.name, EXCLUDED.subtype, EXCLUDED.bbox,
+               EXCLUDED.area_km2, EXCLUDED.iso3, EXCLUDED.admin_level,
+               EXCLUDED.is_disputed, EXCLUDED.leaf, EXCLUDED.leaf_norm,
+               EXCLUDED.context, EXCLUDED.search_tsv,
+               EXCLUDED.geometry::bytea)
     """
-    inserted = 0
+    written = 0
     for chunk in range(nchunks):
         result = await session.execute(
             text(sql), {"nchunks": nchunks, "chunk": chunk, **repair_params}
         )
-        inserted += result.rowcount
+        written += result.rowcount
         # One transaction per chunk: bounds the open transaction and makes a
         # real run resumable. dry_run discards each chunk once its counts land.
         if dry_run:
@@ -1471,37 +1484,53 @@ async def _build_reference_aois(
         )
 
     # Distinct ids whose largest representative row didn't coerce to a
-    # non-empty MultiPolygon (so it never made it into aois). Derived by
-    # arithmetic to avoid a second full-table ST_MakeValid pass.
-    skipped = distinct_ids - inserted
-    if skipped:
+    # non-empty MultiPolygon (so it never made it into aois). Compared against
+    # the rows present rather than the rows written: an unchanged row is not
+    # rewritten, so the write count says nothing about coverage.
+    present = await session.scalar(
+        text(
+            "SELECT count(*) FROM aois "
+            "WHERE source = :source AND NOT is_deprecated"
+        ),
+        {"source": source},
+    )
+    skipped = distinct_ids - int(present or 0)
+    if skipped > 0:
         click.echo(
             f"⚠️  {source}: {skipped} AOI(s) dropped (representative "
             f"geometry not coercible to a non-empty MultiPolygon)."
         )
-    return inserted
+    return written
 
 
 async def _build_aoi_names(session: AsyncSession, source: str) -> int:
     """Rebuild the ``aoi_names`` rows of one reference source (idempotent).
 
-    Every source gets a ``primary`` row from ``aois.leaf``; the variants come
-    from the staging columns the source has (see ``_SEARCH_SOURCE_COLUMNS``).
-    Delete-then-insert per source, so a re-ingest that drops a variant drops
-    its row. Staging repeats ids, and a variant can restate the primary name,
-    so the insert ignores conflicts on the unique key and skips a variant
-    whose normalized form equals the leaf's. Runs after the chunked build, in
-    the caller's transaction. Returns the number of rows inserted.
+    The alternate names come from the staging columns the source has (see
+    ``_SEARCH_SOURCE_COLUMNS``); the leaf itself lives on ``aois``. Delete-
+    then-insert per source, so a re-ingest that drops a variant drops its
+    row. Staging repeats ids, and a variant can restate the leaf, so the
+    insert ignores conflicts on the unique key and skips a variant whose
+    normalized form equals the leaf's. Runs after the chunked build, in the
+    caller's transaction. Returns the number of rows inserted.
     """
     table = SOURCE_STAGING_TABLES[source]
     id_col = AOI_SOURCE_ID_COLUMNS[source]
     search = await _search_exprs(session, source)
 
-    arms = ["SELECT 'primary', a.leaf"]
-    arms += [
+    arms = [
         f"SELECT '{kind}', unnest({array_expr})"
         for kind, array_expr in search.variant_arms("s.")
     ]
+    if not arms:
+        await session.execute(
+            text(
+                "DELETE FROM aoi_names n USING aois a "
+                "WHERE n.aoi_id = a.id AND a.source = :source"
+            ),
+            {"source": source},
+        )
+        return 0
     cleaned = clean_name_sql("v.name")
 
     await session.execute(
@@ -1526,9 +1555,8 @@ async def _build_aoi_names(session: AsyncSession, source: str) -> int:
                 WHERE a.source = :source AND NOT a.is_deprecated
             ) c
             WHERE c.name IS NOT NULL
-              AND (c.kind = 'primary'
-                   OR c.name_norm IS DISTINCT FROM c.leaf_norm)
-            ON CONFLICT (aoi_id, kind, name_norm) DO NOTHING
+              AND c.name_norm IS DISTINCT FROM c.leaf_norm
+            ON CONFLICT (aoi_id, name_norm) DO NOTHING
             """
         ),
         {"source": source},
@@ -1681,7 +1709,7 @@ def build_aois_command(
     delete that the mirror missed.
     """
     selected = list(sources) or _BUILD_SOURCES
-    outcome = "would be upserted" if dry_run else "upserted"
+    outcome = "would be written" if dry_run else "written"
 
     if prune and inspect:
         raise click.UsageError("--prune cannot run with --inspect.")
@@ -1800,13 +1828,23 @@ def build_aois_command(
                     tokens = await _rebuild_search_tokens(session)
                     await session.commit()
                 click.echo(f"\n🔤 Search tokens rebuilt: {tokens}.")
-                async with db.async_session() as session:
-                    await session.execute(text("ANALYZE aois"))
-                    await session.execute(text("ANALYZE user_aois"))
-                    await session.execute(text("ANALYZE aoi_names"))
-                    await session.execute(text("ANALYZE aoi_search_tokens"))
-                    await session.commit()
-                click.echo("\n📈 Planner statistics refreshed.")
+                # VACUUM, not just ANALYZE: the search's index-only scans
+                # need the visibility map, which the rewritten pages lost.
+                # VACUUM refuses a transaction block, hence autocommit.
+                async with db.engine.connect() as conn:
+                    conn = await conn.execution_options(
+                        isolation_level="AUTOCOMMIT"
+                    )
+                    for table in (
+                        "aois",
+                        "user_aois",
+                        "aoi_names",
+                        "aoi_search_tokens",
+                    ):
+                        await conn.execute(text(f"VACUUM (ANALYZE) {table}"))
+                click.echo(
+                    "\n📈 Tables vacuumed, planner statistics refreshed."
+                )
         except Exception:
             if committed:
                 click.echo(

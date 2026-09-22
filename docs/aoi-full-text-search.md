@@ -44,15 +44,17 @@ custom-area mirror through shared SQL in `src/shared/aoi_search_sql.py`:
 | `context` | what follows the leaf: GADM parents and country (consecutive duplicate segments collapsed), WDPA `desig_eng` + country, KBA `Country`, LandMark `category` + `country` |
 | `search_tsv` | weighted tsvector: leaf and every name variant at weight A, context at weight B, and the display name (minus no-data segments) at weight D, so a display name pasted back as a query still matches its row |
 
-`aoi_names` holds one row per name a place is known by: `kind` is `primary`,
-`variant` (GADM VARNAME, `|`-separated), `native` (GADM NL_NAME, WDPA
-`orig_name` when it differs), `international` (KBA `IntName`) or `code` (a
-country's ISO3, so "USA" is the United States). Non-Latin scripts are stored
-as they come; `unaccent` passes them through.
+`aoi_names` holds one row per alternate spelling of a place, one per
+`(aoi_id, name_norm)`: `kind` is `variant` (GADM VARNAME, `|`-separated),
+`native` (GADM NL_NAME, WDPA `orig_name` when it differs), `international`
+(KBA `IntName`) or `code` (a country's ISO3, so "USA" is the United States).
+The leaf itself is not repeated here: `aois.leaf_norm` is the primary name,
+and a spelling equal to it is not stored. Custom areas have no rows.
+Non-Latin scripts are stored as they come; `unaccent` passes them through.
 
-`aoi_search_tokens` is the distinct-lexeme table of `search_tsv` (`ts_stat`,
-~515k tokens), rebuilt at the end of `build-aois`. It exists only for typo
-correction.
+`aoi_search_tokens` is the distinct-lexeme table of `search_tsv` over the
+reference sources (`ts_stat`, ~547k tokens with their document counts),
+rebuilt at the end of `build-aois`. It serves only the miss path below.
 
 All text goes through one text search configuration, `aoi_search`: a copy of
 `simple` with the `unaccent` filter in front. No stemming and no stopword
@@ -89,28 +91,46 @@ One statement finds candidates in three arms and keeps each row's best tier:
 
 | tier | arm | example |
 |---|---|---|
-| 2 | `aoi_names.name_norm = leaf_norm` | "Lisbon" finds Lisboa through its variant; "USA" finds the United States through its code |
+| 2 | `aois.leaf_norm = leaf_norm` or `aoi_names.name_norm = leaf_norm` | "Lisbon" finds Lisboa through its variant; "USA" finds the United States through its code |
 | 1 | `search_tsv @@ leaf tokens` | "Congo" finds every row with the token, both Congos included |
 | 1 | `leaf_norm LIKE 'leaf%'` | "Amazon" finds Amazonas |
 
 Within a tier the order is: rows whose context also matches the query's
 context (the parent the user typed) first, then the hierarchy prior (country
 above state above district, admin units above named sites; the same table
-the geocoder's Python scorer uses), then a match on the primary name over
-one on a variant, then area, then name. Each arm is sorted the same way and
+the geocoder's Python scorer uses), then area, then name. Each arm is
+sorted the same way and
 limited to `limit + offset` rows, which is exact: a row in the final top-N
 sits within the top-N of the arm that gave it its tier. The rank is returned
 as `similarity_score` in [0, 1] so the geocoder's merge and the replay
 fixtures keep working.
 
-The typo correction runs only when the result does not answer the query as
+The miss path runs only when the result does not answer the query as
 typed: no rows, or a parent was named and no row has it ("Lisbon, Portugal"
-must not stop at the US preserves called Lisbon). Each leaf token is
-corrected against `aoi_search_tokens` (`token % :tok` at threshold 0.3, set
-with `SET LOCAL` for that transaction; best three by similarity then document
-frequency) and the token arm is rerun with the corrections. "Bangalor"
-becomes "bangalore"; "Lisbon, Portugal" becomes "lisboa AND portugal". This
-is the only place trigram matching is used, against short single tokens.
+must not stop at the US preserves called Lisbon). One statement looks every
+word of the leaf up in `aoi_search_tokens`: how many names carry it, and the
+stored tokens nearest to it (`token % :tok` at threshold 0.3, set with `SET
+LOCAL` for that transaction, then by `levenshtein` distance and document
+frequency, at most three, and only within `greatest(1, length / 4)` edits so
+"kashmir" is not "kashmore"). Words under three letters pass through. Then
+the token arm is rerun, at most three times, stopping at the first result
+that answers the query:
+
+1. **Corrected spelling**, when some word has a neighbour other than itself:
+   "Bangalor" becomes "bangalore"; "Sao Paolo, Brazil" becomes
+   "sao AND (paulo OR paola OR paolo)" and the Brazil context picks São
+   Paulo. Scores are scaled by 0.8.
+2. **Last word dropped**, then **first word dropped**: "Serengeti NP" finds
+   Serengeti, "Ho Chi Minh City" finds Hồ Chí Minh. Scores are scaled by
+   0.6, below a correction, because a small misspelling is a closer reading
+   of the input than a missing word. A retry is skipped when the words it
+   keeps cannot name a place: none is in the corpus, the one left is in
+   more than a thousand names ("republic" from "Czech Republic", "sao" from
+   "Sao Paolo") or is under three letters ("np"). Two or more words kept
+   together always qualify ("mount AND kenya").
+
+This is the only place trigram matching is used, against short single
+tokens. The lookup costs about 30 ms; a retry costs one token-arm query.
 
 Measured on the corpus after the rewrite: "Paris" 21 ms, "Paris, France"
 5 ms, "Congo" 18 ms, "Mumbai" 11 ms, "Bangalor" 11 ms including the
@@ -125,13 +145,13 @@ and the previous search took 4.7 s and 2.2 s on the same queries.
 `GET /api/aois?name=<text>&mode=autocomplete` completes a keystroke. It
 needs at least two characters, takes no offset (the next keystroke replaces
 the list) and never corrects a typo. Three arms, each ranked by the hierarchy
-prior first so the list leads with prominent places, then a primary-name
-prefix over a variant's, then area:
+prior first so the list leads with prominent places, then a leaf prefix over
+a variant's, then area:
 
 - the normalized leaf starts with the typed text (index-only on the covering
   index);
 - a stored name variant starts with it ("lisb" reaches Lisboa through
-  "Lisbon"); only variants, since primary names are the arm above;
+  "Lisbon");
 - the typed words as tokens with the last one as a prefix ("new y" reaches
   New York), used only for several words or a single word of four or more
   letters, because a two-letter prefix expands to thousands of lexemes.
@@ -197,14 +217,17 @@ planned for a later phase.
 ## Operating notes
 
 - **Input caps.** `name` is at most 200 characters and may not contain NUL;
-  `offset` is at most 10,000; typo correction runs only for a leaf of at most
+  `offset` is at most 10,000; the miss path runs only for a leaf of at most
   six distinct words. All are enforced in `search_aois` (the API maps the
   error to 422; the geocoder trims the model's string first). Without them a
   long list of real words costs one trigram lookup per word, and a huge
   offset sorts the whole table on disk.
 - **Token table and privacy.** `aoi_search_tokens` is shared by every user,
   so custom-area names stay out of it; a custom area is still found by the
-  exact and token tiers, it just gets no typo correction.
+  exact and token tiers, it just gets no typo correction or word dropping.
+- **Statement shape.** The candidate CTE is `NOT MATERIALIZED`, so the
+  planner evaluates the tsquery once and pushes it into each arm's index
+  scan instead of building the CTE first.
 
 - **Deploy order.** The migration adds the search columns empty, and the new
   search reads only them. Run a full `build-aois` right after the migrate Job
@@ -214,9 +237,14 @@ planned for a later phase.
   once the new code is live.
 
 - `build-aois` populates all search columns and tables and ends with the
-  token rebuild and `ANALYZE`. The custom-area write-through keeps `aois` and
-  `aoi_names` current per request; the token table lags until the next build,
-  which only affects typo correction for brand-new tokens.
+  token rebuild and `VACUUM (ANALYZE)` of the four tables: the vacuum sets
+  the visibility map the search's index-only scans depend on, which a plain
+  `ANALYZE` would not. The reference upsert updates a row only when a column
+  differs from the staging value, so a rebuild over unchanged data writes
+  nothing, keeps the heap compact and reports the rows it would have
+  rewritten as unchanged. The custom-area write-through keeps `aois` current
+  per request; the token table lags until the next build, which only affects
+  the miss path for brand-new tokens.
 - The test schema comes from `create_all`, so `tests/conftest.py` runs the
   same extension and configuration DDL as the migration, and the search
   indexes are declared on the ORM models so tests see the real plans.

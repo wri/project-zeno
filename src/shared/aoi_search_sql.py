@@ -23,6 +23,8 @@ TS_CONFIG = "aoi_search"
 # dictionary lookup nor the tsvector calls depend on the caller's search_path.
 SEARCH_DDL = [
     "CREATE EXTENSION IF NOT EXISTS unaccent WITH SCHEMA public",
+    # levenshtein(), for ranking typo corrections.
+    "CREATE EXTENSION IF NOT EXISTS fuzzystrmatch WITH SCHEMA public",
     f"""
     DO $$
     BEGIN

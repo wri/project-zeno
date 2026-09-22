@@ -469,12 +469,72 @@ async def test_correction_is_skipped_for_a_long_phrase(auth_override, client):
             await session.execute(text(statement))
         await session.commit()
 
-    near = ["brasil", "brazl", "brazi", "brasi", "braxil", "brazul"]
+    # Six distinct words, each one edit from "brazil".
+    near = ["brasil", "brazl", "brazi", "bazil", "braxil", "brazul"]
     res = await client.get(f"/api/aois?name={' '.join(near)}", headers=AUTH)
     assert [r["src_id"] for r in res.json()] == ["BRA"]
 
     res = await client.get(
-        f"/api/aois?name={' '.join(near + ['brzail'])}", headers=AUTH
+        f"/api/aois?name={' '.join(near + ['brazill'])}", headers=AUTH
     )
     assert res.status_code == 200
     assert res.json() == []
+
+
+async def _rebuild_tokens():
+    async with async_session_maker() as session:
+        for statement in TOKENS_REBUILD_SQL:
+            await session.execute(text(statement))
+        await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_correction_prefers_the_closest_spelling(auth_override, client):
+    """ "Paolo" is one edit from "paulo"; a nearer-by-trigram junk token must
+    not win, and the typed parent still has to match."""
+    auth_override("test-user-wri")
+    await _seed_reference_aoi(
+        "gadm", "BRA.25_1", "São Paulo, Brazil", "state-province"
+    )
+    await _seed_reference_aoi(
+        "gadm", "PAN.1.1_1", "Paola, Bocas del Toro, Panama", "district-county"
+    )
+    await _rebuild_tokens()
+
+    res = await client.get("/api/aois?name=Sao Paolo, Brazil", headers=AUTH)
+    assert [r["src_id"] for r in res.json()] == ["BRA.25_1"]
+
+
+@pytest.mark.asyncio
+async def test_correction_does_not_reach_a_distant_word(auth_override, client):
+    """ "Kashmir" is two edits from "kashmore" on seven letters: not a typo."""
+    auth_override("test-user-wri")
+    await _seed_reference_aoi(
+        "gadm",
+        "PAK.8.12_1",
+        "Kashmore, Larkana, Sindh, Pakistan",
+        "district-county",
+    )
+    await _rebuild_tokens()
+
+    res = await client.get("/api/aois?name=Kashmir", headers=AUTH)
+    assert res.status_code == 200
+    assert res.json() == []
+
+
+@pytest.mark.asyncio
+async def test_an_extra_generic_word_is_dropped(auth_override, client):
+    auth_override("test-user-wri")
+    await _seed_reference_aoi(
+        "wdpa", "916", "Serengeti, National Park, TZA", "protected-area"
+    )
+    await _seed_reference_aoi(
+        "gadm", "CZE", "Czechia", "country", variants=["Czech Republic"]
+    )
+    await _rebuild_tokens()
+
+    res = await client.get("/api/aois?name=Serengeti NP", headers=AUTH)
+    assert [r["src_id"] for r in res.json()] == ["916"]
+    # The whole phrase is a stored variant, so it is an exact match first.
+    res = await client.get("/api/aois?name=Czech Republic", headers=AUTH)
+    assert [r["src_id"] for r in res.json()] == ["CZE"]

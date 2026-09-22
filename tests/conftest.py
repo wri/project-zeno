@@ -99,20 +99,18 @@ async def seed_reference_aoi(
                 "variants": " ".join(variants) or None,
             },
         )
-        await session.execute(
-            text(
-                "INSERT INTO aoi_names (aoi_id, name, name_norm, kind) "
-                "SELECT :aoi_id, v.name, "
-                f"{norm_sql('v.name')}, v.kind "
-                "FROM (SELECT split_part(:name, ',', 1) AS name, "
-                "'primary' AS kind "
-                "UNION ALL SELECT unnest(CAST(:variants AS text[])), "
-                "'variant') v "
-                "WHERE btrim(v.name) <> '' "
-                "ON CONFLICT DO NOTHING"
-            ),
-            {"aoi_id": aoi_id, "name": name, "variants": list(variants)},
-        )
+        if variants:
+            await session.execute(
+                text(
+                    "INSERT INTO aoi_names (aoi_id, name, name_norm, kind) "
+                    "SELECT :aoi_id, v.name, "
+                    f"{norm_sql('v.name')}, 'variant' "
+                    "FROM unnest(CAST(:variants AS text[])) AS v(name) "
+                    "WHERE btrim(v.name) <> '' "
+                    "ON CONFLICT DO NOTHING"
+                ),
+                {"aoi_id": aoi_id, "variants": list(variants)},
+            )
         await session.commit()
 
 

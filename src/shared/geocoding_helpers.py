@@ -232,13 +232,13 @@ SearchMode = Literal["search", "autocomplete"]
 AUTOCOMPLETE_MIN_CHARS = 2
 
 # Caps on what one search may cost. A place name is never this long; the
-# typo correction runs one trigram lookup per distinct token, so both the
-# length and the token count bound the work a request can demand. Paging past
-# ten thousand rows is not a use case, and a huge offset would otherwise sort
-# the whole table on disk.
+# miss path runs one trigram lookup per distinct word, so both the length and
+# the word count bound the work a request can demand. Paging past ten
+# thousand rows is not a use case, and a huge offset would otherwise sort the
+# whole table on disk.
 MAX_SEARCH_NAME_CHARS = 200
 MAX_SEARCH_OFFSET = 10_000
-_MAX_CORRECTION_LEXEMES = 6
+_MAX_MISS_LEXEMES = 6
 
 
 class SearchRequestError(ValueError):
@@ -269,8 +269,9 @@ def _search_sql(
 ) -> str:
     """The tiered search statement. See docs/aoi-full-text-search.md.
 
-    Tier 2 is an exact match on any stored name variant; tier 1 is a partial
-    match, the leaf tokens anywhere in the name or the leaf as a prefix. A
+    Tier 2 is an exact match on the leaf or on any stored name variant; tier
+    1 is a partial match, the leaf tokens anywhere in the name or the leaf as
+    a prefix. A
     row keeps its best tier, and within a tier a row whose context also
     matches the query's context comes first. With *corrected* the leaf
     tokens come from the typo correction as a prepared tsquery and only the
@@ -301,6 +302,8 @@ def _search_sql(
 
     arms = []
     if not corrected:
+        # The leaf from the covering index, then the variants table.
+        arms.append(arm(2, "a.leaf_norm = :leaf_norm"))
         arms.append(
             arm(
                 2,
@@ -313,7 +316,7 @@ def _search_sql(
         arms.append(arm(1, "a.leaf_norm LIKE :leaf_prefix"))
 
     return f"""
-        WITH q AS (
+        WITH q AS NOT MATERIALIZED (
             SELECT
                 {leaf_query} AS lq,
                 CASE WHEN :context <> ''
@@ -413,17 +416,16 @@ def _autocomplete_sql(
 
     arms = [
         arm(2, "a.leaf_norm LIKE :leaf_prefix"),
-        # Primary names are the leaf arm above; only the variants are new.
         arm(
             2,
-            "n.kind <> 'primary' AND n.name_norm LIKE :leaf_prefix",
+            "n.name_norm LIKE :leaf_prefix",
             "JOIN aoi_names n ON n.aoi_id = a.id",
         ),
     ]
     if with_tokens:
         arms.append(arm(1, "a.search_tsv @@ q.lq"))
     return f"""
-        WITH q AS (
+        WITH q AS NOT MATERIALIZED (
             SELECT
                 CASE WHEN :leaf_query <> ''
                      THEN to_tsquery('{TS_CONFIG}', :leaf_query)
@@ -470,50 +472,137 @@ _BROWSE_SQL = """
     LIMIT :limit OFFSET :offset
 """
 
-# Typo correction. A query token that no stored name contains is replaced by
-# the stored tokens nearest to it by trigram similarity, most frequent first
-# among equals. The GIN trigram index on the token table serves `%`; the
-# threshold is set for the transaction only.
+# The miss path. When nothing matches as typed, one statement looks every
+# word of the leaf up in the token table: how many names carry it, and the
+# stored tokens nearest to it. Nearest means within the trigram threshold (the
+# GIN index gate), then by edit distance and document frequency, and only at
+# a distance small for the word ("kashmir" is not "kashmore"). Words under
+# three letters have too few trigrams to correct and pass through unchanged.
+# The threshold is set for the transaction only.
+_CORRECTION_MIN_CHARS = 3
 _LEAF_TOKENS_SQL = f"""
-    SELECT DISTINCT lexeme FROM unnest(to_tsvector('{TS_CONFIG}', :leaf))
-"""
-_TOKEN_CORRECTIONS_SQL = """
-    SELECT token FROM aoi_search_tokens
-    WHERE token % :tok
-    ORDER BY similarity(token, :tok) DESC, ndoc DESC, token
-    LIMIT 3
+    SELECT t.lexeme,
+           COALESCE(own.ndoc, 0),
+           array_agg(c.token ORDER BY c.dist, c.ndoc DESC, c.token)
+               FILTER (WHERE c.token IS NOT NULL)
+    FROM unnest(to_tsvector('{TS_CONFIG}', :leaf)) AS t(lexeme, positions, weights)
+    LEFT JOIN aoi_search_tokens own ON own.token = t.lexeme
+    LEFT JOIN LATERAL (
+        SELECT token, ndoc, dist
+        FROM (
+            SELECT token, ndoc,
+                   CASE WHEN length(token) <= 255
+                        THEN levenshtein(token, t.lexeme) END AS dist
+            FROM aoi_search_tokens
+            WHERE length(t.lexeme) BETWEEN :min_chars AND 255
+              AND token % t.lexeme
+        ) s
+        WHERE dist <= greatest(1, length(t.lexeme) / 4)
+        ORDER BY dist, ndoc DESC, token
+        LIMIT 3
+    ) c ON true
+    GROUP BY t.lexeme, own.ndoc
+    ORDER BY min((t.positions)[1])
 """
 _CORRECTION_THRESHOLD_SQL = "SET LOCAL pg_trgm.similarity_threshold = 0.3"
-# A corrected result ranks below what an uncorrected query would have found.
-_CORRECTED_SCORE_SCALE = 0.6
+# A word in more names than this ("new", "park", "sao", "republic") does not
+# name a place on its own, so a retry that keeps only such words is skipped.
+_COMMON_TOKEN_NDOC = 1000
+# A corrected result ranks below what an uncorrected query would have found;
+# a partial match (one word dropped) sits below a corrected one, because a
+# small misspelling is a closer reading of the input than a missing word.
+_CORRECTED_SCORE_SCALE = 0.8
+_PARTIAL_SCORE_SCALE = 0.6
 
 
 def _tsquery_lexeme(token: str) -> str:
     return "'" + token.replace("\\", "\\\\").replace("'", "''") + "'"
 
 
-async def _corrected_leaf_query(conn, leaf: str) -> Optional[str]:
-    """A tsquery over the nearest stored tokens for each token of *leaf*.
+@dataclass(frozen=True)
+class _LeafToken:
+    """One word of the leaf as the token table knows it."""
 
-    Returns None when *leaf* has no tokens or when some token has no stored
-    token near it: the query ANDs the groups, so one empty group can match
-    nothing.
-    """
-    rows = await conn.execute(text(_LEAF_TOKENS_SQL), {"leaf": leaf})
-    tokens = [row[0] for row in rows]
-    # No place name has this many words; a longer leaf is not a typo to fix,
-    # and each token costs a trigram lookup.
-    if not tokens or len(tokens) > _MAX_CORRECTION_LEXEMES:
-        return None
+    lexeme: str
+    ndoc: int  # names carrying the word as typed; 0 when none does
+    nearest: tuple[str, ...]  # stored tokens by edit distance, self first
+
+
+async def _leaf_tokens(conn, leaf: str) -> Optional[list[_LeafToken]]:
+    """Look the words of *leaf* up, or None when there are none or too many."""
     await conn.execute(text(_CORRECTION_THRESHOLD_SQL))
+    rows = (
+        await conn.execute(
+            text(_LEAF_TOKENS_SQL),
+            {"leaf": leaf, "min_chars": _CORRECTION_MIN_CHARS},
+        )
+    ).all()
+    if not rows or len(rows) > _MAX_MISS_LEXEMES:
+        return None
+    return [
+        _LeafToken(lexeme, ndoc, tuple(nearest or ()))
+        for lexeme, ndoc, nearest in rows
+    ]
+
+
+def _corrected_query(tokens: list[_LeafToken]) -> Optional[str]:
+    """A tsquery over the nearest stored tokens for each word.
+
+    Returns None when no word has a neighbour other than itself (the query
+    would repeat the one that missed) or when a word of correctable length
+    has no stored token near it: the groups are ANDed, so one empty group
+    can match nothing.
+    """
     groups = []
+    changed = False
     for token in tokens:
-        rows = await conn.execute(text(_TOKEN_CORRECTIONS_SQL), {"tok": token})
-        nearest = [row[0] for row in rows]
-        if not nearest:
+        if token.nearest:
+            groups.append(
+                "(" + " | ".join(map(_tsquery_lexeme, token.nearest)) + ")"
+            )
+            changed |= token.nearest != (token.lexeme,)
+        elif len(token.lexeme) < _CORRECTION_MIN_CHARS:
+            groups.append(_tsquery_lexeme(token.lexeme))
+        else:
             return None
-        groups.append("(" + " | ".join(map(_tsquery_lexeme, nearest)) + ")")
-    return " & ".join(groups)
+    return " & ".join(groups) if changed else None
+
+
+def _names_a_place(kept: list[_LeafToken]) -> bool:
+    """Whether a retry over *kept* can return what the user asked for.
+
+    Two or more words together are selective enough. One word on its own is
+    not when the corpus lacks it, has it everywhere ("republic", "sao"), or
+    when it is too short to be a name ("np").
+    """
+    if not any(token.ndoc for token in kept):
+        return False
+    if len(kept) > 1:
+        return True
+    (token,) = kept
+    return (
+        len(token.lexeme) >= _CORRECTION_MIN_CHARS
+        and token.ndoc <= _COMMON_TOKEN_NDOC
+    )
+
+
+def _reduced_queries(tokens: list[_LeafToken]) -> list[str]:
+    """The words with one dropped: the last, then the first.
+
+    An extra generic word ("Serengeti NP", "Ho Chi Minh City") makes the
+    all-words query miss; a place name rarely has more than one such word,
+    so two retries cover it. A retry whose remaining words cannot name a
+    place ("republic" from "Czech Republic") is skipped.
+    """
+    if len(tokens) < 2:
+        return []
+    queries = []
+    for kept in (tokens[:-1], tokens[1:]):
+        if _names_a_place(kept):
+            queries.append(
+                " & ".join(_tsquery_lexeme(token.lexeme) for token in kept)
+            )
+    return list(dict.fromkeys(queries))
 
 
 def _satisfies(result: pd.DataFrame, parsed: SearchText) -> bool:
@@ -696,23 +785,28 @@ async def search_aois(
             if _satisfies(result, parsed):
                 return result.drop(columns=["context_hit"])
 
-            # Nothing usable as typed: correct the leaf tokens against the
-            # stored ones and search again. Two round trips only on a miss.
-            leaf_query = await _corrected_leaf_query(conn, parsed.leaf)
-            if leaf_query is None:
+            # Nothing usable as typed. Look the words up once, then retry
+            # with the spelling corrected and with one word dropped; each
+            # retry is one more round trip, only on a miss.
+            tokens = await _leaf_tokens(conn, parsed.leaf)
+            if tokens is None:
                 return result.drop(columns=["context_hit"])
-            params["leaf_query"] = leaf_query
-            params["scale"] = _CORRECTED_SCORE_SCALE
-            corrected = await conn.run_sync(
-                _read,
-                _search_sql(
-                    requested,
-                    corrected=True,
-                    with_context=bool(parsed.context),
-                ),
+            retries: list[tuple[str, float]] = []
+            corrected_query = _corrected_query(tokens)
+            if corrected_query:
+                retries.append((corrected_query, _CORRECTED_SCORE_SCALE))
+            retries += [
+                (query, _PARTIAL_SCORE_SCALE)
+                for query in _reduced_queries(tokens)
+            ]
+            token_statement = _search_sql(
+                requested, corrected=True, with_context=bool(parsed.context)
             )
-            chosen = corrected if _satisfies(corrected, parsed) else result
-            return chosen.drop(columns=["context_hit"])
+            for params["leaf_query"], params["scale"] in retries:
+                retried = await conn.run_sync(_read, token_statement)
+                if _satisfies(retried, parsed):
+                    return retried.drop(columns=["context_hit"])
+            return result.drop(columns=["context_hit"])
         finally:
             # Read-only, and the correction's threshold was SET LOCAL: end
             # the transaction so the pooled connection carries nothing over.

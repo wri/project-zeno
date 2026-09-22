@@ -195,9 +195,11 @@ kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' 
 - Each source commits independently, and reference sources commit per chunk, so a
   late failure never discards completed work — re-run to resume. The command prints
   which sources committed before a failure.
-- It runs `ANALYZE` on both tables at the end. A bulk insert leaves the planner
-  without statistics until autoanalyze fires, and until then it ignores the indexes
-  on `aois`. Skipped under `--dry-run`.
+- It runs `VACUUM (ANALYZE)` on the four tables at the end. A bulk insert leaves
+  the planner without statistics until autoanalyze fires, and until then it ignores
+  the indexes on `aois`; the vacuum also sets the visibility map that the search's
+  index-only scans need. A rebuild over unchanged staging data rewrites no rows, so
+  the summary reports zero written. Skipped under `--dry-run`.
 - **Ordering for the deploy that first points the API at `aois`:** the reference
   sources never change, so one build serves them. `custom_areas` does change, and
   the write-through mirror that keeps `aois` current ships with that API change.

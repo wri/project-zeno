@@ -68,7 +68,7 @@ def upgrade() -> None:
         postgresql_where=_LIVE,
     )
 
-    # --- aoi_names: one row per searchable name variant ----------------------
+    # --- aoi_names: one row per alternate name (the leaf itself lives on aois)
     op.create_table(
         "aoi_names",
         sa.Column(
@@ -80,14 +80,14 @@ def upgrade() -> None:
         sa.Column("aoi_id", sa.UUID(), nullable=False),
         sa.Column("name", sa.String(), nullable=False),
         sa.Column("name_norm", sa.String(), nullable=False),
-        # primary | variant | native | international | code
+        # variant | native | international | code
         sa.Column("kind", sa.String(), nullable=False),
         sa.ForeignKeyConstraint(["aoi_id"], ["aois.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
         # The upsert target: a rebuild inserts every variant again and the
-        # duplicates conflict here.
+        # duplicates conflict here. One row per spelling, whatever its kind.
         sa.UniqueConstraint(
-            "aoi_id", "kind", "name_norm", name="uq_aoi_names_aoi_kind_norm"
+            "aoi_id", "name_norm", name="uq_aoi_names_aoi_norm"
         ),
     )
     op.create_index(

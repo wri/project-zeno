@@ -321,15 +321,15 @@ class AoiOrm(Base):
 
 
 class AoiNameOrm(Base):
-    """One name a searchable AOI is known by.
+    """An alternate name a searchable AOI is known by.
 
-    ``kind`` is ``primary`` (the leaf), ``variant`` (GADM VARNAME), ``native``
-    (GADM NL_NAME, WDPA orig_name), ``international`` (KBA IntName) or
-    ``code`` (a country's ISO3).
-    ``name_norm`` is the lowercase unaccented form that the exact and prefix
-    tiers compare against; non-Latin names are stored as they come.
-    Written by raw SQL in ``build-aois`` and the custom-area mirror; nothing
-    reads the table through the ORM.
+    The place's own name is ``aois.leaf``; this table holds the others:
+    ``variant`` (GADM VARNAME), ``native`` (GADM NL_NAME, WDPA orig_name),
+    ``international`` (KBA IntName) or ``code`` (a country's ISO3). One row
+    per spelling per AOI, whatever its kind. ``name_norm`` is the lowercase
+    unaccented form that the exact and prefix tiers compare against;
+    non-Latin names are stored as they come. Written by raw SQL in
+    ``build-aois``; nothing reads the table through the ORM.
     """
 
     __tablename__ = "aoi_names"
@@ -350,9 +350,7 @@ class AoiNameOrm(Base):
 
     __table_args__ = (
         # The rebuild's ON CONFLICT target; also serves the aoi_id lookup.
-        UniqueConstraint(
-            "aoi_id", "kind", "name_norm", name="uq_aoi_names_aoi_kind_norm"
-        ),
+        UniqueConstraint("aoi_id", "name_norm", name="uq_aoi_names_aoi_norm"),
         Index(
             "idx_aoi_names_name_norm",
             "name_norm",
