@@ -48,3 +48,47 @@ jobs:
           secrets: |
             aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}
             aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+  trigger-staging-deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    # Serializes overlapping runs so the debounce read-then-write below can't race.
+    concurrency:
+      group: staging-deploy-debounce
+      cancel-in-progress: false
+    permissions:
+      actions: write # to read/write the LAST_STAGING_TRIGGER_TS repo variable
+    steps:
+      # Debounces staging deploys: only fires the cross-repo trigger if no
+      # trigger has fired in the last 20 minutes, so a burst of pushes to
+      # main doesn't kick off a deploy per commit. The tradeoff: the last
+      # push in a fast burst may not get deployed until the next push after
+      # the window closes (or the next manual trigger).
+      - name: Check debounce window
+        id: debounce
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          NOW=$(date +%s)
+          LAST=$(gh api "repos/${REPO}/actions/variables/LAST_STAGING_TRIGGER_TS" --jq .value 2>/dev/null || echo 0)
+          ELAPSED=$(( NOW - LAST ))
+          if [ "$ELAPSED" -lt 1200 ]; then
+            echo "Last staging trigger was ${ELAPSED}s ago (<20min) - skipping."
+            echo "should_trigger=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_trigger=true" >> "$GITHUB_OUTPUT"
+            gh api -X PATCH "repos/${REPO}/actions/variables/LAST_STAGING_TRIGGER_TS" -f value="$NOW" \
+              || gh api -X POST "repos/${REPO}/actions/variables" -f name=LAST_STAGING_TRIGGER_TS -f value="$NOW"
+          fi
+
+      - name: Notify project-zeno-deploy of new image
+        if: steps.debounce.outputs.should_trigger == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.DEPLOY_REPO_DISPATCH_TOKEN }}
+          SHA: ${{ github.sha }}
+        run: |
+          gh api repos/wri/project-zeno-deploy/dispatches \
+            -X POST \
+            -f event_type=zeno-image-published \
+            -F "client_payload[sha]=${SHA}"
