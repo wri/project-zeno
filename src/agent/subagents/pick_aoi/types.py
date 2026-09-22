@@ -10,7 +10,7 @@ from enum import StrEnum
 
 
 class AreaOfInterestType(StrEnum):
-    GADM = "adminstrative area (country, state/region, country/subregion)"
+    GADM = "administrative area (country, state/region, country/subregion)"
     WDPA = ("protected area, park, or reserve",)
     LANDMARK = ("indigenous region or territory",)
     KBA = "key biodiversity area"
