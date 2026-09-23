@@ -12,6 +12,11 @@ from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
+# Trace name for every chat turn (was LangGraph's default "LangGraph"). The
+# Langfuse CallbackHandler names the trace after the root run, which takes
+# config["run_name"].
+CHAT_TURN_RUN_NAME = "chat_turn"
+
 
 @dataclass(frozen=True)
 class NudgeMatch:
@@ -80,3 +85,56 @@ def match_pending_nudge(
                 matched=True, type=nudge_type or None, option_index=index
             )
     return NO_MATCH
+
+
+def build_turn_trace_metadata(
+    *,
+    base_metadata: dict,
+    input_source: str,
+    nudge_response: Optional[dict],
+    nudge_match: NudgeMatch,
+    ui_action_only: bool,
+    ff: Optional[str],
+    page: Optional[str],
+) -> dict:
+    """LangChain config ``metadata`` for one chat turn.
+
+    ``langfuse_tags`` becomes the trace tags (the handler strips it from
+    span metadata); every other key lands on the trace metadata. None
+    values are dropped: Langfuse flattens metadata into OTel attributes and
+    OTel rejects None with a warning on every span.
+
+    ``nudge_type`` / ``nudge_option_index`` are what the client clicked;
+    a legacy client that only sent query_type falls back to the server
+    match. ``nudge_match*`` is always the server's own view.
+    """
+    nudge_type: Optional[str] = None
+    nudge_option_index: Optional[int] = None
+    if input_source == "nudge":
+        if nudge_response is not None:
+            nudge_type = nudge_response["type"]
+            nudge_option_index = nudge_response["option_index"]
+        elif nudge_match.matched:
+            nudge_type = nudge_match.type
+            nudge_option_index = nudge_match.option_index
+
+    tags = [f"input:{input_source}"]
+    if nudge_type:
+        tags.append(f"nudge:{nudge_type}")
+
+    turn = {
+        "langfuse_tags": tags,
+        "input_source": input_source,
+        "nudge_type": nudge_type,
+        "nudge_option_index": nudge_option_index,
+        "nudge_match": nudge_match.matched,
+        "nudge_match_type": nudge_match.type,
+        "nudge_match_index": nudge_match.option_index,
+        "ui_action_only": bool(ui_action_only),
+        "ff": ff,
+        "page": page,
+    }
+    return {
+        **base_metadata,
+        **{k: v for k, v in turn.items() if v is not None},
+    }

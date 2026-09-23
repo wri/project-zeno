@@ -77,3 +77,80 @@ def test_malformed_nudge_is_logged_and_not_a_match(nudge, monkeypatch):
     monkeypatch.setattr(chat_trace, "logger", logger)
     assert not match_pending_nudge(nudge, "Tree cover loss").matched
     logger.warning.assert_called_once()
+
+
+BASE = {"langfuse_user_id": "user-1", "langfuse_session_id": "thread-1"}
+
+
+def _metadata(**overrides) -> dict:
+    kwargs = {
+        "base_metadata": BASE,
+        "input_source": "typed",
+        "nudge_response": None,
+        "nudge_match": chat_trace.NO_MATCH,
+        "ui_action_only": False,
+        "ff": None,
+        "page": None,
+    }
+    kwargs.update(overrides)
+    return chat_trace.build_turn_trace_metadata(**kwargs)
+
+
+def test_typed_turn_metadata():
+    assert _metadata(page="map") == {
+        **BASE,
+        "langfuse_tags": ["input:typed"],
+        "input_source": "typed",
+        "nudge_match": False,
+        "ui_action_only": False,
+        "page": "map",
+    }
+
+
+def test_nudge_click_metadata_carries_client_and_server_views():
+    metadata = _metadata(
+        input_source="nudge",
+        nudge_response={"type": "dataset_choice", "option_index": 1},
+        nudge_match=NudgeMatch(True, "dataset_choice", 1),
+        ff="experimental",
+    )
+    assert metadata == {
+        **BASE,
+        "langfuse_tags": ["input:nudge", "nudge:dataset_choice"],
+        "input_source": "nudge",
+        "nudge_type": "dataset_choice",
+        "nudge_option_index": 1,
+        "nudge_match": True,
+        "nudge_match_type": "dataset_choice",
+        "nudge_match_index": 1,
+        "ui_action_only": False,
+        "ff": "experimental",
+    }
+
+
+def test_legacy_nudge_click_falls_back_to_server_match():
+    metadata = _metadata(
+        input_source="nudge", nudge_match=NudgeMatch(True, "aoi_choice", 0)
+    )
+    assert metadata["langfuse_tags"] == ["input:nudge", "nudge:aoi_choice"]
+    assert metadata["nudge_type"] == "aoi_choice"
+    assert metadata["nudge_option_index"] == 0
+
+
+def test_legacy_nudge_click_without_match_has_no_nudge_tag():
+    metadata = _metadata(input_source="nudge")
+    assert metadata["langfuse_tags"] == ["input:nudge"]
+    assert "nudge_type" not in metadata
+
+
+def test_typed_turn_matching_a_nudge_stays_typed():
+    # The mislabelling signal: client says typed, server sees a match.
+    metadata = _metadata(nudge_match=NudgeMatch(True, "confirm", 0))
+    assert metadata["input_source"] == "typed"
+    assert metadata["langfuse_tags"] == ["input:typed"]
+    assert metadata["nudge_match"] is True
+    assert "nudge_type" not in metadata
+
+
+def test_none_values_are_omitted():
+    assert None not in _metadata().values()
