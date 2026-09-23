@@ -15,6 +15,12 @@ from src.agent.graph import fetch_zeno
 from src.agent.language import resolve_language
 from src.agent.llms import SMALL_MODEL
 from src.api.schemas import ThreadNameOutput
+from src.api.services.chat_trace import (
+    CHAT_TURN_RUN_NAME,
+    NO_MATCH,
+    build_turn_trace_metadata,
+    match_pending_nudge,
+)
 from src.shared.geocoding_helpers import fetch_aoi_bbox
 from src.shared.logging_config import get_logger
 
@@ -132,9 +138,11 @@ async def stream_chat(
     user: Optional[dict] = None,
     ff: Optional[str] = None,
     registry: AgentConfigRegistry = default_registry,
+    input_source: str = "typed",
+    nudge_response: Optional[dict] = None,
 ):
     langfuse_handler = CallbackHandler(update_trace=True)
-    config = {
+    config: Dict[str, Any] = {
         "configurable": {"thread_id": thread_id},
         "callbacks": [langfuse_handler],
         "metadata": langfuse_metadata,
@@ -211,6 +219,27 @@ async def stream_chat(
     )
     if language:
         state_updates["language"] = language
+
+    # Finalised here rather than above so the nudge cross-check reuses the
+    # checkpoint read already made for language, instead of a second read.
+    # A ui_action_only turn's human message is synthetic, so never a click.
+    nudge_match = (
+        NO_MATCH
+        if ui_action_only or not query
+        else match_pending_nudge(
+            existing_state.values.get("nudge"), query, thread_id
+        )
+    )
+    config["run_name"] = CHAT_TURN_RUN_NAME
+    config["metadata"] = build_turn_trace_metadata(
+        base_metadata=langfuse_metadata or {},
+        input_source=input_source,
+        nudge_response=nudge_response,
+        nudge_match=nudge_match,
+        ui_action_only=bool(ui_action_only),
+        ff=ff,
+        page=page if isinstance(page, str) else None,
+    )
 
     try:
         stream = zeno_async.astream(
