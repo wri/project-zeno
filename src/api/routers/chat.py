@@ -118,6 +118,12 @@ async def chat(
                     langfuse_metadata=langfuse_metadata,
                     user=user_dict,
                     ff=chat_request.ff,
+                    input_source=chat_request.input_source,
+                    nudge_response=(
+                        chat_request.nudge_response.model_dump()
+                        if chat_request.nudge_response
+                        else None
+                    ),
                 ),
             ),
             media_type="application/x-ndjson",
