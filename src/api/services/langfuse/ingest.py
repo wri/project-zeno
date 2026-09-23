@@ -42,6 +42,7 @@ MONITORED_COLS = (
     "insight_id",
     "turn_tokens",
     "has_answer",
+    "input_source",
 )
 
 

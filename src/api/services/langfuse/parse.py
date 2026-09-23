@@ -26,7 +26,7 @@ from typing import Any, Optional
 
 # Bump on any change to derivation logic; to apply it to existing rows, re-run
 # ingestion for the affected window (`ingest-langfuse-traces --backfill --since`).
-PARSER_VERSION = 2
+PARSER_VERSION = 3
 
 # Top-level keys we expect on ``trace.output`` (the AgentState snapshot).
 # Used for drift detection: unknown keys => additive drift (benign, logged);
@@ -437,6 +437,60 @@ def _detect_language(
 
 
 # --------------------------------------------------------------------------- #
+# Input source (trace metadata / tags set by /api/chat)
+# --------------------------------------------------------------------------- #
+_INPUT_TAG_PREFIX = "input:"
+_NUDGE_TAG_PREFIX = "nudge:"
+
+
+def _as_bool(value: Any) -> Optional[bool]:
+    # Langfuse flattens metadata into OTel attributes; guard against a bool
+    # coming back as its string form on the round trip.
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str) and value.lower() in ("true", "false"):
+        return value.lower() == "true"
+    return None
+
+
+def _tag_value(tags: Any, prefix: str) -> Optional[str]:
+    if not isinstance(tags, list):
+        return None
+    for tag in tags:
+        if isinstance(tag, str) and tag.startswith(prefix):
+            return tag[len(prefix) :] or None
+    return None
+
+
+def parse_input_source(trace: dict[str, Any]) -> dict[str, Any]:
+    """How the turn's query was produced (see src/api/services/chat_trace.py).
+
+    Metadata is the primary source; the ``input:`` / ``nudge:`` tags are a
+    fallback. Traces from before the feature carry neither, so every field
+    is None ("unknown"), never "typed".
+    """
+    metadata = trace.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+    tags = trace.get("tags")
+    input_source = metadata.get("input_source")
+    nudge_type = metadata.get("nudge_type")
+    return {
+        "input_source": (
+            input_source
+            if isinstance(input_source, str) and input_source
+            else _tag_value(tags, _INPUT_TAG_PREFIX)
+        ),
+        "nudge_type": (
+            nudge_type
+            if isinstance(nudge_type, str) and nudge_type
+            else _tag_value(tags, _NUDGE_TAG_PREFIX)
+        ),
+        "nudge_match": _as_bool(metadata.get("nudge_match")),
+    }
+
+
+# --------------------------------------------------------------------------- #
 # Top-level
 # --------------------------------------------------------------------------- #
 # Column-valued keys produced by parse_trace (everything else goes to `derived`).
@@ -460,6 +514,9 @@ COLUMN_KEYS = frozenset(
         "has_insight",
         "is_global",
         "insight_id",
+        "input_source",
+        "nudge_type",
+        "nudge_match",
     }
 )
 
@@ -477,7 +534,7 @@ def parse_trace(trace: dict[str, Any]) -> dict[str, Any]:
     in_msgs = inp.get("messages") if isinstance(inp, dict) else None
     msg = parse_messages(msgs or [], in_msgs or [])
 
-    combined = {**state, **msg}
+    combined = {**state, **msg, **parse_input_source(trace)}
     row = {k: combined[k] for k in COLUMN_KEYS if k in combined}
     derived = {k: v for k, v in combined.items() if k not in COLUMN_KEYS}
     derived.pop("recognized_contract", None)

@@ -86,3 +86,19 @@ def test_build_row_singleton_without_insight_has_empty_diffs():
     row = build_row({"id": "t1", "environment": "production"})
     assert row["insight_created_this_turn"] is False
     assert row["datasets_analysed_this_turn"] == []
+
+
+def test_build_row_carries_input_source_from_metadata():
+    row = build_row(
+        {
+            "id": "t1",
+            "metadata": {
+                "input_source": "nudge",
+                "nudge_type": "confirm",
+                "nudge_match": True,
+            },
+        }
+    )
+    assert row["input_source"] == "nudge"
+    assert row["nudge_type"] == "confirm"
+    assert row["nudge_match"] is True

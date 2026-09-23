@@ -273,6 +273,59 @@ def test_does_not_crash_on_garbage():
 # --------------------------------------------------------------------------- #
 # contract tests: bind to the live agent contract so drift fails CI
 # --------------------------------------------------------------------------- #
+# --------------------------------------------------------------------------- #
+# input source (trace metadata / tags set by /api/chat)
+# --------------------------------------------------------------------------- #
+def test_input_source_read_from_metadata():
+    t = {
+        **trace({"messages": []}),
+        "metadata": {
+            "input_source": "nudge",
+            "nudge_type": "dataset_choice",
+            "nudge_match": True,
+        },
+        "tags": ["input:nudge", "nudge:dataset_choice"],
+    }
+    row = P.parse_trace(t)
+    assert row["input_source"] == "nudge"
+    assert row["nudge_type"] == "dataset_choice"
+    assert row["nudge_match"] is True
+    assert "input_source" not in row["derived"]
+
+
+def test_stringified_nudge_match_is_coerced():
+    t = {
+        **trace({"messages": []}),
+        "metadata": {"input_source": "typed", "nudge_match": "false"},
+    }
+    assert P.parse_trace(t)["nudge_match"] is False
+
+
+def test_input_source_falls_back_to_tags():
+    t = {
+        **trace({"messages": []}),
+        "metadata": {},
+        "tags": ["input:nudge", "nudge:aoi_choice"],
+    }
+    row = P.parse_trace(t)
+    assert row["input_source"] == "nudge"
+    assert row["nudge_type"] == "aoi_choice"
+    assert row["nudge_match"] is None
+
+
+def test_pre_feature_trace_has_unknown_input_source():
+    # Old traces: default LangGraph metadata, no tags. Unknown, not "typed".
+    t = {
+        **trace({"messages": []}),
+        "metadata": {"thread_id": "th1"},
+        "tags": [],
+    }
+    row = P.parse_trace(t)
+    assert row["input_source"] is None
+    assert row["nudge_type"] is None
+    assert row["nudge_match"] is None
+
+
 def test_expected_state_keys_match_agent_state():
     from src.agent.state import AgentState
 
