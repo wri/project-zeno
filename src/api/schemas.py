@@ -445,10 +445,18 @@ class NudgeResponse(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    # Free-form like Nudge.type in src/agent/state.py (send_nudge accepts
-    # any label), so no pattern; the cap bounds Langfuse tag cardinality.
-    type: str = Field(..., min_length=1, max_length=64)
+    # Free-form like Nudge.type in src/agent/state.py: send_nudge's
+    # `nudge_type: str` is required but unvalidated, so the model can pass
+    # "" and the FE echoes it verbatim. No pattern, and "" is accepted and
+    # normalised to None so a click is never a 422; the cap bounds Langfuse
+    # tag cardinality.
+    type: Optional[str] = Field(..., max_length=64)
     option_index: int = Field(..., ge=0)
+
+    @field_validator("type")
+    @classmethod
+    def _empty_type_is_none(cls, v: Optional[str]) -> Optional[str]:
+        return v or None
 
 
 class ChatRequest(BaseModel):

@@ -154,3 +154,13 @@ def test_typed_turn_matching_a_nudge_stays_typed():
 
 def test_none_values_are_omitted():
     assert None not in _metadata().values()
+
+
+def test_nudge_click_without_type_has_no_nudge_tag():
+    metadata = _metadata(
+        input_source="nudge",
+        nudge_response={"type": None, "option_index": 1},
+    )
+    assert metadata["langfuse_tags"] == ["input:nudge"]
+    assert "nudge_type" not in metadata
+    assert metadata["nudge_option_index"] == 1

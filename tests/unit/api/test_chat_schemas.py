@@ -85,7 +85,6 @@ def test_nudge_response_without_source_is_rejected():
         {"type": "confirm", "option_index": -1},
         {"type": "confirm"},
         {"option_index": 0},
-        {"type": "", "option_index": 0},
         {"type": "x" * 65, "option_index": 0},
         {"type": "confirm", "option_index": 0, "extra": 1},
     ],
@@ -97,3 +96,13 @@ def test_malformed_nudge_response_is_rejected(response):
 
 def test_query_type_is_not_dumped():
     assert "query_type" not in _req(query_type="human_input").model_dump()
+
+
+@pytest.mark.parametrize("nudge_type", ["", None])
+def test_empty_nudge_type_is_accepted_as_none(nudge_type):
+    req = _req(
+        input_source="nudge",
+        nudge_response={"type": nudge_type, "option_index": 1},
+    )
+    assert req.nudge_response.type is None
+    assert req.nudge_response.option_index == 1
