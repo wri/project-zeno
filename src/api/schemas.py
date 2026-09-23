@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Literal, Optional, Union
 from uuid import UUID
 
 from geojson_pydantic import Polygon
@@ -425,6 +425,32 @@ class ViewContext(BaseModel):
     dashboard_name: Optional[str] = None
 
 
+# Where a chat turn's query came from. Tracing only (Langfuse tags and
+# metadata, trace analytics); the agent never sees it. Closed set so a new
+# frontend entry point fails loudly (422) until it is added here.
+InputSource = Literal[
+    "typed",
+    "nudge",
+    "starter_prompt",
+    "dashboard_chip",
+    "dashboard_module",
+    "analyse_nudge",
+    "url_prompt",
+    "map_action",
+]
+
+
+class NudgeResponse(BaseModel):
+    """Which nudge option a click picked, as the frontend received it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    # Free-form like Nudge.type in src/agent/state.py (send_nudge accepts
+    # any label), so no pattern; the cap bounds Langfuse tag cardinality.
+    type: str = Field(..., min_length=1, max_length=64)
+    option_index: int = Field(..., ge=0)
+
+
 class ChatRequest(BaseModel):
     query: str = Field(..., description="The query")
     user_persona: Optional[str] = Field(None, description="The user persona")
@@ -456,6 +482,33 @@ class ChatRequest(BaseModel):
     session_id: Optional[str] = Field(None, description="The session ID")
     user_id: Optional[str] = Field(None, description="The user ID")
     tags: Optional[list] = Field(None, description="The tags")
+
+    # Tracing: how this query was produced. Settled by
+    # _resolve_input_source below, so it is always a valid InputSource
+    # after validation.
+    input_source: InputSource = "typed"
+    nudge_response: Optional[NudgeResponse] = None
+    # Legacy (frontend builds before input_source): "human_input" marked a
+    # nudge click. Only read by _resolve_input_source; everything
+    # downstream reads input_source.
+    query_type: Optional[Literal["query", "human_input"]] = Field(
+        None, exclude=True
+    )
+
+    @model_validator(mode="after")
+    def _resolve_input_source(self) -> "ChatRequest":
+        # An explicit input_source always wins over the legacy field.
+        if (
+            "input_source" not in self.model_fields_set
+            and self.query_type == "human_input"
+        ):
+            self.input_source = "nudge"
+        if self.nudge_response is not None and self.input_source != "nudge":
+            raise ValueError(
+                "nudge_response is only valid with input_source 'nudge', "
+                f"got {self.input_source!r}"
+            )
+        return self
 
 
 class RatingCreateRequest(BaseModel):
