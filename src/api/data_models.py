@@ -738,6 +738,16 @@ class LangfuseTraceOrm(Base):
     insight_created_this_turn = Column(Boolean, nullable=True)
     datasets_analysed_this_turn = Column(ARRAY(String), nullable=True)
 
+    # --- How the turn's query was produced (from the trace metadata that
+    # /api/chat sets). NULL = unknown (pre-feature traces), never "typed".
+    # input_source: an InputSource value (src/api/schemas.py).
+    # nudge_type: the clicked nudge's type, for nudge turns.
+    # nudge_match: server cross-check that the query equals a pending nudge
+    # option (see src/api/services/chat_trace.py for its known limits).
+    input_source = Column(String, nullable=True)
+    nudge_type = Column(String, nullable=True)
+    nudge_match = Column(Boolean, nullable=True)
+
     # Long-tail + cumulative derived fields, kept out of the column set to keep
     # migrations rare. Includes turn_tools_used, turn_datasets, aoi_source,
     # aoi_count, aois, primary_dataset_id, analysis_start/end_date,
@@ -761,6 +771,7 @@ class LangfuseTraceOrm(Base):
         Index("ix_langfuse_traces_insight_id", "insight_id"),
         Index("ix_langfuse_traces_env_ts", "environment", "trace_timestamp"),
         Index("ix_langfuse_traces_turn_index", "turn_index"),
+        Index("ix_langfuse_traces_input_source", "input_source"),
         # Serves "first turns, newest first" (first_turn_only) directly.
         Index(
             "ix_langfuse_traces_first_turn",
