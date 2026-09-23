@@ -47,6 +47,9 @@ def upgrade() -> None:
     op.add_column(
         "aois", sa.Column("search_tsv", postgresql.TSVECTOR(), nullable=True)
     )
+    op.add_column(
+        "aois", sa.Column("name_tsv", postgresql.TSVECTOR(), nullable=True)
+    )
     # text_pattern_ops serves both `=` and a LIKE 'prefix%' range under any
     # collation, so one btree covers the exact tier and autocomplete. The
     # INCLUDE columns are what the search orders and filters by, so a short
@@ -64,6 +67,13 @@ def upgrade() -> None:
         "idx_aois_search_tsv",
         "aois",
         ["search_tsv"],
+        postgresql_using="gin",
+        postgresql_where=_LIVE,
+    )
+    op.create_index(
+        "idx_aois_name_tsv",
+        "aois",
+        ["name_tsv"],
         postgresql_using="gin",
         postgresql_where=_LIVE,
     )
@@ -102,6 +112,7 @@ def upgrade() -> None:
         "aoi_search_tokens",
         sa.Column("token", sa.String(), nullable=False),
         sa.Column("ndoc", sa.Integer(), nullable=False),
+        sa.Column("prominence", sa.Float(), nullable=False),
         sa.PrimaryKeyConstraint("token"),
     )
     op.create_index(
@@ -117,8 +128,10 @@ def downgrade() -> None:
     """Downgrade schema."""
     op.drop_table("aoi_search_tokens")
     op.drop_table("aoi_names")
+    op.drop_index("idx_aois_name_tsv", table_name="aois")
     op.drop_index("idx_aois_search_tsv", table_name="aois")
     op.drop_index("idx_aois_leaf_norm", table_name="aois")
+    op.drop_column("aois", "name_tsv")
     op.drop_column("aois", "search_tsv")
     op.drop_column("aois", "context")
     op.drop_column("aois", "leaf_norm")

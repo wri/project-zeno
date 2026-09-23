@@ -391,12 +391,12 @@ async def test_gadm_rebuild_is_idempotent(gadm_staging):
 
 
 async def _search_columns(source: str) -> dict[str, dict]:
-    """Return ``{source_id: {leaf, leaf_norm, context, tsv}}`` for a source."""
+    """Return ``{source_id: {leaf, leaf_norm, context, tsv, ntsv}}``."""
     async with async_session_maker() as session:
         result = await session.execute(
             text(
                 "SELECT source_id, leaf, leaf_norm, context, "
-                "search_tsv::text AS tsv "
+                "search_tsv::text AS tsv, name_tsv::text AS ntsv "
                 "FROM aois WHERE source = :source"
             ),
             {"source": source},
@@ -445,6 +445,9 @@ async def test_gadm_build_fills_the_search_columns(gadm_staging):
     assert barnsley["context"] == "England, United Kingdom"
     assert "'barnsley':1A" in barnsley["tsv"]
     assert "'england':2B" in barnsley["tsv"]
+    # The name vector carries the names only: a parent's name would match
+    # every row beneath it.
+    assert barnsley["ntsv"] == "'barnsley':1A"
 
     # The repaired leading segment is the leaf.
     assert cols["GBR.1_1"]["leaf"] == "England"
@@ -538,6 +541,10 @@ async def test_wdpa_context_names_the_country_and_keeps_orig_name(
         assert cols["1"]["leaf"] == "Masirah Island Reserve"
         assert cols["1"]["context"] == "Nature Reserve, United Kingdom"
         assert "'محمية':4A" in cols["1"]["tsv"]
+        # The designation is in the name vector, the country is not.
+        assert "'nature':6B" in cols["1"]["ntsv"]
+        assert "'reserve':3A,7B" in cols["1"]["ntsv"]
+        assert "kingdom" not in cols["1"]["ntsv"]
         # No GADM country for the code, so the code itself is the context.
         assert cols["2"]["context"] == "Park, ZZZ"
 
@@ -578,14 +585,19 @@ async def test_token_table_holds_the_distinct_lexemes(gadm_staging):
         count = await _rebuild_search_tokens(session)
         await session.commit()
         tokens = {
-            row[0]
+            row[0]: (row[1], row[2])
             for row in await session.execute(
-                text("SELECT token FROM aoi_search_tokens")
+                text("SELECT token, ndoc, prominence FROM aoi_search_tokens")
             )
         }
 
     assert count == len(tokens)
-    assert {"barnsley", "scotland", "scotia", "kingdom"} <= tokens
+    assert {"barnsley", "scotland", "scotia", "kingdom"} <= set(tokens)
+    # The name vector, not the full one: a parent is not a token of its
+    # children, so "kingdom" is carried by the country alone.
+    assert tokens["kingdom"] == (1, 1.0)
+    # A token's prominence is that of the best-known place carrying it.
+    assert tokens["scotland"] == (1, 0.9)
     # No-data markers never enter the tsvector, so they are not tokens.
     assert "na" not in tokens
 

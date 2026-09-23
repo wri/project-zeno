@@ -25,7 +25,12 @@ from src.shared.aoi_geometry import (
     CUSTOM_AREA_GEOM_SQL,
     bbox_float_array_sql,
 )
-from src.shared.aoi_search_sql import clean_name_sql, norm_sql, tsv_sql
+from src.shared.aoi_search_sql import (
+    clean_name_sql,
+    name_tsv_sql,
+    norm_sql,
+    tsv_sql,
+)
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -52,7 +57,7 @@ def _upsert_sql(scoped: bool) -> str:
             INSERT INTO aois (
                 source, source_id, name, subtype, geometry,
                 bbox, area_km2, properties, created_by, created_at, updated_at,
-                leaf, leaf_norm, context, search_tsv
+                leaf, leaf_norm, context, search_tsv, name_tsv
             )
             SELECT
                 'custom',
@@ -69,7 +74,8 @@ def _upsert_sql(scoped: bool) -> str:
                 leaf,
                 {norm_sql("leaf")},
                 NULL,
-                {tsv_sql("leaf", "NULL", "NULL", "name")}
+                {tsv_sql("leaf", "NULL", "NULL", "name")},
+                {name_tsv_sql("leaf", "NULL", "NULL")}
             FROM collected
             WHERE name IS NOT NULL AND geom IS NOT NULL AND NOT ST_IsEmpty(geom)
             ON CONFLICT (source, source_id) WHERE NOT is_deprecated
@@ -82,6 +88,7 @@ def _upsert_sql(scoped: bool) -> str:
                 leaf = EXCLUDED.leaf,
                 leaf_norm = EXCLUDED.leaf_norm,
                 search_tsv = EXCLUDED.search_tsv,
+                name_tsv = EXCLUDED.name_tsv,
                 updated_at = now()
             RETURNING id AS aoi_id, created_by AS user_id
         )

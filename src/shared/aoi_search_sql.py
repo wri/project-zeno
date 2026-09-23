@@ -1,9 +1,9 @@
 """SQL fragments and DDL for AOI name search.
 
 Search reads three structures that every write path must fill the same way:
-the normalized leaf name and weighted tsvector on ``aois``, the name variants
-in ``aoi_names``, and the distinct-token table ``aoi_search_tokens`` used for
-typo correction. ``build-aois`` (:mod:`src.api.cli`), the custom-area mirror
+the normalized leaf name and the two weighted tsvectors on ``aois``, the name
+variants in ``aoi_names``, and the distinct-token table ``aoi_search_tokens``
+used when a query misses. ``build-aois`` (:mod:`src.api.cli`), the custom-area mirror
 (:mod:`src.api.services.aoi_sync`), the migration and the test fixture all
 import these fragments, so no two writers can normalize differently.
 
@@ -43,6 +43,35 @@ SEARCH_DDL = [
     $$
     """,
 ]
+
+
+# Preference by subtype: broader admin units beat narrower ones, and admin
+# units beat named sites (KBA/WDPA/Landmark), so a bare "Lisbon" resolves to
+# the Portuguese district rather than a small "Lisbon Forest Preserve". Search
+# ranks with it in SQL, the token table stores each token's best value so a
+# typo corrects to the best-known place, and the geocoder's scorer re-uses it
+# in Python. The weights are tuning constants, hand-authored.
+HIERARCHY_SCORES: dict[str, float] = {
+    "country": 1.0,
+    "state-province": 0.9,
+    "district-county": 0.7,
+    "custom-area": 0.7,
+    "municipality": 0.5,
+    "locality": 0.35,
+    "neighbourhood": 0.25,
+    "key-biodiversity-area": 0.2,
+    "protected-area": 0.2,
+    "indigenous-and-community-land": 0.2,
+}
+
+
+def hierarchy_prior_sql(subtype_expr: str) -> str:
+    """``HIERARCHY_SCORES`` as a SQL CASE over *subtype_expr*, in [0, 1]."""
+    arms = " ".join(
+        f"WHEN '{subtype}' THEN {score}"
+        for subtype, score in HIERARCHY_SCORES.items()
+    )
+    return f"(CASE {subtype_expr} {arms} ELSE 0.0 END)"
 
 
 def norm_sql(expr: str) -> str:
@@ -86,11 +115,32 @@ def strip_sentinel_segments_sql(expr: str) -> str:
     )
 
 
+def name_tsv_sql(
+    leaf_expr: str, variants_expr: str, designation_expr: str
+) -> str:
+    """The tsvector a token query runs against: the place's own names at A
+    and its designation at B.
+
+    *leaf_expr* and *variants_expr* are the names the place is known by;
+    *designation_expr* is the kind of site a source names it with ("National
+    Park", "Indigenous territory"), so "Botum Sakor National Park" still
+    matches. Parents and country are not in it: they belong to every child,
+    and a country name would otherwise match every row beneath it.
+    """
+    return (
+        f"setweight(to_tsvector('{TS_CONFIG}', COALESCE({leaf_expr}, '')), 'A') "
+        f"|| setweight(to_tsvector('{TS_CONFIG}', COALESCE({variants_expr}, '')), 'A') "
+        f"|| setweight(to_tsvector('{TS_CONFIG}', COALESCE({designation_expr}, '')), 'B')"
+    )
+
+
 def tsv_sql(
     leaf_expr: str, variants_expr: str, context_expr: str, name_expr: str
 ) -> str:
-    """Weighted tsvector: the place's own names at A, its context at B, its
-    display name at D.
+    """The full tsvector: the place's own names at A, its context at B, its
+    display name at D. It answers whether a typed parent matches, and it is
+    the fallback for a query whose words are spread over name and context
+    ("Bristol England").
 
     *leaf_expr* and *variants_expr* are the names the place is known by, and
     both carry weight A so a token search finds a place under any of them.
@@ -110,20 +160,21 @@ def tsv_sql(
     )
 
 
-# Rebuild the distinct-token table from the reference rows' tsvectors.
-# ``ts_stat`` reads every vector once, so this runs at the end of
-# ``build-aois``. Custom areas stay out: the table is shared by every user, and
-# a private area name must not steer another user's typo correction. A custom
-# area is still found by the exact and token tiers; it just gets no correction.
+# Rebuild the distinct-token table from the reference rows' name vectors:
+# what a query's words are matched and corrected against, with the count of
+# names carrying each token and the hierarchy prior of the best-known one.
+# It reads every vector once, so this runs at the end of ``build-aois``.
+# Custom areas stay out: the table is shared by every user, and a private
+# area name must not steer another user's typo correction. A custom area is
+# still found by the exact and token tiers; it just gets no correction.
 TOKENS_REBUILD_SQL = [
     "TRUNCATE aoi_search_tokens",
-    """
-    INSERT INTO aoi_search_tokens (token, ndoc)
-    SELECT word, ndoc
-    FROM ts_stat(
-        'SELECT search_tsv FROM aois '
-        'WHERE NOT is_disputed AND NOT is_deprecated '
-        'AND source <> ''custom'' AND search_tsv IS NOT NULL'
-    )
+    f"""
+    INSERT INTO aoi_search_tokens (token, ndoc, prominence)
+    SELECT t.lexeme, count(*), max({hierarchy_prior_sql("a.subtype")})
+    FROM aois a, unnest(a.name_tsv) AS t(lexeme, positions, weights)
+    WHERE NOT a.is_disputed AND NOT a.is_deprecated
+      AND a.source <> 'custom' AND a.name_tsv IS NOT NULL
+    GROUP BY t.lexeme
     """,
 ]

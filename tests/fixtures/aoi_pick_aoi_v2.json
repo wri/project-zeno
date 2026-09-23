@@ -167,121 +167,30 @@
      "similarity_score": 0.8
     },
     {
-     "src_id": "ECU.9_1",
-     "name": "Galápagos, Ecuador",
-     "subtype": "state-province",
-     "source": "gadm",
+     "src_id": "200719",
+     "name": "Corredor Marino Costero de Ecuador, Coastal Ecuador Marine Corridor, ECU",
+     "subtype": "key-biodiversity-area",
+     "source": "kba",
      "bbox": [
-      -92.008555,
-      -1.411245,
-      -89.24127,
-      1.681845
+      -81.6711402074,
+      -3.3940770292,
+      -79.8865086566,
+      0.8607990474
      ],
-     "similarity_score": 0.5
+     "similarity_score": 0.325
     },
     {
-     "src_id": "ECU.15_1",
-     "name": "Morona Santiago, Ecuador",
-     "subtype": "state-province",
-     "source": "gadm",
+     "src_id": "100350",
+     "name": "Estribaciones surorientales fronterizas del Ecuador, Southeastern Cordillerean Limits of Ecuador, ECU",
+     "subtype": "key-biodiversity-area",
+     "source": "kba",
      "bbox": [
-      -78.953936087,
-      -3.587753998,
-      -76.692098155,
-      -1.448367729
+      -79.0514777043,
+      -4.8977163959,
+      -78.8628637352,
+      -4.6063350234
      ],
-     "similarity_score": 0.5
-    },
-    {
-     "src_id": "ECU.18_1",
-     "name": "Pastaza, Ecuador",
-     "subtype": "state-province",
-     "source": "gadm",
-     "bbox": [
-      -78.177957998,
-      -2.603964076,
-      -75.585378183,
-      -1.003814711
-     ],
-     "similarity_score": 0.5
-    },
-    {
-     "src_id": "ECU.14_1",
-     "name": "Manabi, Ecuador",
-     "subtype": "state-province",
-     "source": "gadm",
-     "bbox": [
-      -81.084925,
-      -1.947414266,
-      -79.40499641,
-      0.381816404
-     ],
-     "similarity_score": 0.5
-    },
-    {
-     "src_id": "ECU.17_1",
-     "name": "Orellana, Ecuador",
-     "subtype": "state-province",
-     "source": "gadm",
-     "bbox": [
-      -77.628725514,
-      -1.549715148,
-      -75.187139047,
-      -0.044973662
-     ],
-     "similarity_score": 0.5
-    },
-    {
-     "src_id": "ECU.22_1",
-     "name": "Sucumbios, Ecuador",
-     "subtype": "state-province",
-     "source": "gadm",
-     "bbox": [
-      -77.978762136,
-      -0.656065332,
-      -75.224713815,
-      0.662504958
-     ],
-     "similarity_score": 0.5
-    },
-    {
-     "src_id": "ECU.10_1",
-     "name": "Guayas, Ecuador",
-     "subtype": "state-province",
-     "source": "gadm",
-     "bbox": [
-      -80.563562856,
-      -3.064329849,
-      -79.102162852,
-      -0.844383313
-     ],
-     "similarity_score": 0.5
-    },
-    {
-     "src_id": "ECU.8_1",
-     "name": "Esmeraldas, Ecuador",
-     "subtype": "state-province",
-     "source": "gadm",
-     "bbox": [
-      -80.102182851,
-      -0.039690876,
-      -78.426358714,
-      1.469591
-     ],
-     "similarity_score": 0.5
-    },
-    {
-     "src_id": "ECU.12_1",
-     "name": "Loja, Ecuador",
-     "subtype": "state-province",
-     "source": "gadm",
-     "bbox": [
-      -80.486383902,
-      -4.747305379,
-      -79.095120919,
-      -3.329408421
-     ],
-     "similarity_score": 0.5
+     "similarity_score": 0.325
     }
    ]
   },
@@ -335,95 +244,56 @@
      "similarity_score": 0.6
     },
     {
-     "src_id": "BOL.8_1",
-     "name": "Santa Cruz, Bolivia",
-     "subtype": "state-province",
-     "source": "gadm",
+     "src_id": "555592595",
+     "name": "Jardín de Cactáceas de Bolivia, Área Protegida Municipal, BOL",
+     "subtype": "protected-area",
+     "source": "wdpa",
      "bbox": [
-      -64.842422856,
-      -20.473223713,
-      -57.454423528,
-      -13.475729209
+      -64.507737,
+      -18.2262762,
+      -64.3098019,
+      -18.0719146
      ],
-     "similarity_score": 0.5
+     "similarity_score": 0.325
     },
     {
-     "src_id": "BOL.3_1",
-     "name": "Beni, Bolivia",
-     "subtype": "state-province",
-     "source": "gadm",
+     "src_id": "555576299",
+     "name": "Área De Proteção Ambiental Da Serra Da Bolívia, Área de Proteção Ambiental, BRA",
+     "subtype": "protected-area",
+     "source": "wdpa",
      "bbox": [
-      -67.562191771,
-      -16.491661133,
-      -61.527920174,
-      -10.381207905
+      -42.15386,
+      -21.704051,
+      -42.084207,
+      -21.628229
      ],
-     "similarity_score": 0.5
+     "similarity_score": 0.325
     },
     {
-     "src_id": "BOL.7_1",
-     "name": "Potosí, Bolivia",
-     "subtype": "state-province",
-     "source": "gadm",
+     "src_id": "309996",
+     "name": "Bolivia Hill, Nature Reserve, AUS",
+     "subtype": "protected-area",
+     "source": "wdpa",
      "bbox": [
-      -68.773883278,
-      -22.906578379,
-      -64.714377407,
-      -17.807101059
+      151.8950885,
+      -29.3603882,
+      151.9602176,
+      -29.3165824
      ],
-     "similarity_score": 0.5
+     "similarity_score": 0.325
     },
     {
-     "src_id": "BOL.4_1",
-     "name": "La Paz, Bolivia",
-     "subtype": "state-province",
-     "source": "gadm",
+     "src_id": "555600315",
+     "name": "Monumento Natural Municipal Da Serra Da Bolívia, Monumento Natural, BRA",
+     "subtype": "protected-area",
+     "source": "wdpa",
      "bbox": [
-      -69.645256036,
-      -18.046865754,
-      -66.732103432,
-      -11.84967112
+      -42.131306,
+      -21.671429,
+      -42.099965,
+      -21.64781
      ],
-     "similarity_score": 0.5
-    },
-    {
-     "src_id": "BOL.6_1",
-     "name": "Pando, Bolivia",
-     "subtype": "state-province",
-     "source": "gadm",
-     "bbox": [
-      -69.574757639,
-      -12.498449765,
-      -65.287522739,
-      -9.670912913
-     ],
-     "similarity_score": 0.5
-    },
-    {
-     "src_id": "BOL.1_1",
-     "name": "Chuquisaca, Bolivia",
-     "subtype": "state-province",
-     "source": "gadm",
-     "bbox": [
-      -65.695573711,
-      -21.517333021,
-      -62.179361294,
-      -18.346998783
-     ],
-     "similarity_score": 0.5
-    },
-    {
-     "src_id": "BOL.2_1",
-     "name": "Cochabamba, Bolivia",
-     "subtype": "state-province",
-     "source": "gadm",
-     "bbox": [
-      -67.005751904,
-      -18.681815691,
-      -64.234095825,
-      -15.779907436
-     ],
-     "similarity_score": 0.5
+     "similarity_score": 0.325
     }
    ]
   },
@@ -529,41 +399,41 @@
      "similarity_score": 0.7
     },
     {
-     "src_id": "BRA.14.8_2",
-     "name": "Altamira, Pará, Brazil",
+     "src_id": "BRA.12.90_2",
+     "name": "Paranatinga, Mato Grosso, Brazil",
      "subtype": "district-county",
      "source": "gadm",
      "bbox": [
-      -55.623880986,
-      -9.645188151,
-      -51.647527826,
-      -2.988706853
+      -55.100379543,
+      -14.732826741,
+      -53.223422959,
+      -11.948613705
      ],
      "similarity_score": 0.65
     },
     {
-     "src_id": "BRA.14.7_2",
-     "name": "Almeirim, Pará, Brazil",
+     "src_id": "BRA.14.89_2",
+     "name": "Paragominas, Pará, Brazil",
      "subtype": "district-county",
      "source": "gadm",
      "bbox": [
-      -55.707706865,
-      -1.781154897,
-      -51.777866422,
-      2.632489906
+      -48.891473265,
+      -3.837318033,
+      -46.41912816,
+      -2.410535975
      ],
      "similarity_score": 0.65
     },
     {
-     "src_id": "BRA.14.84_2",
-     "name": "Oriximiná, Pará, Brazil",
+     "src_id": "BRA.14.56_2",
+     "name": "Ipixuna do Pará, Pará, Brazil",
      "subtype": "district-county",
      "source": "gadm",
      "bbox": [
-      -58.895573769,
-      -1.998666968,
-      -55.587548678,
-      2.531928521
+      -49.030365012,
+      -3.575197573,
+      -47.310946301,
+      -2.299787283
      ],
      "similarity_score": 0.65
     }
@@ -593,121 +463,30 @@
      "similarity_score": 0.8
     },
     {
-     "src_id": "IDN.23_1",
-     "name": "Papua, Indonesia",
-     "subtype": "state-province",
+     "src_id": "IDN.32.3.7.1_1",
+     "name": "Jambur Indonesia, Siempat Nempu Hilir, Dairi, Sumatera Utara, Indonesia",
+     "subtype": "locality",
      "source": "gadm",
      "bbox": [
-      134.29566,
-      -9.118934141,
-      141.019404,
-      0.937807
+      98.063550486,
+      2.860528961,
+      98.093698965,
+      2.898325431
      ],
-     "similarity_score": 0.5
+     "similarity_score": 0.3625
     },
     {
-     "src_id": "IDN.19_1",
-     "name": "Maluku, Indonesia",
-     "subtype": "state-province",
+     "src_id": "IDN.18.9.8.5_1",
+     "name": "Indonesiana, Tidore, Tidore Kepulauan, Maluku Utara, Indonesia",
+     "subtype": "locality",
      "source": "gadm",
      "bbox": [
-      125.718503,
-      -8.341075406,
-      134.908564,
-      -1.378651
+      127.41762305,
+      0.667944035,
+      127.456872999,
+      0.687198807
      ],
-     "similarity_score": 0.5
-    },
-    {
-     "src_id": "IDN.16_1",
-     "name": "Kepulauan Riau, Indonesia",
-     "subtype": "state-province",
-     "source": "gadm",
-     "bbox": [
-      103.28523,
-      -1.298373999,
-      109.163973,
-      4.797775
-     ],
-     "similarity_score": 0.5
-    },
-    {
-     "src_id": "IDN.22_1",
-     "name": "Papua Barat, Indonesia",
-     "subtype": "state-province",
-     "source": "gadm",
-     "bbox": [
-      129.307699,
-      -4.255434023,
-      135.257990346,
-      0.582245216
-     ],
-     "similarity_score": 0.5
-    },
-    {
-     "src_id": "IDN.12_1",
-     "name": "Kalimantan Barat, Indonesia",
-     "subtype": "state-province",
-     "source": "gadm",
-     "bbox": [
-      108.677830999,
-      -3.067661999,
-      114.201151358,
-      2.080976235
-     ],
-     "similarity_score": 0.5
-    },
-    {
-     "src_id": "IDN.26_1",
-     "name": "Sulawesi Selatan, Indonesia",
-     "subtype": "state-province",
-     "source": "gadm",
-     "bbox": [
-      117.038473,
-      -7.758951,
-      121.840219962,
-      -1.895225539
-     ],
-     "similarity_score": 0.5
-    },
-    {
-     "src_id": "IDN.18_1",
-     "name": "Maluku Utara, Indonesia",
-     "subtype": "state-province",
-     "source": "gadm",
-     "bbox": [
-      124.283041,
-      -2.477403626,
-      129.657481,
-      2.645521865
-     ],
-     "similarity_score": 0.5
-    },
-    {
-     "src_id": "IDN.34_1",
-     "name": "Kalimantan Timur, Indonesia",
-     "subtype": "state-province",
-     "source": "gadm",
-     "bbox": [
-      113.836644664,
-      -2.409410702,
-      118.989496694,
-      2.606565701
-     ],
-     "similarity_score": 0.5
-    },
-    {
-     "src_id": "IDN.27_1",
-     "name": "Sulawesi Tengah, Indonesia",
-     "subtype": "state-province",
-     "source": "gadm",
-     "bbox": [
-      119.44692756,
-      -3.640753494,
-      124.181536184,
-      1.375164
-     ],
-     "similarity_score": 0.5
+     "similarity_score": 0.3625
     }
    ]
   },
@@ -800,56 +579,56 @@
      "similarity_score": 0.8
     },
     {
-     "src_id": "PRT.6.5_1",
-     "name": "Idanha-a-Nova, Castelo Branco, Portugal",
-     "subtype": "district-county",
-     "source": "gadm",
+     "src_id": "388907",
+     "name": "Varadouro-Castelo Branco, Área Protegida para a Gestão de Habitats ou Espécies, PRT",
+     "subtype": "protected-area",
+     "source": "wdpa",
      "bbox": [
-      -7.361721979,
-      39.653054729,
-      -6.863779082,
-      40.100676046
+      -28.7725319,
+      38.5218356,
+      -28.7345263,
+      38.5678836
      ],
-     "similarity_score": 0.65
+     "similarity_score": 0.525
     },
     {
-     "src_id": "PRT.6.4_1",
-     "name": "Fundão, Castelo Branco, Portugal",
-     "subtype": "district-county",
-     "source": "gadm",
+     "src_id": "555531133",
+     "name": "Morro de Castelo Branco - Ilha do Faial, B, PRT",
+     "subtype": "protected-area",
+     "source": "wdpa",
      "bbox": [
-      -7.8172922,
-      39.977643504,
-      -7.251893056,
-      40.272356498
+      -28.7589091,
+      38.5182003,
+      -28.7427779,
+      38.5294272
      ],
-     "similarity_score": 0.65
+     "similarity_score": 0.525
     },
     {
-     "src_id": "PRT.6.3_1",
-     "name": "Covilhã, Castelo Branco, Portugal",
-     "subtype": "district-county",
-     "source": "gadm",
+     "src_id": "388904",
+     "name": "Morro do Castelo Branco, Reserva Natural, PRT",
+     "subtype": "protected-area",
+     "source": "wdpa",
      "bbox": [
-      -7.809053884,
-      40.130025401,
-      -7.343763841,
-      40.401838765
+      -28.7541381,
+      38.521911,
+      -28.7473148,
+      38.525625
      ],
-     "similarity_score": 0.65
+     "similarity_score": 0.525
     },
     {
-     "src_id": "PRT.6.7_1",
-     "name": "Penamacor, Castelo Branco, Portugal",
+     "src_id": "BRA.16.286_2",
+     "name": "Presidente Castelo Branco, Paraná, Brazil",
      "subtype": "district-county",
      "source": "gadm",
      "bbox": [
-      -7.319253907,
-      40.049184336,
-      -6.932230962,
-      40.324644553
+      -52.244039771,
+      -23.349989743,
+      -52.05872768,
+      -23.177770957
      ],
-     "similarity_score": 0.65
+     "similarity_score": 0.45
     }
    ]
   },
@@ -1108,121 +887,82 @@
      "similarity_score": 0.8
     },
     {
-     "src_id": "RUS.60_1",
-     "name": "Sakha, Russia",
-     "subtype": "state-province",
-     "source": "gadm",
+     "src_id": "11115313",
+     "name": "Russian, Wilderness, USA",
+     "subtype": "protected-area",
+     "source": "wdpa",
      "bbox": [
-      105.523473277,
-      55.500905527,
-      162.772974,
-      76.754176
+      -123.0002039,
+      41.2575364,
+      -122.9002477,
+      41.3682038
      ],
-     "similarity_score": 0.5
+     "similarity_score": 0.325
     },
     {
-     "src_id": "RUS.35_1",
-     "name": "Krasnoyarsk, Russia",
-     "subtype": "state-province",
-     "source": "gadm",
+     "src_id": "555602063",
+     "name": "Russian Ridge Open Spac, Open Space, USA",
+     "subtype": "protected-area",
+     "source": "wdpa",
      "bbox": [
-      76.096342,
-      51.759480967,
-      113.92293,
-      81.275012
+      -122.250466,
+      37.279782,
+      -122.187479,
+      37.3414409
      ],
-     "similarity_score": 0.5
+     "similarity_score": 0.325
     },
     {
-     "src_id": "RUS.4_1",
-     "name": "Arkhangel'sk, Russia",
-     "subtype": "state-province",
-     "source": "gadm",
+     "src_id": "555547364",
+     "name": "Russian River State Marine Recreational Manag Recreation, Marine Protected Area, USA",
+     "subtype": "protected-area",
+     "source": "wdpa",
      "bbox": [
-      35.500509,
-      60.669770731,
-      69.074488,
-      81.856257
+      -123.1318435,
+      38.4340544,
+      -123.1010731,
+      38.4526777
      ],
-     "similarity_score": 0.5
+     "similarity_score": 0.325
     },
     {
-     "src_id": "RUS.28_1",
-     "name": "Khabarovsk, Russia",
-     "subtype": "state-province",
-     "source": "gadm",
+     "src_id": "555586730",
+     "name": "Russian River State Marine Conservation Area, Marine Protected Area, USA",
+     "subtype": "protected-area",
+     "source": "wdpa",
      "bbox": [
-      130.378088,
-      45.035820999,
-      147.279109,
-      62.493559
+      -123.14301,
+      38.4396567,
+      -123.1263507,
+      38.4562107
      ],
-     "similarity_score": 0.5
+     "similarity_score": 0.325
     },
     {
-     "src_id": "RUS.18_1",
-     "name": "Irkutsk, Russia",
-     "subtype": "state-province",
-     "source": "gadm",
+     "src_id": "555586869",
+     "name": "Russian Gulch State Marine Conservation Area, Marine Protected Area, USA",
+     "subtype": "protected-area",
+     "source": "wdpa",
      "bbox": [
-      95.581990732,
-      51.118817821,
-      119.122301565,
-      64.283449637
+      -123.8166767,
+      39.324493,
+      -123.8038021,
+      39.3315579
      ],
-     "similarity_score": 0.5
+     "similarity_score": 0.325
     },
     {
-     "src_id": "RUS.12_1",
-     "name": "Chukot, Russia",
-     "subtype": "state-province",
-     "source": "gadm",
+     "src_id": "555638711",
+     "name": "Russia Dock Woodland, Local Nature Reserve, GBR",
+     "subtype": "protected-area",
+     "source": "wdpa",
      "bbox": [
-      0.0,
-      61.806242,
-      0.0,
-      76.166674
+      -0.0422577,
+      51.4954451,
+      -0.0348719,
+      51.5053931
      ],
-     "similarity_score": 0.5
-    },
-    {
-     "src_id": "RUS.24_1",
-     "name": "Kamchatka, Russia",
-     "subtype": "state-province",
-     "source": "gadm",
-     "bbox": [
-      155.552770151,
-      50.864713206,
-      174.4555,
-      64.911334
-     ],
-     "similarity_score": 0.5
-    },
-    {
-     "src_id": "RUS.61_1",
-     "name": "Sakhalin, Russia",
-     "subtype": "state-province",
-     "source": "gadm",
-     "bbox": [
-      141.210317,
-      43.360162,
-      156.51446,
-      54.425162
-     ],
-     "similarity_score": 0.5
-    },
-    {
-     "src_id": "RUS.80_1",
-     "name": "Yamal-Nenets, Russia",
-     "subtype": "state-province",
-     "source": "gadm",
-     "bbox": [
-      62.062520517,
-      62.178090585,
-      85.984171377,
-      73.520846
-     ],
-     "similarity_score": 0.5
+     "similarity_score": 0.325
     }
    ]
   },
@@ -1392,121 +1132,43 @@
      "similarity_score": 0.8
     },
     {
-     "src_id": "BRA.4_1",
-     "name": "Amazonas, Brazil",
-     "subtype": "state-province",
-     "source": "gadm",
+     "src_id": "900631",
+     "name": "Brazilian Atlantic Islands: Fernando de Noronha and Atol das Rocas Reserves, World Heritage Site (natural or mixed), BRA",
+     "subtype": "protected-area",
+     "source": "wdpa",
      "bbox": [
-      -73.795687186,
-      -9.818055875,
-      -56.097548038,
-      2.229893194
+      -33.8371321,
+      -3.9221682,
+      -32.3525095,
+      -3.7928084
      ],
-     "similarity_score": 0.5
+     "similarity_score": 0.325
     },
     {
-     "src_id": "BRA.14_1",
-     "name": "Pará, Brazil",
-     "subtype": "state-province",
-     "source": "gadm",
+     "src_id": "555749710",
+     "name": "Brazil-Van Ryn Farm, Conservation Easement, USA",
+     "subtype": "protected-area",
+     "source": "wdpa",
      "bbox": [
-      -58.8983384,
-      -9.841171149,
-      -46.061414818,
-      2.632489906
+      -121.0914607,
+      37.8708595,
+      -121.0729653,
+      37.8806275
      ],
-     "similarity_score": 0.5
+     "similarity_score": 0.325
     },
     {
-     "src_id": "BRA.12_1",
-     "name": "Mato Grosso, Brazil",
-     "subtype": "state-province",
-     "source": "gadm",
+     "src_id": "343390",
+     "name": "Brazilka, Přírodní památka (PP), CZE",
+     "subtype": "protected-area",
+     "source": "wdpa",
      "bbox": [
-      -61.633392982,
-      -18.04160824,
-      -50.224800544,
-      -7.349018381
+      14.6591258,
+      50.8466046,
+      14.6647985,
+      50.8491833
      ],
-     "similarity_score": 0.5
-    },
-    {
-     "src_id": "BRA.13_1",
-     "name": "Minas Gerais, Brazil",
-     "subtype": "state-province",
-     "source": "gadm",
-     "bbox": [
-      -51.046091811,
-      -22.92276526,
-      -39.856818891,
-      -14.233170666
-     ],
-     "similarity_score": 0.5
-    },
-    {
-     "src_id": "BRA.5_1",
-     "name": "Bahia, Brazil",
-     "subtype": "state-province",
-     "source": "gadm",
-     "bbox": [
-      -46.577294607,
-      -18.34857026,
-      -37.341136654,
-      -8.532810571
-     ],
-     "similarity_score": 0.5
-    },
-    {
-     "src_id": "BRA.10_1",
-     "name": "Maranhão, Brazil",
-     "subtype": "state-province",
-     "source": "gadm",
-     "bbox": [
-      -48.755160737,
-      -10.261774702,
-      -41.79605907,
-      -1.049318121
-     ],
-     "similarity_score": 0.5
-    },
-    {
-     "src_id": "BRA.17_1",
-     "name": "Pernambuco, Brazil",
-     "subtype": "state-province",
-     "source": "gadm",
-     "bbox": [
-      -41.358346184,
-      -9.482907443,
-      -32.377757941,
-      -3.804612238
-     ],
-     "similarity_score": 0.5
-    },
-    {
-     "src_id": "BRA.9_1",
-     "name": "Goiás, Brazil",
-     "subtype": "state-province",
-     "source": "gadm",
-     "bbox": [
-      -53.248572409,
-      -19.498373709,
-      -45.907145329,
-      -12.394963309
-     ],
-     "similarity_score": 0.5
-    },
-    {
-     "src_id": "BRA.11_1",
-     "name": "Mato Grosso do Sul, Brazil",
-     "subtype": "state-province",
-     "source": "gadm",
-     "bbox": [
-      -58.162840352,
-      -24.06741465,
-      -50.92289908,
-      -17.166338555
-     ],
-     "similarity_score": 0.5
+     "similarity_score": 0.325
     }
    ]
   }
@@ -1836,102 +1498,21 @@
     }
    ]
   },
-  "state|gadm|ECU.9_1": {
+  "state|kba|200719": {
    "columns": [
     "name",
     "subtype",
-    "gadm_id",
     "source",
-    "src_id",
-    "bbox"
+    "src_id"
    ],
    "records": []
   },
-  "state|gadm|ECU.15_1": {
+  "state|kba|100350": {
    "columns": [
     "name",
     "subtype",
-    "gadm_id",
     "source",
-    "src_id",
-    "bbox"
-   ],
-   "records": []
-  },
-  "state|gadm|ECU.18_1": {
-   "columns": [
-    "name",
-    "subtype",
-    "gadm_id",
-    "source",
-    "src_id",
-    "bbox"
-   ],
-   "records": []
-  },
-  "state|gadm|ECU.14_1": {
-   "columns": [
-    "name",
-    "subtype",
-    "gadm_id",
-    "source",
-    "src_id",
-    "bbox"
-   ],
-   "records": []
-  },
-  "state|gadm|ECU.17_1": {
-   "columns": [
-    "name",
-    "subtype",
-    "gadm_id",
-    "source",
-    "src_id",
-    "bbox"
-   ],
-   "records": []
-  },
-  "state|gadm|ECU.22_1": {
-   "columns": [
-    "name",
-    "subtype",
-    "gadm_id",
-    "source",
-    "src_id",
-    "bbox"
-   ],
-   "records": []
-  },
-  "state|gadm|ECU.10_1": {
-   "columns": [
-    "name",
-    "subtype",
-    "gadm_id",
-    "source",
-    "src_id",
-    "bbox"
-   ],
-   "records": []
-  },
-  "state|gadm|ECU.8_1": {
-   "columns": [
-    "name",
-    "subtype",
-    "gadm_id",
-    "source",
-    "src_id",
-    "bbox"
-   ],
-   "records": []
-  },
-  "state|gadm|ECU.12_1": {
-   "columns": [
-    "name",
-    "subtype",
-    "gadm_id",
-    "source",
-    "src_id",
-    "bbox"
+    "src_id"
    ],
    "records": []
   },
@@ -2084,80 +1665,39 @@
    ],
    "records": []
   },
-  "state|gadm|BOL.8_1": {
+  "state|wdpa|555592595": {
    "columns": [
     "name",
     "subtype",
-    "gadm_id",
     "source",
-    "src_id",
-    "bbox"
+    "src_id"
    ],
    "records": []
   },
-  "state|gadm|BOL.3_1": {
+  "state|wdpa|555576299": {
    "columns": [
     "name",
     "subtype",
-    "gadm_id",
     "source",
-    "src_id",
-    "bbox"
+    "src_id"
    ],
    "records": []
   },
-  "state|gadm|BOL.7_1": {
+  "state|wdpa|309996": {
    "columns": [
     "name",
     "subtype",
-    "gadm_id",
     "source",
-    "src_id",
-    "bbox"
+    "src_id"
    ],
    "records": []
   },
-  "state|gadm|BOL.4_1": {
+  "state|wdpa|555600315": {
    "columns": [
     "name",
     "subtype",
-    "gadm_id",
     "source",
-    "src_id",
-    "bbox"
-   ],
-   "records": []
-  },
-  "state|gadm|BOL.6_1": {
-   "columns": [
-    "name",
-    "subtype",
-    "gadm_id",
-    "source",
-    "src_id",
-    "bbox"
-   ],
-   "records": []
-  },
-  "state|gadm|BOL.1_1": {
-   "columns": [
-    "name",
-    "subtype",
-    "gadm_id",
-    "source",
-    "src_id",
-    "bbox"
-   ],
-   "records": []
-  },
-  "state|gadm|BOL.2_1": {
-   "columns": [
-    "name",
-    "subtype",
-    "gadm_id",
-    "source",
-    "src_id",
-    "bbox"
+    "src_id"
    ],
    "records": []
   },
@@ -3252,102 +2792,57 @@
     }
    ]
   },
-  "state|gadm|RUS.60_1": {
+  "state|wdpa|11115313": {
    "columns": [
     "name",
     "subtype",
-    "gadm_id",
     "source",
-    "src_id",
-    "bbox"
+    "src_id"
    ],
    "records": []
   },
-  "state|gadm|RUS.35_1": {
+  "state|wdpa|555602063": {
    "columns": [
     "name",
     "subtype",
-    "gadm_id",
     "source",
-    "src_id",
-    "bbox"
+    "src_id"
    ],
    "records": []
   },
-  "state|gadm|RUS.4_1": {
+  "state|wdpa|555547364": {
    "columns": [
     "name",
     "subtype",
-    "gadm_id",
     "source",
-    "src_id",
-    "bbox"
+    "src_id"
    ],
    "records": []
   },
-  "state|gadm|RUS.28_1": {
+  "state|wdpa|555586730": {
    "columns": [
     "name",
     "subtype",
-    "gadm_id",
     "source",
-    "src_id",
-    "bbox"
+    "src_id"
    ],
    "records": []
   },
-  "state|gadm|RUS.18_1": {
+  "state|wdpa|555586869": {
    "columns": [
     "name",
     "subtype",
-    "gadm_id",
     "source",
-    "src_id",
-    "bbox"
+    "src_id"
    ],
    "records": []
   },
-  "state|gadm|RUS.12_1": {
+  "state|wdpa|555638711": {
    "columns": [
     "name",
     "subtype",
-    "gadm_id",
     "source",
-    "src_id",
-    "bbox"
-   ],
-   "records": []
-  },
-  "state|gadm|RUS.24_1": {
-   "columns": [
-    "name",
-    "subtype",
-    "gadm_id",
-    "source",
-    "src_id",
-    "bbox"
-   ],
-   "records": []
-  },
-  "state|gadm|RUS.61_1": {
-   "columns": [
-    "name",
-    "subtype",
-    "gadm_id",
-    "source",
-    "src_id",
-    "bbox"
-   ],
-   "records": []
-  },
-  "state|gadm|RUS.80_1": {
-   "columns": [
-    "name",
-    "subtype",
-    "gadm_id",
-    "source",
-    "src_id",
-    "bbox"
+    "src_id"
    ],
    "records": []
   },
@@ -4678,102 +4173,30 @@
     }
    ]
   },
-  "state|gadm|BRA.4_1": {
+  "state|wdpa|900631": {
    "columns": [
     "name",
     "subtype",
-    "gadm_id",
     "source",
-    "src_id",
-    "bbox"
+    "src_id"
    ],
    "records": []
   },
-  "state|gadm|BRA.14_1": {
+  "state|wdpa|555749710": {
    "columns": [
     "name",
     "subtype",
-    "gadm_id",
     "source",
-    "src_id",
-    "bbox"
+    "src_id"
    ],
    "records": []
   },
-  "state|gadm|BRA.12_1": {
+  "state|wdpa|343390": {
    "columns": [
     "name",
     "subtype",
-    "gadm_id",
     "source",
-    "src_id",
-    "bbox"
-   ],
-   "records": []
-  },
-  "state|gadm|BRA.13_1": {
-   "columns": [
-    "name",
-    "subtype",
-    "gadm_id",
-    "source",
-    "src_id",
-    "bbox"
-   ],
-   "records": []
-  },
-  "state|gadm|BRA.5_1": {
-   "columns": [
-    "name",
-    "subtype",
-    "gadm_id",
-    "source",
-    "src_id",
-    "bbox"
-   ],
-   "records": []
-  },
-  "state|gadm|BRA.10_1": {
-   "columns": [
-    "name",
-    "subtype",
-    "gadm_id",
-    "source",
-    "src_id",
-    "bbox"
-   ],
-   "records": []
-  },
-  "state|gadm|BRA.17_1": {
-   "columns": [
-    "name",
-    "subtype",
-    "gadm_id",
-    "source",
-    "src_id",
-    "bbox"
-   ],
-   "records": []
-  },
-  "state|gadm|BRA.9_1": {
-   "columns": [
-    "name",
-    "subtype",
-    "gadm_id",
-    "source",
-    "src_id",
-    "bbox"
-   ],
-   "records": []
-  },
-  "state|gadm|BRA.11_1": {
-   "columns": [
-    "name",
-    "subtype",
-    "gadm_id",
-    "source",
-    "src_id",
-    "bbox"
+    "src_id"
    ],
    "records": []
   }

@@ -43,6 +43,7 @@ custom-area mirror through shared SQL in `src/shared/aoi_search_sql.py`:
 | `leaf_norm` | `unaccent(lower(btrim(leaf)))` — the key for exact and prefix matching |
 | `context` | what follows the leaf: GADM parents and country (consecutive duplicate segments collapsed), WDPA `desig_eng` + country, KBA `Country`, LandMark `category` + `country` |
 | `search_tsv` | weighted tsvector: leaf and every name variant at weight A, context at weight B, and the display name (minus no-data segments) at weight D, so a display name pasted back as a query still matches its row |
+| `name_tsv` | the vector a token query runs against: leaf and variants at weight A, the designation (WDPA `desig_eng`, LandMark `category`) at weight B. No parents and no country: those belong to every child, and "Indonesia" would otherwise match the 85,000 rows beneath it |
 
 `aoi_names` holds one row per alternate spelling of a place, one per
 `(aoi_id, name_norm)`: `kind` is `variant` (GADM VARNAME, `|`-separated),
@@ -52,9 +53,10 @@ The leaf itself is not repeated here: `aois.leaf_norm` is the primary name,
 and a spelling equal to it is not stored. Custom areas have no rows.
 Non-Latin scripts are stored as they come; `unaccent` passes them through.
 
-`aoi_search_tokens` is the distinct-lexeme table of `search_tsv` over the
-reference sources (`ts_stat`, ~547k tokens with their document counts),
-rebuilt at the end of `build-aois`. It serves only the miss path below.
+`aoi_search_tokens` is the distinct-lexeme table of `name_tsv` over the
+reference sources, with the count of names carrying each token and the
+hierarchy prior of the best-known one, rebuilt at the end of `build-aois`.
+It serves only the miss path below.
 
 All text goes through one text search configuration, `aoi_search`: a copy of
 `simple` with the `unaccent` filter in front. No stemming and no stopword
@@ -69,7 +71,8 @@ searchable field. `name` itself, the display string, is unchanged.
 | index | serves |
 |---|---|
 | `idx_aois_leaf_norm` btree, `text_pattern_ops`, partial on live rows, INCLUDE (id, subtype, area_km2, name, source, source_id) | exact leaf match and `LIKE 'prefix%'`; the included columns are the ranking keys, so a prefix arm is an index-only scan |
-| `idx_aois_search_tsv` GIN, partial on live rows | token queries |
+| `idx_aois_name_tsv` GIN, partial on live rows | token queries |
+| `idx_aois_search_tsv` GIN, partial on live rows | the typed-parent test, and the fallback for words spread over name and context |
 | `idx_aoi_names_name_norm` btree, `text_pattern_ops` | exact and prefix over variants |
 | `idx_aoi_search_tokens_trgm` GIN trigram | typo correction |
 | `idx_aois_iso3`, `idx_aois_source` (existing) | facets |
@@ -92,7 +95,7 @@ One statement finds candidates in three arms and keeps each row's best tier:
 | tier | arm | example |
 |---|---|---|
 | 2 | `aois.leaf_norm = leaf_norm` or `aoi_names.name_norm = leaf_norm` | "Lisbon" finds Lisboa through its variant; "USA" finds the United States through its code |
-| 1 | `search_tsv @@ leaf tokens` | "Congo" finds every row with the token, both Congos included |
+| 1 | `name_tsv @@ leaf tokens` | "Congo" finds every place with the token in its name, both Congos included, but not the places inside them |
 | 1 | `leaf_norm LIKE 'leaf%'` | "Amazon" finds Amazonas |
 
 Within a tier the order is: rows whose context also matches the query's
@@ -107,14 +110,18 @@ fixtures keep working.
 
 The miss path runs only when the result does not answer the query as
 typed: no rows, or a parent was named and no row has it ("Lisbon, Portugal"
-must not stop at the US preserves called Lisbon). One statement looks every
-word of the leaf up in `aoi_search_tokens`: how many names carry it, and the
+must not stop at the US preserves called Lisbon). First the token arm is
+rerun alone over `search_tsv`, for a query whose words are spread over the
+name and its context without a comma ("Bristol England", "Paris France").
+Then one statement looks every word of the leaf up in `aoi_search_tokens`: how many names carry it, and the
 stored tokens nearest to it (`token % :tok` at threshold 0.3, set with `SET
-LOCAL` for that transaction, then by `levenshtein` distance and document
-frequency, at most three, and only within `greatest(1, length / 4)` edits so
-"kashmir" is not "kashmore"). Words under three letters pass through. Then
-the token arm is rerun, at most three times, stopping at the first result
-that answers the query:
+LOCAL` for that transaction, then by `levenshtein` distance, then the
+prominence of the best-known place carrying the token, so "paolo" reaches
+São Paulo's "paulo" before a village's "palo" and "brazl" reaches Brazil;
+at most three, and only within `greatest(1, length / 4)` edits so "kashmir"
+is not "kashmore"). Words under three letters pass through. Then
+the token arm is rerun over `name_tsv`, at most three times, stopping at
+the first result that answers the query:
 
 1. **Corrected spelling**, when some word has a neighbour other than itself:
    "Bangalor" becomes "bangalore"; "Sao Paolo, Brazil" becomes
@@ -132,13 +139,17 @@ that answers the query:
 This is the only place trigram matching is used, against short single
 tokens. The lookup costs about 30 ms; a retry costs one token-arm query.
 
-Measured on the corpus after the rewrite: "Paris" 21 ms, "Paris, France"
-5 ms, "Congo" 18 ms, "Mumbai" 11 ms, "Bangalor" 11 ms including the
-correction, "Botum Sakor" narrowed to WDPA 44 ms, "Puri" 194 ms. The costly
-shape is a country name that is also the context of a hundred thousand
-rows: "Indonesia" 470 ms and "United States" 510 ms, because the token arm
-has to sort every row that carries the token. The country still comes first,
-and the previous search took 4.7 s and 2.2 s on the same queries.
+Measured on the corpus (849k rows, warm plans, best of three): "Paris"
+11 ms, "Paris, France" 13 ms, "Congo" 8 ms, "Mumbai" 8 ms, "Bangalor" 8 ms
+including the correction, "Botum Sakor National Park" 9 ms, "Puri" 10 ms.
+A country name, the most common real query, is now the cheapest shape:
+"Indonesia" 10 ms, "United States" 10 ms, "Brazil" 10 ms, because the name
+vector holds the country's own name only. Before the name vector the token
+arm sorted every row carrying the country in its context: 470 ms and 510 ms
+for the first two, and 4.7 s and 2.2 s with the previous search. The miss
+path costs more per query and is rarer: "Paris France" 13 ms (the fallback
+vector), "Serengeti NP" 46 ms, "Sao Paolo, Brazil" 180 ms and "Ho Chi Minh
+City" 130 ms (the token lookup plus one or two retries).
 
 ### Autocomplete
 

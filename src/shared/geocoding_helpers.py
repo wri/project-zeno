@@ -8,7 +8,12 @@ import pandas as pd
 from sqlalchemy import select, text
 
 from src.api.data_models import CustomAreaOrm
-from src.shared.aoi_search_sql import TS_CONFIG, norm_sql
+from src.shared.aoi_search_sql import (
+    HIERARCHY_SCORES,
+    TS_CONFIG,
+    hierarchy_prior_sql,
+    norm_sql,
+)
 from src.shared.database import (
     get_connection_from_pool,
     get_session_from_pool,
@@ -124,36 +129,10 @@ def normalize_aoi_source(source: str) -> str:
 WORLD_BBOX = [-180.0, -90.0, 180.0, 90.0]
 
 
-# Preference by subtype: broader admin units beat narrower ones, and admin
-# units beat named sites (KBA/WDPA/Landmark), so a bare "Lisbon" resolves to
-# the Portuguese district rather than a small "Lisbon Forest Preserve". Search
-# ranks with it in SQL and the geocoder's scorer re-uses it in Python. The
-# weights are tuning constants, hand-authored.
-HIERARCHY_SCORES: dict[str, float] = {
-    "country": 1.0,
-    "state-province": 0.9,
-    "district-county": 0.7,
-    "custom-area": 0.7,
-    "municipality": 0.5,
-    "locality": 0.35,
-    "neighbourhood": 0.25,
-    "key-biodiversity-area": 0.2,
-    "protected-area": 0.2,
-    "indigenous-and-community-land": 0.2,
-}
-
-# A subtype missing from the map would rank as 0 in SQL and raise in the
-# scorer, so pin the coverage at import time.
+# A subtype missing from the hierarchy prior would rank as 0 in SQL and raise
+# in the scorer, so pin the coverage at import time. The table itself lives
+# with the shared SQL, because the token rebuild stores it.
 assert set(HIERARCHY_SCORES) == set(SUBREGION_TO_SUBTYPE_MAPPING.values())
-
-
-def hierarchy_prior_sql(subtype_expr: str) -> str:
-    """``HIERARCHY_SCORES`` as a SQL CASE over *subtype_expr*, in [0, 1]."""
-    arms = " ".join(
-        f"WHEN '{subtype}' THEN {score}"
-        for subtype, score in HIERARCHY_SCORES.items()
-    )
-    return f"(CASE {subtype_expr} {arms} ELSE 0.0 END)"
 
 
 # An `aoi_choice` nudge option is resubmitted verbatim as the next question:
@@ -264,18 +243,24 @@ def _custom_scope_sql(requested: set[str]) -> str:
     """
 
 
+# The three shapes of the search statement. "typed" runs every arm as the
+# user wrote the query; the others are the miss path and run the token arm
+# only, since an exact or prefix match would already have been found.
+# "fallback" reads the full vector for words spread over name and context
+# ("Bristol England"); "retry" reads the name vector with a query prepared
+# in Python (a corrected spelling, or a word dropped).
+_SearchStage = Literal["typed", "fallback", "retry"]
+
+
 def _search_sql(
-    requested: set[str], *, corrected: bool, with_context: bool
+    requested: set[str], *, stage: _SearchStage, with_context: bool
 ) -> str:
     """The tiered search statement. See docs/aoi-full-text-search.md.
 
     Tier 2 is an exact match on the leaf or on any stored name variant; tier
-    1 is a partial match, the leaf tokens anywhere in the name or the leaf as
-    a prefix. A
-    row keeps its best tier, and within a tier a row whose context also
-    matches the query's context comes first. With *corrected* the leaf
-    tokens come from the typo correction as a prepared tsquery and only the
-    token arm runs: an exact or prefix match would already have been found.
+    1 is a partial match: the leaf tokens in the row's names, or the leaf as
+    a prefix. A row keeps its best tier, and within a tier a row whose
+    context also matches the query's context comes first.
     """
     prior = hierarchy_prior_sql("a.subtype")
     # Without a typed context the context-hit key is a constant, which keeps
@@ -290,9 +275,10 @@ def _search_sql(
     )
     leaf_query = (
         f"to_tsquery('{TS_CONFIG}', :leaf_query)"
-        if corrected
+        if stage == "retry"
         else f"plainto_tsquery('{TS_CONFIG}', :leaf)"
     )
+    vector = "a.search_tsv" if stage == "fallback" else "a.name_tsv"
 
     def arm(tier: int, match: str, join: str = "") -> str:
         return (
@@ -301,7 +287,7 @@ def _search_sql(
         )
 
     arms = []
-    if not corrected:
+    if stage == "typed":
         # The leaf from the covering index, then the variants table.
         arms.append(arm(2, "a.leaf_norm = :leaf_norm"))
         arms.append(
@@ -311,8 +297,8 @@ def _search_sql(
                 "JOIN aoi_names n ON n.aoi_id = a.id",
             )
         )
-    arms.append(arm(1, "a.search_tsv @@ q.lq"))
-    if not corrected:
+    arms.append(arm(1, f"{vector} @@ q.lq"))
+    if stage == "typed":
         arms.append(arm(1, "a.leaf_norm LIKE :leaf_prefix"))
 
     return f"""
@@ -423,7 +409,7 @@ def _autocomplete_sql(
         ),
     ]
     if with_tokens:
-        arms.append(arm(1, "a.search_tsv @@ q.lq"))
+        arms.append(arm(1, "a.name_tsv @@ q.lq"))
     return f"""
         WITH q AS NOT MATERIALIZED (
             SELECT
@@ -475,22 +461,25 @@ _BROWSE_SQL = """
 # The miss path. When nothing matches as typed, one statement looks every
 # word of the leaf up in the token table: how many names carry it, and the
 # stored tokens nearest to it. Nearest means within the trigram threshold (the
-# GIN index gate), then by edit distance and document frequency, and only at
-# a distance small for the word ("kashmir" is not "kashmore"). Words under
+# GIN index gate), then by edit distance, then by the prominence of the
+# best-known place carrying the token ("paolo" is São Paulo's "paulo" before
+# a village's "palo"), then by how many names carry it; and only at a
+# distance small for the word ("kashmir" is not "kashmore"). Words under
 # three letters have too few trigrams to correct and pass through unchanged.
 # The threshold is set for the transaction only.
 _CORRECTION_MIN_CHARS = 3
 _LEAF_TOKENS_SQL = f"""
     SELECT t.lexeme,
            COALESCE(own.ndoc, 0),
-           array_agg(c.token ORDER BY c.dist, c.ndoc DESC, c.token)
+           array_agg(c.token
+                     ORDER BY c.dist, c.prominence DESC, c.ndoc DESC, c.token)
                FILTER (WHERE c.token IS NOT NULL)
     FROM unnest(to_tsvector('{TS_CONFIG}', :leaf)) AS t(lexeme, positions, weights)
     LEFT JOIN aoi_search_tokens own ON own.token = t.lexeme
     LEFT JOIN LATERAL (
-        SELECT token, ndoc, dist
+        SELECT token, ndoc, prominence, dist
         FROM (
-            SELECT token, ndoc,
+            SELECT token, ndoc, prominence,
                    CASE WHEN length(token) <= 255
                         THEN levenshtein(token, t.lexeme) END AS dist
             FROM aoi_search_tokens
@@ -498,7 +487,7 @@ _LEAF_TOKENS_SQL = f"""
               AND token % t.lexeme
         ) s
         WHERE dist <= greatest(1, length(t.lexeme) / 4)
-        ORDER BY dist, ndoc DESC, token
+        ORDER BY dist, prominence DESC, ndoc DESC, token
         LIMIT 3
     ) c ON true
     GROUP BY t.lexeme, own.ndoc
@@ -774,20 +763,28 @@ async def search_aois(
                 await conn.rollback()
 
         try:
+            with_context = bool(parsed.context)
             result = await conn.run_sync(
                 _read,
                 _search_sql(
-                    requested,
-                    corrected=False,
-                    with_context=bool(parsed.context),
+                    requested, stage="typed", with_context=with_context
                 ),
             )
             if _satisfies(result, parsed):
                 return result.drop(columns=["context_hit"])
 
-            # Nothing usable as typed. Look the words up once, then retry
-            # with the spelling corrected and with one word dropped; each
-            # retry is one more round trip, only on a miss.
+            # Nothing usable as typed. The words may be spread over name and
+            # context ("Bristol England"): try the full vector. Then look the
+            # words up once and retry with the spelling corrected and with one
+            # word dropped. Each step is one more round trip, only on a miss.
+            fallback = await conn.run_sync(
+                _read,
+                _search_sql(
+                    requested, stage="fallback", with_context=with_context
+                ),
+            )
+            if _satisfies(fallback, parsed):
+                return fallback.drop(columns=["context_hit"])
             tokens = await _leaf_tokens(conn, parsed.leaf)
             if tokens is None:
                 return result.drop(columns=["context_hit"])
@@ -800,7 +797,7 @@ async def search_aois(
                 for query in _reduced_queries(tokens)
             ]
             token_statement = _search_sql(
-                requested, corrected=True, with_context=bool(parsed.context)
+                requested, stage="retry", with_context=with_context
             )
             for params["leaf_query"], params["scale"] in retries:
                 retried = await conn.run_sync(_read, token_statement)

@@ -303,6 +303,63 @@ async def test_a_token_anywhere_in_the_name_matches(auth_override, client):
 
 
 @pytest.mark.asyncio
+async def test_a_parent_name_does_not_match_its_children(
+    auth_override, client
+):
+    """The token arm reads the name vector, which holds no parents: a
+    country query returns the country, not the thousands of rows under it."""
+    auth_override("test-user-wri")
+    await _seed_reference_aoi("gadm", "BRA", "Brazil", "country")
+    await _seed_reference_aoi(
+        "gadm", "BRA.14_1", "Pará, Brazil", "state-province"
+    )
+
+    res = await client.get("/api/aois?name=Brazil", headers=AUTH)
+    assert [r["src_id"] for r in res.json()] == ["BRA"]
+
+
+@pytest.mark.asyncio
+async def test_words_spread_over_name_and_parent_still_match(
+    auth_override, client
+):
+    """ "Bristol England" without a comma misses the name vector; the full
+    vector is the fallback."""
+    auth_override("test-user-wri")
+    await _seed_reference_aoi(
+        "gadm",
+        "GBR.1.12_1",
+        "Bristol, England, United Kingdom",
+        "district-county",
+    )
+    await _seed_reference_aoi(
+        "gadm",
+        "USA.22.5_1",
+        "Bristol, Massachusetts, United States",
+        "district-county",
+    )
+
+    res = await client.get("/api/aois?name=Bristol England", headers=AUTH)
+    assert [r["src_id"] for r in res.json()] == ["GBR.1.12_1"]
+
+
+@pytest.mark.asyncio
+async def test_a_designation_is_part_of_the_name(auth_override, client):
+    auth_override("test-user-wri")
+    await _seed_reference_aoi(
+        "wdpa",
+        "555",
+        "Botum Sakor, National Park, Cambodia",
+        "protected-area",
+        designation="National Park",
+    )
+
+    res = await client.get(
+        "/api/aois?name=Botum Sakor National Park", headers=AUTH
+    )
+    assert [r["src_id"] for r in res.json()] == ["555"]
+
+
+@pytest.mark.asyncio
 async def test_a_misspelling_falls_back_to_the_nearest_token(
     auth_override, client
 ):

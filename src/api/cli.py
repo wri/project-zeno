@@ -49,6 +49,7 @@ from src.shared.aoi_geometry import (
 from src.shared.aoi_search_sql import (
     TOKENS_REBUILD_SQL,
     clean_name_sql,
+    name_tsv_sql,
     norm_sql,
     tsv_sql,
 )
@@ -961,6 +962,14 @@ class _SearchExprs:
             f"{self._clean('country', q)}), '')"
         )
 
+    def designation(self, q: str) -> str:
+        """The kind of site the source names the row with, or NULL."""
+        if self.source == "wdpa":
+            return self._clean("desig_eng", q)
+        if self.source == "landmark":
+            return self._clean("category", q)
+        return "NULL::text"
+
     def _differs(self, other: str, primary: str, q: str) -> str:
         """*other* when it is not just a re-spelling of *primary*'s case."""
         return (
@@ -1394,6 +1403,7 @@ async def _build_reference_aois(
                 {disputed_expr} AS is_disputed,
                 {leaf_expr} AS leaf,
                 {search.context("")} AS context,
+                {search.designation("")} AS designation,
                 {search.variants_text("")} AS variants
             FROM {table}{repair_join}
             WHERE name IS NOT NULL AND geometry IS NOT NULL
@@ -1407,7 +1417,7 @@ async def _build_reference_aois(
         INSERT INTO aois (
             source, source_id, name, subtype, geometry,
             bbox, area_km2, iso3, admin_level, is_disputed,
-            leaf, leaf_norm, context, search_tsv
+            leaf, leaf_norm, context, search_tsv, name_tsv
         )
         SELECT
             '{source}',
@@ -1423,7 +1433,8 @@ async def _build_reference_aois(
             leaf,
             {norm_sql("leaf")},
             context,
-            {tsv_sql("leaf", "variants", "context", "name")}
+            {tsv_sql("leaf", "variants", "context", "name")},
+            {name_tsv_sql("leaf", "variants", "designation")}
         FROM normalized
         WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom)
         ON CONFLICT (source, source_id) WHERE NOT is_deprecated
@@ -1440,15 +1451,17 @@ async def _build_reference_aois(
             leaf_norm = EXCLUDED.leaf_norm,
             context = EXCLUDED.context,
             search_tsv = EXCLUDED.search_tsv,
+            name_tsv = EXCLUDED.name_tsv,
             updated_at = now()
         WHERE (aois.name, aois.subtype, aois.bbox, aois.area_km2, aois.iso3,
                aois.admin_level, aois.is_disputed, aois.leaf, aois.leaf_norm,
-               aois.context, aois.search_tsv, aois.geometry::bytea)
+               aois.context, aois.search_tsv, aois.name_tsv,
+               aois.geometry::bytea)
               IS DISTINCT FROM
               (EXCLUDED.name, EXCLUDED.subtype, EXCLUDED.bbox,
                EXCLUDED.area_km2, EXCLUDED.iso3, EXCLUDED.admin_level,
                EXCLUDED.is_disputed, EXCLUDED.leaf, EXCLUDED.leaf_norm,
-               EXCLUDED.context, EXCLUDED.search_tsv,
+               EXCLUDED.context, EXCLUDED.search_tsv, EXCLUDED.name_tsv,
                EXCLUDED.geometry::bytea)
     """
     written = 0
@@ -1565,7 +1578,7 @@ async def _build_aoi_names(session: AsyncSession, source: str) -> int:
 
 
 async def _rebuild_search_tokens(session: AsyncSession) -> int:
-    """Rebuild ``aoi_search_tokens`` from the live tsvectors; returns its size."""
+    """Rebuild ``aoi_search_tokens`` from the live name vectors; returns its size."""
     for statement in TOKENS_REBUILD_SQL:
         await session.execute(text(statement))
     return int(

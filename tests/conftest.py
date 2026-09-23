@@ -19,6 +19,7 @@ from src.api.schemas import UserModel
 from src.shared.aoi_search_sql import (
     SEARCH_DDL,
     clean_name_sql,
+    name_tsv_sql,
     norm_sql,
     tsv_sql,
 )
@@ -60,6 +61,7 @@ async def seed_reference_aoi(
     bbox=(0, 0, 1, 1),
     is_disputed=False,
     variants=(),
+    designation=None,
 ):
     """Insert a reference AOI as build-aois does, with raw SQL and real geometry.
 
@@ -71,7 +73,8 @@ async def seed_reference_aoi(
     """
     # The search columns follow the corpus convention: the leaf is the first
     # comma segment of the name, the context the rest. *variants* seed extra
-    # ``aoi_names`` rows, as GADM's VARNAME or WDPA's orig_name would.
+    # ``aoi_names`` rows, as GADM's VARNAME or WDPA's orig_name would;
+    # *designation* is what WDPA's desig_eng or LandMark's category would be.
     leaf = clean_name_sql("split_part(:name, ',', 1)")
     context = "NULLIF(btrim(substr(:name, length(split_part(:name, ',', 1)) + 2)), '')"
     async with async_session_maker() as session:
@@ -79,12 +82,13 @@ async def seed_reference_aoi(
             text(
                 "INSERT INTO aois "
                 "(source, source_id, name, subtype, geometry, bbox, "
-                " is_disputed, leaf, leaf_norm, context, search_tsv) "
+                " is_disputed, leaf, leaf_norm, context, search_tsv, name_tsv) "
                 "SELECT :source, :source_id, :name, :subtype, "
                 " ST_Multi(ST_GeomFromText(:geometry_wkt, 4326)), "
                 " :bbox, :is_disputed, s.leaf, "
                 f" {norm_sql('s.leaf')}, s.context, "
-                f" {tsv_sql('s.leaf', ':variants', 's.context', ':name')} "
+                f" {tsv_sql('s.leaf', ':variants', 's.context', ':name')}, "
+                f" {name_tsv_sql('s.leaf', ':variants', ':designation')} "
                 f"FROM (SELECT {leaf} AS leaf, {context} AS context) s "
                 "RETURNING id"
             ),
@@ -97,6 +101,7 @@ async def seed_reference_aoi(
                 "bbox": list(bbox) if bbox is not None else None,
                 "is_disputed": is_disputed,
                 "variants": " ".join(variants) or None,
+                "designation": designation,
             },
         )
         if variants:

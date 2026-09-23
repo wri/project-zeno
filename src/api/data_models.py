@@ -205,7 +205,7 @@ class AoiOrm(Base):
     adds the browse and subregion-lookup indexes, and ``5b7e2c9a1f40`` adds
     the search columns and indexes.
 
-    ``leaf``, ``leaf_norm``, ``context`` and ``search_tsv`` are the search
+    ``leaf``, ``leaf_norm``, ``context``, ``search_tsv`` and ``name_tsv`` are the search
     columns. ``build-aois`` and the custom-area mirror fill them with the
     fragments in :mod:`src.shared.aoi_search_sql`; ``docs/aoi-full-text-search.md``
     describes how search reads them.
@@ -224,12 +224,14 @@ class AoiOrm(Base):
     subtype = Column(String, nullable=False)
     # Search columns. `leaf` is the place's own name, `leaf_norm` its
     # lowercase unaccented form, `context` the parents / designation / country
-    # that follow it, and `search_tsv` the weighted tsvector over all of them.
+    # that follow it, `search_tsv` the weighted tsvector over all of them and
+    # `name_tsv` the one over the names and designation only.
     # Nullable: a row is written before its search columns are derived.
     leaf = Column(String, nullable=True)
     leaf_norm = Column(String, nullable=True)
     context = Column(String, nullable=True)
     search_tsv = Column(TSVECTOR, nullable=True)
+    name_tsv = Column(TSVECTOR, nullable=True)
     # spatial_index=False: the migration creates the GiST index, so its name is
     # controlled. geoalchemy2 must not emit its own index here.
     geometry = Column(
@@ -306,6 +308,12 @@ class AoiOrm(Base):
             postgresql_using="gin",
             postgresql_where=text("NOT is_disputed AND NOT is_deprecated"),
         ),
+        Index(
+            "idx_aois_name_tsv",
+            "name_tsv",
+            postgresql_using="gin",
+            postgresql_where=text("NOT is_disputed AND NOT is_deprecated"),
+        ),
     )
 
     user_links = relationship(
@@ -362,16 +370,19 @@ class AoiNameOrm(Base):
 
 
 class AoiSearchTokenOrm(Base):
-    """A distinct lexeme of ``aois.search_tsv`` with its document count.
+    """A distinct lexeme of ``aois.name_tsv``, with the count of names that
+    carry it and the hierarchy prior of the best-known one.
 
-    Used only to correct a misspelled query token before the token search
-    reruns. Rebuilt at the end of ``build-aois`` with ``ts_stat``.
+    Read only when a query misses: to correct a misspelled word, and to tell
+    whether a word can name a place on its own. Rebuilt at the end of
+    ``build-aois``.
     """
 
     __tablename__ = "aoi_search_tokens"
 
     token = Column(String, primary_key=True)
     ndoc = Column(Integer, nullable=False)
+    prominence = Column(Float, nullable=False)
 
     __table_args__ = (
         Index(
