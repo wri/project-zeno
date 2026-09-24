@@ -56,9 +56,17 @@ def format_session_block(state: dict) -> str:
         # narrating the layer the user is actually looking at.
         layers = dataset.get("layers") or []
         if len(layers) > 1:
-            displayed = dataset.get("selected_layer") or layers[0].get("name")
-            if displayed:
-                line += f" (map layer: {displayed})"
+            selected = dataset.get("selected_layer")
+            displayed = next(
+                (lyr for lyr in layers if lyr.get("name") == selected),
+                layers[0],
+            )
+            label = displayed.get("title") or displayed.get("name")
+            if label:
+                line += f" (map layer: {label}"
+                if displayed.get("description"):
+                    line += f" — {displayed['description']}"
+                line += ")"
         if is_curated_only(dataset.get("dataset_id")):
             line += f" — {CURATED_ONLY_SESSION_NOTE}"
         lines.append(line)

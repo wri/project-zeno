@@ -185,3 +185,23 @@ def test_canopy_cover_threshold_substitution():
         "&start_year=2024&end_year=2024"
     )
     assert context_layers[0].tile_url == "https://tiles.example.com/ctx/30.png"
+
+
+def test_get_dataset_layers_carries_title_and_description():
+    row = SimpleNamespace(
+        dataset_name="LGMS",
+        layers=[
+            {
+                "name": "agriculture",
+                "title": "Agriculture",
+                "description": "Gross emissions.",
+                "tile_url": "https://tiles.example.com/a.png",
+            },
+            {"name": "lulucf", "tile_url": "https://tiles.example.com/b.png"},
+        ],
+    )
+    agriculture, lulucf = get_dataset_layers(row, "")
+    assert agriculture.title == "Agriculture"
+    assert agriculture.description == "Gross emissions."
+    assert lulucf.title is None
+    assert lulucf.description is None

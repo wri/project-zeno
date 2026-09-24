@@ -110,6 +110,8 @@ def _dataset_config(state: dict) -> Optional[dict]:
         "layers": [
             {
                 "name": layer.get("name"),
+                "title": layer.get("title"),
+                "description": layer.get("description"),
                 "tile_url": layer.get("tile_url"),
                 "start_date": layer.get("start_date"),
                 "end_date": layer.get("end_date"),

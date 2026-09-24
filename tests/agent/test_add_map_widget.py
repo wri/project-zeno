@@ -65,12 +65,16 @@ def _multilayer_dataset_state():
     state["layers"] = [
         {
             "name": "lulucf",
+            "title": "Land use",
+            "description": "Net flux.",
             "tile_url": "https://tiles.example.com/lgms/lulucf.png",
             "start_date": None,
             "end_date": None,
         },
         {
             "name": "agriculture",
+            "title": "Agriculture",
+            "description": "Gross emissions.",
             "tile_url": "https://tiles.example.com/lgms/agriculture.png",
             "start_date": None,
             "end_date": None,
@@ -421,12 +425,16 @@ def test_dataset_config_carries_multilayer_layers_through():
     assert config["layers"] == [
         {
             "name": "lulucf",
+            "title": "Land use",
+            "description": "Net flux.",
             "tile_url": "https://tiles.example.com/lgms/lulucf.png",
             "start_date": None,
             "end_date": None,
         },
         {
             "name": "agriculture",
+            "title": "Agriculture",
+            "description": "Gross emissions.",
             "tile_url": "https://tiles.example.com/lgms/agriculture.png",
             "start_date": None,
             "end_date": None,

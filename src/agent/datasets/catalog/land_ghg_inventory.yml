@@ -8,14 +8,29 @@ parameters: null
 variables: null
 layers:
   - name: lgms
+    title: All land
+    description: >-
+      Net flux (gross emissions plus gross removals, with removals negative) from all land: the sum of land use and agriculture.
     tile_url: "https://tiles.globalforestwatch.org/wri_land_ghg_monitoring_system/v1.0.3/dynamic/{z}/{x}/{y}.png?layer=lgms&flux_type=net"
   - name: lulucf
+    title: Land use
+    description: >-
+      Net flux (gross emissions plus gross removals, with removals negative) from land use, land-use change and forestry (LULUCF): the sum of vegetation and soil.
     tile_url: "https://tiles.globalforestwatch.org/wri_land_ghg_monitoring_system/v1.0.3/dynamic/{z}/{x}/{y}.png?layer=lulucf&flux_type=net"
   - name: agriculture
+    title: Agriculture
+    description: >-
+      Gross emissions from agriculture: the sum of cropland management and livestock. Data for 2020 is applied to all years.
     tile_url: "https://tiles.globalforestwatch.org/wri_land_ghg_monitoring_system/v1.0.3/dynamic/{z}/{x}/{y}.png?layer=agriculture&flux_type=gross_emissions"
   - name: cropland
+    title: Cropland management
+    description: >-
+      Gross emissions from cropland management: manure application, fertilizer application, rice cultivation and crop residue decomposition (CH4 and N2O). Data for 2020 is applied to all years. Excludes land-use change due to crops.
     tile_url: "https://tiles.globalforestwatch.org/wri_land_ghg_monitoring_system/v1.0.3/dynamic/{z}/{x}/{y}.png?layer=cropland&flux_type=gross_emissions"
   - name: livestock
+    title: Livestock
+    description: >-
+      Gross emissions from livestock, including monogastrics and ruminants (CH4 and N2O). Data for 2020 is applied to all years. Excludes land-use change due to livestock or their feed.
     tile_url: "https://tiles.globalforestwatch.org/wri_land_ghg_monitoring_system/v1.0.3/dynamic/{z}/{x}/{y}.png?layer=livestock&flux_type=gross_emissions"
 tile_url: ""
 license: CC by 4.0
@@ -43,7 +58,8 @@ prompt_instructions: >-
   (gross emissions, gross removals and net flux by forest-change state — tree loss,
   tree gain, trees remaining, non-trees — per year), mineral soil (gross emissions,
   gross removals and net flux per year), organic soil (gross emissions per year; no
-  removals), and agriculture (cropland and livestock emissions, per year). All
+  removals), and agriculture (cropland and livestock emissions per year, the
+  same fixed 2020 value in every year). All
   values are in MgCO2e (tonnes CO2 equivalent); emissions are positive (a source)
   and removals are negative (a sink). The output is not currently broken down by
   individual gas (CO2/CH4/N2O), by carbon pool, or by individual crop — do not
@@ -100,8 +116,8 @@ cautions: >-
   Temporal granularity differs by component: vegetation emissions, removals and
   net flux are annual (2016-2024); organic soil is in multi-year blocks (2016-2020
   and 2021-2024); mineral soil is the change between 2010/2015 and 2015-2020
-  applied to every year 2016-2024; cropland and livestock emissions are annual
-  (2016-2024). Native spatial resolution is ~30 m for vegetation, organic soil and
+  applied to every year 2016-2024; cropland and livestock emissions are a fixed
+  2020 value applied to every year 2016-2024. Native spatial resolution is ~30 m for vegetation, organic soil and
   mineral soil, and ~10 km for cropland and livestock.
 
 

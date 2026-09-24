@@ -27,6 +27,10 @@ class DatasetLayer(BaseModel):
 
     name: str
     tile_url: str
+    # Human label and plain-language meaning (including what the layer
+    # measures, e.g. net flux vs gross emissions). `name` stays the machine id.
+    title: Optional[str] = None
+    description: Optional[str] = None
     start_date: Optional[str] = None
     end_date: Optional[str] = None
 
@@ -44,16 +48,13 @@ class DatasetOption(BaseModel):
         None,
         description=(
             "For a dataset with more than one independently-toggleable layer "
-            "(see `layers`), the name of the layer that best matches the "
-            "query's focus — e.g. LGMS's 'cropland' or 'livestock' for a "
-            "question about that specific source, 'agriculture' for one "
-            "spanning both, 'lulucf' for a land-use/vegetation question, "
-            "'lgms' for the whole land sector. Prefer picking the "
+            "(see the Map layers section), the `name` of the layer whose "
+            "description best matches the query's focus. Prefer picking the "
             "closest-matching layer over leaving this null — even a query "
-            "that only leans toward one category should get that layer. "
-            "Leave null only for single-layer datasets or a query that is "
-            "explicitly about the combined/overall picture across "
-            "categories, not merely one that doesn't name a category."
+            "that only leans toward one layer should get that layer. Leave "
+            "null only for single-layer datasets or a query that is "
+            "explicitly about the combined/overall picture across layers, "
+            "not merely one that doesn't name a layer."
         ),
     )
     parameters: Optional[list[DatasetParameter]] = Field(

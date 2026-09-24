@@ -104,6 +104,27 @@ def test_multi_layer_dataset_falls_back_to_first_layer():
     assert "(map layer: Tree cover)" in block
 
 
+def test_multi_layer_dataset_narrates_title_and_description():
+    state = {
+        "dataset": {
+            **MULTI_LAYER_DATASET,
+            "layers": [
+                {"name": "lulucf", "title": "Land use"},
+                {
+                    "name": "agriculture",
+                    "title": "Agriculture",
+                    "description": "Gross emissions from agriculture.",
+                },
+            ],
+            "selected_layer": "agriculture",
+        }
+    }
+    block = format_session_block(state)
+    assert (
+        "(map layer: Agriculture — Gross emissions from agriculture.)" in block
+    )
+
+
 def test_unregistered_page_falls_back_to_generic_breadcrumb():
     state = {
         "view_context": {
