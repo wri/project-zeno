@@ -762,6 +762,21 @@ def get_tile_services_for_dataset(
     return tile_url, context_layers, layers
 
 
+def to_dataset_layers(raw_layers: list[dict]) -> list[DatasetLayer]:
+    """Catalog yml `layers` entries as DatasetLayers."""
+    return [
+        DatasetLayer(
+            name=layer["name"],
+            tile_url=layer["tile_url"],
+            title=layer.get("title"),
+            description=layer.get("description"),
+            start_date=layer.get("start_date"),
+            end_date=layer.get("end_date"),
+        )
+        for layer in raw_layers
+    ]
+
+
 def get_dataset_layers(selected_row, tile_url: str) -> list[DatasetLayer]:
     """The dataset's primary layer(s): the yml's explicit `layers` list when
     present (e.g. LGMS's agriculture/lulucf), otherwise a single layer
@@ -772,17 +787,7 @@ def get_dataset_layers(selected_row, tile_url: str) -> list[DatasetLayer]:
     manufacturing."""
     raw_layers = getattr(selected_row, "layers", None)
     if isinstance(raw_layers, list) and raw_layers:
-        return [
-            DatasetLayer(
-                name=layer["name"],
-                tile_url=layer["tile_url"],
-                title=layer.get("title"),
-                description=layer.get("description"),
-                start_date=layer.get("start_date"),
-                end_date=layer.get("end_date"),
-            )
-            for layer in raw_layers
-        ]
+        return to_dataset_layers(raw_layers)
     if not tile_url:
         return []
     return [DatasetLayer(name=selected_row.dataset_name, tile_url=tile_url)]

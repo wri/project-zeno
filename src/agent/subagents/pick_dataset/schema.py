@@ -2,7 +2,7 @@ from typing import Any, List, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from src.agent.datasets.config import DATASETS
+from src.agent.datasets.config import DATASETS, resolve_selected_layer
 from src.agent.datasets.handlers.analytics_handler import (
     TREE_COVER_LOSS_BY_DRIVER_ID,
 )
@@ -110,18 +110,9 @@ class DatasetOption(BaseModel):
         """Ensure selected_layer names a real layer of a genuinely
         multi-layer dataset — null it out for single-layer datasets (nothing
         to select between) or a hallucinated name."""
-        if self.dataset_id is None:
-            self.selected_layer = None
-            return self
-
-        selected_dataset = [
-            ds for ds in DATASETS if ds["dataset_id"] == self.dataset_id
-        ][0]
-        layers = selected_dataset.get("layers") or []
-        layer_names = [layer["name"] for layer in layers]
-        if len(layers) <= 1 or self.selected_layer not in layer_names:
-            self.selected_layer = None
-
+        self.selected_layer = resolve_selected_layer(
+            self.dataset_id, self.selected_layer
+        )
         return self
 
     @model_validator(mode="after")

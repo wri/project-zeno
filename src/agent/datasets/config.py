@@ -3,6 +3,7 @@ Centralized dataset configuration to avoid circular imports.
 """
 
 from pathlib import Path
+from typing import Optional
 
 import yaml
 
@@ -70,3 +71,27 @@ def _load_datasets() -> list[dict]:
 
 
 DATASETS = _load_datasets()
+_DATASETS_BY_ID = {d["dataset_id"]: d for d in DATASETS}
+
+
+def catalog_layers(dataset_id: Optional[int]) -> list[dict]:
+    """A dataset's declared primary layers from its catalog yml; empty for
+    an unknown id or a dataset that declares no `layers`."""
+    dataset = (
+        _DATASETS_BY_ID.get(dataset_id) if dataset_id is not None else None
+    )
+    return list((dataset or {}).get("layers") or [])
+
+
+def resolve_selected_layer(
+    dataset_id: Optional[int], selected_layer: Optional[str]
+) -> Optional[str]:
+    """`selected_layer` if it names a real layer of a genuinely multi-layer
+    dataset, else None — nothing to select between on a single-layer dataset,
+    and a hallucinated or stale name falls back to `layers[0]` downstream."""
+    layers = catalog_layers(dataset_id)
+    if len(layers) <= 1 or selected_layer not in {
+        lyr["name"] for lyr in layers
+    }:
+        return None
+    return selected_layer

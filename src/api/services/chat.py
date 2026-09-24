@@ -11,9 +11,11 @@ from langfuse import Langfuse
 from langfuse.langchain import CallbackHandler
 
 from src.agent.agent_config import AgentConfigRegistry, default_registry
+from src.agent.datasets.config import catalog_layers, resolve_selected_layer
 from src.agent.graph import fetch_zeno
 from src.agent.language import resolve_language
 from src.agent.llms import SMALL_MODEL
+from src.agent.subagents.pick_dataset import to_dataset_layers
 from src.api.schemas import ThreadNameOutput
 from src.shared.geocoding_helpers import fetch_aoi_bbox
 from src.shared.logging_config import get_logger
@@ -121,6 +123,25 @@ async def replay_chat(thread_id):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def _with_catalog_layers(dataset: dict) -> dict:
+    """Give a UI-selected dataset the catalog's layers (with their titles and
+    descriptions) and validate its `selected_layer` the same way pick_dataset
+    does, so both paths put the same layer shape into state."""
+    dataset_id = dataset.get("dataset_id")
+    raw_layers = catalog_layers(dataset_id)
+    if not raw_layers:
+        return dataset
+    return {
+        **dataset,
+        "layers": [
+            layer.model_dump() for layer in to_dataset_layers(raw_layers)
+        ],
+        "selected_layer": resolve_selected_layer(
+            dataset_id, dataset.get("selected_layer")
+        ),
+    }
+
+
 async def stream_chat(
     query: str,
     user_persona: Optional[str] = None,
@@ -169,7 +190,9 @@ async def stream_chat(
                     }
                 case "dataset_selected":
                     content = f"User selected dataset in UI: {action_data['dataset']['dataset_name']}\n\n"
-                    state_updates["dataset"] = action_data["dataset"]
+                    state_updates["dataset"] = _with_catalog_layers(
+                        action_data["dataset"]
+                    )
                 case "daterange_selected":
                     content = f"User selected daterange in UI: start_date: {action_data['start_date']}, end_date: {action_data['end_date']}"
                     state_updates["start_date"] = action_data["start_date"]

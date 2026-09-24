@@ -14,6 +14,7 @@ from src.agent.subagents.pick_dataset.tool import (
     rag_candidate_datasets,
     retriever_cache,
     select_best_dataset,
+    to_dataset_layers,
 )
 
 __all__ = [
@@ -30,4 +31,5 @@ __all__ = [
     "rag_candidate_datasets",
     "retriever_cache",
     "select_best_dataset",
+    "to_dataset_layers",
 ]
