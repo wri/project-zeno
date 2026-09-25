@@ -91,6 +91,7 @@ tools:
   - add_text_widget
   - edit_text_widget
   - add_dashboard_section
+  - add_template_section
   - edit_dashboard_section
   - move_dashboard_widget
   - send_nudge"""

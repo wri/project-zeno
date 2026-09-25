@@ -760,6 +760,8 @@ async def test_create_sections_appends_in_order(client, auth_override):
     assert [s["position"] for s in sections] == [0, 1]
     assert sections[1]["description"] == "Burned area over time"
     assert sections[0]["description"] is None
+    # A hand-composed section has no template provenance.
+    assert [s["template"] for s in sections] == [None, None]
 
 
 @pytest.mark.asyncio
@@ -1112,3 +1114,152 @@ async def test_delete_section_keeps_widgets_by_default(
     (widget,) = body["widgets"]
     assert widget["config"] == {"text": "note"}
     assert widget["section_id"] is None
+
+
+# ---------------------------------------------------------------------------
+# dashboard_writer.add_section_with_widgets
+# ---------------------------------------------------------------------------
+def _new_insight(text="Alerts in the area"):
+    from src.agent.subagents.analyst.charts import Insight, InsightChart
+
+    return Insight(
+        primary_insight=text,
+        charts=[
+            InsightChart(
+                title="Alerts by day",
+                chart_type="line",
+                x_axis="alert_date",
+                y_axis="area_ha",
+                chart_data=[{"alert_date": "2026-09-01", "area_ha": 1.5}],
+            )
+        ],
+    )
+
+
+def _section_widgets(insight=None):
+    from src.api.repositories.dashboard_writer import SectionWidget
+
+    return [
+        SectionWidget(
+            widget_type="insight",
+            config={"default_view": "chart"},
+            insight=insight or _new_insight(),
+        ),
+        SectionWidget(widget_type="text", config={"text": "A note"}),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_section_with_widgets_writes_all_rows(client, auth_override):
+    from src.api.repositories import dashboard_writer
+
+    user = await _create_user("section-writer")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    await _create_section(client, dashboard["id"], title="First")
+
+    template = {
+        "name": "nrt-monitoring",
+        "args": {"days": 14},
+        "start_date": "2026-09-09",
+        "end_date": "2026-09-23",
+        "built_at": "2026-09-23T10:00:00",
+    }
+    section_id, widget_ids = await dashboard_writer.add_section_with_widgets(
+        dashboard["id"],
+        title="Recent alerts",
+        description="What the section shows.",
+        widgets=_section_widgets(),
+        user_id=user.id,
+        template=template,
+    )
+
+    body = (
+        await client.get(f"/api/dashboards/{dashboard['id']}", headers=AUTH)
+    ).json()
+    section = next(s for s in body["sections"] if s["id"] == section_id)
+    assert section["position"] == 1
+    assert section["template"]["name"] == "nrt-monitoring"
+    assert section["template"]["start_date"] == "2026-09-09"
+    widgets = [w for w in body["widgets"] if w["section_id"] == section_id]
+    assert [w["id"] for w in widgets] == widget_ids
+    assert [w["position"] for w in widgets] == [0, 1]
+    chart_widget = widgets[0]
+    assert chart_widget["insight"]["insight_text"] == "Alerts in the area"
+    assert chart_widget["insight"]["is_public"] is False
+
+
+@pytest.mark.asyncio
+async def test_section_with_widgets_inherits_dashboard_is_public(
+    client, auth_override
+):
+    from src.api.repositories import dashboard_writer
+
+    user = await _create_user("section-writer-public")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    await dashboard_writer.set_dashboard_public(dashboard["id"], True)
+
+    _, widget_ids = await dashboard_writer.add_section_with_widgets(
+        dashboard["id"],
+        title="Recent alerts",
+        description=None,
+        widgets=_section_widgets(),
+        user_id=user.id,
+    )
+
+    widget = await dashboard_writer.get_widget(widget_ids[0])
+    async with async_session_maker() as session:
+        insight = await session.get(InsightOrm, widget.insight_id)
+    assert insight.is_public is True
+    assert insight.user_id == user.id
+
+
+@pytest.mark.asyncio
+async def test_section_with_widgets_failure_writes_nothing(
+    client, auth_override
+):
+    from sqlalchemy import func, select
+
+    from src.api.data_models import DashboardSectionOrm
+    from src.api.repositories import dashboard_writer
+    from src.api.repositories.dashboard_writer import SectionWidget
+
+    user = await _create_user("section-writer-fail")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+
+    # widget_type is NOT NULL: the widget insert fails after the section
+    # and the insight are flushed.
+    broken = [*_section_widgets(), SectionWidget(widget_type=None, config={})]
+    with pytest.raises(Exception):
+        await dashboard_writer.add_section_with_widgets(
+            dashboard["id"],
+            title="Recent alerts",
+            description=None,
+            widgets=broken,
+            user_id=user.id,
+        )
+
+    async with async_session_maker() as session:
+        assert await session.scalar(select(func.count(InsightOrm.id))) == 0
+        assert (
+            await session.scalar(select(func.count(DashboardSectionOrm.id)))
+            == 0
+        )
+
+
+@pytest.mark.asyncio
+async def test_section_with_widgets_unknown_dashboard(client):
+    from src.api.repositories import dashboard_writer
+
+    assert (
+        await dashboard_writer.add_section_with_widgets(
+            str(uuid.uuid4()),
+            title="Recent alerts",
+            description=None,
+            widgets=[],
+            user_id="nobody",
+        )
+        is None
+    )

@@ -346,6 +346,7 @@ def test_experimental_profile_derives_exactly_the_experimental_tools():
             "add_text_widget",
             "edit_text_widget",
             "add_dashboard_section",
+            "add_template_section",
             "edit_dashboard_section",
             "move_dashboard_widget",
             "send_nudge",
@@ -391,7 +392,9 @@ def test_experimental_config_adds_standalone_tools_and_planet():
         # sections and widget ids before grouping or moving anything.
         "inspect_view_context",
     } <= default_tools
-    assert {"update_insight_display"} <= (experimental_tools - default_tools)
+    assert {"update_insight_display", "add_template_section"} <= (
+        experimental_tools - default_tools
+    )
 
     default_skills = {s.name for s in default.skill_metas()}
     experimental_skills = {s.name for s in experimental.skill_metas()}

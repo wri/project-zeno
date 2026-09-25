@@ -1066,6 +1066,138 @@ MESSAGES.update(
 )
 
 
+# Analysis templates: the name in the template list and the section text
+# used when the text model fails (src.api.services.analysis_templates).
+MESSAGES.update(
+    {
+        "analysis_template.nrt_monitoring.label": {
+            "en": "Near-real-time monitoring",
+            "es": "Monitoreo casi en tiempo real",
+            "fr": "Suivi en temps quasi réel",
+            "pt": "Monitoramento quase em tempo real",
+            "id": "Pemantauan hampir waktu nyata",
+            "de": "Überwachung nahezu in Echtzeit",
+            "it": "Monitoraggio quasi in tempo reale",
+            "nl": "Bijna-realtime monitoring",
+            "ru": "Мониторинг почти в реальном времени",
+            "zh": "近实时监测",
+            "ar": "رصد شبه فوري",
+            "hi": "लगभग वास्तविक समय निगरानी",
+            "vi": "Giám sát gần thời gian thực",
+            "sw": "Ufuatiliaji wa karibu wakati halisi",
+            "tr": "Neredeyse gerçek zamanlı izleme",
+        },
+        "analysis_template.nrt_monitoring.title": {
+            "en": "Recent disturbance alerts in {aoi_name}",
+            "es": "Alertas de perturbación recientes en {aoi_name}",
+            "fr": "Alertes de perturbation récentes à {aoi_name}",
+            "pt": "Alertas de perturbação recentes em {aoi_name}",
+            "id": "Peringatan gangguan terbaru di {aoi_name}",
+            "de": "Aktuelle Störungswarnungen in {aoi_name}",
+            "it": "Allerte di disturbo recenti a {aoi_name}",
+            "nl": "Recente verstoringswaarschuwingen in {aoi_name}",
+            "ru": "Недавние оповещения о нарушениях: {aoi_name}",
+            "zh": "{aoi_name}近期干扰预警",
+            "ar": "تنبيهات الاضطراب الأخيرة في {aoi_name}",
+            "hi": "{aoi_name} में हाल के विक्षोभ अलर्ट",
+            "vi": "Cảnh báo xáo trộn gần đây tại {aoi_name}",
+            "sw": "Tahadhari za hivi karibuni za usumbufu katika {aoi_name}",
+            "tr": "{aoi_name} için son bozulma uyarıları",
+        },
+        "analysis_template.nrt_monitoring.description": {
+            "en": (
+                "Integrated disturbance alerts in {aoi_name} from "
+                "{start_date} to {end_date}, with the alerts layer and "
+                "satellite imagery. Alerts show possible disturbance, not "
+                "confirmed deforestation."
+            ),
+            "es": (
+                "Alertas integradas de perturbación en {aoi_name} del "
+                "{start_date} al {end_date}, con la capa de alertas y "
+                "las imágenes satelitales. Las alertas indican una posible "
+                "perturbación, no deforestación confirmada."
+            ),
+            "fr": (
+                "Alertes intégrées de perturbation à {aoi_name} du "
+                "{start_date} au {end_date}, avec la couche des alertes et "
+                "l'imagerie satellite. Les alertes indiquent une "
+                "perturbation possible, pas une déforestation confirmée."
+            ),
+            "pt": (
+                "Alertas integrados de perturbação em {aoi_name} de "
+                "{start_date} a {end_date}, com a camada de alertas e "
+                "imagens de satélite. Os alertas indicam uma possível "
+                "perturbação, não desmatamento confirmado."
+            ),
+            "id": (
+                "Peringatan gangguan terpadu di {aoi_name} dari "
+                "{start_date} hingga {end_date}, dengan lapisan peringatan "
+                "dan citra satelit. Peringatan menunjukkan kemungkinan "
+                "gangguan, bukan deforestasi yang terkonfirmasi."
+            ),
+            "de": (
+                "Integrierte Störungswarnungen in {aoi_name} vom "
+                "{start_date} bis {end_date}, mit der Warnungsebene und "
+                "Satellitenbildern. Die Warnungen zeigen mögliche "
+                "Störungen, keine bestätigte Entwaldung."
+            ),
+            "it": (
+                "Allerte integrate di disturbo a {aoi_name} dal "
+                "{start_date} al {end_date}, con il livello delle allerte e "
+                "le immagini satellitari. Le allerte indicano un possibile "
+                "disturbo, non una deforestazione confermata."
+            ),
+            "nl": (
+                "Geïntegreerde verstoringswaarschuwingen in {aoi_name} van "
+                "{start_date} tot {end_date}, met de waarschuwingslaag en "
+                "satellietbeelden. Waarschuwingen tonen mogelijke "
+                "verstoring, geen bevestigde ontbossing."
+            ),
+            "ru": (
+                "Интегрированные оповещения о нарушениях: {aoi_name}, с "
+                "{start_date} по {end_date}, со слоем оповещений и "
+                "спутниковыми снимками. Оповещения указывают на возможное "
+                "нарушение, а не на подтверждённую вырубку."
+            ),
+            "zh": (
+                "{aoi_name}从{start_date}到{end_date}的综合干扰预警，"
+                "附预警图层和卫星影像。预警表示可能的干扰，"
+                "而非已确认的毁林。"
+            ),
+            "ar": (
+                "تنبيهات الاضطراب المتكاملة في {aoi_name} من {start_date} "
+                "إلى {end_date}، مع طبقة التنبيهات وصور الأقمار الصناعية. "
+                "تشير التنبيهات إلى اضطراب محتمل، وليس إلى إزالة غابات "
+                "مؤكدة."
+            ),
+            "hi": (
+                "{aoi_name} में {start_date} से {end_date} तक के एकीकृत "
+                "विक्षोभ अलर्ट, अलर्ट परत और उपग्रह चित्रों के साथ। अलर्ट "
+                "संभावित विक्षोभ दिखाते हैं, पुष्ट वनोन्मूलन नहीं।"
+            ),
+            "vi": (
+                "Cảnh báo xáo trộn tích hợp tại {aoi_name} từ {start_date} "
+                "đến {end_date}, kèm lớp cảnh báo và ảnh vệ tinh. Cảnh báo "
+                "cho thấy xáo trộn có thể xảy ra, không phải mất rừng đã "
+                "được xác nhận."
+            ),
+            "sw": (
+                "Tahadhari jumuishi za usumbufu katika {aoi_name} kuanzia "
+                "{start_date} hadi {end_date}, pamoja na tabaka la "
+                "tahadhari na picha za setilaiti. Tahadhari zinaonyesha "
+                "usumbufu unaowezekana, si ukataji miti uliothibitishwa."
+            ),
+            "tr": (
+                "{aoi_name} için {start_date} ile {end_date} arasındaki "
+                "entegre bozulma uyarıları, uyarı katmanı ve uydu "
+                "görüntüleriyle birlikte. Uyarılar olası bozulmayı "
+                "gösterir, doğrulanmış ormansızlaşmayı değil."
+            ),
+        },
+    }
+)
+
+
 def _extract_text(content) -> str:
     """Normalize a LangChain message `.content` (str, or a list of text /
     content-block parts, depending on provider) into plain text."""

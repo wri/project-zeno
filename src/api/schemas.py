@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 from geojson_pydantic import Polygon
@@ -776,6 +776,16 @@ class DashboardAoiResponse(BaseModel):
     position: int
 
 
+class DashboardSectionTemplate(BaseModel):
+    name: str = Field(description="Name of the analysis template.")
+    args: Dict[str, Any] = Field(
+        description="The template arguments, with the defaults filled in."
+    )
+    start_date: date
+    end_date: date
+    built_at: datetime
+
+
 class DashboardSectionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -783,6 +793,14 @@ class DashboardSectionResponse(BaseModel):
     title: str
     description: Optional[str] = None
     position: int
+    template: Optional[DashboardSectionTemplate] = Field(
+        default=None,
+        description=(
+            "How an analysis template built the section; null for a "
+            "section composed by hand or by the agent. The section stays "
+            "editable, so this tells how it started, not what it contains."
+        ),
+    )
     created_at: datetime
 
 
@@ -818,6 +836,44 @@ class DashboardResponse(BaseModel):
     # (`section_id`); ungrouped widgets render above the first section.
     sections: List[DashboardSectionResponse] = []
     widgets: List[DashboardWidgetResponse] = []
+
+
+class AnalysisTemplateResponse(BaseModel):
+    name: str = Field(description="Template name, e.g. `nrt-monitoring`.")
+    label: str = Field(description="Display name in the user's language.")
+    args_schema: Dict[str, Any] = Field(
+        description=(
+            "JSON schema of the `args` that the template takes, with the "
+            "defaults and the limits of each argument."
+        )
+    )
+    widgets: List[str] = Field(
+        description="Widget kinds, in order: `chart`, `layer` or `imagery`."
+    )
+
+
+class SectionFromTemplateRequest(BaseModel):
+    template: str = Field(description="Name of the analysis template.")
+    args: Dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "The template arguments. They must agree with the template's "
+            "`args_schema`. A missing argument gets its default."
+        ),
+    )
+
+
+class SectionFromTemplateResponse(BaseModel):
+    section_id: UUID
+    widget_ids: List[UUID]
+    warnings: List[str] = Field(
+        default=[],
+        description=(
+            "Optional widgets that failed and were left out, for example "
+            "no cloud-free imagery."
+        ),
+    )
+    dashboard: DashboardResponse
 
 
 class DashboardPublicToggleResponse(DashboardResponse):
