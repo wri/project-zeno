@@ -35,7 +35,8 @@ geocoder asks an LLM to guess spellings and runs up to five queries per place.
 ### Structures
 
 `aois` carries four extra columns, filled on write by `build-aois` and by the
-custom-area mirror through shared SQL in `src/shared/aoi_search_sql.py`:
+custom-area mirror through shared SQL in `src/shared/aoi_search_sql.py`
+(the read side, `search_aois`, is `src/shared/aoi_search.py`):
 
 | column | content |
 |---|---|

@@ -11,13 +11,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 from src.api.auth.dependencies import require_auth
 from src.api.schemas import AOISearchResult, UserModel
-from src.shared.geocoding_helpers import (
+from src.shared.aoi_search import (
     MAX_SEARCH_NAME_CHARS,
     MAX_SEARCH_OFFSET,
     SearchRequestError,
-    normalize_aoi_source,
     search_aois,
 )
+from src.shared.geocoding_helpers import normalize_aoi_source
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)

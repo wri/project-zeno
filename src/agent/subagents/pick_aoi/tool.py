@@ -42,15 +42,17 @@ from src.agent.subagents.pick_aoi.types import (
 from src.agent.subagents.progress import emit_progress
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.send_nudge import NUDGE_ALREADY_SET_NOTE
+from src.shared.aoi_search import (
+    MAX_SEARCH_NAME_CHARS,
+    parse_search_text,
+    search_aois,
+)
 from src.shared.database import get_connection_from_pool
 from src.shared.gadm_admin_types import GadmAdminTerm, resolve_gadm_admin_level
 from src.shared.geocoding_helpers import (
     AOI_SOURCE_ID_COLUMNS,
     HIERARCHY_SCORES,
-    MAX_SEARCH_NAME_CHARS,
     SUBREGION_TO_SUBTYPE_MAPPING,
-    parse_search_text,
-    search_aois,
 )
 from src.shared.logging_config import get_logger
 from src.shared.request_context import current_user_id

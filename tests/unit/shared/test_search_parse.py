@@ -1,6 +1,6 @@
 """Tests for the search-string parsing behind ``search_aois``."""
 
-from src.shared.geocoding_helpers import (
+from src.shared.aoi_search import (
     SearchText,
     _corrected_query,
     _LeafToken,
