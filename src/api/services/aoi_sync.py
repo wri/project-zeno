@@ -155,11 +155,12 @@ async def upsert_custom_aoi(
     result = await session.execute(text(_upsert_sql(scoped)), params)
 
     if ids is not None:
+        src_ids = [str(i) for i in ids]
         rows = await session.execute(
-            text(_MIRRORED_IDS_SQL), {"src_ids": [str(i) for i in ids]}
+            text(_MIRRORED_IDS_SQL), {"src_ids": src_ids}
         )
         mirrored = {str(row[0]) for row in rows}
-        skipped = [str(i) for i in ids if str(i) not in mirrored]
+        skipped = [src_id for src_id in src_ids if src_id not in mirrored]
         if skipped:
             logger.warning(
                 "Custom area(s) not mirrored into aois: geometries not "

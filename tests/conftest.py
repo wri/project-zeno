@@ -1,6 +1,7 @@
 """Test configuration and fixtures."""
 
 import os
+import re
 import uuid
 from collections.abc import AsyncGenerator
 from unittest.mock import patch
@@ -18,6 +19,7 @@ from src.api.data_models import Base, ThreadOrm, UserOrm, UserType
 from src.api.schemas import UserModel
 from src.shared.aoi_search_sql import (
     SEARCH_DDL,
+    TOKENS_REBUILD_SQL,
     clean_name_sql,
     name_tsv_sql,
     norm_sql,
@@ -116,6 +118,35 @@ async def seed_reference_aoi(
                 ),
                 {"aoi_id": aoi_id, "variants": list(variants)},
             )
+        await session.commit()
+
+
+def tsvector_lexemes(tsv_text: str) -> dict[str, set[str]]:
+    """Parse a tsvector's text form into ``{lexeme: weights}``.
+
+    ``'reserve':3A,7B 'nature':6B`` gives ``{"reserve": {"A", "B"},
+    "nature": {"B"}}``. Positions are dropped: a test that pins them breaks
+    on any reordering of the vector's inputs, which is never the point.
+    """
+    lexemes: dict[str, set[str]] = {}
+    for match in re.finditer(r"'((?:[^']|'')*)':([\d,ABCD]+)", tsv_text or ""):
+        weights = {w for w in match.group(2) if w in "ABCD"} or {"D"}
+        lexemes.setdefault(match.group(1).replace("''", "'"), set()).update(
+            weights
+        )
+    return lexemes
+
+
+def has_lexeme(tsv_text: str, lexeme: str, weight: str) -> bool:
+    """Whether *tsv_text* carries *lexeme* at *weight*."""
+    return weight in tsvector_lexemes(tsv_text).get(lexeme, set())
+
+
+async def rebuild_search_tokens() -> None:
+    """Rebuild ``aoi_search_tokens`` from the seeded rows, as build-aois does."""
+    async with async_session_maker() as session:
+        for statement in TOKENS_REBUILD_SQL:
+            await session.execute(text(statement))
         await session.commit()
 
 

@@ -9,8 +9,7 @@ that search depends on.
 import pytest
 from sqlalchemy import text
 
-from src.shared.aoi_search_sql import TOKENS_REBUILD_SQL
-from tests.conftest import async_session_maker
+from tests.conftest import async_session_maker, rebuild_search_tokens
 from tests.conftest import seed_reference_aoi as _seed_reference_aoi
 
 _POLYGON = {
@@ -367,10 +366,7 @@ async def test_a_misspelling_falls_back_to_the_nearest_token(
     await _seed_reference_aoi(
         "gadm", "IND.16.3_1", "Bangalore, Karnataka, India", "district-county"
     )
-    async with async_session_maker() as session:
-        for statement in TOKENS_REBUILD_SQL:
-            await session.execute(text(statement))
-        await session.commit()
+    await rebuild_search_tokens()
 
     res = await client.get("/api/aois?name=Bangalor", headers=AUTH)
     assert res.status_code == 200, res.text
@@ -521,10 +517,7 @@ async def test_correction_is_skipped_for_a_long_phrase(auth_override, client):
     correction costs one trigram lookup per word, so it is capped."""
     auth_override("test-user-wri")
     await _seed_reference_aoi("gadm", "BRA", "Brazil", "country")
-    async with async_session_maker() as session:
-        for statement in TOKENS_REBUILD_SQL:
-            await session.execute(text(statement))
-        await session.commit()
+    await rebuild_search_tokens()
 
     # Six distinct words, each one edit from "brazil".
     near = ["brasil", "brazl", "brazi", "bazil", "braxil", "brazul"]
@@ -539,10 +532,7 @@ async def test_correction_is_skipped_for_a_long_phrase(auth_override, client):
 
 
 async def _rebuild_tokens():
-    async with async_session_maker() as session:
-        for statement in TOKENS_REBUILD_SQL:
-            await session.execute(text(statement))
-        await session.commit()
+    await rebuild_search_tokens()
 
 
 @pytest.mark.asyncio
@@ -556,7 +546,7 @@ async def test_correction_prefers_the_closest_spelling(auth_override, client):
     await _seed_reference_aoi(
         "gadm", "PAN.1.1_1", "Paola, Bocas del Toro, Panama", "district-county"
     )
-    await _rebuild_tokens()
+    await rebuild_search_tokens()
 
     res = await client.get("/api/aois?name=Sao Paolo, Brazil", headers=AUTH)
     assert [r["src_id"] for r in res.json()] == ["BRA.25_1"]
@@ -572,7 +562,7 @@ async def test_correction_does_not_reach_a_distant_word(auth_override, client):
         "Kashmore, Larkana, Sindh, Pakistan",
         "district-county",
     )
-    await _rebuild_tokens()
+    await rebuild_search_tokens()
 
     res = await client.get("/api/aois?name=Kashmir", headers=AUTH)
     assert res.status_code == 200
@@ -588,7 +578,7 @@ async def test_an_extra_generic_word_is_dropped(auth_override, client):
     await _seed_reference_aoi(
         "gadm", "CZE", "Czechia", "country", variants=["Czech Republic"]
     )
-    await _rebuild_tokens()
+    await rebuild_search_tokens()
 
     res = await client.get("/api/aois?name=Serengeti NP", headers=AUTH)
     assert [r["src_id"] for r in res.json()] == ["916"]

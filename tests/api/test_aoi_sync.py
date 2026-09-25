@@ -17,8 +17,12 @@ from src.api.services.aoi_sync import (
     prune_orphan_custom_aois,
     upsert_custom_aoi,
 )
-from src.shared.aoi_search_sql import TOKENS_REBUILD_SQL
-from tests.conftest import async_session_maker, seed_reference_aoi
+from tests.conftest import (
+    async_session_maker,
+    has_lexeme,
+    rebuild_search_tokens,
+    seed_reference_aoi,
+)
 
 AUTH = {"Authorization": "Bearer abc123"}
 
@@ -129,7 +133,9 @@ async def test_create_fills_search_columns(auth_override, client):
     assert aoi["leaf"] == "Área do Rio"
     assert aoi["leaf_norm"] == "area do rio"
     assert aoi["context"] is None
-    assert "'area':1A" in aoi["tsv"] and "'rio':3A" in aoi["tsv"]
+    assert has_lexeme(aoi["tsv"], "area", "A") and has_lexeme(
+        aoi["tsv"], "rio", "A"
+    )
     # A custom area has no alternate spellings, so no aoi_names rows.
     assert await _fetch_names(aoi["id"]) == set()
 
@@ -146,7 +152,7 @@ async def test_patch_updates_the_search_columns(auth_override, client):
 
     aoi, _ = await _fetch_aoi(area_id)
     assert aoi["leaf_norm"] == "after"
-    assert "'after':1A" in aoi["tsv"] and "before" not in aoi["tsv"]
+    assert has_lexeme(aoi["tsv"], "after", "A") and "before" not in aoi["tsv"]
 
 
 @pytest.mark.asyncio
@@ -486,10 +492,8 @@ async def test_custom_area_names_stay_out_of_the_token_table(
     become another user's typo correction."""
     auth_override("test-user-wri")
     await _create_area(client, "Zqxvba Reserve")
+    await rebuild_search_tokens()
     async with async_session_maker() as session:
-        for statement in TOKENS_REBUILD_SQL:
-            await session.execute(text(statement))
-        await session.commit()
         tokens = {
             row[0]
             for row in await session.execute(

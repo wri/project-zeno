@@ -1,5 +1,4 @@
 import json
-import re
 from dataclasses import dataclass
 from typing import Any, Dict, Literal, Optional, Union
 from uuid import UUID
@@ -135,12 +134,6 @@ WORLD_BBOX = [-180.0, -90.0, 180.0, 90.0]
 assert set(HIERARCHY_SCORES) == set(SUBREGION_TO_SUBTYPE_MAPPING.values())
 
 
-# An `aoi_choice` nudge option is resubmitted verbatim as the next question:
-# "Paris, Île-de-France, France - (district-county) [FRA]". The trailing
-# decoration is not part of any name.
-_NUDGE_DECORATION_RE = re.compile(r"\s+-\s+\([^)]*\)\s*\[[A-Za-z]{3}\]\s*$")
-
-
 @dataclass(frozen=True)
 class SearchText:
     """A search string split the way the stored names are: leaf, then context.
@@ -158,13 +151,11 @@ class SearchText:
 def parse_search_text(name: str) -> SearchText:
     """Split *name* on commas into a leaf and its context.
 
-    The geocoder and the nudge both send "Place, Parent" strings, and the
-    stored names are comma-joined most-specific-first, so the first segment
-    is the place and the rest is where it is. A segment of only whitespace
-    is dropped.
+    The geocoder sends "Place, Parent" strings, and the stored names are
+    comma-joined most-specific-first, so the first segment is the place and
+    the rest is where it is. A segment of only whitespace is dropped.
     """
-    stripped = _NUDGE_DECORATION_RE.sub("", name.strip())
-    segments = [s.strip() for s in stripped.split(",")]
+    segments = [s.strip() for s in name.split(",")]
     segments = [s for s in segments if s]
     if not segments:
         return SearchText("", "")
@@ -183,10 +174,25 @@ def parse_search_text(name: str) -> SearchText:
 # result.
 _CONTEXT_HIT = "(q.cq IS NOT NULL AND a.search_tsv @@ q.cq) IS TRUE"
 _EXACT_LEAF = "(a.leaf_norm = :leaf_norm) IS TRUE"
-_ORDER_WITHIN_TIER = (
-    f"{{context_hit}} DESC, {{prior}} DESC, {_EXACT_LEAF} DESC, "
-    "a.area_km2 DESC NULLS LAST, a.name, a.source, a.source_id"
-)
+_TIE_BREAK = [
+    "a.area_km2 DESC NULLS LAST",
+    "a.name",
+    "a.source",
+    "a.source_id",
+]
+
+
+def _order_within_tier(prior: str, with_context: bool) -> str:
+    """The ORDER BY keys of the search arms and of the final result.
+
+    Without a typed context the context key is left out rather than made a
+    constant, which keeps the exact and prefix arms free of any column
+    outside the covering index (see idx_aois_leaf_norm).
+    """
+    keys = [f"{_CONTEXT_HIT} DESC"] if with_context else []
+    keys += [f"{prior} DESC", f"{_EXACT_LEAF} DESC", *_TIE_BREAK]
+    return ", ".join(keys)
+
 
 # The normalized leaf and its LIKE prefix are bound as constants, computed by
 # this statement first: a LIKE whose pattern is a column cannot become an
@@ -263,12 +269,8 @@ def _search_sql(
     context also matches the query's context comes first.
     """
     prior = hierarchy_prior_sql("a.subtype")
-    # Without a typed context the context-hit key is a constant, which keeps
-    # the exact and prefix arms free of any column outside the covering
-    # index (see idx_aois_leaf_norm).
-    # An expression, not a literal: Postgres rejects a constant in ORDER BY.
-    context_hit = _CONTEXT_HIT if with_context else "(1 = 0)"
-    order = _ORDER_WITHIN_TIER.format(prior=prior, context_hit=context_hit)
+    context_hit = _CONTEXT_HIT if with_context else "false"
+    order = _order_within_tier(prior, with_context)
     filters = (
         "NOT a.is_disputed AND NOT a.is_deprecated "
         "AND a.source = ANY(:sources)" + _custom_scope_sql(requested)
@@ -335,10 +337,12 @@ def _search_sql(
 
 
 _LEAF_PREFIX_HIT = "(a.leaf_norm LIKE :leaf_prefix) IS TRUE"
-_ORDER_AUTOCOMPLETE = (
-    "{prior} DESC, " + _LEAF_PREFIX_HIT + " DESC, "
-    "a.area_km2 DESC NULLS LAST, a.name, a.source, a.source_id"
-)
+
+
+def _order_autocomplete(prior: str) -> str:
+    return ", ".join(
+        [f"{prior} DESC", f"{_LEAF_PREFIX_HIT} DESC", *_TIE_BREAK]
+    )
 
 
 def _prefix_tsquery(lexemes: Optional[list[str]]) -> Optional[str]:
@@ -384,7 +388,7 @@ def _autocomplete_sql(
     correction: the next keystroke is the correction.
     """
     prior = hierarchy_prior_sql("a.subtype")
-    order = _ORDER_AUTOCOMPLETE.format(prior=prior)
+    order = _order_autocomplete(prior)
     # The context filter is emitted only when a parent was typed: the prefix
     # arms otherwise touch no column outside the covering index, so a short
     # prefix that matches tens of thousands of rows is sorted from the index

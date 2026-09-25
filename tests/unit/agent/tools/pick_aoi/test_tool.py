@@ -991,3 +991,35 @@ async def test_a_pick_reached_by_correction_is_reported_as_approximate(
     # The search-only columns stay out of the state.
     aoi = command.update["aoi_selection"]["aois"][0]
     assert "leaf" not in aoi and "corrected" not in aoi
+
+
+@pytest.mark.asyncio
+async def test_a_resubmitted_nudge_option_is_searched_without_its_decoration(
+    monkeypatch,
+):
+    """An ``aoi_choice`` option comes back verbatim as the next question, and
+    the search must see only the name."""
+    calls = _patch_search(
+        monkeypatch,
+        {
+            "Paris, Île-de-France, France": [
+                _row(
+                    "FRA.8.3_1",
+                    "Paris, Île-de-France, France",
+                    subtype="district-county",
+                )
+            ]
+        },
+    )
+
+    command = await _lookup(
+        [
+            ExtractedPlace(
+                place="Paris, Île-de-France, France - (district-county) [FRA]"
+            )
+        ],
+        question="Paris, Île-de-France, France - (district-county) [FRA]",
+    )
+
+    assert [call[0] for call in calls] == ["Paris, Île-de-France, France"]
+    assert command.update["aoi_selection"]["aois"][0]["src_id"] == "FRA.8.3_1"

@@ -7,8 +7,8 @@ and why it is built this way. Companion to `docs/aoi-architecture/`.
 
 The first version of unified search ran one pg_trgm filter, `name % :q` at
 threshold 0.2, over a single comma-joined `name` string, and sorted by
-`similarity()`. Measured on the production corpus (849k rows) it fails on both
-axes:
+`similarity()`. Measured in September 2026 on a local copy of the staging
+corpus (849k rows) it fails on both axes:
 
 | query | index candidates | rows kept | time |
 |---|---|---|---|
@@ -75,7 +75,7 @@ searchable field. `name` itself, the display string, is unchanged.
 | `idx_aois_search_tsv` GIN, partial on live rows | the typed-parent test, and the fallback for words spread over name and context |
 | `idx_aoi_names_name_norm` btree, `text_pattern_ops` | exact and prefix over variants |
 | `idx_aoi_search_tokens_trgm` GIN trigram | typo correction |
-| `idx_aois_iso3`, `idx_aois_source` (existing) | facets |
+| `idx_aois_source` (existing) | the source filter; `idx_aois_iso3` also exists but nothing in search reads it |
 
 The composite-name trigram index and the ingest scripts' trigram indexes on
 the `geometries_*` staging tables are dropped by migration `9c4e1d7f2a60`. No
@@ -83,8 +83,8 @@ trigram index remains on `aois`.
 
 ### The query, in tiers
 
-`search_aois(name, sources, user_id, limit, offset)` keeps its signature and
-its result columns. The input string is split on commas: the first segment
+`search_aois(name, sources, user_id, limit, offset, mode)` keeps its result
+columns and gains `mode`. The input string is split on commas: the first segment
 is the leaf, the rest are context terms. The leaf is normalized once in SQL
 and bound back as a constant, so the exact and prefix lookups are index
 ranges; the tsqueries are built inside the statement with the `aoi_search`
@@ -142,7 +142,7 @@ the first result that answers the query:
 This is the only place trigram matching is used, against short single
 tokens. The lookup costs about 30 ms; a retry costs one token-arm query.
 
-Measured on the corpus (849k rows, warm plans, best of three): "Paris"
+Measured in September 2026 on the same corpus (warm plans, best of three): "Paris"
 11 ms, "Paris, France" 13 ms, "Congo" 8 ms, "Mumbai" 8 ms, "Bangalor" 8 ms
 including the correction, "Botum Sakor National Park" 9 ms, "Puri" 10 ms.
 A country name, the most common real query, is now the cheapest shape:
@@ -172,7 +172,7 @@ a variant's, then area:
 
 A typed parent ("paris, fr") filters every arm by its own prefix query.
 
-Measured on the corpus: three letters and up run in 15 to 130 ms ("ban" 33,
+Measured in September 2026: three letters and up run in 15 to 130 ms ("ban" 33,
 "mumb" 30, "kaji" 13, "sao p" 105, "高知" 9, "محمية" 34). A two-letter prefix
 that matches twenty thousand names costs 90 to 570 ms on the Docker database
 ("ko" 85, "un" 91, "ba" 567), almost all of it the sort over the index
@@ -270,8 +270,9 @@ planned for a later phase.
   per request; the token table lags until the next build, which only affects
   the miss path for brand-new tokens.
 - The test schema comes from `create_all`, so `tests/conftest.py` runs the
-  same extension and configuration DDL as the migration, and the search
-  indexes are declared on the ORM models so tests see the real plans.
+  same extension and configuration DDL as the migration. The search indexes
+  live in the migration only: the seeded test tables are too small for the
+  planner to use them.
 - `tests/tools/test_pick_aoi.py` replays recorded `query_aoi_database` frames
   in CI, so a retrieval change is only visible when that suite runs live
   against a populated database. `scripts/record_aoi_pick_aoi_fixtures.py`

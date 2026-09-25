@@ -1,4 +1,5 @@
 import asyncio
+import re
 from typing import (
     Annotated,
     Any,
@@ -413,19 +414,29 @@ async def select_best_aoi(
 _NUDGE_PROMINENCE_MARGIN = 0.1
 
 
+def _selected_leaf(selected: AOIIndex, results: pd.DataFrame) -> str:
+    """The stored leaf of *selected*, from the frame it was picked from.
+
+    A row that only an alternative spelling found is not in this frame; its
+    first name segment stands in, which for a GADM name is the leaf.
+    """
+    row = _selected_row(selected, results)
+    if row is not None and isinstance(row["leaf"], str):
+        return row["leaf"]
+    return selected.name.split(",")[0]
+
+
 async def check_multiple_matches(
-    src_id: str,
-    leaf: str,
-    results: pd.DataFrame,
-    selected_subtype: Optional[str] = None,
+    selected: AOIIndex, results: pd.DataFrame
 ) -> Optional[list[dict]]:
     """The GADM namesakes worth asking about, or None when there are none.
 
-    A namesake is a row whose stored leaf equals *leaf* (so "Parisi" is not
-    one of Paris's) and whose prominence is within the margin of the
-    selection's. The question is only worth asking when one of them lies in
-    another country; the selection's own country, including its country row,
-    is not a choice. The list returned includes the selection itself.
+    A namesake is a row whose stored leaf equals the selection's (so
+    "Parisi" is not one of Paris's) and whose prominence is within the
+    margin of the selection's. The question is only worth asking when one of
+    them lies in another country; the selection's own country, including its
+    country row, is not a choice. The list returned includes the selection
+    itself.
     """
     # A place can now be resolved by a canonical name or an alternative
     # spelling while the place name itself matched nothing, so this can be
@@ -434,18 +445,19 @@ async def check_multiple_matches(
     if results.empty:
         return None
 
+    leaf = leaf_key(_selected_leaf(selected, results))
     namesakes = results[
         (results.source == "gadm")
-        & (results.leaf.fillna("").map(leaf_key) == leaf_key(leaf))
+        & (results.leaf.fillna("").map(leaf_key) == leaf)
     ]
-    if selected_subtype in HIERARCHY_SCORES:
-        floor = HIERARCHY_SCORES[selected_subtype] - _NUDGE_PROMINENCE_MARGIN
+    if selected.subtype in HIERARCHY_SCORES:
+        floor = HIERARCHY_SCORES[selected.subtype] - _NUDGE_PROMINENCE_MARGIN
         namesakes = namesakes[
             namesakes.subtype.map(HIERARCHY_SCORES).fillna(0.0).ge(floor)
         ]
 
     # A GADM id starts with the country's ISO3: "IND.12.26_1" and "IND".
-    selected_country = src_id.split(".")[0]
+    selected_country = selected.src_id.split(".")[0]
     elsewhere = namesakes.src_id.str.split(".").str[0] != selected_country
     if not elsewhere.any():
         return None
@@ -457,15 +469,25 @@ async def check_multiple_matches(
     )
 
 
+# An `aoi_choice` option is resubmitted verbatim as the next question, so a
+# place name can arrive with the decoration `_format_aoi_candidate` adds:
+# "Paris, Île-de-France, France - (district-county) [FRA]". It is not part of
+# any name and is stripped before the name is searched.
+_NUDGE_DECORATION_RE = re.compile(r"\s+-\s+\([^)]*\)\s*\[[A-Za-z]{3}\]\s*$")
+
+
+def _plain_place(place: str) -> str:
+    return _NUDGE_DECORATION_RE.sub("", place.strip())
+
+
 def _format_aoi_candidate(candidate: dict) -> str:
     """Render one aoi_choice option.
 
     The leading `name` must stay the full comma-joined hierarchy
     ("Paris, Île-de-France, France"), not the bare leaf: clicking an option
-    resubmits this string, and pick_aoi re-resolves it by trigram similarity
-    against the same `name` column (see search_aois). The full hierarchy
-    matches only the intended row; a bare "Paris" would re-match every Paris
-    and re-offer the same choice indefinitely.
+    resubmits this string, and pick_aoi re-resolves it as "Place, Parent",
+    where the parent narrows the search to the intended row. A bare "Paris"
+    would re-match every Paris and re-offer the same choice indefinitely.
     """
     return (
         f"{candidate['name']} - ({candidate['subtype']}) "
@@ -514,24 +536,13 @@ async def check_duplicate_aois(
     for selected_aoi, result in zip(selected_aois, all_results):
         if selected_aoi.source != "gadm":
             continue
-        # The stored leaf, from the frame the pick came from. A row that
-        # only an alternative spelling found is not in this frame; its
-        # first name segment stands in, which for a GADM name is the leaf.
-        row = _selected_row(selected_aoi, result)
-        leaf = (
-            row["leaf"]
-            if row is not None and isinstance(row["leaf"], str)
-            else selected_aoi.name.split(",")[0]
-        )
-        candidates = await check_multiple_matches(
-            selected_aoi.src_id, leaf, result, selected_aoi.subtype
-        )
+        candidates = await check_multiple_matches(selected_aoi, result)
         if candidates:
             options = [_format_aoi_candidate(c) for c in candidates]
             message = await t(
                 "pick_aoi.duplicate_names",
                 language,
-                short_name=leaf,
+                short_name=_selected_leaf(selected_aoi, result),
                 candidate_names="\n".join(options),
             )
             return message, options, candidates
@@ -699,14 +710,15 @@ async def _resolve_place(
     outranks the park on the hierarchy term alone), but a wrong type must not
     cost recall — so an empty narrowed result is retried across every source.
     """
-    terms = [place.place]
+    terms = [_plain_place(place.place)]
     # The caller's explicit `area_of_interest` wins; the type the geocoder
     # inferred for this place only fills the gap when the caller gave none.
     effective_type = aoi_type
     if normalized:
         for candidate in [place.canonical, *place.alternatives]:
-            if candidate and candidate not in terms:
-                terms.append(candidate)
+            plain = _plain_place(candidate) if candidate else ""
+            if plain and plain not in terms:
+                terms.append(plain)
         if effective_type is None:
             effective_type = place.area_type
 
@@ -855,7 +867,7 @@ class Geocoder:
             emit_progress(
                 "pick_aoi",
                 "candidates",
-                f"Fuzzy search '{resolution.place.place}': "
+                f"Searched '{resolution.place.place}': "
                 f"{count} candidate(s)"
                 + (f" — {'; '.join(names)}" if names else ""),
             )
@@ -868,16 +880,12 @@ class Geocoder:
         # Each selection stays paired with the candidates of ITS OWN place:
         # filtering the selections alone would pair one with another place's
         # candidates as soon as a place matched nothing.
-        matched = [
-            resolution
+        matched: list[tuple[_PlaceResolution, AOIIndex]] = [
+            (resolution, resolution.selection)
             for resolution in resolutions
             if resolution.selection is not None
         ]
-        selected_aois: list[AOIIndex] = [
-            resolution.selection
-            for resolution in matched
-            if resolution.selection is not None
-        ]
+        selected_aois = [selection for _, selection in matched]
         if not selected_aois:
             return Command(
                 update={
@@ -900,21 +908,17 @@ class Geocoder:
         # other countries' same-named places it also returns are not a
         # question to put back to the user.
         undisambiguated = [
-            resolution
-            for resolution in matched
-            if not parse_search_text(resolution.place.place).context
+            (resolution, selection)
+            for resolution, selection in matched
+            if not parse_search_text(resolution.terms[0]).context
         ]
         duplicate_check = await check_duplicate_aois(
-            [
-                resolution.selection
-                for resolution in undisambiguated
-                if resolution.selection is not None
-            ],
+            [selection for _, selection in undisambiguated],
             # Only the rows the place name itself retrieved. An aoi_choice
             # option is resubmitted verbatim as the next question, so
             # offering a choice over rows that only an invented alias found
             # would re-offer the same choice indefinitely.
-            [resolution.primary for resolution in undisambiguated],
+            [resolution.primary for resolution, _ in undisambiguated],
             language,
         )
         if duplicate_check:
@@ -996,17 +1000,15 @@ class Geocoder:
         # A pick the search reached only by correcting or shortening the
         # place name is a guess the user should see, not a silent choice.
         approximate = [
-            resolution
-            for resolution in matched
-            if resolution.corrected and resolution.selection is not None
+            (resolution, selection)
+            for resolution, selection in matched
+            if resolution.corrected
         ]
         if approximate:
             tool_message += "\n\nApproximate match: " + "; ".join(
                 f"no place is named '{resolution.place.place}' exactly, so "
-                f"'{resolution.selection.name}' was chosen as the closest "
-                "name"
-                for resolution in approximate
-                if resolution.selection is not None
+                f"'{selection.name}' was chosen as the closest name"
+                for resolution, selection in approximate
             )
             tool_message += (
                 ". Tell the user which place was used and ask whether it is "

@@ -371,8 +371,7 @@ async def test_extract_translates_place_to_english(structlog_context):
     )
     joined = " ".join(p.place for p in query.places).lower()
     assert "sao paulo" in joined
-    # canonical restores the official accented spelling for the
-    # accent-sensitive trigram search.
+    # canonical restores the official accented spelling.
     canonical = " ".join(p.canonical for p in query.places).lower()
     assert "são paulo" in canonical
 

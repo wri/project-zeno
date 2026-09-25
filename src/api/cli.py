@@ -1326,6 +1326,22 @@ async def _build_reference_aois(
     search = await _search_exprs(session, source)
     leaf_expr = search.leaf("")
 
+    if source == "wdpa":
+        # The WDPA context names the country through the GADM country rows;
+        # without them it falls back to the raw ISO3 code, and "Kruger
+        # National Park, ZAF" is what a typed "South Africa" cannot match.
+        countries = await session.scalar(
+            text(
+                "SELECT count(*) FROM aois WHERE source = 'gadm' "
+                "AND subtype = 'country' AND NOT is_deprecated"
+            )
+        )
+        if not countries:
+            click.echo(
+                "⚠️  wdpa: no GADM country rows in aois; contexts will carry "
+                "ISO3 codes instead of country names. Build gadm first."
+            )
+
     # Only gadm carries broken source names, so every other source selects
     # `name` unchanged, joins nothing extra and binds no repair parameters.
     name_expr = "name"

@@ -1,6 +1,13 @@
 """Tests for the search-string parsing behind ``search_aois``."""
 
-from src.shared.geocoding_helpers import SearchText, parse_search_text
+from src.shared.geocoding_helpers import (
+    SearchText,
+    _corrected_query,
+    _LeafToken,
+    _prefix_tsquery,
+    _reduced_queries,
+    parse_search_text,
+)
 
 
 def test_single_segment_has_no_context():
@@ -21,13 +28,6 @@ def test_whitespace_and_empty_segments_are_dropped():
     assert parse_search_text("") == SearchText("", "")
 
 
-def test_nudge_decoration_is_stripped():
-    """An ``aoi_choice`` option comes back verbatim as the next question."""
-    assert parse_search_text(
-        "Paris, Île-de-France, France - (district-county) [FRA]"
-    ) == SearchText("Paris", "Île-de-France France")
-
-
 def test_a_hyphen_inside_a_name_is_kept():
     assert parse_search_text("Resex Catua-Ipixuna") == SearchText(
         "Resex Catua-Ipixuna", ""
@@ -35,8 +35,6 @@ def test_a_hyphen_inside_a_name_is_kept():
 
 
 def test_prefix_tsquery_marks_the_last_lexeme_as_a_prefix():
-    from src.shared.geocoding_helpers import _prefix_tsquery
-
     assert _prefix_tsquery(["bangalore", "ur"]) == "'bangalore' & 'ur':*"
     assert _prefix_tsquery(["d'ivoire"]) == "'d''ivoire':*"
     assert _prefix_tsquery([]) is None
@@ -44,16 +42,12 @@ def test_prefix_tsquery_marks_the_last_lexeme_as_a_prefix():
 
 
 def _token(lexeme, ndoc=5, nearest=None):
-    from src.shared.geocoding_helpers import _LeafToken
-
     return _LeafToken(
         lexeme, ndoc, (lexeme,) if nearest is None else tuple(nearest)
     )
 
 
 def test_corrected_query_ors_the_neighbours_of_each_word():
-    from src.shared.geocoding_helpers import _corrected_query
-
     tokens = [_token("sao"), _token("paolo", 12, ["paulo", "paola", "paolo"])]
     assert (
         _corrected_query(tokens) == "('sao') & ('paulo' | 'paola' | 'paolo')"
@@ -71,8 +65,6 @@ def test_corrected_query_ors_the_neighbours_of_each_word():
 
 
 def test_reduced_queries_drop_the_last_then_the_first_word():
-    from src.shared.geocoding_helpers import _reduced_queries
-
     assert _reduced_queries(
         [
             _token("ho", 516),
@@ -85,8 +77,6 @@ def test_reduced_queries_drop_the_last_then_the_first_word():
 
 
 def test_reduced_queries_keep_only_words_that_can_name_a_place():
-    from src.shared.geocoding_helpers import _reduced_queries
-
     # "np" alone is too short to be a name; "serengeti" is one.
     assert _reduced_queries([_token("serengeti", 33), _token("np", 70)]) == [
         "'serengeti'"

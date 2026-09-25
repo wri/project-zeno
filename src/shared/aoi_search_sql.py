@@ -85,18 +85,27 @@ def norm_sql(expr: str) -> str:
     return f"unaccent(lower(btrim({expr})))"
 
 
+# The sources' markers for a missing name: GADM writes ``NA`` and
+# ``n.a. ( 2050)``, two GADM ids are ``?``, and LandMark writes ``Unknown``.
+# ``n.a.`` is a prefix rule (the parenthesised code varies) and is spelled
+# separately in each fragment below.
+NO_DATA_MARKERS = ("NA", "?", "Unknown", "unknown")
+_NO_DATA_IN_LIST = ", ".join(f"'{marker}'" for marker in NO_DATA_MARKERS)
+_NO_DATA_ALTERNATION = "|".join(
+    marker.replace("?", "\\?") for marker in NO_DATA_MARKERS
+)
+
+
 def clean_name_sql(expr: str) -> str:
     """Return *expr* trimmed, or NULL when it is a no-data marker.
 
-    The sources use several markers for a missing name: GADM writes ``NA`` and
-    ``n.a. ( 2050)``, two GADM ids are ``?``, and LandMark writes ``Unknown``.
-    A marker must not become a searchable name, so every writer passes the raw
-    name through this fragment first.
+    A marker must not become a searchable name, so every writer passes the
+    raw name through this fragment first.
     """
     trimmed = f"btrim({expr})"
     return (
         f"CASE WHEN {trimmed} = '' "
-        f"OR {trimmed} IN ('NA', '?', 'Unknown', 'unknown') "
+        f"OR {trimmed} IN ({_NO_DATA_IN_LIST}) "
         f"OR {trimmed} ~* '^n\\.a\\.' "
         f"THEN NULL ELSE {trimmed} END"
     )
@@ -110,7 +119,7 @@ def strip_sentinel_segments_sql(expr: str) -> str:
     """
     return (
         f"regexp_replace(COALESCE({expr}, ''), "
-        "'(^|, )(NA|\\?|Unknown|unknown|n\\.a\\.( \\([^)]*\\))?)(?=,|$)', "
+        f"'(^|, )({_NO_DATA_ALTERNATION}|n\\.a\\.( \\([^)]*\\))?)(?=,|$)', "
         "'', 'g')"
     )
 

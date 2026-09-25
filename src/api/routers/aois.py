@@ -1,8 +1,8 @@
 """Unified AOI search endpoint.
 
 Searches Areas of Interest across all sources (gadm / kba / wdpa / landmark /
-custom) by name and/or source type, reusing the same pg_trgm search core as the
-agent's ``pick_aoi`` geocoder.
+custom) by name and/or source type, reusing the same search core as the
+agent's ``pick_aoi`` geocoder (see docs/aoi-full-text-search.md).
 """
 
 from typing import List, Literal, Optional

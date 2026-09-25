@@ -285,35 +285,9 @@ class AoiOrm(Base):
             unique=True,
             postgresql_where=text("NOT is_deprecated"),
         ),
-        # text_pattern_ops serves `=` and a LIKE 'prefix%' range under any
-        # collation: one btree for the exact tier and for autocomplete. The
-        # INCLUDE columns let a prefix arm rank from the index alone.
-        Index(
-            "idx_aois_leaf_norm",
-            "leaf_norm",
-            postgresql_ops={"leaf_norm": "text_pattern_ops"},
-            postgresql_include=[
-                "id",
-                "subtype",
-                "area_km2",
-                "name",
-                "source",
-                "source_id",
-            ],
-            postgresql_where=text("NOT is_disputed AND NOT is_deprecated"),
-        ),
-        Index(
-            "idx_aois_search_tsv",
-            "search_tsv",
-            postgresql_using="gin",
-            postgresql_where=text("NOT is_disputed AND NOT is_deprecated"),
-        ),
-        Index(
-            "idx_aois_name_tsv",
-            "name_tsv",
-            postgresql_using="gin",
-            postgresql_where=text("NOT is_disputed AND NOT is_deprecated"),
-        ),
+        # The search indexes (leaf_norm btree, the two GIN vectors) live in
+        # the migration only: they serve production plans, and the seeded
+        # test tables are too small for the planner to use them.
     )
 
     user_links = relationship(
@@ -358,12 +332,8 @@ class AoiNameOrm(Base):
 
     __table_args__ = (
         # The rebuild's ON CONFLICT target; also serves the aoi_id lookup.
+        # The name_norm search index lives in the migration only.
         UniqueConstraint("aoi_id", "name_norm", name="uq_aoi_names_aoi_norm"),
-        Index(
-            "idx_aoi_names_name_norm",
-            "name_norm",
-            postgresql_ops={"name_norm": "text_pattern_ops"},
-        ),
     )
 
     aoi = relationship("AoiOrm", back_populates="names")
@@ -383,15 +353,7 @@ class AoiSearchTokenOrm(Base):
     token = Column(String, primary_key=True)
     ndoc = Column(Integer, nullable=False)
     prominence = Column(Float, nullable=False)
-
-    __table_args__ = (
-        Index(
-            "idx_aoi_search_tokens_trgm",
-            "token",
-            postgresql_using="gin",
-            postgresql_ops={"token": "gin_trgm_ops"},
-        ),
-    )
+    # The trigram index on token lives in the migration only.
 
 
 class UserAoiOrm(Base):

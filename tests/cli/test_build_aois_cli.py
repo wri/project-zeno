@@ -15,7 +15,6 @@ rules turn on exactly that dirt: children that disagree with each other, a
 parent with no children, a tie, and names GADM stored one level down.
 """
 
-import re
 from contextlib import asynccontextmanager
 
 import pytest
@@ -35,7 +34,12 @@ from src.shared.geocoding_helpers import (
     GADM_LEVELS,
     SOURCE_STAGING_TABLES,
 )
-from tests.conftest import UNIT_SQUARE_WKT, async_session_maker
+from tests.conftest import (
+    UNIT_SQUARE_WKT,
+    async_session_maker,
+    has_lexeme,
+    tsvector_lexemes,
+)
 
 # Chunk count for the seeded builds. The real default is 16; a smaller number
 # keeps the tests quick while still running the multi-pass, per-chunk-commit
@@ -443,8 +447,8 @@ async def test_gadm_build_fills_the_search_columns(gadm_staging):
     assert barnsley["leaf"] == "Barnsley"
     assert barnsley["leaf_norm"] == "barnsley"
     assert barnsley["context"] == "England, United Kingdom"
-    assert "'barnsley':1A" in barnsley["tsv"]
-    assert "'england':2B" in barnsley["tsv"]
+    assert has_lexeme(barnsley["tsv"], "barnsley", "A")
+    assert has_lexeme(barnsley["tsv"], "england", "B")
     # The name vector carries the names only: a parent's name would match
     # every row beneath it.
     assert barnsley["ntsv"] == "'barnsley':1A"
@@ -467,8 +471,7 @@ async def test_gadm_build_fills_the_search_columns(gadm_staging):
     assert cols["PRT.12.7_1"]["leaf"] == "Lisboa"
     assert cols["PRT.12.7_1"]["context"] == "Lisboa, Portugal"
     assert cols["FRA.8.3_1"]["context"] == "Île-de-France, France"
-    # The hyphenated parent yields several tokens, so check weight, not position.
-    assert re.search(r"'france':[\d,]*\dB", cols["FRA.8.3_1"]["tsv"])
+    assert has_lexeme(cols["FRA.8.3_1"]["tsv"], "france", "B")
 
 
 @pytest.mark.asyncio
@@ -486,7 +489,7 @@ async def test_gadm_names_hold_variants_and_native_spellings(gadm_staging):
     assert "MHL.19_1" not in names
     # The variants are also tokens of the tsvector, at the leaf's weight.
     cols = await _search_columns("gadm")
-    assert "'scotia':3A" in cols["GBR.2_1"]["tsv"]
+    assert has_lexeme(cols["GBR.2_1"]["tsv"], "scotia", "A")
 
     # A second run replaces the rows rather than adding to them.
     assert await _build_names("gadm") == inserted
@@ -540,10 +543,10 @@ async def test_wdpa_context_names_the_country_and_keeps_orig_name(
         cols = await _search_columns("wdpa")
         assert cols["1"]["leaf"] == "Masirah Island Reserve"
         assert cols["1"]["context"] == "Nature Reserve, United Kingdom"
-        assert "'محمية':4A" in cols["1"]["tsv"]
+        assert has_lexeme(cols["1"]["tsv"], "محمية", "A")
         # The designation is in the name vector, the country is not.
-        assert "'nature':6B" in cols["1"]["ntsv"]
-        assert "'reserve':3A,7B" in cols["1"]["ntsv"]
+        assert tsvector_lexemes(cols["1"]["ntsv"])["nature"] == {"B"}
+        assert tsvector_lexemes(cols["1"]["ntsv"])["reserve"] == {"A", "B"}
         assert "kingdom" not in cols["1"]["ntsv"]
         # No GADM country for the code, so the code itself is the context.
         assert cols["2"]["context"] == "Park, ZZZ"

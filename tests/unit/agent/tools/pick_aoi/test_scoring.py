@@ -87,8 +87,8 @@ def test_hierarchy_separates_identically_named_places():
 
 
 # Verbatim rows from tests/fixtures/aoi_pick_aoi_v1.json for "Para, Brazil",
-# in the order the DB returned them — Paraná first, because pg_trgm ranks it
-# above Pará. The same four rows and scores are mirrored in
+# in the order the old trigram search returned them — Paraná first, because
+# the accent broke Pará's trigrams. The same four rows and scores are mirrored in
 # tests/agent/test_graph.py; `bbox` is left out because the recording predates
 # that column.
 _PARA_CANDIDATES = pd.DataFrame(
