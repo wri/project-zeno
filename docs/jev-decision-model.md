@@ -101,6 +101,21 @@ Steps:
 - Test `pick_aoi` candidate selection with jev. Use the existing pick_aoi tests and the GOLD AOI labels.
 - Look at other decisions in the agent: nudges and off-topic checks.
 
+## Risks
+
+jev is new. The OpenRouter decisions endpoint (`/api/alpha/decisions`) is an alpha release.
+
+- The API, the model versions, the pricing or the availability can change without notice.
+- The open model on `api.codiv.ai` has a low rate limit.
+- Only one company makes jev.
+
+To decrease the risk:
+
+- Keep jev behind a feature flag, with the current LLM path as the fallback.
+- Use a fixed model version (for example `typesafe/jev-1.13`), not "latest".
+- Run the test in PR #841 again before each model or endpoint change.
+- Do not remove the LLM path until the endpoint is stable.
+
 ## Open questions
 
 - **No match or many matches.** jev returns one option. How do we show "no dataset fits" and "these 2–3 datasets can help" (the current `suggested_datasets` case)? We can possibly use the probabilities (for example, all options above a threshold).
