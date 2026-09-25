@@ -59,12 +59,47 @@ What we learned:
 
 Details, method and raw results: PR #841 and `scripts/jev_experiments/`.
 
-## Suggested next steps
+## Next steps for dataset selection
 
-1. Test `pick_aoi` candidate selection with jev. Use the existing pick_aoi tests and the GOLD AOI labels.
-2. Test the dataset, context layer and parameter questions together, with the short instructions.
-3. Collect more decline cases: queries with no matching dataset, and queries where more than one dataset can answer.
-4. Run jev behind a flag in the real `pick_dataset` step, with the LLM as fallback. Compare on the full GOLD eval.
+### 1. Go / no-go
+
+We do not yet know how the current picker (RAG + LLM) scores on the same queries. Measure this first.
+
+- Run the current `pick_dataset` on the same 178 queries. Also add 20–30 new decline cases (no matching dataset, or more than one possible dataset).
+- Run jev on the same queries, with the short instruction and short descriptions.
+- **Go** if all of these are true:
+  - jev is as accurate as the current picker, or better.
+  - jev declines valid queries less often than the current picker, or equally often.
+  - jev handles "no match" and "many matches" acceptably, with the probability rules below.
+  - A provider is available with acceptable limits, costs and data terms.
+
+### 2. Implementation (if go)
+
+The current picker returns more than a dataset. Each part needs a replacement:
+
+| Output | Now | With jev |
+|---|---|---|
+| Candidates | RAG shortlist (5) | All datasets in the agent profile |
+| Dataset | LLM | jev choice |
+| Context layer, LGMS layer, parameters | LLM | Second jev call, with only the options of the selected dataset (after the AOI extent filter). Only for datasets that have these options. |
+| Dates | LLM clamps to the dataset range | Code: clamp the orchestrator dates to the dataset range |
+| Reason text | LLM, in the user language | Short template from the dataset card. The orchestrator writes the answer to the user. |
+| Suggested datasets | LLM | From probabilities: if no option is clearly best, offer the top 2–3 options in the dataset-choice nudge |
+| "No dataset" | LLM | `none` wins, or all probabilities are low |
+
+Steps:
+
+1. **Catalog:** add a short selection description to each dataset YAML. Keep the long LLM text for analysis only.
+2. **Client:** add a small jev client with a timeout, retries and a setting for the provider and model.
+3. **Selector:** add the jev path to `pick_dataset` behind a feature flag. Use the current LLM path as a fallback for errors, time-outs and low confidence.
+4. **Shadow mode:** in production, run jev next to the current picker and log the differences. There is no change for users. Use the logs to set the confidence thresholds.
+5. **Switch:** turn on jev for one agent profile, then for all.
+6. **Clean up:** remove the RAG step, the embeddings index and its versioning, and the unused LLM selection text.
+
+### Later
+
+- Test `pick_aoi` candidate selection with jev. Use the existing pick_aoi tests and the GOLD AOI labels.
+- Look at other decisions in the agent: nudges and off-topic checks.
 
 ## Open questions
 
