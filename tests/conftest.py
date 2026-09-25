@@ -84,14 +84,16 @@ async def seed_reference_aoi(
             text(
                 "INSERT INTO aois "
                 "(source, source_id, name, subtype, geometry, bbox, "
-                " is_disputed, leaf, leaf_norm, context, search_tsv, name_tsv) "
+                " is_disputed, leaf, leaf_norm, designation, search_tsv, "
+                " name_tsv) "
                 "SELECT :source, :source_id, :name, :subtype, "
                 " ST_Multi(ST_GeomFromText(:geometry_wkt, 4326)), "
                 " :bbox, :is_disputed, s.leaf, "
-                f" {norm_sql('s.leaf')}, s.context, "
+                f" {norm_sql('s.leaf')}, s.designation, "
                 f" {tsv_sql('s.leaf', ':variants', 's.context', ':name')}, "
-                f" {name_tsv_sql('s.leaf', ':variants', ':designation')} "
-                f"FROM (SELECT {leaf} AS leaf, {context} AS context) s "
+                f" {name_tsv_sql('s.leaf', ':variants', 's.designation')} "
+                f"FROM (SELECT {leaf} AS leaf, {context} AS context, "
+                " CAST(:designation AS text) AS designation) s "
                 "RETURNING id"
             ),
             {

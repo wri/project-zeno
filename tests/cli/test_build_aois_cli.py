@@ -27,6 +27,8 @@ from src.api.cli import (
     _build_reference_aois,
     _derive_gadm_name_repairs,
     _rebuild_search_tokens,
+    _resolve_search_columns,
+    _search_exprs,
     cli,
 )
 from src.shared.geocoding_helpers import (
@@ -215,8 +217,9 @@ async def _aoi_names(source: str) -> dict[str, str]:
 
 async def _build(source: str) -> int:
     async with async_session_maker() as session:
+        columns = await _resolve_search_columns(session, source)
         return await _build_reference_aois(
-            session, source, nchunks=_CHUNKS, dry_run=False
+            session, source, columns=columns, nchunks=_CHUNKS, dry_run=False
         )
 
 
@@ -395,11 +398,11 @@ async def test_gadm_rebuild_is_idempotent(gadm_staging):
 
 
 async def _search_columns(source: str) -> dict[str, dict]:
-    """Return ``{source_id: {leaf, leaf_norm, context, tsv, ntsv}}``."""
+    """Return ``{source_id: {leaf, leaf_norm, designation, tsv, ntsv}}``."""
     async with async_session_maker() as session:
         result = await session.execute(
             text(
-                "SELECT source_id, leaf, leaf_norm, context, "
+                "SELECT source_id, leaf, leaf_norm, designation, "
                 "search_tsv::text AS tsv, name_tsv::text AS ntsv "
                 "FROM aois WHERE source = :source"
             ),
@@ -427,9 +430,30 @@ async def _names(source: str) -> dict[str, set[tuple[str, str]]]:
 
 async def _build_names(source: str) -> int:
     async with async_session_maker() as session:
-        n = await _build_aoi_names(session, source)
+        columns = await _resolve_search_columns(session, source)
+        n = await _build_aoi_names(session, source, columns=columns)
         await session.commit()
         return n
+
+
+async def _contexts(source: str) -> dict[str, str]:
+    """Evaluate the source's context expression over its staging rows.
+
+    The context (parents, designation, country) feeds ``search_tsv`` at
+    build time and is not stored, so its derivation is checked at the
+    expression. The WDPA country lookup reads ``aois``, so build gadm first.
+    """
+    table = SOURCE_STAGING_TABLES[source]
+    id_col = AOI_SOURCE_ID_COLUMNS[source]
+    async with async_session_maker() as session:
+        columns = await _resolve_search_columns(session, source)
+        rows = await session.execute(
+            text(
+                f'SELECT DISTINCT CAST("{id_col}" AS TEXT), '
+                f"{_search_exprs(source, columns, '').context} FROM {table}"
+            )
+        )
+        return dict(rows.all())
 
 
 @pytest.mark.asyncio
@@ -442,11 +466,13 @@ async def test_gadm_build_fills_the_search_columns(gadm_staging):
     """
     await _build("gadm")
     cols = await _search_columns("gadm")
+    contexts = await _contexts("gadm")
 
     barnsley = cols["GBR.1.1_1"]
     assert barnsley["leaf"] == "Barnsley"
     assert barnsley["leaf_norm"] == "barnsley"
-    assert barnsley["context"] == "England, United Kingdom"
+    assert barnsley["designation"] is None
+    assert contexts["GBR.1.1_1"] == "England, United Kingdom"
     assert has_lexeme(barnsley["tsv"], "barnsley", "A")
     assert has_lexeme(barnsley["tsv"], "england", "B")
     # The name vector carries the names only: a parent's name would match
@@ -455,22 +481,22 @@ async def test_gadm_build_fills_the_search_columns(gadm_staging):
 
     # The repaired leading segment is the leaf.
     assert cols["GBR.1_1"]["leaf"] == "England"
-    assert cols["GBR.1_1"]["context"] == "United Kingdom"
+    assert contexts["GBR.1_1"] == "United Kingdom"
     # A country has no context.
     assert cols["GBR"]["leaf"] == "United Kingdom"
-    assert cols["GBR"]["context"] is None
+    assert contexts["GBR"] is None
     # Irreparable "NA" gives no leaf; the context still carries the parents.
     assert cols["MHL.19_1"]["leaf"] is None
     assert cols["MHL.19_1"]["leaf_norm"] is None
-    assert cols["MHL.19_1"]["context"] == "Marshall Islands"
+    assert contexts["MHL.19_1"] == "Marshall Islands"
     # A "NA" parent drops out of the context rather than becoming a token.
-    assert cols["GBR.1.7.1_1"]["context"] == "England, United Kingdom"
+    assert contexts["GBR.1.7.1_1"] == "England, United Kingdom"
     # A parent restated down the hierarchy appears once in the context; a
     # segment that merely ends with the next one's text is not a repeat.
-    assert cols["PRT.12.7.1_1"]["context"] == "Lisboa, Portugal"
+    assert contexts["PRT.12.7.1_1"] == "Lisboa, Portugal"
     assert cols["PRT.12.7_1"]["leaf"] == "Lisboa"
-    assert cols["PRT.12.7_1"]["context"] == "Lisboa, Portugal"
-    assert cols["FRA.8.3_1"]["context"] == "Île-de-France, France"
+    assert contexts["PRT.12.7_1"] == "Lisboa, Portugal"
+    assert contexts["FRA.8.3_1"] == "Île-de-France, France"
     assert has_lexeme(cols["FRA.8.3_1"]["tsv"], "france", "B")
 
 
@@ -541,15 +567,17 @@ async def test_wdpa_context_names_the_country_and_keeps_orig_name(
         await _build_names("wdpa")
 
         cols = await _search_columns("wdpa")
+        contexts = await _contexts("wdpa")
         assert cols["1"]["leaf"] == "Masirah Island Reserve"
-        assert cols["1"]["context"] == "Nature Reserve, United Kingdom"
+        assert cols["1"]["designation"] == "Nature Reserve"
+        assert contexts["1"] == "Nature Reserve, United Kingdom"
         assert has_lexeme(cols["1"]["tsv"], "محمية", "A")
         # The designation is in the name vector, the country is not.
         assert tsvector_lexemes(cols["1"]["ntsv"])["nature"] == {"B"}
         assert tsvector_lexemes(cols["1"]["ntsv"])["reserve"] == {"A", "B"}
         assert "kingdom" not in cols["1"]["ntsv"]
         # No GADM country for the code, so the code itself is the context.
-        assert cols["2"]["context"] == "Park, ZZZ"
+        assert contexts["2"] == "Park, ZZZ"
 
         names = await _names("wdpa")
         assert names["1"] == {("native", "محمية مصيرة")}
@@ -576,7 +604,8 @@ async def test_kba_uses_national_name_with_international_variant():
 
         cols = await _search_columns("kba")
         assert cols["10"]["leaf"] == "Van Ovasi"
-        assert cols["10"]["context"] == "Turkey"
+        assert cols["10"]["designation"] is None
+        assert (await _contexts("kba"))["10"] == "Turkey"
         assert (await _names("kba"))["10"] == {("international", "van plains")}
 
 

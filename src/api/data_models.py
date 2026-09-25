@@ -205,7 +205,7 @@ class AoiOrm(Base):
     adds the browse and subregion-lookup indexes, and ``5b7e2c9a1f40`` adds
     the search columns and indexes.
 
-    ``leaf``, ``leaf_norm``, ``context``, ``search_tsv`` and ``name_tsv`` are the search
+    ``leaf``, ``leaf_norm``, ``designation``, ``search_tsv`` and ``name_tsv`` are the search
     columns. ``build-aois`` and the custom-area mirror fill them with the
     fragments in :mod:`src.shared.aoi_search_sql`; ``docs/aoi-full-text-search.md``
     describes how search reads them.
@@ -223,13 +223,14 @@ class AoiOrm(Base):
     name = Column(String, nullable=False)
     subtype = Column(String, nullable=False)
     # Search columns. `leaf` is the place's own name, `leaf_norm` its
-    # lowercase unaccented form, `context` the parents / designation / country
-    # that follow it, `search_tsv` the weighted tsvector over all of them and
+    # lowercase unaccented form, `designation` the kind of site a source
+    # names it with (WDPA desig_eng, LandMark category; NULL elsewhere),
+    # `search_tsv` the weighted tsvector over names, parents and country and
     # `name_tsv` the one over the names and designation only.
     # Nullable: a row is written before its search columns are derived.
     leaf = Column(String, nullable=True)
     leaf_norm = Column(String, nullable=True)
-    context = Column(String, nullable=True)
+    designation = Column(String, nullable=True)
     search_tsv = Column(TSVECTOR, nullable=True)
     name_tsv = Column(TSVECTOR, nullable=True)
     # spatial_index=False: the migration creates the GiST index, so its name is

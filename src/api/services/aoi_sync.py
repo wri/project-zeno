@@ -57,7 +57,7 @@ def _upsert_sql(scoped: bool) -> str:
             INSERT INTO aois (
                 source, source_id, name, subtype, geometry,
                 bbox, area_km2, properties, created_by, created_at, updated_at,
-                leaf, leaf_norm, context, search_tsv, name_tsv
+                leaf, leaf_norm, designation, search_tsv, name_tsv
             )
             SELECT
                 'custom',

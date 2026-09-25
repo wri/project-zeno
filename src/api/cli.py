@@ -841,10 +841,9 @@ _ISO3_SOURCE_COLUMNS = {
     "landmark": ["iso_code"],
 }
 
-# The source columns that feed the search columns (leaf, context, name
-# variants), resolved case-insensitively like the ISO3 columns. A column that
-# staging does not have reads as NULL, so a partial staging table still builds.
-# docs/aoi-full-text-search.md lists what each source contributes.
+# The source columns that feed the search columns (leaf, context,
+# designation, name variants), resolved case-insensitively like the ISO3
+# columns. docs/aoi-full-text-search.md lists what each source contributes.
 _SEARCH_SOURCE_COLUMNS = {
     "gadm": [level["name_col"] for level in GADM_LEVELS.values()]
     + [f"VARNAME_{n}" for n in range(1, 5)]
@@ -865,175 +864,198 @@ _REPEATED_SEGMENTS_RE = r"(^|, )((?:[^,]+, ){0,2}[^,]+)(, \2)+(?=,|$)"
 _REPEATED_SEGMENTS_REPLACEMENT = r"\1\2"
 
 
-class _SearchExprs:
-    """SQL fragments for one reference source's search columns.
+class SearchExprs(NamedTuple):
+    """SQL fragments deriving one source's search columns from a staging row.
 
-    Every method takes *q*, the qualifier of the staging columns in the
-    calling statement: ``""`` inside the build's CTE, ``"s."`` in the names
-    insert. The fragments read staging columns only, so the build and the
-    names insert derive the same leaf and the same variants.
+    Each is an expression over the staging columns, qualified as the calling
+    statement needs (``""`` in the build's CTE, ``"s."`` in the names
+    insert), so the build and the names insert derive the same leaf and the
+    same variants. ``context`` (parents, designation, country) feeds the full
+    tsvector at build time and is not stored; ``designation`` is stored and
+    feeds the name vector.
     """
 
-    def __init__(self, source: str, columns: dict[str, Optional[str]]):
-        self.source = source
-        self._columns = columns
+    leaf: str
+    context: str
+    designation: str
+    variants: list[tuple[str, str]]  # (kind, text[] expression)
 
-    def _col(self, name: str, q: str) -> str:
-        real = self._columns.get(name)
-        return f'{q}"{real}"' if real else "NULL::text"
-
-    def _clean(self, name: str, q: str) -> str:
-        return clean_name_sql(self._col(name, q))
-
-    def _by_gadm_level(self, q: str, arm) -> str:
-        """``CASE subtype`` over the GADM levels; *arm(level)* is one branch."""
-        branches = " ".join(
-            f"WHEN '{subtype}' THEN {arm(level)}"
-            for level, subtype in enumerate(GADM_LEVELS)
-        )
-        return f"(CASE {q}subtype {branches} ELSE NULL END)"
-
-    def _gadm_name_col(self, level: int) -> str:
-        return list(GADM_LEVELS.values())[level]["name_col"]
-
-    def _gadm_optional(self, q: str, prefix: str, max_level: int) -> str:
-        """The per-level optional column (``VARNAME_n`` / ``NL_NAME_n``)."""
-        return self._by_gadm_level(
-            q,
-            lambda level: (
-                self._clean(f"{prefix}_{level}", q)
-                if 1 <= level <= max_level
-                else "NULL::text"
-            ),
-        )
-
-    def leaf(self, q: str) -> str:
-        if self.source == "gadm":
-            return self._by_gadm_level(
-                q, lambda level: self._clean(self._gadm_name_col(level), q)
-            )
-        if self.source == "wdpa":
-            return self._clean("wdpa_name", q)
-        if self.source == "kba":
-            return (
-                f"COALESCE({self._clean('NatName', q)}, "
-                f"{self._clean('IntName', q)})"
-            )
-        return self._clean("landmark_name", q)
-
-    def context(self, q: str) -> str:
-        if self.source == "gadm":
-
-            def parents(level: int) -> str:
-                if level == 0:
-                    return "NULL::text"
-                cols = ", ".join(
-                    self._clean(self._gadm_name_col(parent), q)
-                    for parent in range(level - 1, -1, -1)
-                )
-                return f"concat_ws(', ', {cols})"
-
-            joined = self._by_gadm_level(q, parents)
-            return (
-                f"NULLIF(regexp_replace({joined}, "
-                f"'{_REPEATED_SEGMENTS_RE}', "
-                f"'{_REPEATED_SEGMENTS_REPLACEMENT}', 'g'), '')"
-            )
-        if self.source == "wdpa":
-            # The country name comes from the GADM level-0 rows, which the
-            # build order guarantees are in aois first. The raw ISO3 code is
-            # the fallback when a code has no GADM country.
-            iso3 = self._col("iso3", q)
-            country = (
-                "COALESCE((SELECT string_agg(g.name, ', ' ORDER BY g.name) "
-                f"FROM unnest(string_to_array(NULLIF(btrim({iso3}), ''), ';'))"
-                " AS c(code) JOIN aois g ON g.source = 'gadm' "
-                "AND g.subtype = 'country' AND g.source_id = c.code "
-                f"AND NOT g.is_deprecated), NULLIF(btrim({iso3}), ''))"
-            )
-            return (
-                f"NULLIF(concat_ws(', ', {self._clean('desig_eng', q)}, "
-                f"{country}), '')"
-            )
-        if self.source == "kba":
-            return self._clean("Country", q)
-        return (
-            f"NULLIF(concat_ws(', ', {self._clean('category', q)}, "
-            f"{self._clean('country', q)}), '')"
-        )
-
-    def designation(self, q: str) -> str:
-        """The kind of site the source names the row with, or NULL."""
-        if self.source == "wdpa":
-            return self._clean("desig_eng", q)
-        if self.source == "landmark":
-            return self._clean("category", q)
-        return "NULL::text"
-
-    def _differs(self, other: str, primary: str, q: str) -> str:
-        """*other* when it is not just a re-spelling of *primary*'s case."""
-        return (
-            f"CASE WHEN lower(btrim({self._col(other, q)})) IS DISTINCT FROM "
-            f"lower(btrim({self._col(primary, q)})) "
-            f"THEN {self._clean(other, q)} END"
-        )
-
-    def variant_arms(self, q: str) -> list[tuple[str, str]]:
-        """``(kind, text[] expression)`` pairs of the source's name variants."""
-        if self.source == "gadm":
-            # A country is also known by its ISO3 code, which is its GADM id
-            # ("USA", "BRA"); people type those.
-            id_col = AOI_SOURCE_ID_COLUMNS["gadm"]
-            code = (
-                f"CASE WHEN {q}subtype = 'country' "
-                f'THEN CAST({q}"{id_col}" AS TEXT) END'
-            )
-            return [
-                (
-                    "variant",
-                    f"string_to_array({self._gadm_optional(q, 'VARNAME', 4)}, '|')",
-                ),
-                (
-                    "native",
-                    f"string_to_array({self._gadm_optional(q, 'NL_NAME', 3)}, '|')",
-                ),
-                ("code", f"ARRAY[{code}]"),
-            ]
-        if self.source == "wdpa":
-            return [
-                (
-                    "native",
-                    f"ARRAY[{self._differs('orig_name', 'wdpa_name', q)}]",
-                )
-            ]
-        if self.source == "kba":
-            return [
-                (
-                    "international",
-                    f"ARRAY[{self._differs('IntName', 'NatName', q)}]",
-                )
-            ]
-        return []
-
-    def variants_text(self, q: str) -> str:
-        """Every variant in one string, for the A weight of the tsvector."""
-        arms = self.variant_arms(q)
-        if not arms:
+    @property
+    def variants_text(self) -> str:
+        """Every variant in one string, for the A weight of the tsvectors."""
+        if not self.variants:
             return "NULL::text"
         parts = ", ".join(
-            f"array_to_string({array_expr}, ' ')" for _, array_expr in arms
+            f"array_to_string({expr}, ' ')" for _, expr in self.variants
         )
         return f"NULLIF(concat_ws(' ', {parts}), '')"
 
 
-async def _search_exprs(session: AsyncSession, source: str) -> _SearchExprs:
-    """Resolve the source's search columns against its staging table."""
+class _StagingColumns:
+    """One source's resolved staging columns, read with a qualifier.
+
+    A column staging does not have reads as NULL, so a partial table still
+    builds.
+    """
+
+    def __init__(self, columns: dict[str, Optional[str]], q: str):
+        self._columns = columns
+        self.q = q
+
+    def raw(self, name: str) -> str:
+        real = self._columns.get(name)
+        return f'{self.q}"{real}"' if real else "NULL::text"
+
+    def clean(self, name: str) -> str:
+        return clean_name_sql(self.raw(name))
+
+    def differs(self, other: str, primary: str) -> str:
+        """*other* when it is not just a re-spelling of *primary*'s case."""
+        return (
+            f"CASE WHEN lower(btrim({self.raw(other)})) IS DISTINCT FROM "
+            f"lower(btrim({self.raw(primary)})) "
+            f"THEN {self.clean(other)} END"
+        )
+
+
+def _gadm_level_case(q: str, arm) -> str:
+    """``CASE subtype`` over the GADM levels; *arm(level)* is one branch."""
+    branches = " ".join(
+        f"WHEN '{subtype}' THEN {arm(level)}"
+        for level, subtype in enumerate(GADM_LEVELS)
+    )
+    return f"(CASE {q}subtype {branches} ELSE NULL END)"
+
+
+def _gadm_name_col(level: int) -> str:
+    return list(GADM_LEVELS.values())[level]["name_col"]
+
+
+def _gadm_optional(col: _StagingColumns, prefix: str, max_level: int) -> str:
+    """The per-level optional column (``VARNAME_n`` / ``NL_NAME_n``)."""
+    return _gadm_level_case(
+        col.q,
+        lambda level: (
+            col.clean(f"{prefix}_{level}")
+            if 1 <= level <= max_level
+            else "NULL::text"
+        ),
+    )
+
+
+def _gadm_exprs(col: _StagingColumns) -> SearchExprs:
+    def parents(level: int) -> str:
+        if level == 0:
+            return "NULL::text"
+        cols = ", ".join(
+            col.clean(_gadm_name_col(parent))
+            for parent in range(level - 1, -1, -1)
+        )
+        return f"concat_ws(', ', {cols})"
+
+    # A country is also known by its ISO3 code, which is its GADM id ("USA",
+    # "BRA"); people type those.
+    id_col = AOI_SOURCE_ID_COLUMNS["gadm"]
+    code = (
+        f"CASE WHEN {col.q}subtype = 'country' "
+        f'THEN CAST({col.q}"{id_col}" AS TEXT) END'
+    )
+    return SearchExprs(
+        leaf=_gadm_level_case(
+            col.q, lambda level: col.clean(_gadm_name_col(level))
+        ),
+        context=(
+            f"NULLIF(regexp_replace({_gadm_level_case(col.q, parents)}, "
+            f"'{_REPEATED_SEGMENTS_RE}', "
+            f"'{_REPEATED_SEGMENTS_REPLACEMENT}', 'g'), '')"
+        ),
+        designation="NULL::text",
+        variants=[
+            (
+                "variant",
+                f"string_to_array({_gadm_optional(col, 'VARNAME', 4)}, '|')",
+            ),
+            (
+                "native",
+                f"string_to_array({_gadm_optional(col, 'NL_NAME', 3)}, '|')",
+            ),
+            ("code", f"ARRAY[{code}]"),
+        ],
+    )
+
+
+def _wdpa_exprs(col: _StagingColumns) -> SearchExprs:
+    # The country name comes from the GADM level-0 rows, which the build
+    # order guarantees are in aois first. The raw ISO3 code is the fallback
+    # when a code has no GADM country.
+    iso3 = col.raw("iso3")
+    country = (
+        "COALESCE((SELECT string_agg(g.name, ', ' ORDER BY g.name) "
+        f"FROM unnest(string_to_array(NULLIF(btrim({iso3}), ''), ';'))"
+        " AS c(code) JOIN aois g ON g.source = 'gadm' "
+        "AND g.subtype = 'country' AND g.source_id = c.code "
+        f"AND NOT g.is_deprecated), NULLIF(btrim({iso3}), ''))"
+    )
+    designation = col.clean("desig_eng")
+    return SearchExprs(
+        leaf=col.clean("wdpa_name"),
+        context=f"NULLIF(concat_ws(', ', {designation}, {country}), '')",
+        designation=designation,
+        variants=[
+            ("native", f"ARRAY[{col.differs('orig_name', 'wdpa_name')}]")
+        ],
+    )
+
+
+def _kba_exprs(col: _StagingColumns) -> SearchExprs:
+    return SearchExprs(
+        leaf=f"COALESCE({col.clean('NatName')}, {col.clean('IntName')})",
+        context=col.clean("Country"),
+        designation="NULL::text",
+        variants=[
+            ("international", f"ARRAY[{col.differs('IntName', 'NatName')}]")
+        ],
+    )
+
+
+def _landmark_exprs(col: _StagingColumns) -> SearchExprs:
+    designation = col.clean("category")
+    return SearchExprs(
+        leaf=col.clean("landmark_name"),
+        context=(
+            f"NULLIF(concat_ws(', ', {designation}, {col.clean('country')}), '')"
+        ),
+        designation=designation,
+        variants=[],
+    )
+
+
+_SEARCH_EXPR_BUILDERS = {
+    "gadm": _gadm_exprs,
+    "wdpa": _wdpa_exprs,
+    "kba": _kba_exprs,
+    "landmark": _landmark_exprs,
+}
+
+
+def _search_exprs(
+    source: str, columns: dict[str, Optional[str]], q: str
+) -> SearchExprs:
+    """The source's search expressions over its staging columns, qualified
+    by *q*. *columns* comes from ``_resolve_search_columns``."""
+    return _SEARCH_EXPR_BUILDERS[source](_StagingColumns(columns, q))
+
+
+async def _resolve_search_columns(
+    session: AsyncSession, source: str
+) -> dict[str, Optional[str]]:
+    """Resolve the source's search columns against its staging table, once
+    per source: the build and the names insert both read the result."""
     table = SOURCE_STAGING_TABLES[source]
-    columns = {
+    return {
         name: await _resolve_column(session, table, [name])
         for name in _SEARCH_SOURCE_COLUMNS[source]
     }
-    return _SearchExprs(source, columns)
 
 
 # GADM 4.1 ships the literal string "NA" as its no-data marker, and ingest
@@ -1287,9 +1309,17 @@ async def _derive_gadm_name_repairs(
 
 
 async def _build_reference_aois(
-    session: AsyncSession, source: str, *, nchunks: int, dry_run: bool
+    session: AsyncSession,
+    source: str,
+    *,
+    columns: dict[str, Optional[str]],
+    nchunks: int,
+    dry_run: bool,
 ) -> int:
     """Transform one ``geometries_<source>`` table into ``aois`` (idempotent).
+
+    *columns* is the source's resolved search columns (see
+    ``_resolve_search_columns``).
 
     Returns the number of rows written. A row whose every column already
     matches is left alone, so a rebuild over unchanged data writes nothing
@@ -1323,8 +1353,8 @@ async def _build_reference_aois(
         else "NULL::text[]"
     )
 
-    search = await _search_exprs(session, source)
-    leaf_expr = search.leaf("")
+    search = _search_exprs(source, columns, "")
+    leaf_expr = search.leaf
 
     if source == "wdpa":
         # The WDPA context names the country through the GADM country rows;
@@ -1418,9 +1448,9 @@ async def _build_reference_aois(
                 {admin_expr} AS admin_level,
                 {disputed_expr} AS is_disputed,
                 {leaf_expr} AS leaf,
-                {search.context("")} AS context,
-                {search.designation("")} AS designation,
-                {search.variants_text("")} AS variants
+                {search.context} AS context,
+                {search.designation} AS designation,
+                {search.variants_text} AS variants
             FROM {table}{repair_join}
             WHERE name IS NOT NULL AND geometry IS NOT NULL
               AND (abs(hashtext(CAST("{id_col}" AS TEXT))::bigint) % :nchunks)
@@ -1433,7 +1463,7 @@ async def _build_reference_aois(
         INSERT INTO aois (
             source, source_id, name, subtype, geometry,
             bbox, area_km2, iso3, admin_level, is_disputed,
-            leaf, leaf_norm, context, search_tsv, name_tsv
+            leaf, leaf_norm, designation, search_tsv, name_tsv
         )
         SELECT
             '{source}',
@@ -1448,7 +1478,7 @@ async def _build_reference_aois(
             is_disputed,
             leaf,
             {norm_sql("leaf")},
-            context,
+            designation,
             {tsv_sql("leaf", "variants", "context", "name")},
             {name_tsv_sql("leaf", "variants", "designation")}
         FROM normalized
@@ -1465,19 +1495,19 @@ async def _build_reference_aois(
             is_disputed = EXCLUDED.is_disputed,
             leaf = EXCLUDED.leaf,
             leaf_norm = EXCLUDED.leaf_norm,
-            context = EXCLUDED.context,
+            designation = EXCLUDED.designation,
             search_tsv = EXCLUDED.search_tsv,
             name_tsv = EXCLUDED.name_tsv,
             updated_at = now()
         WHERE (aois.name, aois.subtype, aois.bbox, aois.area_km2, aois.iso3,
                aois.admin_level, aois.is_disputed, aois.leaf, aois.leaf_norm,
-               aois.context, aois.search_tsv, aois.name_tsv,
+               aois.designation, aois.search_tsv, aois.name_tsv,
                aois.geometry::bytea)
               IS DISTINCT FROM
               (EXCLUDED.name, EXCLUDED.subtype, EXCLUDED.bbox,
                EXCLUDED.area_km2, EXCLUDED.iso3, EXCLUDED.admin_level,
                EXCLUDED.is_disputed, EXCLUDED.leaf, EXCLUDED.leaf_norm,
-               EXCLUDED.context, EXCLUDED.search_tsv, EXCLUDED.name_tsv,
+               EXCLUDED.designation, EXCLUDED.search_tsv, EXCLUDED.name_tsv,
                EXCLUDED.geometry::bytea)
     """
     written = 0
@@ -1532,11 +1562,14 @@ async def _build_reference_aois(
     return written
 
 
-async def _build_aoi_names(session: AsyncSession, source: str) -> int:
+async def _build_aoi_names(
+    session: AsyncSession, source: str, *, columns: dict[str, Optional[str]]
+) -> int:
     """Rebuild the ``aoi_names`` rows of one reference source (idempotent).
 
-    The alternate names come from the staging columns the source has (see
-    ``_SEARCH_SOURCE_COLUMNS``); the leaf itself lives on ``aois``. Delete-
+    The alternate names come from the staging columns the source has
+    (*columns*, from ``_resolve_search_columns``); the leaf itself lives on
+    ``aois``. Delete-
     then-insert per source, so a re-ingest that drops a variant drops its
     row. Staging repeats ids, and a variant can restate the leaf, so the
     insert ignores conflicts on the unique key and skips a variant whose
@@ -1545,11 +1578,11 @@ async def _build_aoi_names(session: AsyncSession, source: str) -> int:
     """
     table = SOURCE_STAGING_TABLES[source]
     id_col = AOI_SOURCE_ID_COLUMNS[source]
-    search = await _search_exprs(session, source)
+    search = _search_exprs(source, columns, "s.")
 
     arms = [
         f"SELECT '{kind}', unnest({array_expr})"
-        for kind, array_expr in search.variant_arms("s.")
+        for kind, array_expr in search.variants
     ]
     if not arms:
         await session.execute(
@@ -1800,13 +1833,22 @@ def build_aois_command(
                                 f"🧹 custom: {gone} orphan row(s) {pruned}."
                             )
                     else:
+                        columns = await _resolve_search_columns(
+                            session, source
+                        )
                         n = await _build_reference_aois(
-                            session, source, nchunks=chunks, dry_run=dry_run
+                            session,
+                            source,
+                            columns=columns,
+                            nchunks=chunks,
+                            dry_run=dry_run,
                         )
                         click.echo(f"✅ {source}: {n} aoi row(s) {outcome}.")
                         # Under --dry-run the chunks above were rolled back,
                         # so this counts against whatever aois already holds.
-                        names = await _build_aoi_names(session, source)
+                        names = await _build_aoi_names(
+                            session, source, columns=columns
+                        )
                         click.echo(f"   {source}: {names} name(s) {outcome}.")
 
                     # Reference sources self-commit per chunk; this trailing

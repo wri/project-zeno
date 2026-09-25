@@ -42,8 +42,8 @@ custom-area mirror through shared SQL in `src/shared/aoi_search_sql.py`
 |---|---|
 | `leaf` | the place's own name: GADM `NAME_n`, WDPA `wdpa_name`, KBA `NatName`, LandMark `landmark_name`, the custom area's name |
 | `leaf_norm` | `unaccent(lower(btrim(leaf)))` — the key for exact and prefix matching |
-| `context` | what follows the leaf: GADM parents and country (consecutive duplicate segments collapsed), WDPA `desig_eng` + country, KBA `Country`, LandMark `category` + `country` |
-| `search_tsv` | weighted tsvector: leaf and every name variant at weight A, context at weight B, and the display name (minus no-data segments) at weight D, so a display name pasted back as a query still matches its row |
+| `designation` | the kind of site a source names the row with: WDPA `desig_eng`, LandMark `category`; NULL for GADM, KBA and custom areas |
+| `search_tsv` | weighted tsvector: leaf and every name variant at weight A, the context at weight B, and the display name (minus no-data segments) at weight D, so a display name pasted back as a query still matches its row. The context is what follows the leaf: GADM parents and country (consecutive duplicate segments collapsed), WDPA `desig_eng` + country, KBA `Country`, LandMark `category` + `country`. It is derived at build time and not stored: nothing reads it as text |
 | `name_tsv` | the vector a token query runs against: leaf and variants at weight A, the designation (WDPA `desig_eng`, LandMark `category`) at weight B. No parents and no country: those belong to every child, and "Indonesia" would otherwise match the 85,000 rows beneath it |
 
 `aoi_names` holds one row per alternate spelling of a place, one per
@@ -259,7 +259,8 @@ planned for a later phase.
   of the deploy that ships this; until it finishes, name search returns
   nothing while browse and id lookups keep working. The old trigram index is
   dropped by a second migration in the same deploy, because nothing reads it
-  once the new code is live.
+  once the new code is live. A third migration (`b4d2e8f1c7a3`) swaps the
+  unread `context` column for `designation`, which the same build fills.
 
 - `build-aois` populates all search columns and tables and ends with the
   token rebuild and `VACUUM (ANALYZE)` of the four tables: the vacuum sets

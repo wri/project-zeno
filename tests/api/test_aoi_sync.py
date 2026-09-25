@@ -84,7 +84,7 @@ async def _fetch_aoi(area_id):
                     "SELECT id, name, subtype, source, created_by, bbox, "
                     "area_km2, is_disputed, is_deprecated, "
                     "ST_GeometryType(geometry) AS gtype, "
-                    "leaf, leaf_norm, context, search_tsv::text AS tsv "
+                    "leaf, leaf_norm, designation, search_tsv::text AS tsv "
                     "FROM aois "
                     "WHERE source = 'custom' AND source_id = :src_id"
                 ),
@@ -132,7 +132,7 @@ async def test_create_fills_search_columns(auth_override, client):
     # accents removed, which is what the exact and prefix tiers compare.
     assert aoi["leaf"] == "Área do Rio"
     assert aoi["leaf_norm"] == "area do rio"
-    assert aoi["context"] is None
+    assert aoi["designation"] is None
     assert has_lexeme(aoi["tsv"], "area", "A") and has_lexeme(
         aoi["tsv"], "rio", "A"
     )
