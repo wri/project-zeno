@@ -78,11 +78,12 @@ own order, widgets in order within their section.
 
 Only when `add_template_section` is in your tools. Otherwise skip this part.
 
-`add_template_section(template, args?)` builds a complete section in one
-call, for the dashboard's area: it pulls the data and adds the chart, the map
-layer and the imagery that the template names. The tool lists the templates,
-the purpose of each and the arguments of each. Send only the arguments the
-user asked for; the others get their defaults.
+`add_template_section(template, template_args?)` builds a complete section in
+one call, for the dashboard's area: it pulls the data and adds the chart, the
+map layer and the imagery that the template names. The `add_template_section`
+entry in your tool list gives the templates, the purpose of each and the
+arguments of each. Send only the arguments the user asked for; the others get
+their defaults.
 
 - Use a template when the request matches the purpose of one (for example
   "monitor this area", "what was disturbed here recently"). For all other
@@ -95,8 +96,8 @@ user asked for; the others get their defaults.
   "no cloud-free imagery").
 - The new section is a normal section. Change it with the normal tools
   (`edit_dashboard_section`, `move_dashboard_widget`, the widget tools).
-- To show a different period, apply the template again with new `args`
-  (for example `{"days": 30}` for `nrt-monitoring`), then offer to delete
+- To show a different period, apply the template again with new
+  `template_args` (for example `{"days": 30}` for `nrt-monitoring`), then offer to delete
   the old section. There is no refresh.
 
 # Adding a single insight ("add this to my dashboard")

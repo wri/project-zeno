@@ -192,3 +192,21 @@ async def test_flat_result_enriches_names_and_counts():
     enriched, count = _count_and_enrich(raw, aois)
     assert count == 2
     assert enriched["name"] == ["Brazil", "Argentina"]
+
+
+@pytest.mark.parametrize(
+    "subtype", ["municipality", "locality", "neighbourhood"]
+)
+async def test_pull_data_rejects_admin_levels_the_api_does_not_take(subtype):
+    result = await AnalyticsHandler().pull_data(
+        query="",
+        dataset={"dataset_id": TREE_COVER_LOSS_ID},
+        start_date="2024-01-01",
+        end_date="2024-12-31",
+        change_over_time_query=False,
+        aois=[{"name": "Loja", "subtype": subtype, "src_id": "ECU.18.4.7"}],
+    )
+
+    assert not result.success
+    assert subtype in result.message
+    assert "district-county" in result.message

@@ -65,7 +65,7 @@ async def test_applies_the_template_and_reloads_the_dashboard():
     with _patched(dashboard) as apply:
         command = await _call(
             state={"dashboard_id": str(dashboard.id), "language": "es"},
-            args={"days": 30},
+            template_args={"days": 30},
         )
 
     message = _message(command)
@@ -138,7 +138,7 @@ async def test_invalid_args_are_an_error(args, problem):
     dashboard = _dashboard()
     with _patched(dashboard) as apply:
         command = await _call(
-            state={"dashboard_id": str(dashboard.id)}, args=args
+            state={"dashboard_id": str(dashboard.id)}, template_args=args
         )
 
     assert _message(command).status == "error"
@@ -174,3 +174,22 @@ def test_prompt_fragment_lists_each_template():
         "Args: days (integer, >=1, <=365, default 14): Length of the period"
         in SPEC.prompt_fragment
     )
+
+
+def test_schema_is_valid_for_gemini():
+    # A parameter named `args` becomes `v__args`, an array without `items`,
+    # which the Gemini API rejects with a 400.
+    from langchain_google_genai._function_utils import (
+        convert_to_genai_function_declarations,
+    )
+
+    properties = add_template_section.args_schema.model_json_schema()[
+        "properties"
+    ]
+    assert "template_args" in properties
+    assert not any(name.startswith("v__") for name in properties)
+
+    tools = convert_to_genai_function_declarations([add_template_section])
+    declaration = tools[0].function_declarations[0]
+    for name, schema in declaration.parameters.properties.items():
+        assert schema.type != "ARRAY" or schema.items is not None, name

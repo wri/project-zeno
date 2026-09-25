@@ -135,7 +135,7 @@ to every default alerts chart, also to `POST /api/analyze`:
 
 ## Agent
 
-The `add_template_section(template, args?, dashboard_id?)` tool applies a
+The `add_template_section(template, template_args?, dashboard_id?)` tool applies a
 registered template. It runs the same code as the API. The tool description
 gives the arguments of each template, from `args_schema`. The tool is in the
 `experimental` profile. The `dashboard` skill tells the agent to use a

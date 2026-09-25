@@ -33,6 +33,8 @@ ADMIN_SUBTYPES = (
     "locality",
     "neighbourhood",
 )
+# The analytics API takes GADM admin levels 0 to 2 only.
+ANALYTICS_ADMIN_SUBTYPES = ADMIN_SUBTYPES[:3]
 SLUC_GADM_LEVELS = ["country", "state-province", "district-county"]
 
 SLUC_CROPS = [
@@ -589,6 +591,23 @@ class AnalyticsHandler(DataSourceHandler):
             and aois[0]["subtype"] not in SLUC_GADM_LEVELS
         ):
             msg = f"Can not pull data for aoi {aois[0].get('name', '')}. Subtype {aois[0]['subtype']} not supported for SLUC emission factors data, it is only available for GADM admin areas."
+            return DataPullResult(
+                success=False,
+                data=None,
+                message=msg,
+                data_points_count=0,
+                analytics_api_url=None,
+            )
+        if (
+            aois[0]["subtype"] in ADMIN_SUBTYPES
+            and aois[0]["subtype"] not in ANALYTICS_ADMIN_SUBTYPES
+        ):
+            msg = (
+                f"Can not pull data for aoi {aois[0].get('name', '')}. "
+                f"The GFW Analytics API does not support the "
+                f"{aois[0]['subtype']} level; it takes country, "
+                "state-province and district-county areas."
+            )
             return DataPullResult(
                 success=False,
                 data=None,
