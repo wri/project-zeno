@@ -25,20 +25,26 @@ def _row(
     subtype="country",
     score=0.5,
     bbox=WORLD_BBOX,
+    leaf=None,
+    corrected=False,
 ):
     """One `search_aois` row.
 
-    Both optional columns are present by default because the real search
-    always returns them: `bbox` is COALESCEd to the world bbox, and
-    `similarity_score` is computed for every search by name. Pass None for
-    either to leave that column out, which is how the recorded fixture frames
-    (no `bbox`) are reproduced.
+    The optional columns are present by default because the real search
+    always returns them: `bbox` is COALESCEd to the world bbox,
+    `similarity_score` is computed for every search by name, `leaf` is the
+    stored leaf (here the first segment of *name* unless given) and
+    `corrected` says whether the row came from the miss path. Pass None for
+    `bbox` or `score` to leave that column out, which is how older recorded
+    fixture frames (no `bbox`) are reproduced.
     """
     row = {
         "src_id": src_id,
         "name": name,
         "subtype": subtype,
         "source": source,
+        "leaf": name.split(",")[0] if leaf is None else leaf,
+        "corrected": corrected,
     }
     if bbox is not None:
         row["bbox"] = bbox

@@ -11,6 +11,7 @@ from src.agent.subagents.pick_aoi.scoring import (
     _first_segment,
     _score_candidate,
     _strip_accents,
+    leaf_key,
 )
 from src.agent.subagents.pick_aoi.tool import score_best_aoi
 from src.shared.geocoding_helpers import WORLD_BBOX
@@ -256,3 +257,48 @@ def test_a_frame_without_a_search_rank_still_scores():
     selected = score_best_aoi(rows, ["Lisboa, Portugal"])
 
     assert selected is not None and selected.src_id == "PRT.12_1"
+
+
+def test_exactness_is_judged_on_the_stored_leaf():
+    """A comma inside a stored name is not a segment boundary: "Kruger" is
+    not an exact match of "Krüger-, Rähden- und Möschensee", so the bonus
+    goes to the row whose stored leaf is Kruger."""
+    lake = "Krüger-, Rähden- und Möschensee, B, DEU"
+    lake_leaf = "Krüger-, Rähden- und Möschensee"
+    rows = pd.DataFrame(
+        [
+            _row(
+                "1",
+                lake,
+                source="wdpa",
+                subtype="protected-area",
+                score=0.33,
+                leaf=lake_leaf,
+            ),
+            _row(
+                "2",
+                "Kruger, Kruger National Park, ZAF",
+                source="wdpa",
+                subtype="protected-area",
+                score=0.33,
+                leaf="Kruger",
+            ),
+        ]
+    )
+
+    selected = score_best_aoi(rows, ["Kruger"])
+
+    assert selected is not None and selected.src_id == "2"
+    assert "leaf" not in selected.model_dump()
+    # The same row scores lower once its real leaf is known: the bonus that
+    # the first-segment split awarded was spurious.
+    with_leaf = _score_candidate("Kruger", lake, "protected-area", lake_leaf)
+    assert with_leaf < _score_candidate("Kruger", lake, "protected-area")
+
+
+def test_leaf_key_ignores_accents_case_and_outer_punctuation():
+    assert leaf_key("São Tomé") == leaf_key("sao tome")
+    assert leaf_key("(Paris)") == "paris"
+    assert (
+        _first_segment("Kruger National Park, ZAF") == "kruger national park"
+    )

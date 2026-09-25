@@ -30,7 +30,7 @@ from src.agent.subagents.pick_aoi.global_queries import (
     is_global_request,
 )
 from src.agent.subagents.pick_aoi.prompts import GEOCODER_PROMPT
-from src.agent.subagents.pick_aoi.scoring import best_candidate_row
+from src.agent.subagents.pick_aoi.scoring import best_candidate_row, leaf_key
 from src.agent.subagents.pick_aoi.selection_name_util import (
     build_selection_name,
 )
@@ -301,6 +301,27 @@ async def query_subregion_database(
     return results
 
 
+# Columns the search returns for the selection step only. AOIIndex allows
+# extra fields, so anything left on the row would leak into aoi_selection.
+_SEARCH_ONLY_COLUMNS = {"leaf", "corrected"}
+
+
+def _aoi_from_row(row: dict) -> AOIIndex:
+    return AOIIndex(
+        **{k: v for k, v in row.items() if k not in _SEARCH_ONLY_COLUMNS}
+    )
+
+
+def _selected_row(aoi: AOIIndex, results: pd.DataFrame) -> Optional[pd.Series]:
+    """The row of *results* that *aoi* was built from, if it is there."""
+    if results.empty:
+        return None
+    match = results[
+        (results.source == aoi.source) & (results.src_id == aoi.src_id)
+    ]
+    return None if match.empty else match.iloc[0]
+
+
 def score_best_aoi(
     candidate_aois: pd.DataFrame, terms: Sequence[str]
 ) -> Optional[AOIIndex]:
@@ -314,7 +335,7 @@ def score_best_aoi(
     best_row = best_candidate_row(candidate_aois, terms)
     if best_row is None:
         return None
-    return AOIIndex(**best_row)
+    return _aoi_from_row(best_row)
 
 
 async def select_best_aoi(
@@ -375,8 +396,7 @@ async def select_best_aoi(
             f"not found in candidates. Available: {list(candidate_aois['src_id'])}"
         )
         return None
-    selected_aoi_row = matched.iloc[0]
-    selected_aoi = AOIIndex(**selected_aoi_row.to_dict())
+    selected_aoi = _aoi_from_row(matched.iloc[0].to_dict())
 
     logger.debug(f"Candidate AOIs: {candidate_aois}")
     logger.debug(f"Selected AOI: {selected_aoi}")
@@ -395,10 +415,18 @@ _NUDGE_PROMINENCE_MARGIN = 0.1
 
 async def check_multiple_matches(
     src_id: str,
-    short_name: str,
+    leaf: str,
     results: pd.DataFrame,
     selected_subtype: Optional[str] = None,
 ) -> Optional[list[dict]]:
+    """The GADM namesakes worth asking about, or None when there are none.
+
+    A namesake is a row whose stored leaf equals *leaf* (so "Parisi" is not
+    one of Paris's) and whose prominence is within the margin of the
+    selection's. The question is only worth asking when one of them lies in
+    another country; the selection's own country, including its country row,
+    is not a choice. The list returned includes the selection itself.
+    """
     # A place can now be resolved by a canonical name or an alternative
     # spelling while the place name itself matched nothing, so this can be
     # reached with an empty frame and a valid selection — a state that was
@@ -406,47 +434,27 @@ async def check_multiple_matches(
     if results.empty:
         return None
 
-    # Extract country code from selected AOI's src_id (e.g., "IND.12.26_1" -> "IND")
-    selected_country = src_id.split(".")[0] if "." in src_id else None
-
-    if selected_country:
-        # Filter results to only include AOIs from different countries
-        different_country_results = results[
-            (results.source == "gadm")
-            & (~results.src_id.str.startswith(selected_country + "."))
-        ]
-        if selected_subtype in HIERARCHY_SCORES:
-            floor = (
-                HIERARCHY_SCORES[selected_subtype] - _NUDGE_PROMINENCE_MARGIN
-            )
-            different_country_results = different_country_results[
-                different_country_results.subtype.map(HIERARCHY_SCORES)
-                .fillna(0.0)
-                .ge(floor)
-            ]
-
-        # Find exact matches of the short name in different countries
-        exact_matches_different_countries = different_country_results[
-            different_country_results.name.str.lower().str.startswith(
-                short_name.lower()
-            )
+    namesakes = results[
+        (results.source == "gadm")
+        & (results.leaf.fillna("").map(leaf_key) == leaf_key(leaf))
+    ]
+    if selected_subtype in HIERARCHY_SCORES:
+        floor = HIERARCHY_SCORES[selected_subtype] - _NUDGE_PROMINENCE_MARGIN
+        namesakes = namesakes[
+            namesakes.subtype.map(HIERARCHY_SCORES).fillna(0.0).ge(floor)
         ]
 
-        # If we have exact matches from different countries, ask for clarification
-        if len(exact_matches_different_countries) > 0:
-            # Include the selected AOI and the matches from other countries
-            all_matches = results[
-                (results.name.str.lower().str.startswith(short_name.lower()))
-                & (results.source == "gadm")
-            ]
+    # A GADM id starts with the country's ISO3: "IND.12.26_1" and "IND".
+    selected_country = src_id.split(".")[0]
+    elsewhere = namesakes.src_id.str.split(".").str[0] != selected_country
+    if not elsewhere.any():
+        return None
 
-            # Same columns as AOIIndex, so these candidates match the shape
-            # of an already-picked aoi_selection entry.
-            return all_matches[
-                ["source", "src_id", "name", "subtype", "bbox"]
-            ].to_dict(orient="records")
-
-    return None
+    # Same columns as AOIIndex, so these candidates match the shape of an
+    # already-picked aoi_selection entry.
+    return namesakes[["source", "src_id", "name", "subtype", "bbox"]].to_dict(
+        orient="records"
+    )
 
 
 def _format_aoi_candidate(candidate: dict) -> str:
@@ -504,20 +512,29 @@ async def check_duplicate_aois(
     next question); ``data`` are the same candidates as AOIIndex-shaped
     dicts, matching the aoi_selection.aois entries a pick would produce."""
     for selected_aoi, result in zip(selected_aois, all_results):
-        if selected_aoi.source == "gadm":
-            short_name = selected_aoi.name.split(",")[0]
-            candidates = await check_multiple_matches(
-                selected_aoi.src_id, short_name, result, selected_aoi.subtype
+        if selected_aoi.source != "gadm":
+            continue
+        # The stored leaf, from the frame the pick came from. A row that
+        # only an alternative spelling found is not in this frame; its
+        # first name segment stands in, which for a GADM name is the leaf.
+        row = _selected_row(selected_aoi, result)
+        leaf = (
+            row["leaf"]
+            if row is not None and isinstance(row["leaf"], str)
+            else selected_aoi.name.split(",")[0]
+        )
+        candidates = await check_multiple_matches(
+            selected_aoi.src_id, leaf, result, selected_aoi.subtype
+        )
+        if candidates:
+            options = [_format_aoi_candidate(c) for c in candidates]
+            message = await t(
+                "pick_aoi.duplicate_names",
+                language,
+                short_name=leaf,
+                candidate_names="\n".join(options),
             )
-            if candidates:
-                options = [_format_aoi_candidate(c) for c in candidates]
-                message = await t(
-                    "pick_aoi.duplicate_names",
-                    language,
-                    short_name=short_name,
-                    candidate_names="\n".join(options),
-                )
-                return message, options, candidates
+            return message, options, candidates
 
     return None
 
@@ -655,6 +672,9 @@ class _PlaceResolution(NamedTuple):
     merged: pd.DataFrame
     primary: pd.DataFrame
     selection: Optional[AOIIndex]
+    # The pick was found only after the search corrected a spelling or
+    # dropped a word: none of the terms matched a stored name as written.
+    corrected: bool = False
 
 
 async def _resolve_place(
@@ -705,7 +725,13 @@ async def _resolve_place(
         selection = score_best_aoi(merged, terms)
     else:
         selection = await select_best_aoi(question, merged)
-    return _PlaceResolution(place, terms, merged, primary, selection)
+    corrected = False
+    if selection is not None:
+        row = _selected_row(selection, merged)
+        corrected = bool(row is not None and row.get("corrected", False))
+    return _PlaceResolution(
+        place, terms, merged, primary, selection, corrected
+    )
 
 
 # Turns a free-text request into structured place(s) + subregion. The rules
@@ -967,6 +993,25 @@ class Geocoder:
         tool_message = "Selected AOIs:"
         for selected_aoi in final_aois:
             tool_message += f"\n- {selected_aoi.name}"
+        # A pick the search reached only by correcting or shortening the
+        # place name is a guess the user should see, not a silent choice.
+        approximate = [
+            resolution
+            for resolution in matched
+            if resolution.corrected and resolution.selection is not None
+        ]
+        if approximate:
+            tool_message += "\n\nApproximate match: " + "; ".join(
+                f"no place is named '{resolution.place.place}' exactly, so "
+                f"'{resolution.selection.name}' was chosen as the closest "
+                "name"
+                for resolution in approximate
+                if resolution.selection is not None
+            )
+            tool_message += (
+                ". Tell the user which place was used and ask whether it is "
+                "the one they meant."
+            )
         if unmatched_places:
             tool_message += (
                 "\n\nNo match found for: "

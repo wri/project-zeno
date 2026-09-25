@@ -1,10 +1,11 @@
 """Deterministic candidate scoring for the `pick_aoi` geocoder (PZB-1272).
 
-Retrieval and selection need different comparisons. `search_aois` ranks by
-pg_trgm similarity over the whole stored name, which is accent-sensitive: for
-the query "Para" it puts "Paraná" ABOVE "Pará", because the accent breaks
-Pará's trigrams. Selection therefore re-scores the retrieved rows here,
-accent-insensitively, instead of asking a model to repair the ranking.
+Retrieval and selection need different comparisons. `search_aois` ranks a
+candidate list by match tier and prominence; the geocoder then has several
+such lists, one per spelling it tried, and picks one row across all of them.
+Selection therefore re-scores the retrieved rows here, accent-insensitively
+and with the search's own rank as one term, instead of asking a model to
+choose.
 
 This module knows nothing about the tool it serves: it returns the winning
 DataFrame row, and the caller turns that into an `AOIIndex`.
@@ -53,15 +54,22 @@ def _strip_accents(text_value: str) -> str:
     )
 
 
-def _first_segment(name: str) -> str:
-    """The leaf name: first comma-separated segment, accent-stripped.
-
-    Stored names are comma-joined most-specific-first ("Pará, Brazil";
-    "Botum Sakor, ..., KHM") and the geocoder emits "Place, Parent" strings,
-    so the first segment is the place's own name.
-    """
-    leaf = name.split(",")[0]
+def leaf_key(leaf: str) -> str:
+    """The form in which two leaf names are compared: accent-stripped,
+    lowercased, outer punctuation removed."""
     return _strip_accents(leaf).strip(_SEGMENT_PUNCTUATION)
+
+
+def _first_segment(name: str) -> str:
+    """The leaf of a query term: its first comma-separated segment.
+
+    The geocoder emits "Place, Parent" strings, so the first segment is the
+    place's own name. A stored row carries its real leaf in the ``leaf``
+    column; only a term, or a row without that column, is split here, because
+    a stored leaf can itself contain a comma ("Krüger-, Rähden- und
+    Möschensee").
+    """
+    return leaf_key(name.split(",")[0])
 
 
 def _hierarchy_score(subtype: str) -> float:
@@ -99,14 +107,17 @@ def _score_prepared(
     return score
 
 
-def _score_candidate(place_name: str, name: str, subtype: str) -> float:
+def _score_candidate(
+    place_name: str, name: str, subtype: str, leaf: Optional[str] = None
+) -> float:
     """Composite score for one AOI candidate against one search term.
 
     Weighted sum of accent-insensitive string similarity and an admin
     hierarchy preference, plus an exact-leaf-name bonus that falls back to a
     weaker prefix bonus. The leaf bonus is what separates "Pará" from
-    "Paraná" for the term "Para". ``best_candidate_row`` adds the search's
-    own rank on top; this function scores the name alone.
+    "Paraná" for the term "Para". *leaf* is the row's stored leaf; without
+    it the first segment of *name* stands in. ``best_candidate_row`` adds the
+    search's own rank on top; this function scores the name alone.
 
     Raises:
         ValueError: If ``subtype`` is not a known AOI subtype.
@@ -118,10 +129,18 @@ def _score_candidate(place_name: str, name: str, subtype: str) -> float:
         _strip_accents(place_name),
         _first_segment(place_name),
         candidate,
-        _first_segment(name),
+        _candidate_leaf(name, leaf),
         _hierarchy_score(subtype),
         matcher,
     )
+
+
+def _candidate_leaf(name: str, leaf: Optional[str]) -> str:
+    """The comparison key of a row's leaf: the stored ``leaf`` when the row
+    has one, else the first segment of its name."""
+    if isinstance(leaf, str) and leaf:
+        return leaf_key(leaf)
+    return _first_segment(name)
 
 
 def best_candidate_row(
@@ -169,6 +188,11 @@ def best_candidate_row(
     else:
         db_ranks = [0.0] * len(candidate_aois)
 
+    if "leaf" in candidate_aois.columns:
+        leaves = candidate_aois["leaf"].tolist()
+    else:
+        leaves = [None] * len(candidate_aois)
+
     # Only the columns that scoring and the tie-break read, so no row this
     # function does not select is ever built as a dict.
     scoring_columns = zip(
@@ -176,14 +200,15 @@ def best_candidate_row(
         candidate_aois["subtype"],
         candidate_aois["source"],
         candidate_aois["src_id"],
+        leaves,
         db_ranks,
     )
-    for position, (name, subtype, source, src_id, db_rank) in enumerate(
+    for position, (name, subtype, source, src_id, leaf, db_rank) in enumerate(
         scoring_columns
     ):
         hierarchy = _hierarchy_score(subtype)
         candidate = _strip_accents(name)
-        candidate_leaf = _first_segment(name)
+        candidate_leaf = _candidate_leaf(name, leaf)
         matcher.set_seq2(candidate)
         score = max(
             _score_prepared(

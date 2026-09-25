@@ -841,3 +841,153 @@ async def test_namesakes_of_the_same_prominence_still_nudge(monkeypatch):
 
     assert command.update["nudge"]["type"] == "aoi_choice"
     assert len(command.update["nudge"]["options"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_a_name_that_merely_starts_with_the_leaf_is_no_namesake(
+    monkeypatch,
+):
+    """ "Parisi" is not a Paris to choose between."""
+    _patch_search(
+        monkeypatch,
+        {
+            "Paris": [
+                _row(
+                    "FRA.8.3_1",
+                    "Paris, Île-de-France, France",
+                    subtype="district-county",
+                ),
+                _row(
+                    "BRA.25.380_1",
+                    "Parisi, São Paulo, Brazil",
+                    subtype="district-county",
+                ),
+            ]
+        },
+    )
+
+    command = await _lookup(
+        [ExtractedPlace(place="Paris")], question="tree cover in Paris"
+    )
+
+    assert "nudge" not in command.update
+    assert command.update["aoi_selection"]["aois"][0]["src_id"] == "FRA.8.3_1"
+
+
+@pytest.mark.asyncio
+async def test_nudge_options_keep_to_the_prominence_floor(monkeypatch):
+    """The Colombian municipality is neither the trigger nor an option."""
+    _patch_search(
+        monkeypatch,
+        {
+            "Amazonas": [
+                _row("BRA.4_1", "Amazonas, Brazil", subtype="state-province"),
+                _row("PER.1_1", "Amazonas, Peru", subtype="state-province"),
+                _row(
+                    "COL.3.1_1",
+                    "Amazonas, Caquetá, Colombia",
+                    subtype="municipality",
+                ),
+            ]
+        },
+    )
+
+    command = await _lookup(
+        [ExtractedPlace(place="Amazonas")], question="forest loss in Amazonas"
+    )
+
+    assert [c["src_id"] for c in command.update["nudge"]["data"]] == [
+        "BRA.4_1",
+        "PER.1_1",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_a_countrys_own_rows_are_not_another_country(monkeypatch):
+    """São Tomé the district against São Tomé and Príncipe the country is
+    not a choice between countries."""
+    _patch_search(
+        monkeypatch,
+        {
+            "São Tomé": [
+                # The search's ranks: an exact leaf against a token match.
+                _row(
+                    "STP.1_1",
+                    "São Tomé, São Tomé and Príncipe",
+                    subtype="state-province",
+                    score=0.78,
+                ),
+                _row(
+                    "STP",
+                    "São Tomé and Príncipe",
+                    subtype="country",
+                    score=0.53,
+                ),
+            ]
+        },
+    )
+
+    command = await _lookup(
+        [ExtractedPlace(place="São Tomé")], question="mangroves in São Tomé"
+    )
+
+    assert "nudge" not in command.update
+    assert command.update["aoi_selection"]["aois"][0]["src_id"] == "STP.1_1"
+
+
+@pytest.mark.asyncio
+async def test_a_country_nudges_against_a_namesake_state_elsewhere(
+    monkeypatch,
+):
+    _patch_search(
+        monkeypatch,
+        {
+            "Georgia": [
+                _row("GEO", "Georgia", subtype="country"),
+                _row(
+                    "USA.11_1",
+                    "Georgia, United States",
+                    subtype="state-province",
+                ),
+            ]
+        },
+    )
+
+    command = await _lookup(
+        [ExtractedPlace(place="Georgia")], question="peach orchards in Georgia"
+    )
+
+    assert command.update["nudge"]["type"] == "aoi_choice"
+    assert len(command.update["nudge"]["options"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_a_pick_reached_by_correction_is_reported_as_approximate(
+    monkeypatch,
+):
+    _patch_search(
+        monkeypatch,
+        {
+            "Kashmir": [
+                _row(
+                    "555",
+                    "Bagh-e-Keshmir, Protected Area, IRN",
+                    source="wdpa",
+                    subtype="protected-area",
+                    score=0.2,
+                    corrected=True,
+                )
+            ]
+        },
+    )
+
+    command = await _lookup(
+        [ExtractedPlace(place="Kashmir")], question="glaciers in Kashmir"
+    )
+
+    message = str(command.update["messages"][0].content)
+    assert "Approximate match" in message
+    assert "'Kashmir'" in message and "Bagh-e-Keshmir" in message
+    # The search-only columns stay out of the state.
+    aoi = command.update["aoi_selection"]["aois"][0]
+    assert "leaf" not in aoi and "corrected" not in aoi

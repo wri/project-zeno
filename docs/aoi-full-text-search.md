@@ -106,7 +106,10 @@ sorted the same way and
 limited to `limit + offset` rows, which is exact: a row in the final top-N
 sits within the top-N of the arm that gave it its tier. The rank is returned
 as `similarity_score` in [0, 1] so the geocoder's merge and the replay
-fixtures keep working.
+fixtures keep working. Two more columns come back for the geocoder: `leaf`,
+the stored leaf, so a caller comparing names never splits a name at a comma
+that is part of it ("Krüger-, Rähden- und Möschensee"); and `corrected`,
+True for a row the miss path found, so a caller can treat it as a guess.
 
 The miss path runs only when the result does not answer the query as
 typed: no rows, or a parent was named and no row has it ("Lisbon, Portugal"
@@ -188,15 +191,25 @@ returns every namesake where the old one missed most of them:
 
 - A place given with its parent ("Para, Brazil") no longer triggers the
   "which one?" nudge; a user who named the country has already answered.
-- The nudge only offers namesakes of comparable prominence: Scotland the
-  state is not put to a vote against the US districts called Scotland, while
-  Amazonas in Brazil and Amazonas in Peru still are. (A selected country never
-  nudged, before or after: the check keys on a dotted GADM id.)
+- The nudge asks about namesakes, not prefixes: a namesake is a GADM row
+  whose stored leaf equals the selection's ("Parisi" is not a Paris), in
+  another country (the selection's own country row is not another country:
+  São Tomé the district is not put against São Tomé and Príncipe), and of
+  comparable prominence: Scotland the state is not put to a vote against the
+  US districts called Scotland, while Amazonas in Brazil and Amazonas in Peru
+  still are. The options list obeys the same floor. A selected country now
+  nudges against a same-named state elsewhere (Georgia, Niger); before, a
+  country never nudged because the check keyed on a dotted GADM id.
 - The deterministic scorer adds a fifth of the search's own rank to its
   name comparison. The rank knows what the string comparison cannot: that a
   row matched a stored name exactly and that the typed parent matched. "Las
   Palmas, Spain" reads almost the same against the Canarian and the
-  Panamanian Las Palmas; the rank picks Spain.
+  Panamanian Las Palmas; the rank picks Spain. Its exact-leaf bonus is judged
+  on the stored `leaf`, not on the name's first comma segment.
+- A pick the search reached only by correcting a spelling or dropping a word
+  ("Kashmir" is not in the corpus; "Bagh-e-Keshmir" is one edit away) is
+  still selected, but the tool message names it as an approximate match and
+  tells the agent to say which place was used and ask whether it was meant.
 
 The candidate limit stays at 10 per term. With the new ranking the exact
 matches lead the list, so 10 was enough for every eval and tools-suite case,

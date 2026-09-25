@@ -8,7 +8,9 @@
     "subtype",
     "source",
     "bbox",
-    "similarity_score"
+    "similarity_score",
+    "leaf",
+    "corrected"
    ],
    "records": [
     {
@@ -22,7 +24,9 @@
       86.372668,
       20.188367484
      ],
-     "similarity_score": 0.725
+     "similarity_score": 0.725,
+     "leaf": "Puri",
+     "corrected": false
     },
     {
      "src_id": "AGO.17.11_1",
@@ -35,7 +39,9 @@
       15.824321256,
       -7.43000604
      ],
-     "similarity_score": 0.725
+     "similarity_score": 0.725,
+     "leaf": "Puri",
+     "corrected": false
     },
     {
      "src_id": "IND.26.26.2_1",
@@ -48,7 +54,9 @@
       86.372668,
       20.188367484
      ],
-     "similarity_score": 0.675
+     "similarity_score": 0.675,
+     "leaf": "Puri",
+     "corrected": false
     },
     {
      "src_id": "AGO.17.11.1_1",
@@ -61,7 +69,9 @@
       15.824321256,
       -7.43000604
      ],
-     "similarity_score": 0.675
+     "similarity_score": 0.675,
+     "leaf": "Puri",
+     "corrected": false
     },
     {
      "src_id": "IDN.11.23.15_1",
@@ -74,7 +84,9 @@
       112.475397573,
       -7.481358066
      ],
-     "similarity_score": 0.675
+     "similarity_score": 0.675,
+     "leaf": "Puri",
+     "corrected": false
     },
     {
      "src_id": "IDN.14.2.10.5_1",
@@ -87,7 +99,9 @@
       115.175333486,
       -1.727023257
      ],
-     "similarity_score": 0.6375
+     "similarity_score": 0.6375,
+     "leaf": "Puri",
+     "corrected": false
     },
     {
      "src_id": "IDN.11.23.15.11_1",
@@ -100,7 +114,9 @@
       112.46043633,
       -7.527561201
      ],
-     "similarity_score": 0.6375
+     "similarity_score": 0.6375,
+     "leaf": "Puri",
+     "corrected": false
     },
     {
      "src_id": "IDN.10.21.13.18_1",
@@ -113,7 +129,9 @@
       111.030756461,
       -6.744514003
      ],
-     "similarity_score": 0.6375
+     "similarity_score": 0.6375,
+     "leaf": "Puri",
+     "corrected": false
     },
     {
      "src_id": "MEX.11.24_2",
@@ -126,7 +144,9 @@
       -101.785430483,
       21.109957929
      ],
-     "similarity_score": 0.45
+     "similarity_score": 0.45,
+     "leaf": "Purísima del Rincón",
+     "corrected": false
     },
     {
      "src_id": "COL.30.34_2",
@@ -139,7 +159,9 @@
       -74.706983102,
       4.009825217
      ],
-     "similarity_score": 0.45
+     "similarity_score": 0.45,
+     "leaf": "Purificación",
+     "corrected": false
     }
    ]
   },
@@ -150,7 +172,9 @@
     "subtype",
     "source",
     "bbox",
-    "similarity_score"
+    "similarity_score",
+    "leaf",
+    "corrected"
    ],
    "records": [
     {
@@ -164,7 +188,9 @@
       -75.187139047,
       1.681845
      ],
-     "similarity_score": 0.8
+     "similarity_score": 0.8,
+     "leaf": "Ecuador",
+     "corrected": false
     },
     {
      "src_id": "200719",
@@ -177,7 +203,9 @@
       -79.8865086566,
       0.8607990474
      ],
-     "similarity_score": 0.325
+     "similarity_score": 0.325,
+     "leaf": "Corredor Marino Costero de Ecuador",
+     "corrected": false
     },
     {
      "src_id": "100350",
@@ -190,7 +218,9 @@
       -78.8628637352,
       -4.6063350234
      ],
-     "similarity_score": 0.325
+     "similarity_score": 0.325,
+     "leaf": "Estribaciones surorientales fronterizas del Ecuador",
+     "corrected": false
     }
    ]
   },
@@ -201,7 +231,9 @@
     "subtype",
     "source",
     "bbox",
-    "similarity_score"
+    "similarity_score",
+    "leaf",
+    "corrected"
    ],
    "records": [
     {
@@ -215,7 +247,9 @@
       -57.454423528,
       -9.670912913
      ],
-     "similarity_score": 0.8
+     "similarity_score": 0.8,
+     "leaf": "Bolivia",
+     "corrected": false
     },
     {
      "src_id": "CUB.2.2_1",
@@ -228,7 +262,9 @@
       -78.060834,
       22.267373
      ],
-     "similarity_score": 0.725
+     "similarity_score": 0.725,
+     "leaf": "Bolivia",
+     "corrected": false
     },
     {
      "src_id": "555636034",
@@ -241,7 +277,9 @@
       -76.3591686,
       1.827016
      ],
-     "similarity_score": 0.6
+     "similarity_score": 0.6,
+     "leaf": "Bolivia",
+     "corrected": false
     },
     {
      "src_id": "555592595",
@@ -254,7 +292,9 @@
       -64.3098019,
       -18.0719146
      ],
-     "similarity_score": 0.325
+     "similarity_score": 0.325,
+     "leaf": "Jardín de Cactáceas de Bolivia",
+     "corrected": false
     },
     {
      "src_id": "555576299",
@@ -267,7 +307,9 @@
       -42.084207,
       -21.628229
      ],
-     "similarity_score": 0.325
+     "similarity_score": 0.325,
+     "leaf": "Área De Proteção Ambiental Da Serra Da Bolívia",
+     "corrected": false
     },
     {
      "src_id": "309996",
@@ -280,7 +322,9 @@
       151.9602176,
       -29.3165824
      ],
-     "similarity_score": 0.325
+     "similarity_score": 0.325,
+     "leaf": "Bolivia Hill",
+     "corrected": false
     },
     {
      "src_id": "555600315",
@@ -293,7 +337,9 @@
       -42.099965,
       -21.64781
      ],
-     "similarity_score": 0.325
+     "similarity_score": 0.325,
+     "leaf": "Monumento Natural Municipal Da Serra Da Bolívia",
+     "corrected": false
     }
    ]
   },
@@ -304,7 +350,9 @@
     "subtype",
     "source",
     "bbox",
-    "similarity_score"
+    "similarity_score",
+    "leaf",
+    "corrected"
    ],
    "records": [
     {
@@ -318,7 +366,9 @@
       -46.061414818,
       2.632489906
      ],
-     "similarity_score": 0.975
+     "similarity_score": 0.975,
+     "leaf": "Pará",
+     "corrected": false
     },
     {
      "src_id": "SUR.6_1",
@@ -331,7 +381,9 @@
       -54.624219431,
       5.703005776
      ],
-     "similarity_score": 0.775
+     "similarity_score": 0.775,
+     "leaf": "Para",
+     "corrected": false
     },
     {
      "src_id": "CRI.4.9.1_1",
@@ -344,7 +396,9 @@
       -84.024776845,
       10.016140144
      ],
-     "similarity_score": 0.675
+     "similarity_score": 0.675,
+     "leaf": "Pará",
+     "corrected": false
     },
     {
      "src_id": "IDN.29.6.15.5_1",
@@ -357,7 +411,9 @@
       125.512347,
       3.080551863
      ],
-     "similarity_score": 0.6375
+     "similarity_score": 0.6375,
+     "leaf": "Para",
+     "corrected": false
     },
     {
      "src_id": "PER8555",
@@ -370,7 +426,9 @@
       -73.8301614,
       -14.7689812
      ],
-     "similarity_score": 0.6
+     "similarity_score": 0.6,
+     "leaf": "Para",
+     "corrected": false
     },
     {
      "src_id": "BRA.16_1",
@@ -383,7 +441,9 @@
       -48.023527435,
       -22.516285164
      ],
-     "similarity_score": 0.7
+     "similarity_score": 0.7,
+     "leaf": "Paraná",
+     "corrected": false
     },
     {
      "src_id": "BRA.15_1",
@@ -396,7 +456,9 @@
       -34.79307646,
       -6.025901906
      ],
-     "similarity_score": 0.7
+     "similarity_score": 0.7,
+     "leaf": "Paraíba",
+     "corrected": false
     },
     {
      "src_id": "BRA.12.90_2",
@@ -409,7 +471,9 @@
       -53.223422959,
       -11.948613705
      ],
-     "similarity_score": 0.65
+     "similarity_score": 0.65,
+     "leaf": "Paranatinga",
+     "corrected": false
     },
     {
      "src_id": "BRA.14.89_2",
@@ -422,7 +486,9 @@
       -46.41912816,
       -2.410535975
      ],
-     "similarity_score": 0.65
+     "similarity_score": 0.65,
+     "leaf": "Paragominas",
+     "corrected": false
     },
     {
      "src_id": "BRA.14.56_2",
@@ -435,7 +501,9 @@
       -47.310946301,
       -2.299787283
      ],
-     "similarity_score": 0.65
+     "similarity_score": 0.65,
+     "leaf": "Ipixuna do Pará",
+     "corrected": false
     }
    ]
   },
@@ -446,7 +514,9 @@
     "subtype",
     "source",
     "bbox",
-    "similarity_score"
+    "similarity_score",
+    "leaf",
+    "corrected"
    ],
    "records": [
     {
@@ -460,7 +530,9 @@
       141.019404,
       6.076951
      ],
-     "similarity_score": 0.8
+     "similarity_score": 0.8,
+     "leaf": "Indonesia",
+     "corrected": false
     },
     {
      "src_id": "IDN.32.3.7.1_1",
@@ -473,7 +545,9 @@
       98.093698965,
       2.898325431
      ],
-     "similarity_score": 0.3625
+     "similarity_score": 0.3625,
+     "leaf": "Jambur Indonesia",
+     "corrected": false
     },
     {
      "src_id": "IDN.18.9.8.5_1",
@@ -486,7 +560,9 @@
       127.456872999,
       0.687198807
      ],
-     "similarity_score": 0.3625
+     "similarity_score": 0.3625,
+     "leaf": "Indonesiana",
+     "corrected": false
     }
    ]
   },
@@ -497,7 +573,9 @@
     "subtype",
     "source",
     "bbox",
-    "similarity_score"
+    "similarity_score",
+    "leaf",
+    "corrected"
    ],
    "records": [
     {
@@ -511,7 +589,9 @@
       -6.863779082,
       40.41613625
      ],
-     "similarity_score": 0.975
+     "similarity_score": 0.975,
+     "leaf": "Castelo Branco",
+     "corrected": false
     },
     {
      "src_id": "PRT.6.2_1",
@@ -524,7 +604,9 @@
       -7.179149165,
       40.083654868
      ],
-     "similarity_score": 0.925
+     "similarity_score": 0.925,
+     "leaf": "Castelo Branco",
+     "corrected": false
     },
     {
      "src_id": "PRT.6.2.5_1",
@@ -537,7 +619,9 @@
       -7.367091316,
       39.909354
      ],
-     "similarity_score": 0.875
+     "similarity_score": 0.875,
+     "leaf": "Castelo Branco",
+     "corrected": false
     },
     {
      "src_id": "PRT.5.8.7_1",
@@ -550,7 +634,9 @@
       -6.714673055,
       41.296175466
      ],
-     "similarity_score": 0.875
+     "similarity_score": 0.875,
+     "leaf": "Castelo Branco",
+     "corrected": false
     },
     {
      "src_id": "PRT.2.4.2_1",
@@ -563,7 +649,9 @@
       -28.699548258,
       38.577944266
      ],
-     "similarity_score": 0.875
+     "similarity_score": 0.875,
+     "leaf": "Castelo Branco",
+     "corrected": false
     },
     {
      "src_id": "388910",
@@ -576,7 +664,9 @@
       -28.74289,
       38.5295192
      ],
-     "similarity_score": 0.8
+     "similarity_score": 0.8,
+     "leaf": "Castelo Branco",
+     "corrected": false
     },
     {
      "src_id": "388907",
@@ -589,7 +679,9 @@
       -28.7345263,
       38.5678836
      ],
-     "similarity_score": 0.525
+     "similarity_score": 0.525,
+     "leaf": "Varadouro-Castelo Branco",
+     "corrected": false
     },
     {
      "src_id": "555531133",
@@ -602,7 +694,9 @@
       -28.7427779,
       38.5294272
      ],
-     "similarity_score": 0.525
+     "similarity_score": 0.525,
+     "leaf": "Morro de Castelo Branco - Ilha do Faial",
+     "corrected": false
     },
     {
      "src_id": "388904",
@@ -615,7 +709,9 @@
       -28.7473148,
       38.525625
      ],
-     "similarity_score": 0.525
+     "similarity_score": 0.525,
+     "leaf": "Morro do Castelo Branco",
+     "corrected": false
     },
     {
      "src_id": "BRA.16.286_2",
@@ -628,7 +724,9 @@
       -52.05872768,
       -23.177770957
      ],
-     "similarity_score": 0.45
+     "similarity_score": 0.45,
+     "leaf": "Presidente Castelo Branco",
+     "corrected": false
     }
    ]
   },
@@ -639,7 +737,9 @@
     "subtype",
     "source",
     "bbox",
-    "similarity_score"
+    "similarity_score",
+    "leaf",
+    "corrected"
    ],
    "records": [
     {
@@ -653,7 +753,9 @@
       -8.781855119,
       39.31773995
      ],
-     "similarity_score": 0.775
+     "similarity_score": 0.775,
+     "leaf": "Lisboa",
+     "corrected": false
     },
     {
      "src_id": "555654757",
@@ -666,7 +768,9 @@
       -75.2072337,
       44.7074365
      ],
-     "similarity_score": 0.6
+     "similarity_score": 0.6,
+     "leaf": "Lisbon",
+     "corrected": false
     },
     {
      "src_id": "370980",
@@ -679,7 +783,9 @@
       -95.7615337,
       44.8847359
      ],
-     "similarity_score": 0.6
+     "similarity_score": 0.6,
+     "leaf": "Lisbon",
+     "corrected": false
     },
     {
      "src_id": "555659592",
@@ -692,7 +798,9 @@
       -70.1256415,
       43.9867135
      ],
-     "similarity_score": 0.325
+     "similarity_score": 0.325,
+     "leaf": "Lisbon Island",
+     "corrected": false
     }
    ]
   },
@@ -703,7 +811,9 @@
     "subtype",
     "source",
     "bbox",
-    "similarity_score"
+    "similarity_score",
+    "leaf",
+    "corrected"
    ],
    "records": [
     {
@@ -717,7 +827,9 @@
       -63.755362,
       -3.664035
      ],
-     "similarity_score": 0.6
+     "similarity_score": 0.6,
+     "leaf": "Resex Catuá-Ipixuna",
+     "corrected": false
     }
    ]
   },
@@ -728,7 +840,9 @@
     "subtype",
     "source",
     "bbox",
-    "similarity_score"
+    "similarity_score",
+    "leaf",
+    "corrected"
    ],
    "records": [
     {
@@ -742,7 +856,9 @@
       -82.3909307,
       30.3867781
      ],
-     "similarity_score": 0.8
+     "similarity_score": 0.8,
+     "leaf": "Osceola",
+     "corrected": false
     },
     {
      "src_id": "USA.10.49_1",
@@ -755,7 +871,9 @@
       -80.861608043,
       28.347929465
      ],
-     "similarity_score": 0.725
+     "similarity_score": 0.725,
+     "leaf": "Osceola",
+     "corrected": false
     },
     {
      "src_id": "USA.23.71_1",
@@ -768,7 +886,9 @@
       -85.086713328,
       44.165979848
      ],
-     "similarity_score": 0.725
+     "similarity_score": 0.725,
+     "leaf": "Osceola",
+     "corrected": false
     },
     {
      "src_id": "USA.16.72_1",
@@ -781,7 +901,9 @@
       -95.385976329,
       43.503908621
      ],
-     "similarity_score": 0.725
+     "similarity_score": 0.725,
+     "leaf": "Osceola",
+     "corrected": false
     },
     {
      "src_id": "555654764",
@@ -794,7 +916,9 @@
       -75.7363766,
       43.5629815
      ],
-     "similarity_score": 0.6
+     "similarity_score": 0.6,
+     "leaf": "Osceola",
+     "corrected": false
     },
     {
      "src_id": "26194",
@@ -807,7 +931,9 @@
       -80.8146620946,
       28.192500232
      ],
-     "similarity_score": 0.325
+     "similarity_score": 0.325,
+     "leaf": "Osceola Flatwoods and Prairies",
+     "corrected": false
     },
     {
      "src_id": "555654880",
@@ -820,7 +946,9 @@
       -84.934308,
       44.3858973
      ],
-     "similarity_score": 0.325
+     "similarity_score": 0.325,
+     "leaf": "Osceola-Missaukee Grasslands State",
+     "corrected": false
     },
     {
      "src_id": "555591",
@@ -833,7 +961,9 @@
       -75.6255095,
       43.5716755
      ],
-     "similarity_score": 0.325
+     "similarity_score": 0.325,
+     "leaf": "Osceola State",
+     "corrected": false
     },
     {
      "src_id": "555662269",
@@ -846,7 +976,9 @@
       -75.7367014,
       43.5198391
      ],
-     "similarity_score": 0.325
+     "similarity_score": 0.325,
+     "leaf": "West Osceola",
+     "corrected": false
     },
     {
      "src_id": "555674637",
@@ -859,7 +991,9 @@
       -81.0837611,
       28.0409281
      ],
-     "similarity_score": 0.325
+     "similarity_score": 0.325,
+     "leaf": "Agricultural Conservation Easement Program - Wetland Reserve Easements (ACEP-WRE), Osceola, FL",
+     "corrected": false
     }
    ]
   },
@@ -870,7 +1004,9 @@
     "subtype",
     "source",
     "bbox",
-    "similarity_score"
+    "similarity_score",
+    "leaf",
+    "corrected"
    ],
    "records": [
     {
@@ -884,7 +1020,9 @@
       0.0,
       81.856257
      ],
-     "similarity_score": 0.8
+     "similarity_score": 0.8,
+     "leaf": "Russia",
+     "corrected": false
     },
     {
      "src_id": "11115313",
@@ -897,7 +1035,9 @@
       -122.9002477,
       41.3682038
      ],
-     "similarity_score": 0.325
+     "similarity_score": 0.325,
+     "leaf": "Russian",
+     "corrected": false
     },
     {
      "src_id": "555602063",
@@ -910,7 +1050,9 @@
       -122.187479,
       37.3414409
      ],
-     "similarity_score": 0.325
+     "similarity_score": 0.325,
+     "leaf": "Russian Ridge Open Spac",
+     "corrected": false
     },
     {
      "src_id": "555547364",
@@ -923,7 +1065,9 @@
       -123.1010731,
       38.4526777
      ],
-     "similarity_score": 0.325
+     "similarity_score": 0.325,
+     "leaf": "Russian River State Marine Recreational Manag Recreation",
+     "corrected": false
     },
     {
      "src_id": "555586730",
@@ -936,7 +1080,9 @@
       -123.1263507,
       38.4562107
      ],
-     "similarity_score": 0.325
+     "similarity_score": 0.325,
+     "leaf": "Russian River State Marine Conservation Area",
+     "corrected": false
     },
     {
      "src_id": "555586869",
@@ -949,7 +1095,9 @@
       -123.8038021,
       39.3315579
      ],
-     "similarity_score": 0.325
+     "similarity_score": 0.325,
+     "leaf": "Russian Gulch State Marine Conservation Area",
+     "corrected": false
     },
     {
      "src_id": "555638711",
@@ -962,7 +1110,9 @@
       -0.0348719,
       51.5053931
      ],
-     "similarity_score": 0.325
+     "similarity_score": 0.325,
+     "leaf": "Russia Dock Woodland",
+     "corrected": false
     }
    ]
   },
@@ -973,7 +1123,9 @@
     "subtype",
     "source",
     "bbox",
-    "similarity_score"
+    "similarity_score",
+    "leaf",
+    "corrected"
    ],
    "records": [
     {
@@ -987,7 +1139,9 @@
       -84.893476023,
       35.008890616
      ],
-     "similarity_score": 0.775
+     "similarity_score": 0.775,
+     "leaf": "Alabama",
+     "corrected": false
     },
     {
      "src_id": "555605408",
@@ -1000,7 +1154,9 @@
       -81.3752537,
       34.861254
      ],
-     "similarity_score": 0.525
+     "similarity_score": 0.525,
+     "leaf": "Georgia-Alabama Land Trust Easement #566",
+     "corrected": false
     },
     {
      "src_id": "374736",
@@ -1013,7 +1169,9 @@
       -87.3332621,
       34.3907814
      ],
-     "similarity_score": 0.525
+     "similarity_score": 0.525,
+     "leaf": "Sipsey Fork West Fork, Alabama",
+     "corrected": false
     },
     {
      "src_id": "555606837",
@@ -1026,7 +1184,9 @@
       -84.7614302,
       31.501891
      ],
-     "similarity_score": 0.525
+     "similarity_score": 0.525,
+     "leaf": "Georgia-Alabama Land Trust Easement #173",
+     "corrected": false
     },
     {
      "src_id": "555674517",
@@ -1039,7 +1199,9 @@
       -82.7961659,
       33.2679389
      ],
-     "similarity_score": 0.525
+     "similarity_score": 0.525,
+     "leaf": "Georgia-Alabama Land Trust Easement #871",
+     "corrected": false
     },
     {
      "src_id": "USA19961",
@@ -1052,7 +1214,9 @@
       -94.6663275,
       30.7493238
      ],
-     "similarity_score": 0.525
+     "similarity_score": 0.525,
+     "leaf": "Alabama and Coushatta",
+     "corrected": false
     },
     {
      "src_id": "555674518",
@@ -1065,7 +1229,9 @@
       -82.8227071,
       33.2584868
      ],
-     "similarity_score": 0.525
+     "similarity_score": 0.525,
+     "leaf": "Georgia-Alabama Land Trust Easement #872",
+     "corrected": false
     },
     {
      "src_id": "555674482",
@@ -1078,7 +1244,9 @@
       -83.0413439,
       31.7656477
      ],
-     "similarity_score": 0.525
+     "similarity_score": 0.525,
+     "leaf": "Georgia-Alabama Land Trust Easement #777",
+     "corrected": false
     },
     {
      "src_id": "555674483",
@@ -1091,7 +1259,9 @@
       -83.4454027,
       32.5375301
      ],
-     "similarity_score": 0.525
+     "similarity_score": 0.525,
+     "leaf": "Georgia-Alabama Land Trust Easement #779",
+     "corrected": false
     },
     {
      "src_id": "555674485",
@@ -1104,7 +1274,9 @@
       -84.8938038,
       31.1676012
      ],
-     "similarity_score": 0.525
+     "similarity_score": 0.525,
+     "leaf": "Georgia-Alabama Land Trust Easement #783",
+     "corrected": false
     }
    ]
   },
@@ -1115,7 +1287,9 @@
     "subtype",
     "source",
     "bbox",
-    "similarity_score"
+    "similarity_score",
+    "leaf",
+    "corrected"
    ],
    "records": [
     {
@@ -1129,7 +1303,9 @@
       -28.847629914,
       5.264887796
      ],
-     "similarity_score": 0.8
+     "similarity_score": 0.8,
+     "leaf": "Brazil",
+     "corrected": false
     },
     {
      "src_id": "900631",
@@ -1142,7 +1318,9 @@
       -32.3525095,
       -3.7928084
      ],
-     "similarity_score": 0.325
+     "similarity_score": 0.325,
+     "leaf": "Brazilian Atlantic Islands: Fernando de Noronha and Atol das Rocas Reserves",
+     "corrected": false
     },
     {
      "src_id": "555749710",
@@ -1155,7 +1333,9 @@
       -121.0729653,
       37.8806275
      ],
-     "similarity_score": 0.325
+     "similarity_score": 0.325,
+     "leaf": "Brazil-Van Ryn Farm",
+     "corrected": false
     },
     {
      "src_id": "343390",
@@ -1168,7 +1348,9 @@
       14.6647985,
       50.8491833
      ],
-     "similarity_score": 0.325
+     "similarity_score": 0.325,
+     "leaf": "Brazilka",
+     "corrected": false
     }
    ]
   }

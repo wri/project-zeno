@@ -324,6 +324,8 @@ def _search_sql(
                  + ({context_hit})::int * 0.2
                  + {prior} * 0.25) * :scale, 4
             )::double precision AS similarity_score,
+            a.leaf,
+            {str(stage == "retry").lower()} AS corrected,
             {context_hit} AS context_hit
         FROM best b
         JOIN aois a ON a.id = b.id, q
@@ -432,7 +434,9 @@ def _autocomplete_sql(
             ) AS bbox,
             round(
                 (b.tier / 2.0) * 0.5 + {prior} * 0.5, 4
-            )::double precision AS similarity_score
+            )::double precision AS similarity_score,
+            a.leaf,
+            false AS corrected
         FROM best b
         JOIN aois a ON a.id = b.id, q
         ORDER BY b.tier DESC, {order}
@@ -448,7 +452,9 @@ _BROWSE_SQL = """
         a.source,
         COALESCE(
             a.bbox, ARRAY[-180, -90, 180, 90]::double precision[]
-        ) AS bbox
+        ) AS bbox,
+        a.leaf,
+        false AS corrected
     FROM aois a
     WHERE NOT a.is_disputed
       AND NOT a.is_deprecated
@@ -677,11 +683,16 @@ async def search_aois(
             corrects a typo.
 
     Returns:
-        DataFrame with columns ``src_id, name, subtype, source, bbox`` (plus
-        ``similarity_score`` in [0, 1] when searching by name: the match
-        tier, whether the query's parent matched, and the hierarchy prior,
-        scaled down for a typo-corrected match). Disputed and deprecated
-        AOIs are excluded, and a custom area appears only for its owner.
+        DataFrame with columns ``src_id, name, subtype, source, bbox, leaf,
+        corrected`` (plus ``similarity_score`` in [0, 1] when searching by
+        name: the match tier, whether the query's parent matched, and the
+        hierarchy prior, scaled down on the miss path). ``leaf`` is the
+        place's own stored name, which a caller comparing names should use
+        rather than splitting ``name`` at its first comma. ``corrected`` is
+        True for a row found only after correcting the spelling or dropping
+        a word, so a caller can treat it as a weaker match. Disputed and
+        deprecated AOIs are excluded, and a custom area appears only for its
+        owner.
 
     Raises:
         SearchRequestError: For input the search will not serve: a name over
