@@ -10,16 +10,22 @@ Same access rules as insights (own + public read, owner-only edit,
 admin/superuser override, 404 for not-found *and* not-owned), with one twist:
 publishing a dashboard cascades ``is_public=True`` to its referenced insights,
 otherwise a public dashboard renders empty for viewers.
+
+An analysis template builds a whole section in one request
+(``POST .../sections/from-template``). The result is a normal section.
 """
 
 from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.encoders import jsonable_encoder
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from src.agent.i18n import t
 from src.api.auth.dependencies import optional_auth, require_auth
 from src.api.data_models import DashboardOrm, InsightOrm, UserType
 from src.api.repositories import dashboard_writer
@@ -30,6 +36,7 @@ from src.api.routers.insights import (
     _row_to_response as _insight_row_to_response,
 )
 from src.api.schemas import (
+    AnalysisTemplateResponse,
     DashboardAoiResponse,
     DashboardCreateRequest,
     DashboardPublicToggleRequest,
@@ -42,7 +49,19 @@ from src.api.schemas import (
     DashboardWidgetCreateRequest,
     DashboardWidgetResponse,
     DashboardWidgetUpdateRequest,
+    SectionFromTemplateRequest,
+    SectionFromTemplateResponse,
     UserModel,
+)
+from src.api.services.analysis_templates.builder import (
+    DashboardGoneError,
+    NoAreaError,
+    TemplateError,
+    apply_template,
+)
+from src.api.services.analysis_templates.registry import (
+    TEMPLATES,
+    get_template,
 )
 from src.shared.database import get_session_from_pool_dependency
 from src.shared.logging_config import get_logger
@@ -124,6 +143,33 @@ async def _refetch_dashboard(dashboard_id) -> DashboardOrm:
     return row
 
 
+async def _expanded_response(
+    row: DashboardOrm, user: Optional[UserModel], session: AsyncSession
+) -> DashboardResponse:
+    """The dashboard response with the widget insights the viewer may see.
+
+    Own + public insights; read-through access for private insights on
+    public dashboards is deliberately not granted. Privileged users see
+    everything.
+    """
+    insight_ids = [w.insight_id for w in row.widgets if w.insight_id]
+    insights_by_id = {}
+    if insight_ids:
+        result = await session.execute(
+            select(InsightOrm)
+            .options(selectinload(InsightOrm.charts))
+            .where(InsightOrm.id.in_(insight_ids))
+        )
+        user_id = user.id if user else None
+        insights_by_id = {
+            insight.id: insight
+            for insight in result.scalars().all()
+            if insight_is_visible_to_user(insight, user_id)
+            or _is_privileged(user)
+        }
+    return _row_to_response(row, insights_by_id)
+
+
 @router.post(
     "/api/dashboards",
     response_model=DashboardResponse,
@@ -189,25 +235,7 @@ async def get_dashboard(
         if row.user_id != user.id and not _is_privileged(user):
             raise HTTPException(status_code=404, detail="Dashboard not found")
 
-    # Expand widget insights the viewer may see (own + public; read-through
-    # access for private insights on public dashboards is deliberately not
-    # granted). Privileged users see everything.
-    insight_ids = [w.insight_id for w in row.widgets if w.insight_id]
-    insights_by_id = {}
-    if insight_ids:
-        result = await session.execute(
-            select(InsightOrm)
-            .options(selectinload(InsightOrm.charts))
-            .where(InsightOrm.id.in_(insight_ids))
-        )
-        user_id = user.id if user else None
-        insights_by_id = {
-            insight.id: insight
-            for insight in result.scalars().all()
-            if insight_is_visible_to_user(insight, user_id)
-            or _is_privileged(user)
-        }
-    return _row_to_response(row, insights_by_id)
+    return await _expanded_response(row, user, session)
 
 
 @router.patch(
@@ -453,3 +481,93 @@ async def delete_dashboard(
     are left intact."""
     await _get_owned_dashboard(dashboard_id, user)
     await dashboard_writer.delete_dashboard(dashboard_id)
+
+
+@router.get(
+    "/api/analysis-templates",
+    response_model=list[AnalysisTemplateResponse],
+)
+async def list_analysis_templates(user: UserModel = Depends(require_auth)):
+    """List the analysis templates that can build a dashboard section."""
+    return [
+        AnalysisTemplateResponse(
+            name=template.name,
+            label=await t(template.label_key, user.preferred_language_code),
+            args_schema=template.args_model.model_json_schema(),
+            widgets=[widget.kind for widget in template.widgets],
+        )
+        for template in TEMPLATES
+    ]
+
+
+@router.post(
+    "/api/dashboards/{dashboard_id}/sections/from-template",
+    response_model=SectionFromTemplateResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_section_from_template(
+    dashboard_id: UUID,
+    body: SectionFromTemplateRequest,
+    user: UserModel = Depends(require_auth),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
+):
+    """Build a new section from an analysis template (owner only).
+
+    Pulls the data for the dashboard's first area, makes the template's
+    widgets and writes them as one new section after the last one. The
+    section is a normal section: it can be edited, moved and deleted.
+
+    The request is synchronous and takes tens of seconds. A failed required
+    widget (for example the analytics pull) gives 502 and writes nothing. A
+    failed optional widget (for example the imagery) is left out and named
+    in ``warnings``.
+    """
+    template = get_template(body.template)
+    if template is None:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unknown analysis template '{body.template}'",
+        )
+    try:
+        args = template.parse_args(body.args)
+    except ValidationError as error:
+        # The same shape as the FastAPI request validation errors.
+        raise HTTPException(
+            status_code=422,
+            detail=[
+                {**e, "loc": ["body", "args", *e["loc"]]}
+                for e in jsonable_encoder(
+                    error.errors(include_url=False, include_context=False)
+                )
+            ],
+        )
+    row = await _get_owned_dashboard(dashboard_id, user)
+
+    try:
+        result = await apply_template(
+            row,
+            template,
+            args,
+            # The insights belong to the dashboard owner, also when an
+            # admin applies the template.
+            row.user_id,
+            user.preferred_language_code,
+        )
+    except NoAreaError as error:
+        raise HTTPException(status_code=422, detail=str(error))
+    except DashboardGoneError:
+        raise HTTPException(status_code=404, detail="Dashboard not found")
+    except TemplateError as error:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)
+        )
+
+    dashboard = await _expanded_response(
+        await _refetch_dashboard(dashboard_id), user, session
+    )
+    return SectionFromTemplateResponse(
+        section_id=UUID(result.section_id),
+        widget_ids=[UUID(widget_id) for widget_id in result.widget_ids],
+        warnings=result.warnings,
+        dashboard=dashboard,
+    )

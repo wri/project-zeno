@@ -89,7 +89,14 @@ def test_sorts_rows_by_year():
 
 # --- Integrated Alerts -------------------------------------------------------
 IA_DATA = {
-    "alert_date": ["2024-03-01", "2024-03-20", "2024-04-05", "2024-04-18"],
+    # Two rows share 2024-04-05: the analytics API returns one row per
+    # intersecting geometry, so a day can appear more than once.
+    "alert_date": [
+        "2024-03-01",
+        "2024-03-01",
+        "2024-04-05",
+        "2024-04-05",
+    ],
     "alert_confidence": ["high", "low", "high", "high"],
     "area_ha": [10.0, 5.0, 20.0, 2.5],
     "aoi_id": ["BRA"] * 4,
@@ -115,24 +122,62 @@ def test_ia_generates_one_line_chart_by_confidence():
     chart = IntegratedAlertsChartGenerator().generate(IA_ROWS)[0]
     fe = chart.to_frontend_dict()
     assert fe["type"] == "line"
-    assert fe["xAxis"] == "month"
+    assert fe["xAxis"] == "alert_date"
     assert fe["yAxis"] == "area_ha"
     assert fe["colorField"] == "alert_confidence"
     # snake_case persistence parity
     assert chart.to_orm_kwargs()["color_field"] == "alert_confidence"
 
 
-def test_ia_aggregates_area_by_month_and_confidence():
+def test_ia_aggregates_area_by_day_and_confidence():
+    """Daily, not monthly: it is the resolution the data arrives at, and a
+    monthly bucket would collapse the default two-week window to one point."""
     chart = IntegratedAlertsChartGenerator().generate(IA_ROWS)[0]
     by_key = {
-        (r["month"], r["alert_confidence"]): r["area_ha"]
+        (r["alert_date"], r["alert_confidence"]): r["area_ha"]
         for r in chart.chart_data
     }
-    # March: high=10, low=5 (kept separate by confidence)
-    assert by_key[("2024-03", "high")] == 10.0
-    assert by_key[("2024-03", "low")] == 5.0
-    # April: high alerts on two days summed (20 + 2.5)
-    assert by_key[("2024-04", "high")] == 22.5
+    # Same day, different confidence: kept apart.
+    assert by_key[("2024-03-01", "high")] == 10.0
+    assert by_key[("2024-03-01", "low")] == 5.0
+    # Same day, same confidence, two geometries: summed.
+    assert by_key[("2024-04-05", "high")] == 22.5
+    # A month is never a bucket.
+    assert all(len(r["alert_date"]) == 10 for r in chart.chart_data)
+
+
+def test_ia_days_are_chronological():
+    chart = IntegratedAlertsChartGenerator().generate(
+        column_to_rows(
+            {
+                "alert_date": ["2024-04-05", "2024-03-01", "2024-03-20"],
+                "alert_confidence": ["high"] * 3,
+                "area_ha": [1.0, 2.0, 3.0],
+            }
+        )
+    )[0]
+
+    assert [r["alert_date"] for r in chart.chart_data] == [
+        "2024-03-01",
+        "2024-03-20",
+        "2024-04-05",
+    ]
+
+
+def test_ia_absent_days_are_not_zero_filled():
+    """The API reports what it detected; a fabricated zero is a claim about
+    a day nobody looked at that way."""
+    chart = IntegratedAlertsChartGenerator().generate(
+        column_to_rows(
+            {
+                "alert_date": ["2024-03-01", "2024-03-05"],
+                "alert_confidence": ["high", "high"],
+                "area_ha": [1.0, 2.0],
+            }
+        )
+    )[0]
+
+    assert len(chart.chart_data) == 2
 
 
 # --- LGMS ---------------------------------------------------------------

@@ -74,6 +74,31 @@ own order, widgets in order within their section.
   section whose topic it answers.
 - Never reorganize a dashboard the user did not ask you to reorganize.
 
+# Sections from a template
+
+Only when `add_template_section` is in your tools. Otherwise skip this part.
+
+`add_template_section(template, args?)` builds a complete section in one
+call, for the dashboard's area: it pulls the data and adds the chart, the map
+layer and the imagery that the template names. The tool lists the templates,
+the purpose of each and the arguments of each. Send only the arguments the
+user asked for; the others get their defaults.
+
+- Use a template when the request matches the purpose of one (for example
+  "monitor this area", "what was disturbed here recently"). For all other
+  requests, compose the section yourself (`add_dashboard_section` and the
+  widget tools).
+- The dashboard must have an area. If there is no dashboard, create one first
+  with `create_dashboard`.
+- Tell the user that the build takes some seconds.
+- Give each warning in the tool reply to the user as written (for example
+  "no cloud-free imagery").
+- The new section is a normal section. Change it with the normal tools
+  (`edit_dashboard_section`, `move_dashboard_widget`, the widget tools).
+- To show a different period, apply the template again with new `args`
+  (for example `{"days": 30}` for `nrt-monitoring`), then offer to delete
+  the old section. There is no refresh.
+
 # Adding a single insight ("add this to my dashboard")
 
 `add_to_dashboard` — it defaults to the current insight in state and the
