@@ -1,0 +1,30 @@
+variant          backend     runs      unit  gold_dev   holdout  holdout2       all  none ok false none  tau0.5  tau0.6  tau0.7  tau0.8
+base:neutral     codiv-open     1  53.0/59   25.0/30          -         -  78.0/89   0.0/6          4.0   79.0    80.0    81.0    81.0
+base:neutral     openrouter     3  56.0/59   26.0/30          -         -  82.0/89   1.0/6          0.0   82.0    82.0    81.7    81.0
+base:neutral:drop openrouter     1  56.0/59   25.0/30          -         -  81.0/89   0.0/6          0.0   81.0    81.0    81.0    81.0
+base:rules       codiv-open     1  45.0/59   24.0/30   40.0/51   34.0/38  143.0/178  2.0/6         15.0   70.0    72.0    75.0    76.0
+base:rules       openrouter     1  48.0/59   27.0/30   49.0/51   36.0/38  165.0/178  2.0/6         10.0   77.0    78.0    79.0    81.0
+base:short       codiv-open     1  53.0/59   25.0/30   49.0/51   38.0/38  165.0/178  0.0/6          4.0   78.0    80.0    80.0    81.0
+base:short       openrouter     3  55.3/59   26.3/30   49.0/51   36.0/38  166.7/178  2.0/6          2.3   81.0    82.0    82.0    81.3
+base:short:drop  openrouter     1  56.0/59   25.0/30          -         -  81.0/89   0.0/6          0.0   81.0    81.0    81.0    81.0
+base:short:topic openrouter     3  55.3/59   26.7/30          -         -  82.0/89   2.0/6          2.3   81.0    81.7    82.3    82.3
+cards:neutral    codiv-open     1  56.0/59   28.0/30   46.0/51   38.0/38  168.0/178  3.0/6          0.0   84.0    82.0    81.0    81.0
+cards:neutral    openrouter     3  56.3/59   27.0/30   50.0/51   37.0/38  170.3/178  2.0/6          1.0   82.3    82.3    82.3    81.7
+cards:neutral:drop openrouter     1  56.0/59   25.0/30          -         -  81.0/89   0.0/6          0.0   81.0    81.0    81.0    81.0
+cards:rules      codiv-open     1  43.0/59   26.0/30          -         -  69.0/89   2.0/6         15.0   69.0    71.0    74.0    75.0
+cards:rules      openrouter     1  48.0/59   27.0/30          -         -  75.0/89   3.0/6         10.0   76.0    77.0    79.0    81.0
+cards:short      codiv-open     1  56.0/59   25.0/30   47.0/51   38.0/38  166.0/178  0.0/6          0.0   81.0    81.0    81.0    81.0
+cards:short      openrouter     3  57.0/59   26.0/30   49.0/51   36.0/38  168.0/178  3.0/6          2.0   82.0    82.7    82.3    82.0
+cards:short:drop openrouter     1  57.0/59   25.0/30          -         -  82.0/89   0.0/6          0.0   82.0    82.0    82.0    82.0
+cards:short:topic openrouter     3  54.3/59   26.0/30          -         -  80.3/89   2.0/6          2.7   81.0    80.3    81.0    81.0
+no_lgms:rules    codiv-open     1  45.0/59   22.0/30          -         -  67.0/89   2.0/6         17.0   66.0    70.0    74.0    74.0
+no_lgms:rules    openrouter     1  44.0/59   29.0/30          -         -  73.0/89   4.0/6         14.0   76.0    77.0    82.0    82.0
+no_lgms:short    codiv-open     1  56.0/59   25.0/30          -         -  81.0/89   0.0/6          1.0   81.0    81.0    81.0    81.0
+no_lgms:short    openrouter     1  56.0/59   26.0/30          -         -  82.0/89   2.0/6          2.0   81.0    82.0    82.0    81.0
+no_xref:rules    codiv-open     1  42.0/59   23.0/30          -         -  65.0/89   2.0/6         19.0   66.0    68.0    68.0    70.0
+no_xref:rules    openrouter     1  47.0/59   29.0/30          -         -  76.0/89   4.0/6         11.0   75.0    78.0    82.0    81.0
+no_xref:short    codiv-open     1  54.0/59   26.0/30          -         -  80.0/89   1.0/6          2.0   80.0    80.0    81.0    80.0
+no_xref:short    openrouter     1  55.0/59   27.0/30          -         -  82.0/89   2.0/6          2.0   82.0    82.0    82.0    81.0
+
+runs = dev runs; none ok / false none are on dev (the holdouts have no 'none' rows)
+tau columns: dev accuracy when a 'none' pick with p(none) < tau falls back to the best dataset
