@@ -40,6 +40,9 @@ from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
+# Do not name a tool parameter `args`: pydantic's validate_arguments reserves
+# it for *args, so LangChain renames it `v__args` and types it as an array
+# without `items`, which Gemini rejects.
 # The model sees the valid names in the tool schema. Built from the
 # registry at import time, which mypy cannot check.
 TemplateName = Literal[tuple(template.name for template in TEMPLATES)]  # type: ignore[valid-type]
@@ -48,14 +51,14 @@ TemplateName = Literal[tuple(template.name for template in TEMPLATES)]  # type: 
 @tool("add_template_section")
 async def add_template_section(
     template: TemplateName,  # type: ignore[valid-type]
-    args: Optional[Dict[str, Any]] = None,
+    template_args: Optional[Dict[str, Any]] = None,
     dashboard_id: Optional[str] = None,
     state: Annotated[Dict, InjectedState] | None = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """Build a new dashboard section from an analysis template.
 
-    `template` is the name of a registered template. `args` are the
+    `template` is the name of a registered template. `template_args` are the
     arguments of that template; a missing argument gets its default.
     `dashboard_id` defaults to the dashboard in state or the one the user is
     currently viewing. The dashboard must have an area. The build takes some
@@ -74,7 +77,7 @@ async def add_template_section(
             tool_call_id,
         )
     try:
-        template_args = spec.parse_args(args)
+        template_args = spec.parse_args(template_args)
     except ValidationError as error:
         problems = "; ".join(
             f"{'.'.join(str(part) for part in e['loc']) or 'args'}: {e['msg']}"
@@ -175,7 +178,7 @@ SPEC = ToolSpec(
     tool=add_template_section,
     category=ToolCategory.PRIMITIVE,
     prompt_fragment=(
-        "- add_template_section(template, args?, dashboard_id?): build a "
+        "- add_template_section(template, template_args?, dashboard_id?): build a "
         "complete dashboard section from an analysis template, for the "
         "dashboard's area. Dashboard defaults to the one in state or on "
         "screen. Templates:\n" + _template_lines()
