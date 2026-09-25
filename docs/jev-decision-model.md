@@ -41,12 +41,14 @@ An LLM is still necessary for text, extraction (places, dates) and the orchestra
 
 ## Results
 
-On 178 labeled queries (dev set and two holdout sets):
+The dev set (89 queries) has many short, general queries. The two holdout sets (89 queries) have long, specific GOLD-style queries.
 
 | | Open jev | OpenRouter jev |
 |---|---|---|
-| Current picker text | 80% | 93% |
-| Short instruction and short descriptions | **94%** | **96%** |
+| Current picker text, dev set | 78% | 84% |
+| Current picker text, holdout sets | 83% | 96% |
+| Short instruction and short descriptions, dev set | **94%** | **94%** |
+| Short instruction and short descriptions, holdout sets | **94%** | **98%** |
 | Time for each call | 0.8 s | 0.3 s |
 
 What we learned:
