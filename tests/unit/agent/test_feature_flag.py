@@ -311,6 +311,7 @@ def test_default_profile_derives_exactly_the_core_tools():
             "inspect_view_context",
             "search_blogs",
             "show_imagery",
+            "update_insight_display",
             "search_insights",
             "create_dashboard",
             "add_to_dashboard",
@@ -376,8 +377,9 @@ async def test_fetch_zeno_binds_the_resolved_configs_availability():
 
 
 def test_experimental_config_adds_standalone_tools_and_planet():
-    """dashboard and explore graduated into the default set; experimental now
-    layers standalone tools plus the opt-in Planet imagery recipe."""
+    """dashboard, explore and update_insight_display graduated into the
+    default set; experimental now layers only the opt-in Planet imagery
+    recipe."""
     default = default_registry.resolve(DEFAULT_PROFILE)
     experimental = default_registry.resolve(EXPERIMENTAL_PROFILE)
 
@@ -390,8 +392,9 @@ def test_experimental_config_adds_standalone_tools_and_planet():
         # Owned by the dashboard skill's workflow: it reads a dashboard's
         # sections and widget ids before grouping or moving anything.
         "inspect_view_context",
+        "update_insight_display",
     } <= default_tools
-    assert {"update_insight_display"} <= (experimental_tools - default_tools)
+    assert experimental_tools - default_tools == {"show_planet_imagery"}
 
     default_skills = {s.name for s in default.skill_metas()}
     experimental_skills = {s.name for s in experimental.skill_metas()}

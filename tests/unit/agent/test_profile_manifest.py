@@ -45,6 +45,7 @@ subagents:
   - pick_dataset
   - generate_insights
   - search_blogs
+  - update_insight_display
 tools:
   - pull_data
   - read_skill
