@@ -55,7 +55,8 @@ async def chat(
         }
     ):
         raise HTTPException(
-            status_code=403, detail="Feature flags require admin access"
+            status_code=403,
+            detail=f"Feature flag {chat_request.ff!r} requires admin access",
         )
     bind_request_logging_context(
         thread_id=chat_request.thread_id,
