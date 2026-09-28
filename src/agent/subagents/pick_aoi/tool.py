@@ -306,7 +306,7 @@ async def query_subregion_database(
 
 # Columns the search returns for the selection step only. AOIIndex allows
 # extra fields, so anything left on the row would leak into aoi_selection.
-_SEARCH_ONLY_COLUMNS = {"leaf", "corrected"}
+_SEARCH_ONLY_COLUMNS = {"leaf", "corrected", "context_hit"}
 
 
 def _aoi_from_row(row: dict) -> AOIIndex:

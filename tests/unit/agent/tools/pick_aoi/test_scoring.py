@@ -337,3 +337,33 @@ def test_a_row_from_the_miss_path_loses_a_near_tie():
     # Without the penalty the guess wins: pin that the penalty is what decides.
     rows["corrected"] = False
     assert score_best_aoi(rows, terms).src_id == "22490"
+
+
+def test_a_typed_parent_beats_a_more_prominent_namesake():
+    """ "Victoria, Canada": the Canadian county carries the parent; the
+    Australian state reads almost the same and sits a hierarchy step higher.
+    The search's rank alone (a fifth of the score) did not save the county."""
+    rows = pd.DataFrame(
+        [
+            _row(
+                "AUS.10_1",
+                "Victoria, Australia",
+                subtype="state-province",
+                score=0.775,
+            ),
+            _row(
+                "CAN.7.17_1",
+                "Victoria, Nova Scotia, Canada",
+                subtype="district-county",
+                score=0.925,
+                context_hit=True,
+            ),
+        ]
+    )
+
+    selected = score_best_aoi(rows, ["Victoria, Canada"])
+
+    assert selected is not None and selected.src_id == "CAN.7.17_1"
+    assert "context_hit" not in selected.model_dump()
+    rows["context_hit"] = False
+    assert score_best_aoi(rows, ["Victoria, Canada"]).src_id == "AUS.10_1"

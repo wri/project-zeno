@@ -38,6 +38,12 @@ _DB_RANK_WEIGHT = 0.2
 # written, and when it still wins the geocoder treats the place as unmatched
 # and offers the name instead of selecting it.
 _CORRECTED_PENALTY = 0.15
+# The user named the parent ("Victoria, Canada") and this row has it. The
+# search already ranks such rows first, but its rank enters here at a fifth,
+# which a one-step hierarchy advantage outweighs: the Australian state beat
+# the Canadian county. A typed parent is the strongest signal there is, so
+# it gets its own term.
+_CONTEXT_MATCH_BONUS = 0.2
 
 # Punctuation that can wrap a name segment. Stored names carry trailing
 # commas ("NA, England, United Kingdom"), and an `aoi_choice` nudge option is
@@ -201,6 +207,10 @@ def best_candidate_row(
         corrected = candidate_aois["corrected"].fillna(False).tolist()
     else:
         corrected = [False] * len(candidate_aois)
+    if "context_hit" in candidate_aois.columns:
+        context_hits = candidate_aois["context_hit"].fillna(False).tolist()
+    else:
+        context_hits = [False] * len(candidate_aois)
 
     # Only the columns that scoring and the tie-break read, so no row this
     # function does not select is ever built as a dict.
@@ -212,6 +222,7 @@ def best_candidate_row(
         leaves,
         db_ranks,
         corrected,
+        context_hits,
     )
     for position, (
         name,
@@ -221,6 +232,7 @@ def best_candidate_row(
         leaf,
         db_rank,
         guessed,
+        parent_matched,
     ) in enumerate(scoring_columns):
         hierarchy = _hierarchy_score(subtype)
         candidate = _strip_accents(name)
@@ -234,6 +246,8 @@ def best_candidate_row(
         ) + _DB_RANK_WEIGHT * float(db_rank)
         if guessed:
             score -= _CORRECTED_PENALTY
+        if parent_matched:
+            score += _CONTEXT_MATCH_BONUS
         # Compare on explicit secondary keys rather than the score alone, so
         # equal scores resolve identically whatever order the rows arrived in.
         key = (-score, name, source, str(src_id))

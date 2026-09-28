@@ -364,7 +364,7 @@ def _autocomplete_sql(
                 (b.tier / 2.0) * 0.5 + {prior} * 0.5, 4
             )::double precision""",
         corrected="false",
-        extra_columns="",
+        extra_columns=",\n            false AS context_hit",
         order=order,
         paging="LIMIT :limit",
     )
@@ -373,7 +373,8 @@ def _autocomplete_sql(
 _BROWSE_SQL = f"""
     SELECT {_RESULT_COLUMNS},
         a.leaf,
-        false AS corrected
+        false AS corrected,
+        false AS context_hit
     FROM aois a
     WHERE NOT a.is_disputed
       AND NOT a.is_deprecated
@@ -645,13 +646,16 @@ async def search_aois(
 
     Returns:
         DataFrame with columns ``src_id, name, subtype, source, bbox, leaf,
-        corrected`` (plus ``similarity_score`` in [0, 1] when searching by
-        name: the match tier, whether the query's parent matched, and the
-        hierarchy prior, scaled down on the miss path). ``leaf`` is the
-        place's own stored name, which a caller comparing names should use
-        rather than splitting ``name`` at its first comma. ``corrected`` is
-        True for a row the miss path found, after correcting the spelling or
-        dropping a word, so a caller can treat it as a guess. Disputed and
+        corrected, context_hit`` (plus ``similarity_score`` in [0, 1] when
+        searching by name: the match tier, whether the query's parent
+        matched, and the hierarchy prior, scaled down on the miss path).
+        ``leaf`` is the place's own stored name, which a caller comparing
+        names should use rather than splitting ``name`` at its first comma.
+        ``corrected`` is True for a row the miss path found, after correcting
+        the spelling or dropping a word, so a caller can treat it as a guess.
+        ``context_hit`` is True when the query named a parent and the row
+        has it, so a caller re-ranking rows can honour the parent the user
+        typed. Disputed and
         deprecated AOIs are excluded, and a custom area appears only for its
         owner. An empty page is a miss too: paging past the end of a result
         runs the miss path, which is what lets page two of a corrected
@@ -695,10 +699,9 @@ async def search_aois(
                 return await _autocomplete(
                     conn, requested, params, leaf_lexemes, context_lexemes
                 )
-            result = await _search_with_retries(
+            return await _search_with_retries(
                 conn, requested, parsed, params, leaf_lexemes
             )
-            return result.drop(columns=["context_hit"])
         finally:
             # Read-only, and the miss path's threshold was SET LOCAL: end the
             # transaction so the pooled connection carries nothing over.
@@ -778,7 +781,7 @@ async def _search_with_retries(
 ) -> pd.DataFrame:
     """The query as typed, then the miss path, stopping at the first result
     that answers the query. Each step is one more round trip, only on a
-    miss. The frame returned still carries ``context_hit``."""
+    miss."""
     with_context = bool(parsed.context)
 
     def statement(stage: _SearchStage) -> str:

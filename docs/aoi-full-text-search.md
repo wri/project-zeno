@@ -107,10 +107,11 @@ sorted the same way and
 limited to `limit + offset` rows, which is exact: a row in the final top-N
 sits within the top-N of the arm that gave it its tier. The rank is returned
 as `similarity_score` in [0, 1] so the geocoder's merge and the replay
-fixtures keep working. Two more columns come back for the geocoder: `leaf`,
+fixtures keep working. Three more columns come back for the geocoder: `leaf`,
 the stored leaf, so a caller comparing names never splits a name at a comma
-that is part of it ("Krüger-, Rähden- und Möschensee"); and `corrected`,
-True for a row the miss path found, so a caller can treat it as a guess.
+that is part of it ("Krüger-, Rähden- und Möschensee"); `corrected`, True
+for a row the miss path found, so a caller can treat it as a guess; and
+`context_hit`, True when the row has the parent the query named.
 
 The miss path runs only when the result does not answer the query as
 typed: no rows, or a parent was named and no row has it ("Lisbon, Portugal"
@@ -208,8 +209,11 @@ returns every namesake where the old one missed most of them:
   name comparison. The rank knows what the string comparison cannot: that a
   row matched a stored name exactly and that the typed parent matched. "Las
   Palmas, Spain" reads almost the same against the Canarian and the
-  Panamanian Las Palmas; the rank picks Spain. Its exact-leaf bonus is judged
-  on the stored `leaf`, not on the name's first comma segment.
+  Panamanian Las Palmas; the rank picks Spain. A typed parent also gets its
+  own bonus from the search's `context_hit` column, because the rank alone
+  is worth less than one hierarchy step: "Victoria, Canada" otherwise picked
+  the Australian state over the Canadian county. Its exact-leaf bonus is
+  judged on the stored `leaf`, not on the name's first comma segment.
 - A candidate the search reached only by correcting a spelling or dropping
   a word is a guess. The scorer docks it, so a row that some spelling
   matched as written wins a near-tie; and when a guess still comes first

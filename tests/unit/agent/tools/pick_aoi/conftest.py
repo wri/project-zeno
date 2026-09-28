@@ -27,6 +27,7 @@ def _row(
     bbox=WORLD_BBOX,
     leaf=None,
     corrected=False,
+    context_hit=False,
 ):
     """One `search_aois` row.
 
@@ -34,7 +35,8 @@ def _row(
     always returns them: `bbox` is COALESCEd to the world bbox,
     `similarity_score` is computed for every search by name, `leaf` is the
     stored leaf (here the first segment of *name* unless given) and
-    `corrected` says whether the row came from the miss path. Pass None for
+    `corrected` says whether the row came from the miss path and
+    `context_hit` whether a typed parent matched it. Pass None for
     `bbox` or `score` to leave that column out, which is how older recorded
     fixture frames (no `bbox`) are reproduced.
     """
@@ -45,6 +47,7 @@ def _row(
         "source": source,
         "leaf": name.split(",")[0] if leaf is None else leaf,
         "corrected": corrected,
+        "context_hit": context_hit,
     }
     if bbox is not None:
         row["bbox"] = bbox
