@@ -9,6 +9,8 @@ from src.agent.agent_config import (
     DEFAULT_PROFILE,
     DEFAULT_SKILLS,
     EXPERIMENTAL_PROFILE,
+    LGMS_PROFILE,
+    PUBLIC_PROFILES,
     AgentConfig,
     AgentConfigRegistry,
     default_registry,
@@ -254,6 +256,20 @@ def test_experimental_profile_reveals_land_ghg():
         "Land GHG Monitoring System (LGMS)"
         not in config.availability().excluded_datasets
     )
+
+
+def test_lgms_profile_reveals_land_ghg():
+    config = default_registry.resolve(LGMS_PROFILE)
+    assert (
+        "Land GHG Monitoring System (LGMS)"
+        not in config.availability().excluded_datasets
+    )
+
+
+def test_only_lgms_profile_is_public():
+    # Anything added here is open to every user; the experimental surface
+    # must stay behind the admin gate.
+    assert PUBLIC_PROFILES == frozenset({LGMS_PROFILE})
 
 
 # --- Structural invariants ---------------------------------------------------
