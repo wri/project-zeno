@@ -2,7 +2,7 @@
 
 from src.shared.aoi_search import (
     SearchText,
-    _corrected_query,
+    _corrected_queries,
     _LeafToken,
     _prefix_tsquery,
     _reduced_queries,
@@ -41,27 +41,50 @@ def test_prefix_tsquery_marks_the_last_lexeme_as_a_prefix():
     assert _prefix_tsquery(None) is None
 
 
-def _token(lexeme, ndoc=5, nearest=None):
-    return _LeafToken(
-        lexeme, ndoc, (lexeme,) if nearest is None else tuple(nearest)
-    )
+def _token(lexeme, ndoc=5, nearest=None, distances=None):
+    """A looked-up word. By default its only neighbour is itself, at
+    distance 0; *nearest* lists neighbours, *distances* their edit
+    distances (self is 0, the rest 1 unless given)."""
+    near = (lexeme,) if nearest is None else tuple(nearest)
+    if distances is None:
+        distances = tuple(0 if n == lexeme else 1 for n in near)
+    return _LeafToken(lexeme, ndoc, near, tuple(distances))
 
 
-def test_corrected_query_ors_the_neighbours_of_each_word():
-    tokens = [_token("sao"), _token("paolo", 12, ["paulo", "paola", "paolo"])]
+def test_corrected_queries_or_the_neighbours_of_each_word():
+    tokens = [_token("sao"), _token("paolo", 12, ["paolo", "paulo", "pablo"])]
+    assert _corrected_queries(tokens) == [
+        "('sao') & ('paolo' | 'paulo' | 'pablo')"
+    ]
+    # A word too short to correct passes through as typed; a word with no
+    # neighbour but itself gives a query that would repeat the miss: none.
     assert (
-        _corrected_query(tokens) == "('sao') & ('paulo' | 'paola' | 'paolo')"
-    )
-    # A word too short to correct passes through as typed.
-    assert _corrected_query([_token("np", 0, []), _token("serengeti")]) is None
-    # No neighbour but itself: the query would repeat the one that missed.
-    assert (
-        _corrected_query([_token("serengeti"), _token("np", 70, [])]) is None
+        _corrected_queries([_token("serengeti"), _token("np", 70, [])]) == []
     )
     # A correctable word with nothing near it makes the whole query empty.
     assert (
-        _corrected_query([_token("czech", 0, []), _token("republic")]) is None
+        _corrected_queries([_token("czech", 0, []), _token("republic")]) == []
     )
+
+
+def test_corrected_queries_try_one_edit_before_two():
+    """ "banglore": the one-edit "bangalore" is tried alone before the
+    two-edit neighbours a prominent place would otherwise push ahead."""
+    tokens = [
+        _token(
+            "banglore",
+            0,
+            ["bangora", "bangalore", "bangor"],
+            [2, 1, 2],
+        )
+    ]
+    assert _corrected_queries(tokens) == [
+        "('bangalore')",
+        "('bangora' | 'bangalore' | 'bangor')",
+    ]
+    # Only two-edit neighbours: one query, the full set.
+    tokens = [_token("phillipines", 0, ["philippines"], [2])]
+    assert _corrected_queries(tokens) == ["('philippines')"]
 
 
 def test_reduced_queries_drop_the_last_then_the_first_word():

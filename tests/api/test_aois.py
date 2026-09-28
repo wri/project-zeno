@@ -362,15 +362,62 @@ async def test_a_designation_is_part_of_the_name(auth_override, client):
 async def test_a_misspelling_falls_back_to_the_nearest_token(
     auth_override, client
 ):
+    """ "Banglore" is neither a prefix nor a token of any name, so only the
+    correction reaches Bangalore; its score is scaled down for it."""
     auth_override("test-user-wri")
     await _seed_reference_aoi(
         "gadm", "IND.16.3_1", "Bangalore, Karnataka, India", "district-county"
     )
     await rebuild_search_tokens()
 
-    res = await client.get("/api/aois?name=Bangalor", headers=AUTH)
+    res = await client.get("/api/aois?name=Banglore", headers=AUTH)
     assert res.status_code == 200, res.text
     assert [r["src_id"] for r in res.json()] == ["IND.16.3_1"]
+    # Tier 1 (0.275) plus the district prior (0.175), scaled by 0.8.
+    assert res.json()[0]["score"] == pytest.approx(0.36)
+
+
+@pytest.mark.asyncio
+async def test_a_one_edit_correction_is_tried_before_a_two_edit_one(
+    auth_override, client
+):
+    """A more prominent place two edits away must not outrank the
+    one-edit correction: the corpus case is Bamingui-Bangoran above
+    Bangalore for "Banglore"."""
+    auth_override("test-user-wri")
+    await _seed_reference_aoi(
+        "gadm", "IND.16.3_1", "Bangalore, Karnataka, India", "district-county"
+    )
+    await _seed_reference_aoi(
+        "gadm",
+        "CAF.1_1",
+        "Bangora, Central African Republic",
+        "state-province",
+    )
+    await rebuild_search_tokens()
+
+    res = await client.get("/api/aois?name=Banglore", headers=AUTH)
+    assert [r["src_id"] for r in res.json()] == ["IND.16.3_1"]
+
+
+@pytest.mark.asyncio
+async def test_the_word_cap_is_applied_before_the_token_lookup(
+    auth_override, client, monkeypatch
+):
+    """The cap exists to bound the miss path's cost, so the lookup must not
+    run at all for a long phrase."""
+    from src.shared import aoi_search
+
+    async def forbidden(conn, leaf):
+        raise AssertionError("the token lookup ran for a long phrase")
+
+    monkeypatch.setattr(aoi_search, "_leaf_tokens", forbidden)
+    auth_override("test-user-wri")
+
+    words = "alpha bravo charlie delta echo foxtrot golf"
+    res = await client.get(f"/api/aois?name={words}", headers=AUTH)
+    assert res.status_code == 200, res.text
+    assert res.json() == []
 
 
 @pytest.mark.asyncio
@@ -531,10 +578,6 @@ async def test_correction_is_skipped_for_a_long_phrase(auth_override, client):
     assert res.json() == []
 
 
-async def _rebuild_tokens():
-    await rebuild_search_tokens()
-
-
 @pytest.mark.asyncio
 async def test_correction_prefers_the_closest_spelling(auth_override, client):
     """ "Paolo" is one edit from "paulo"; a nearer-by-trigram junk token must
@@ -585,3 +628,41 @@ async def test_an_extra_generic_word_is_dropped(auth_override, client):
     # The whole phrase is a stored variant, so it is an exact match first.
     res = await client.get("/api/aois?name=Czech Republic", headers=AUTH)
     assert [r["src_id"] for r in res.json()] == ["CZE"]
+
+
+@pytest.mark.asyncio
+async def test_autocomplete_counts_an_aoi_once_however_many_variants_match(
+    auth_override, client
+):
+    """Lisboa has four spellings starting "lis"; they must not crowd the
+    other completions out of a short list."""
+    auth_override("test-user-wri")
+    await _seed_reference_aoi(
+        "gadm",
+        "PRT.12_1",
+        "Lisboa, Portugal",
+        "state-province",
+        variants=["Lisbon", "Lisbonne", "Lissabon"],
+    )
+    await _seed_reference_aoi(
+        "gadm", "COD.13_1", "Lisala, Mongala, Congo", "district-county"
+    )
+
+    res = await _autocomplete(client, "lis", limit=2)
+    assert {r["src_id"] for r in res.json()} == {"PRT.12_1", "COD.13_1"}
+
+
+@pytest.mark.asyncio
+async def test_autocomplete_with_a_partly_typed_hyphenated_parent(
+    auth_override, client
+):
+    auth_override("test-user-wri")
+    await _seed_reference_aoi(
+        "gadm", "FRA.8.3_1", "Paris, Île-de-France, France", "district-county"
+    )
+    await _seed_reference_aoi(
+        "gadm", "USA.43.7_1", "Paris, Texas, United States", "municipality"
+    )
+
+    res = await _autocomplete(client, "paris, ile-de-fr")
+    assert [r["src_id"] for r in res.json()] == ["FRA.8.3_1"]

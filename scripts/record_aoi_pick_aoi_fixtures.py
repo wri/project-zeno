@@ -33,7 +33,12 @@ from src.agent.subagents.pick_aoi.tool import (
 from src.shared import database
 from src.shared.request_context import bound_user_id
 
-OUTPUT = Path("tests/fixtures/aoi_pick_aoi_v2.json")
+OUTPUT = (
+    Path(__file__).resolve().parents[1]
+    / "tests"
+    / "fixtures"
+    / "aoi_pick_aoi_v2.json"
+)
 
 # (place name as the suite passes it, subregion the suite expands it into)
 PLACES = [

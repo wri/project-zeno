@@ -50,9 +50,9 @@ def parse_search_text(name: str) -> SearchText:
 
 
 # The order within a tier: a context hit first (the query named the parent
-# and this row has it), then the hierarchy prior, then a match on the
-# primary name over one on a variant ("Lisbon" is Lisboa before a US
-# preserve called Lisbon, because the prior outranks the primary-name key),
+# and this row has it), then the hierarchy prior, then a match on the leaf
+# over one on a variant ("Lisbon" is Lisboa before a US preserve called
+# Lisbon, because the prior outranks the leaf key),
 # the larger area, and a stable name/id tie-break. Booleans are compared IS
 # TRUE so a NULL leaf or context sorts as false rather than first. Every
 # candidate arm sorts by the same keys, which is what makes a per-arm LIMIT
@@ -90,11 +90,17 @@ _NORMALIZE_LEAF_SQL = f"""
            replace(replace(replace(n, '\\', '\\\\'), '%', '\\%'), '_', '\\_')
              || '%',
            (SELECT array_agg(lexeme ORDER BY positions[1])
-            FROM unnest(to_tsvector('{TS_CONFIG}', :leaf))),
+            FROM unnest(to_tsvector('{TS_CONFIG}', :leaf))
+            WHERE lexeme NOT LIKE '%-%'),
            (SELECT array_agg(lexeme ORDER BY positions[1])
-            FROM unnest(to_tsvector('{TS_CONFIG}', :context)))
+            FROM unnest(to_tsvector('{TS_CONFIG}', :context))
+            WHERE lexeme NOT LIKE '%-%')
     FROM (SELECT {norm_sql(":leaf")} AS n) s
 """
+# The parser emits a hyphenated word twice: as the compound ("ile-de-france")
+# and as its parts. Only the parts are used to build a query: quoting the
+# compound in to_tsquery re-parses it into a phrase that never matches, and
+# the parts alone match the same rows.
 
 SearchMode = Literal["search", "autocomplete"]
 
@@ -331,12 +337,15 @@ def _autocomplete_sql(
     def arm(tier: int, match: str, join: str = "") -> str:
         return _arm(tier, match, filters=filters, order=order, join=join)
 
+    # A semi-join, not a join: an AOI with several variants starting the
+    # same way (Lisboa: Lisbon, Lisbonne, Lissabon) takes one slot of the
+    # arm's k, which is what keeps the per-arm cut exact.
     arms = [
         arm(2, "a.leaf_norm LIKE :leaf_prefix"),
         arm(
             2,
-            "n.name_norm LIKE :leaf_prefix",
-            "JOIN aoi_names n ON n.aoi_id = a.id",
+            "EXISTS (SELECT 1 FROM aoi_names n WHERE n.aoi_id = a.id "
+            "AND n.name_norm LIKE :leaf_prefix)",
         ),
     ]
     if with_tokens:
@@ -390,6 +399,9 @@ _LEAF_TOKENS_SQL = f"""
            COALESCE(own.ndoc, 0),
            array_agg(c.token
                      ORDER BY c.dist, c.prominence DESC, c.ndoc DESC, c.token)
+               FILTER (WHERE c.token IS NOT NULL),
+           array_agg(c.dist
+                     ORDER BY c.dist, c.prominence DESC, c.ndoc DESC, c.token)
                FILTER (WHERE c.token IS NOT NULL)
     FROM unnest(to_tsvector('{TS_CONFIG}', :leaf)) AS t(lexeme, positions, weights)
     LEFT JOIN aoi_search_tokens own ON own.token = t.lexeme
@@ -407,6 +419,7 @@ _LEAF_TOKENS_SQL = f"""
         ORDER BY dist, prominence DESC, ndoc DESC, token
         LIMIT 3
     ) c ON true
+    WHERE t.lexeme NOT LIKE '%-%'
     GROUP BY t.lexeme, own.ndoc
     ORDER BY min((t.positions)[1])
 """
@@ -432,10 +445,22 @@ class _LeafToken:
     lexeme: str
     ndoc: int  # names carrying the word as typed; 0 when none does
     nearest: tuple[str, ...]  # stored tokens by edit distance, self first
+    distances: tuple[int, ...]  # the edit distance of each, same order
+
+    def within(self, max_distance: int) -> tuple[str, ...]:
+        return tuple(
+            token
+            for token, distance in zip(self.nearest, self.distances)
+            if distance <= max_distance
+        )
 
 
 async def _leaf_tokens(conn, leaf: str) -> Optional[list[_LeafToken]]:
-    """Look the words of *leaf* up, or None when there are none or too many."""
+    """Look the words of *leaf* up, or None when there are none.
+
+    The caller has already bounded the word count (``_MAX_MISS_LEXEMES``)
+    from the lexemes it bound, so this lookup never runs over a long phrase.
+    """
     await conn.execute(text(_CORRECTION_THRESHOLD_SQL))
     rows = (
         await conn.execute(
@@ -443,16 +468,19 @@ async def _leaf_tokens(conn, leaf: str) -> Optional[list[_LeafToken]]:
             {"leaf": leaf, "min_chars": _CORRECTION_MIN_CHARS},
         )
     ).all()
-    if not rows or len(rows) > _MAX_MISS_LEXEMES:
+    if not rows:
         return None
     return [
-        _LeafToken(lexeme, ndoc, tuple(nearest or ()))
-        for lexeme, ndoc, nearest in rows
+        _LeafToken(lexeme, ndoc, tuple(nearest or ()), tuple(distances or ()))
+        for lexeme, ndoc, nearest, distances in rows
     ]
 
 
-def _corrected_query(tokens: list[_LeafToken]) -> Optional[str]:
-    """A tsquery over the nearest stored tokens for each word.
+def _corrected_query(
+    tokens: list[_LeafToken], max_distance: Optional[int]
+) -> Optional[str]:
+    """A tsquery over the stored tokens near each word, within
+    *max_distance* edits (None: every neighbour the lookup kept).
 
     Returns None when no word has a neighbour other than itself (the query
     would repeat the one that missed) or when a word of correctable length
@@ -462,16 +490,38 @@ def _corrected_query(tokens: list[_LeafToken]) -> Optional[str]:
     groups = []
     changed = False
     for token in tokens:
-        if token.nearest:
-            groups.append(
-                "(" + " | ".join(map(_tsquery_lexeme, token.nearest)) + ")"
-            )
-            changed |= token.nearest != (token.lexeme,)
+        near = (
+            token.nearest
+            if max_distance is None
+            else token.within(max_distance)
+        )
+        if near:
+            groups.append("(" + " | ".join(map(_tsquery_lexeme, near)) + ")")
+            changed |= near != (token.lexeme,)
         elif len(token.lexeme) < _CORRECTION_MIN_CHARS:
             groups.append(_tsquery_lexeme(token.lexeme))
         else:
             return None
     return " & ".join(groups) if changed else None
+
+
+def _corrected_queries(tokens: list[_LeafToken]) -> list[str]:
+    """The corrected queries to try, nearest first.
+
+    One edit away first, then everything the lookup kept: a two-edit
+    neighbour of a prominent place ("bangora" for "banglore", from
+    Bamingui-Bangoran) must not outrank the one-edit correction
+    ("bangalore") just because the retry ranks by prominence.
+    """
+    queries = [
+        query
+        for query in (
+            _corrected_query(tokens, 1),
+            _corrected_query(tokens, None),
+        )
+        if query
+    ]
+    return list(dict.fromkeys(queries))
 
 
 def _names_a_place(kept: list[_LeafToken]) -> bool:
@@ -600,10 +650,12 @@ async def search_aois(
         hierarchy prior, scaled down on the miss path). ``leaf`` is the
         place's own stored name, which a caller comparing names should use
         rather than splitting ``name`` at its first comma. ``corrected`` is
-        True for a row found only after correcting the spelling or dropping
-        a word, so a caller can treat it as a weaker match. Disputed and
+        True for a row the miss path found, after correcting the spelling or
+        dropping a word, so a caller can treat it as a guess. Disputed and
         deprecated AOIs are excluded, and a custom area appears only for its
-        owner.
+        owner. An empty page is a miss too: paging past the end of a result
+        runs the miss path, which is what lets page two of a corrected
+        result exist.
 
     Raises:
         SearchRequestError: For input the search will not serve: a name over
@@ -644,7 +696,7 @@ async def search_aois(
                     conn, requested, params, leaf_lexemes, context_lexemes
                 )
             result = await _search_with_retries(
-                conn, requested, parsed, params
+                conn, requested, parsed, params, leaf_lexemes
             )
             return result.drop(columns=["context_hit"])
         finally:
@@ -718,7 +770,11 @@ async def _autocomplete(
 
 
 async def _search_with_retries(
-    conn, requested: set[str], parsed: SearchText, params: Dict[str, Any]
+    conn,
+    requested: set[str],
+    parsed: SearchText,
+    params: Dict[str, Any],
+    leaf_lexemes: Optional[list[str]],
 ) -> pd.DataFrame:
     """The query as typed, then the miss path, stopping at the first result
     that answers the query. Each step is one more round trip, only on a
@@ -738,15 +794,18 @@ async def _search_with_retries(
     if _satisfies(fallback, parsed):
         return fallback
 
+    # A phrase of many words is not a place name to correct, and the lookup
+    # costs one trigram query per word: decide before running it.
+    if not leaf_lexemes or len(leaf_lexemes) > _MAX_MISS_LEXEMES:
+        return result
     # Look the words up once, then retry with the spelling corrected and
     # with one word dropped.
     tokens = await _leaf_tokens(conn, parsed.leaf)
     if tokens is None:
         return result
-    retries: list[tuple[str, float]] = []
-    corrected_query = _corrected_query(tokens)
-    if corrected_query:
-        retries.append((corrected_query, _CORRECTED_SCORE_SCALE))
+    retries = [
+        (query, _CORRECTED_SCORE_SCALE) for query in _corrected_queries(tokens)
+    ]
     retries += [
         (query, _PARTIAL_SCORE_SCALE) for query in _reduced_queries(tokens)
     ]

@@ -71,7 +71,7 @@ searchable field. `name` itself, the display string, is unchanged.
 
 | index | serves |
 |---|---|
-| `idx_aois_leaf_norm` btree, `text_pattern_ops`, partial on live rows, INCLUDE (id, subtype, area_km2, name, source, source_id) | exact leaf match and `LIKE 'prefix%'`; the included columns are the ranking keys, so a prefix arm is an index-only scan |
+| `idx_aois_leaf_norm` btree, `text_pattern_ops`, partial on live rows, INCLUDE (id, subtype, area_km2, name, source, source_id) | exact leaf match and `LIKE 'prefix%'`; the included columns are the ranking keys, so a prefix arm is an index-only scan. Built over every live row, 275 MB on the corpus |
 | `idx_aois_name_tsv` GIN, partial on live rows | token queries |
 | `idx_aois_search_tsv` GIN, partial on live rows | the typed-parent test, and the fallback for words spread over name and context |
 | `idx_aoi_names_name_norm` btree, `text_pattern_ops` | exact and prefix over variants |
@@ -128,9 +128,12 @@ the token arm is rerun over `name_tsv`, at most three times, stopping at
 the first result that answers the query:
 
 1. **Corrected spelling**, when some word has a neighbour other than itself:
-   "Bangalor" becomes "bangalore"; "Sao Paolo, Brazil" becomes
-   "sao AND (paulo OR paola OR paolo)" and the Brazil context picks São
-   Paulo. Scores are scaled by 0.8.
+   "Banglore" becomes "bangalore"; "Sao Paolo, Brazil" becomes
+   "sao AND (paulo OR pablo OR paolo)" and the Brazil context picks São
+   Paulo. The one-edit neighbours are tried alone first, then everything
+   the lookup kept, so a two-edit neighbour of a prominent place ("bangora",
+   from Bamingui-Bangoran) cannot outrank the one-edit correction. Scores
+   are scaled by 0.8.
 2. **Last word dropped**, then **first word dropped**: "Serengeti NP" finds
    Serengeti, "Ho Chi Minh City" finds Hồ Chí Minh. Scores are scaled by
    0.6, below a correction, because a small misspelling is a closer reading
@@ -145,7 +148,7 @@ tokens. The lookup costs about 30 ms; a retry costs one token-arm query.
 
 Measured in September 2026 on the same corpus (warm plans, best of three): "Paris"
 11 ms, "Paris, France" 13 ms, "Congo" 8 ms, "Mumbai" 8 ms, "Bangalor" 8 ms
-including the correction, "Botum Sakor National Park" 9 ms, "Puri" 10 ms.
+(a prefix hit), "Banglore" 47 ms including the correction, "Botum Sakor National Park" 9 ms, "Puri" 10 ms.
 A country name, the most common real query, is now the cheapest shape:
 "Indonesia" 10 ms, "United States" 10 ms, "Brazil" 10 ms, because the name
 vector holds the country's own name only. Before the name vector the token
@@ -246,10 +249,16 @@ planned for a later phase.
 
 - **Input caps.** `name` is at most 200 characters and may not contain NUL;
   `offset` is at most 10,000; the miss path runs only for a leaf of at most
-  six distinct words. All are enforced in `search_aois` (the API maps the
-  error to 422; the geocoder trims the model's string first). Without them a
-  long list of real words costs one trigram lookup per word, and a huge
-  offset sorts the whole table on disk.
+  six distinct words, decided from the lexemes before the token lookup runs.
+  All are enforced in `search_aois` (the API maps the error to 422; the
+  geocoder trims the model's string first). Without them a long list of
+  real words costs one trigram lookup per word, and a huge offset sorts the
+  whole table on disk.
+- **Hyphenated words.** The parser emits "Île-de-France" both as one
+  compound lexeme and as its parts. Queries are built from the parts only:
+  quoting the compound in `to_tsquery` re-parses it into a phrase that never
+  matches a stored lexeme, which is what made a partly typed "ile-de-fr"
+  return nothing in autocomplete.
 - **Token table and privacy.** `aoi_search_tokens` is shared by every user,
   so custom-area names stay out of it; a custom area is still found by the
   exact and token tiers, it just gets no typo correction or word dropping.

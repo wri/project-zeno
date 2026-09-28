@@ -1569,9 +1569,8 @@ async def _build_aoi_names(
 
     The alternate names come from the staging columns the source has
     (*columns*, from ``_resolve_search_columns``); the leaf itself lives on
-    ``aois``. Delete-
-    then-insert per source, so a re-ingest that drops a variant drops its
-    row. Staging repeats ids, and a variant can restate the leaf, so the
+    ``aois``. Delete then insert per source, so a re-ingest that drops a
+    variant drops its row. Staging repeats ids, and a variant can restate the leaf, so the
     insert ignores conflicts on the unique key and skips a variant whose
     normalized form equals the leaf's. Runs after the chunked build, in the
     caller's transaction. Returns the number of rows inserted.

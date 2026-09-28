@@ -53,7 +53,8 @@ def test_scoring_rejects_an_unknown_subtype():
 def test_accent_insensitive_scoring_prefers_para_over_parana():
     """The production bug, pinned on the recorded candidate names.
 
-    In tests/fixtures/aoi_pick_aoi_v1.json the DB ranks Paraná (0.733) above
+    In the first recorded fixture (v1, since replaced) the old trigram
+    search ranked Paraná (0.733) above
     Pará (0.714) for the term "Para, Brazil"; the scorer must invert that.
     """
     para = _score_candidate("Para, Brazil", "Pará, Brazil", "state-province")
@@ -86,7 +87,7 @@ def test_hierarchy_separates_identically_named_places():
     assert country > state > site
 
 
-# Verbatim rows from tests/fixtures/aoi_pick_aoi_v1.json for "Para, Brazil",
+# Verbatim rows from the first recorded fixture (v1, since replaced) for "Para, Brazil",
 # in the order the old trigram search returned them — Paraná first, because
 # the accent broke Pará's trigrams. The same four rows and scores are mirrored in
 # tests/agent/test_graph.py; `bbox` is left out because the recording predates

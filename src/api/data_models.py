@@ -196,14 +196,12 @@ class AoiOrm(Base):
     reads the column through the ORM. Every geometry read and write uses raw SQL
     (``src/shared/geocoding_helpers.py``, ``src/shared/aoi_geometry.py``).
 
-    Of the indexes in the migrations, this model declares the partial unique
-    index (a correctness constraint and the upsert target) and the two search
-    indexes. The search indexes are declared so that the ``create_all`` test
-    schema runs the search query on the same plans as production. The other
-    indexes exist only for performance and stay in the migrations:
+    Of the indexes in the migrations, this model declares only the partial
+    unique index (a correctness constraint and the upsert target). The
+    others exist for performance and stay in the migrations:
     ``ceea2a027738`` creates the tables and the first set, ``d4a1c7b93e02``
     adds the browse and subregion-lookup indexes, and ``5b7e2c9a1f40`` adds
-    the search columns and indexes.
+    the search indexes.
 
     ``leaf``, ``leaf_norm``, ``designation``, ``search_tsv`` and ``name_tsv`` are the search
     columns. ``build-aois`` and the custom-area mirror fill them with the
