@@ -15,6 +15,7 @@ from src.agent.agent_config import (
     BASE_PROFILE,
     DEFAULT_PROFILE,
     EXPERIMENTAL_PROFILE,
+    LGMS_PROFILE,
     default_registry,
 )
 
@@ -115,9 +116,25 @@ def test_experimental_profile_manifest():
     )
 
 
+def test_lgms_profile_manifest():
+    # The lgms profile only reveals a dataset: its skills and tools must stay
+    # exactly the default surface.
+    expected = DEFAULT_MANIFEST.replace(
+        "profile: default\nextends: base\n",
+        "profile: lgms\nextends: default\n",
+        1,
+    )
+    assert default_registry.resolve(LGMS_PROFILE).describe() == expected
+
+
 def test_every_production_profile_has_a_manifest_snapshot():
     """A new profile registered without a snapshot here would ship with an
     unreviewed surface."""
-    snapshotted = {BASE_PROFILE, DEFAULT_PROFILE, EXPERIMENTAL_PROFILE}
+    snapshotted = {
+        BASE_PROFILE,
+        DEFAULT_PROFILE,
+        EXPERIMENTAL_PROFILE,
+        LGMS_PROFILE,
+    }
     registered = {config.name for config in default_registry.configs()}
     assert registered == snapshotted
