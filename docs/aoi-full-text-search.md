@@ -207,10 +207,13 @@ returns every namesake where the old one missed most of them:
   Palmas, Spain" reads almost the same against the Canarian and the
   Panamanian Las Palmas; the rank picks Spain. Its exact-leaf bonus is judged
   on the stored `leaf`, not on the name's first comma segment.
-- A pick the search reached only by correcting a spelling or dropping a word
-  ("Kashmir" is not in the corpus; "Bagh-e-Keshmir" is one edit away) is
-  still selected, but the tool message names it as an approximate match and
-  tells the agent to say which place was used and ask whether it was meant.
+- A candidate the search reached only by correcting a spelling or dropping
+  a word is a guess. The scorer docks it, so a row that some spelling
+  matched as written wins a near-tie; and when a guess still comes first
+  the place is reported unmatched with its closest stored names ("Kashmir"
+  is not in the corpus; the message offers "Bagh-e-Keshmir"), so the agent
+  asks rather than maps it. The study behind this: eight of the ten guesses
+  the agent path made on the review corpus were wrong.
 
 The candidate limit stays at 10 per term. With the new ranking the exact
 matches lead the list, so 10 was enough for every eval and tools-suite case,

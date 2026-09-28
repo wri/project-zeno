@@ -962,9 +962,11 @@ async def test_a_country_nudges_against_a_namesake_state_elsewhere(
 
 
 @pytest.mark.asyncio
-async def test_a_pick_reached_by_correction_is_reported_as_approximate(
+async def test_a_pick_reached_only_by_correction_is_offered_not_selected(
     monkeypatch,
 ):
+    """ "Kashmir" is not in the corpus; the search's closest guess is a
+    Persian reserve one edit away. A guess is a question, not a map."""
     _patch_search(
         monkeypatch,
         {
@@ -985,12 +987,54 @@ async def test_a_pick_reached_by_correction_is_reported_as_approximate(
         [ExtractedPlace(place="Kashmir")], question="glaciers in Kashmir"
     )
 
+    assert "aoi_selection" not in command.update
     message = str(command.update["messages"][0].content)
-    assert "Approximate match" in message
-    assert "'Kashmir'" in message and "Bagh-e-Keshmir" in message
-    # The search-only columns stay out of the state.
-    aoi = command.update["aoi_selection"]["aois"][0]
-    assert "leaf" not in aoi and "corrected" not in aoi
+    assert message.startswith("No matching location was found for: Kashmir")
+    assert "closest stored names: Bagh-e-Keshmir" in message
+
+
+@pytest.mark.asyncio
+async def test_a_guessed_place_is_skipped_beside_a_matched_one(monkeypatch):
+    _patch_search(
+        monkeypatch,
+        {
+            "Kenya": [_row("KEN", "Kenya", subtype="country", score=0.8)],
+            "Coral Triangle": [
+                _row(
+                    "AUS.3_1",
+                    "Coral Sea Islands Territory, Australia",
+                    subtype="state-province",
+                    score=0.27,
+                    corrected=True,
+                ),
+                _row(
+                    "9",
+                    "Coral Sea Islands, Coral Sea Islands, AUS",
+                    source="kba",
+                    subtype="key-biodiversity-area",
+                    score=0.2,
+                    corrected=True,
+                ),
+            ],
+        },
+    )
+
+    command = await _lookup(
+        [
+            ExtractedPlace(place="Kenya"),
+            ExtractedPlace(place="Coral Triangle"),
+        ],
+        question="reefs in Kenya and the Coral Triangle",
+    )
+
+    aois = command.update["aoi_selection"]["aois"]
+    assert [a["src_id"] for a in aois] == ["KEN"]
+    message = str(command.update["messages"][0].content)
+    assert "No match found for: Coral Triangle" in message
+    assert (
+        "closest stored names: Coral Sea Islands Territory, Australia; "
+        "Coral Sea Islands, Coral Sea Islands, AUS" in message
+    )
 
 
 @pytest.mark.asyncio

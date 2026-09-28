@@ -302,3 +302,37 @@ def test_leaf_key_ignores_accents_case_and_outer_punctuation():
     assert (
         _first_segment("Kruger National Park, ZAF") == "kruger national park"
     )
+
+
+def test_a_row_from_the_miss_path_loses_a_near_tie():
+    """The real Bialowieza case: the canonical spelling matched the World
+    Heritage Site as written; the place name, narrowed to protected areas,
+    matched nothing and the dropped-word retry offered every national park.
+    The two read almost the same to the string comparison."""
+    rows = pd.DataFrame(
+        [
+            _row(
+                "22490",
+                "Wrangell-St. Elias, National Park, USA",
+                source="wdpa",
+                subtype="protected-area",
+                score=0.27,
+                corrected=True,
+            ),
+            _row(
+                "2008",
+                "Białowieża Forest, World Heritage Site (natural or mixed), POL",
+                source="wdpa",
+                subtype="protected-area",
+                score=0.33,
+            ),
+        ]
+    )
+    terms = ["Bialowieza National Park", "Białowieża"]
+
+    selected = score_best_aoi(rows, terms)
+
+    assert selected is not None and selected.src_id == "2008"
+    # Without the penalty the guess wins: pin that the penalty is what decides.
+    rows["corrected"] = False
+    assert score_best_aoi(rows, terms).src_id == "22490"

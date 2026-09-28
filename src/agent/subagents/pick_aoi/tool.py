@@ -685,9 +685,10 @@ class _PlaceResolution(NamedTuple):
     merged: pd.DataFrame
     primary: pd.DataFrame
     selection: Optional[AOIIndex]
-    # The pick was found only after the search corrected a spelling or
-    # dropped a word: none of the terms matched a stored name as written.
-    corrected: bool = False
+    # When the best candidate was found only after the search corrected a
+    # spelling or dropped a word, the place has no selection; these are the
+    # closest stored names, for the agent to offer rather than pick.
+    closest: list[str] = []
 
 
 async def _resolve_place(
@@ -739,12 +740,47 @@ async def _resolve_place(
         selection = score_best_aoi(merged, terms)
     else:
         selection = await select_best_aoi(question, merged)
-    corrected = False
+    closest: list[str] = []
     if selection is not None:
         row = _selected_row(selection, merged)
-        corrected = bool(row is not None and row.get("corrected", False))
-    return _PlaceResolution(
-        place, terms, merged, primary, selection, corrected
+        if row is not None and bool(row.get("corrected", False)):
+            # A guess is not a selection: hand the names back instead.
+            closest = _closest_names(merged, selection.name)
+            selection = None
+    return _PlaceResolution(place, terms, merged, primary, selection, closest)
+
+
+_CLOSEST_NAMES = 3
+
+
+def _closest_names(candidates: pd.DataFrame, first: str) -> list[str]:
+    """The pick's name, then the next best-ranked distinct names."""
+    names = [first]
+    ranked = candidates.sort_values(
+        "similarity_score", ascending=False, kind="stable"
+    )
+    for name in ranked["name"]:
+        if name not in names:
+            names.append(name)
+        if len(names) == _CLOSEST_NAMES:
+            break
+    return names
+
+
+def _closest_hint(resolutions: Sequence[_PlaceResolution]) -> str:
+    """The sentence that offers the closest names for the unmatched places
+    the search could only guess at; empty when there are none."""
+    parts = [
+        f"'{resolution.place.place}' (closest stored names: "
+        f"{'; '.join(resolution.closest)})"
+        for resolution in resolutions
+        if resolution.selection is None and resolution.closest
+    ]
+    if not parts:
+        return ""
+    return (
+        " No stored name matches " + ", ".join(parts) + " exactly. Ask the "
+        "user whether one of these is meant before selecting it."
     )
 
 
@@ -896,7 +932,8 @@ class Geocoder:
                             "No matching location was found for: "
                             f"{', '.join(unmatched_places)}. Try a broader "
                             "place name (e.g., the country or region) or "
-                            "rephrase the location.",
+                            "rephrase the location."
+                            + _closest_hint(resolutions),
                             tool_call_id=tool_call_id,
                             status="success",
                             response_metadata={"msg_type": "human_feedback"},
@@ -999,27 +1036,11 @@ class Geocoder:
         tool_message = "Selected AOIs:"
         for selected_aoi in final_aois:
             tool_message += f"\n- {selected_aoi.name}"
-        # A pick the search reached only by correcting or shortening the
-        # place name is a guess the user should see, not a silent choice.
-        approximate = [
-            (resolution, selection)
-            for resolution, selection in matched
-            if resolution.corrected
-        ]
-        if approximate:
-            tool_message += "\n\nApproximate match: " + "; ".join(
-                f"no place is named '{resolution.place.place}' exactly, so "
-                f"'{selection.name}' was chosen as the closest name"
-                for resolution, selection in approximate
-            )
-            tool_message += (
-                ". Tell the user which place was used and ask whether it is "
-                "the one they meant."
-            )
         if unmatched_places:
             tool_message += (
                 "\n\nNo match found for: "
                 f"{', '.join(unmatched_places)}. These were skipped."
+                + _closest_hint(resolutions)
             )
 
         logger.debug(f"Pick AOI tool message: {tool_message}")

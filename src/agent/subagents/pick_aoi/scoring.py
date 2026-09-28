@@ -33,6 +33,11 @@ _PREFIX_BONUS = 0.1
 # Spain" reads almost the same against the Canarian and the Panamanian Las
 # Palmas, and only the rank knows which one is in Spain.
 _DB_RANK_WEIGHT = 0.2
+# A row the search reached only by correcting a spelling or dropping a word
+# is a guess. It loses a near-tie against any row a spelling matched as
+# written, and when it still wins the geocoder treats the place as unmatched
+# and offers the name instead of selecting it.
+_CORRECTED_PENALTY = 0.15
 
 # Punctuation that can wrap a name segment. Stored names carry trailing
 # commas ("NA, England, United Kingdom"), and an `aoi_choice` nudge option is
@@ -192,6 +197,10 @@ def best_candidate_row(
         leaves = candidate_aois["leaf"].tolist()
     else:
         leaves = [None] * len(candidate_aois)
+    if "corrected" in candidate_aois.columns:
+        corrected = candidate_aois["corrected"].fillna(False).tolist()
+    else:
+        corrected = [False] * len(candidate_aois)
 
     # Only the columns that scoring and the tie-break read, so no row this
     # function does not select is ever built as a dict.
@@ -202,10 +211,17 @@ def best_candidate_row(
         candidate_aois["src_id"],
         leaves,
         db_ranks,
+        corrected,
     )
-    for position, (name, subtype, source, src_id, leaf, db_rank) in enumerate(
-        scoring_columns
-    ):
+    for position, (
+        name,
+        subtype,
+        source,
+        src_id,
+        leaf,
+        db_rank,
+        guessed,
+    ) in enumerate(scoring_columns):
         hierarchy = _hierarchy_score(subtype)
         candidate = _strip_accents(name)
         candidate_leaf = _candidate_leaf(name, leaf)
@@ -216,6 +232,8 @@ def best_candidate_row(
             )
             for term, term_leaf in term_forms
         ) + _DB_RANK_WEIGHT * float(db_rank)
+        if guessed:
+            score -= _CORRECTED_PENALTY
         # Compare on explicit secondary keys rather than the score alone, so
         # equal scores resolve identically whatever order the rows arrived in.
         key = (-score, name, source, str(src_id))
