@@ -42,5 +42,6 @@ def sentinel2_imagery(**overrides) -> Sentinel2Imagery:
         "mosaic_id": "recipe-token",
         "max_cloud_cover": 20,
         "scenes": scene_summary(),
+        "aoi_names": ["Odzala-Kokoua"],
     }
     return Sentinel2Imagery(**{**defaults, **overrides})

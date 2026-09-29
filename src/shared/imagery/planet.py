@@ -2,7 +2,7 @@ import calendar
 from datetime import date
 from typing import Literal
 
-from src.shared.imagery.contract import LayerPeriod, StrictModel
+from src.shared.imagery.contract import ImageryBase, LayerPeriod
 
 
 class MonthlyPeriod(LayerPeriod):
@@ -13,11 +13,9 @@ class MonthlyPeriod(LayerPeriod):
         return cls(start=start, end=start.replace(day=last_day))
 
 
-class PlanetImagery(StrictModel):
+class PlanetImagery(ImageryBase):
     provider: Literal["planet"] = "planet"
     period: MonthlyPeriod
-    tile_url: str
     bounds: tuple[float, float, float, float]
     min_zoom: int
     max_zoom: int
-    aoi_names: list[str]

@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 from typing import Literal, Optional
 
-from src.shared.imagery.contract import LayerPeriod, StrictModel
+from src.shared.imagery.contract import ImageryBase, LayerPeriod, StrictModel
 
 
 class SearchWindowPeriod(LayerPeriod):
@@ -24,10 +24,9 @@ class SceneSummary(StrictModel):
     max_cloud_cover: float
 
 
-class Sentinel2Imagery(StrictModel):
+class Sentinel2Imagery(ImageryBase):
     provider: Literal["sentinel-2"] = "sentinel-2"
     period: SearchWindowPeriod
-    tile_url: str
     tilejson_url: str
     mosaic_id: str
     max_cloud_cover: int

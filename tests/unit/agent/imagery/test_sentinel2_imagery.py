@@ -41,3 +41,9 @@ def test_sentinel2_imagery_must_say_whether_it_has_a_scene_summary():
 
     with pytest.raises(ValidationError, match="scenes"):
         Sentinel2Imagery.model_validate(imagery)
+
+
+def test_sentinel2_imagery_names_the_areas_it_covers():
+    imagery = sentinel2_imagery(aoi_names=["Odzala-Kokoua", "Nouabalé-Ndoki"])
+
+    assert imagery.aoi_names == ["Odzala-Kokoua", "Nouabalé-Ndoki"]
