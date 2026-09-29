@@ -39,6 +39,7 @@ from src.api.repositories.dashboard_access import (
     is_visible_to_user as dashboard_is_visible_to_user,
 )
 from src.api.repositories.insight_access import is_visible_to_user
+from src.api.services.widget_configs import areas_label
 from src.shared.database import get_session_from_pool
 from src.shared.imagery.wire import from_payload
 from src.shared.logging_config import get_logger
@@ -255,16 +256,16 @@ def _format_map_widget(config: dict) -> Optional[str]:
         return line
     imagery = config.get("imagery")
     if isinstance(imagery, dict):
-        areas = ", ".join(imagery.get("aoi_names") or []) or "?"
         if (contract := from_payload(imagery)) is not None:
             return (
                 f"map: {contract.provider} imagery "
-                f"{contract.period.label()} ({areas})"
+                f"{contract.period.label()} ({areas_label(contract.aoi_names)})"
             )
         provider = imagery.get("provider") or "Sentinel-2"
         return (
             f"map: {provider} imagery around "
-            f"{imagery.get('target_date', '?')} ({areas})"
+            f"{imagery.get('target_date', '?')} "
+            f"({areas_label(imagery.get('aoi_names') or [])})"
         )
     return None
 

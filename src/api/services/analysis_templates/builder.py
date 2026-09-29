@@ -49,7 +49,7 @@ from src.api.services.charts import DETERMINISTIC_GENERATORS
 from src.api.services.charts.curated import build_curated_charts
 from src.api.services.widget_configs import (
     dataset_config,
-    imagery_config,
+    imagery_snapshot,
     widget_config,
 )
 from src.shared.logging_config import get_logger
@@ -222,13 +222,9 @@ async def _build_imagery(
         )
     )
     imagery = result.imagery
-    snapshot = (
-        imagery_config({"imagery": imagery.model_dump()})
-        if imagery is not None
-        else None
-    )
-    if imagery is None or snapshot is None:
+    if imagery is None:
         raise WidgetFailedError(result.message)
+    snapshot = imagery_snapshot(imagery)
     return BuiltWidget(
         widget=SectionWidget(
             widget_type="map", config=widget_config("imagery", snapshot, None)
