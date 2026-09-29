@@ -16,3 +16,8 @@ class SearchWindowPeriod(LayerPeriod):
 
 class SceneSummary(StrictModel):
     item_count: int
+    start_date: date
+    end_date: date
+    mean_cloud_cover: float
+    min_cloud_cover: float
+    max_cloud_cover: float
