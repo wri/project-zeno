@@ -47,11 +47,11 @@ from src.shared.aoi_search import (
     parse_search_text,
     search_aois,
 )
+from src.shared.aoi_search_sql import HIERARCHY_SCORES
 from src.shared.database import get_connection_from_pool
 from src.shared.gadm_admin_types import GadmAdminTerm, resolve_gadm_admin_level
 from src.shared.geocoding_helpers import (
     AOI_SOURCE_ID_COLUMNS,
-    HIERARCHY_SCORES,
     SUBREGION_TO_SUBTYPE_MAPPING,
 )
 from src.shared.logging_config import get_logger
@@ -101,7 +101,8 @@ async def query_aoi_database(
 
     Returns:
         DataFrame with the columns ``src_id, name, subtype, source, bbox,
-        similarity_score``. Disputed and deprecated AOIs are excluded.
+        similarity_score, tier, leaf, corrected, context_hit`` (see
+        ``search_aois``). Disputed and deprecated AOIs are excluded.
     """
     sources = [aoi_to_table[aoi_type]] if aoi_type is not None else None
     user_id = current_user_id()
@@ -306,7 +307,7 @@ async def query_subregion_database(
 
 # Columns the search returns for the selection step only. AOIIndex allows
 # extra fields, so anything left on the row would leak into aoi_selection.
-_SEARCH_ONLY_COLUMNS = {"leaf", "corrected", "context_hit"}
+_SEARCH_ONLY_COLUMNS = {"tier", "leaf", "corrected", "context_hit"}
 
 
 def _aoi_from_row(row: dict) -> AOIIndex:
@@ -408,12 +409,16 @@ async def select_best_aoi(
 
 
 # A same-named place in another country is offered as a choice only when it
-# is about as prominent as the selected one: a country against a state, or a
-# state against a state. The search now returns every namesake, and the
-# districts and municipalities called Scotland or California are not what
-# someone typing those names is asking about. One step of the hierarchy
-# scores is 0.1 between country and state, 0.2 below that.
-_NUDGE_PROMINENCE_MARGIN = 0.1
+# is about as prominent as the selected one: the same subtype, or a state
+# when a country was selected (Georgia, Niger). The search returns every
+# namesake, and the districts and municipalities called Scotland or
+# California are not what someone typing those names is asking about. The
+# margin is the country-to-state step of the hierarchy table, which is
+# smaller than every step below it, so a state is never put against a
+# district.
+_NUDGE_PROMINENCE_MARGIN = (
+    HIERARCHY_SCORES["country"] - HIERARCHY_SCORES["state-province"]
+)
 
 
 def _selected_leaf(selected: AOIIndex, results: pd.DataFrame) -> str:

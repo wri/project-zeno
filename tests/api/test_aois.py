@@ -9,6 +9,8 @@ that search depends on.
 import pytest
 from sqlalchemy import text
 
+from src.shared import aoi_search
+from src.shared.aoi_search_sql import HIERARCHY_SCORES
 from tests.conftest import async_session_maker, rebuild_search_tokens
 from tests.conftest import seed_reference_aoi as _seed_reference_aoi
 
@@ -373,8 +375,14 @@ async def test_a_misspelling_falls_back_to_the_nearest_token(
     res = await client.get("/api/aois?name=Banglore", headers=AUTH)
     assert res.status_code == 200, res.text
     assert [r["src_id"] for r in res.json()] == ["IND.16.3_1"]
-    # Tier 1 (0.275) plus the district prior (0.175), scaled by 0.8.
-    assert res.json()[0]["score"] == pytest.approx(0.36)
+    # A partial match with the district prior, scaled down as a correction.
+    expected = (
+        aoi_search.PARTIAL_TIER
+        / aoi_search.EXACT_TIER
+        * aoi_search._SCORE_TIER_WEIGHT
+        + HIERARCHY_SCORES["district-county"] * aoi_search._SCORE_PRIOR_WEIGHT
+    ) * aoi_search._CORRECTED_SCORE_SCALE
+    assert res.json()[0]["score"] == pytest.approx(expected)
 
 
 @pytest.mark.asyncio
@@ -406,7 +414,6 @@ async def test_the_word_cap_is_applied_before_the_token_lookup(
 ):
     """The cap exists to bound the miss path's cost, so the lookup must not
     run at all for a long phrase."""
-    from src.shared import aoi_search
 
     async def forbidden(conn, leaf):
         raise AssertionError("the token lookup ran for a long phrase")

@@ -9,6 +9,7 @@
     "source",
     "bbox",
     "similarity_score",
+    "tier",
     "leaf",
     "corrected",
     "context_hit"
@@ -26,6 +27,7 @@
       20.188367484
      ],
      "similarity_score": 0.725,
+     "tier": 2,
      "leaf": "Puri",
      "corrected": false,
      "context_hit": false
@@ -42,6 +44,7 @@
       -7.43000604
      ],
      "similarity_score": 0.725,
+     "tier": 2,
      "leaf": "Puri",
      "corrected": false,
      "context_hit": false
@@ -58,6 +61,7 @@
       20.188367484
      ],
      "similarity_score": 0.675,
+     "tier": 2,
      "leaf": "Puri",
      "corrected": false,
      "context_hit": false
@@ -74,6 +78,7 @@
       -7.43000604
      ],
      "similarity_score": 0.675,
+     "tier": 2,
      "leaf": "Puri",
      "corrected": false,
      "context_hit": false
@@ -90,6 +95,7 @@
       -7.481358066
      ],
      "similarity_score": 0.675,
+     "tier": 2,
      "leaf": "Puri",
      "corrected": false,
      "context_hit": false
@@ -106,6 +112,7 @@
       -1.727023257
      ],
      "similarity_score": 0.6375,
+     "tier": 2,
      "leaf": "Puri",
      "corrected": false,
      "context_hit": false
@@ -122,6 +129,7 @@
       -7.527561201
      ],
      "similarity_score": 0.6375,
+     "tier": 2,
      "leaf": "Puri",
      "corrected": false,
      "context_hit": false
@@ -138,6 +146,7 @@
       -6.744514003
      ],
      "similarity_score": 0.6375,
+     "tier": 2,
      "leaf": "Puri",
      "corrected": false,
      "context_hit": false
@@ -154,6 +163,7 @@
       21.109957929
      ],
      "similarity_score": 0.45,
+     "tier": 1,
      "leaf": "Purísima del Rincón",
      "corrected": false,
      "context_hit": false
@@ -170,6 +180,7 @@
       4.009825217
      ],
      "similarity_score": 0.45,
+     "tier": 1,
      "leaf": "Purificación",
      "corrected": false,
      "context_hit": false
@@ -184,6 +195,7 @@
     "source",
     "bbox",
     "similarity_score",
+    "tier",
     "leaf",
     "corrected",
     "context_hit"
@@ -201,6 +213,7 @@
       1.681845
      ],
      "similarity_score": 0.8,
+     "tier": 2,
      "leaf": "Ecuador",
      "corrected": false,
      "context_hit": false
@@ -217,6 +230,7 @@
       0.8607990474
      ],
      "similarity_score": 0.325,
+     "tier": 1,
      "leaf": "Corredor Marino Costero de Ecuador",
      "corrected": false,
      "context_hit": false
@@ -233,6 +247,7 @@
       -4.6063350234
      ],
      "similarity_score": 0.325,
+     "tier": 1,
      "leaf": "Estribaciones surorientales fronterizas del Ecuador",
      "corrected": false,
      "context_hit": false
@@ -247,6 +262,7 @@
     "source",
     "bbox",
     "similarity_score",
+    "tier",
     "leaf",
     "corrected",
     "context_hit"
@@ -264,6 +280,7 @@
       -9.670912913
      ],
      "similarity_score": 0.8,
+     "tier": 2,
      "leaf": "Bolivia",
      "corrected": false,
      "context_hit": false
@@ -280,6 +297,7 @@
       22.267373
      ],
      "similarity_score": 0.725,
+     "tier": 2,
      "leaf": "Bolivia",
      "corrected": false,
      "context_hit": false
@@ -296,6 +314,7 @@
       1.827016
      ],
      "similarity_score": 0.6,
+     "tier": 2,
      "leaf": "Bolivia",
      "corrected": false,
      "context_hit": false
@@ -312,6 +331,7 @@
       -18.0719146
      ],
      "similarity_score": 0.325,
+     "tier": 1,
      "leaf": "Jardín de Cactáceas de Bolivia",
      "corrected": false,
      "context_hit": false
@@ -328,6 +348,7 @@
       -21.628229
      ],
      "similarity_score": 0.325,
+     "tier": 1,
      "leaf": "Área De Proteção Ambiental Da Serra Da Bolívia",
      "corrected": false,
      "context_hit": false
@@ -344,6 +365,7 @@
       -29.3165824
      ],
      "similarity_score": 0.325,
+     "tier": 1,
      "leaf": "Bolivia Hill",
      "corrected": false,
      "context_hit": false
@@ -360,6 +382,7 @@
       -21.64781
      ],
      "similarity_score": 0.325,
+     "tier": 1,
      "leaf": "Monumento Natural Municipal Da Serra Da Bolívia",
      "corrected": false,
      "context_hit": false
@@ -374,6 +397,7 @@
     "source",
     "bbox",
     "similarity_score",
+    "tier",
     "leaf",
     "corrected",
     "context_hit"
@@ -391,6 +415,7 @@
       2.632489906
      ],
      "similarity_score": 0.975,
+     "tier": 2,
      "leaf": "Pará",
      "corrected": false,
      "context_hit": true
@@ -407,6 +432,7 @@
       5.703005776
      ],
      "similarity_score": 0.775,
+     "tier": 2,
      "leaf": "Para",
      "corrected": false,
      "context_hit": false
@@ -423,6 +449,7 @@
       10.016140144
      ],
      "similarity_score": 0.675,
+     "tier": 2,
      "leaf": "Pará",
      "corrected": false,
      "context_hit": false
@@ -439,6 +466,7 @@
       3.080551863
      ],
      "similarity_score": 0.6375,
+     "tier": 2,
      "leaf": "Para",
      "corrected": false,
      "context_hit": false
@@ -455,6 +483,7 @@
       -14.7689812
      ],
      "similarity_score": 0.6,
+     "tier": 2,
      "leaf": "Para",
      "corrected": false,
      "context_hit": false
@@ -471,6 +500,7 @@
       -22.516285164
      ],
      "similarity_score": 0.7,
+     "tier": 1,
      "leaf": "Paraná",
      "corrected": false,
      "context_hit": true
@@ -487,6 +517,7 @@
       -6.025901906
      ],
      "similarity_score": 0.7,
+     "tier": 1,
      "leaf": "Paraíba",
      "corrected": false,
      "context_hit": true
@@ -503,6 +534,7 @@
       -11.948613705
      ],
      "similarity_score": 0.65,
+     "tier": 1,
      "leaf": "Paranatinga",
      "corrected": false,
      "context_hit": true
@@ -519,6 +551,7 @@
       -2.410535975
      ],
      "similarity_score": 0.65,
+     "tier": 1,
      "leaf": "Paragominas",
      "corrected": false,
      "context_hit": true
@@ -535,6 +568,7 @@
       -2.299787283
      ],
      "similarity_score": 0.65,
+     "tier": 1,
      "leaf": "Ipixuna do Pará",
      "corrected": false,
      "context_hit": true
@@ -549,6 +583,7 @@
     "source",
     "bbox",
     "similarity_score",
+    "tier",
     "leaf",
     "corrected",
     "context_hit"
@@ -566,6 +601,7 @@
       6.076951
      ],
      "similarity_score": 0.8,
+     "tier": 2,
      "leaf": "Indonesia",
      "corrected": false,
      "context_hit": false
@@ -582,6 +618,7 @@
       2.898325431
      ],
      "similarity_score": 0.3625,
+     "tier": 1,
      "leaf": "Jambur Indonesia",
      "corrected": false,
      "context_hit": false
@@ -598,6 +635,7 @@
       0.687198807
      ],
      "similarity_score": 0.3625,
+     "tier": 1,
      "leaf": "Indonesiana",
      "corrected": false,
      "context_hit": false
@@ -612,6 +650,7 @@
     "source",
     "bbox",
     "similarity_score",
+    "tier",
     "leaf",
     "corrected",
     "context_hit"
@@ -629,6 +668,7 @@
       40.41613625
      ],
      "similarity_score": 0.975,
+     "tier": 2,
      "leaf": "Castelo Branco",
      "corrected": false,
      "context_hit": true
@@ -645,6 +685,7 @@
       40.083654868
      ],
      "similarity_score": 0.925,
+     "tier": 2,
      "leaf": "Castelo Branco",
      "corrected": false,
      "context_hit": true
@@ -661,6 +702,7 @@
       39.909354
      ],
      "similarity_score": 0.875,
+     "tier": 2,
      "leaf": "Castelo Branco",
      "corrected": false,
      "context_hit": true
@@ -677,6 +719,7 @@
       41.296175466
      ],
      "similarity_score": 0.875,
+     "tier": 2,
      "leaf": "Castelo Branco",
      "corrected": false,
      "context_hit": true
@@ -693,6 +736,7 @@
       38.577944266
      ],
      "similarity_score": 0.875,
+     "tier": 2,
      "leaf": "Castelo Branco",
      "corrected": false,
      "context_hit": true
@@ -709,6 +753,7 @@
       38.5295192
      ],
      "similarity_score": 0.8,
+     "tier": 2,
      "leaf": "Castelo Branco",
      "corrected": false,
      "context_hit": true
@@ -725,6 +770,7 @@
       38.5678836
      ],
      "similarity_score": 0.525,
+     "tier": 1,
      "leaf": "Varadouro-Castelo Branco",
      "corrected": false,
      "context_hit": true
@@ -741,6 +787,7 @@
       38.5294272
      ],
      "similarity_score": 0.525,
+     "tier": 1,
      "leaf": "Morro de Castelo Branco - Ilha do Faial",
      "corrected": false,
      "context_hit": true
@@ -757,6 +804,7 @@
       38.525625
      ],
      "similarity_score": 0.525,
+     "tier": 1,
      "leaf": "Morro do Castelo Branco",
      "corrected": false,
      "context_hit": true
@@ -773,6 +821,7 @@
       -23.177770957
      ],
      "similarity_score": 0.45,
+     "tier": 1,
      "leaf": "Presidente Castelo Branco",
      "corrected": false,
      "context_hit": false
@@ -787,6 +836,7 @@
     "source",
     "bbox",
     "similarity_score",
+    "tier",
     "leaf",
     "corrected",
     "context_hit"
@@ -804,6 +854,7 @@
       39.31773995
      ],
      "similarity_score": 0.775,
+     "tier": 2,
      "leaf": "Lisboa",
      "corrected": false,
      "context_hit": false
@@ -820,6 +871,7 @@
       44.7074365
      ],
      "similarity_score": 0.6,
+     "tier": 2,
      "leaf": "Lisbon",
      "corrected": false,
      "context_hit": false
@@ -836,6 +888,7 @@
       44.8847359
      ],
      "similarity_score": 0.6,
+     "tier": 2,
      "leaf": "Lisbon",
      "corrected": false,
      "context_hit": false
@@ -852,6 +905,7 @@
       43.9867135
      ],
      "similarity_score": 0.325,
+     "tier": 1,
      "leaf": "Lisbon Island",
      "corrected": false,
      "context_hit": false
@@ -866,6 +920,7 @@
     "source",
     "bbox",
     "similarity_score",
+    "tier",
     "leaf",
     "corrected",
     "context_hit"
@@ -883,6 +938,7 @@
       -3.664035
      ],
      "similarity_score": 0.6,
+     "tier": 2,
      "leaf": "Resex Catuá-Ipixuna",
      "corrected": false,
      "context_hit": false
@@ -897,6 +953,7 @@
     "source",
     "bbox",
     "similarity_score",
+    "tier",
     "leaf",
     "corrected",
     "context_hit"
@@ -914,6 +971,7 @@
       30.3867781
      ],
      "similarity_score": 0.8,
+     "tier": 2,
      "leaf": "Osceola",
      "corrected": false,
      "context_hit": true
@@ -930,6 +988,7 @@
       28.347929465
      ],
      "similarity_score": 0.725,
+     "tier": 2,
      "leaf": "Osceola",
      "corrected": false,
      "context_hit": false
@@ -946,6 +1005,7 @@
       44.165979848
      ],
      "similarity_score": 0.725,
+     "tier": 2,
      "leaf": "Osceola",
      "corrected": false,
      "context_hit": false
@@ -962,6 +1022,7 @@
       43.503908621
      ],
      "similarity_score": 0.725,
+     "tier": 2,
      "leaf": "Osceola",
      "corrected": false,
      "context_hit": false
@@ -978,6 +1039,7 @@
       43.5629815
      ],
      "similarity_score": 0.6,
+     "tier": 2,
      "leaf": "Osceola",
      "corrected": false,
      "context_hit": false
@@ -994,6 +1056,7 @@
       28.192500232
      ],
      "similarity_score": 0.325,
+     "tier": 1,
      "leaf": "Osceola Flatwoods and Prairies",
      "corrected": false,
      "context_hit": false
@@ -1010,6 +1073,7 @@
       44.3858973
      ],
      "similarity_score": 0.325,
+     "tier": 1,
      "leaf": "Osceola-Missaukee Grasslands State",
      "corrected": false,
      "context_hit": false
@@ -1026,6 +1090,7 @@
       43.5716755
      ],
      "similarity_score": 0.325,
+     "tier": 1,
      "leaf": "Osceola State",
      "corrected": false,
      "context_hit": false
@@ -1042,6 +1107,7 @@
       43.5198391
      ],
      "similarity_score": 0.325,
+     "tier": 1,
      "leaf": "West Osceola",
      "corrected": false,
      "context_hit": false
@@ -1058,6 +1124,7 @@
       28.0409281
      ],
      "similarity_score": 0.325,
+     "tier": 1,
      "leaf": "Agricultural Conservation Easement Program - Wetland Reserve Easements (ACEP-WRE), Osceola, FL",
      "corrected": false,
      "context_hit": false
@@ -1072,6 +1139,7 @@
     "source",
     "bbox",
     "similarity_score",
+    "tier",
     "leaf",
     "corrected",
     "context_hit"
@@ -1089,6 +1157,7 @@
       81.856257
      ],
      "similarity_score": 0.8,
+     "tier": 2,
      "leaf": "Russia",
      "corrected": false,
      "context_hit": false
@@ -1105,6 +1174,7 @@
       41.3682038
      ],
      "similarity_score": 0.325,
+     "tier": 1,
      "leaf": "Russian",
      "corrected": false,
      "context_hit": false
@@ -1121,6 +1191,7 @@
       37.3414409
      ],
      "similarity_score": 0.325,
+     "tier": 1,
      "leaf": "Russian Ridge Open Spac",
      "corrected": false,
      "context_hit": false
@@ -1137,6 +1208,7 @@
       38.4526777
      ],
      "similarity_score": 0.325,
+     "tier": 1,
      "leaf": "Russian River State Marine Recreational Manag Recreation",
      "corrected": false,
      "context_hit": false
@@ -1153,6 +1225,7 @@
       38.4562107
      ],
      "similarity_score": 0.325,
+     "tier": 1,
      "leaf": "Russian River State Marine Conservation Area",
      "corrected": false,
      "context_hit": false
@@ -1169,6 +1242,7 @@
       39.3315579
      ],
      "similarity_score": 0.325,
+     "tier": 1,
      "leaf": "Russian Gulch State Marine Conservation Area",
      "corrected": false,
      "context_hit": false
@@ -1185,6 +1259,7 @@
       51.5053931
      ],
      "similarity_score": 0.325,
+     "tier": 1,
      "leaf": "Russia Dock Woodland",
      "corrected": false,
      "context_hit": false
@@ -1199,6 +1274,7 @@
     "source",
     "bbox",
     "similarity_score",
+    "tier",
     "leaf",
     "corrected",
     "context_hit"
@@ -1216,6 +1292,7 @@
       35.008890616
      ],
      "similarity_score": 0.775,
+     "tier": 2,
      "leaf": "Alabama",
      "corrected": false,
      "context_hit": false
@@ -1232,6 +1309,7 @@
       34.861254
      ],
      "similarity_score": 0.525,
+     "tier": 1,
      "leaf": "Georgia-Alabama Land Trust Easement #566",
      "corrected": false,
      "context_hit": true
@@ -1248,6 +1326,7 @@
       34.3907814
      ],
      "similarity_score": 0.525,
+     "tier": 1,
      "leaf": "Sipsey Fork West Fork, Alabama",
      "corrected": false,
      "context_hit": true
@@ -1264,6 +1343,7 @@
       31.501891
      ],
      "similarity_score": 0.525,
+     "tier": 1,
      "leaf": "Georgia-Alabama Land Trust Easement #173",
      "corrected": false,
      "context_hit": true
@@ -1280,6 +1360,7 @@
       33.2679389
      ],
      "similarity_score": 0.525,
+     "tier": 1,
      "leaf": "Georgia-Alabama Land Trust Easement #871",
      "corrected": false,
      "context_hit": true
@@ -1296,6 +1377,7 @@
       30.7493238
      ],
      "similarity_score": 0.525,
+     "tier": 1,
      "leaf": "Alabama and Coushatta",
      "corrected": false,
      "context_hit": true
@@ -1312,6 +1394,7 @@
       33.2584868
      ],
      "similarity_score": 0.525,
+     "tier": 1,
      "leaf": "Georgia-Alabama Land Trust Easement #872",
      "corrected": false,
      "context_hit": true
@@ -1328,6 +1411,7 @@
       31.7656477
      ],
      "similarity_score": 0.525,
+     "tier": 1,
      "leaf": "Georgia-Alabama Land Trust Easement #777",
      "corrected": false,
      "context_hit": true
@@ -1344,6 +1428,7 @@
       32.5375301
      ],
      "similarity_score": 0.525,
+     "tier": 1,
      "leaf": "Georgia-Alabama Land Trust Easement #779",
      "corrected": false,
      "context_hit": true
@@ -1360,6 +1445,7 @@
       31.1676012
      ],
      "similarity_score": 0.525,
+     "tier": 1,
      "leaf": "Georgia-Alabama Land Trust Easement #783",
      "corrected": false,
      "context_hit": true
@@ -1374,6 +1460,7 @@
     "source",
     "bbox",
     "similarity_score",
+    "tier",
     "leaf",
     "corrected",
     "context_hit"
@@ -1391,6 +1478,7 @@
       5.264887796
      ],
      "similarity_score": 0.8,
+     "tier": 2,
      "leaf": "Brazil",
      "corrected": false,
      "context_hit": false
@@ -1407,6 +1495,7 @@
       -3.7928084
      ],
      "similarity_score": 0.325,
+     "tier": 1,
      "leaf": "Brazilian Atlantic Islands: Fernando de Noronha and Atol das Rocas Reserves",
      "corrected": false,
      "context_hit": false
@@ -1423,6 +1512,7 @@
       37.8806275
      ],
      "similarity_score": 0.325,
+     "tier": 1,
      "leaf": "Brazil-Van Ryn Farm",
      "corrected": false,
      "context_hit": false
@@ -1439,6 +1529,7 @@
       50.8491833
      ],
      "similarity_score": 0.325,
+     "tier": 1,
      "leaf": "Brazilka",
      "corrected": false,
      "context_hit": false

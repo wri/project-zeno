@@ -14,6 +14,7 @@ from src.agent.subagents.pick_aoi.scoring import (
     leaf_key,
 )
 from src.agent.subagents.pick_aoi.tool import score_best_aoi
+from src.shared.aoi_search import EXACT_TIER, PARTIAL_TIER
 from src.shared.geocoding_helpers import WORLD_BBOX
 from tests.unit.agent.tools.pick_aoi.conftest import _row
 
@@ -217,30 +218,27 @@ def test_selected_aoi_keeps_the_state_shape_of_an_aoi_selection_entry():
     assert selected.bbox == WORLD_BBOX
 
 
-def test_the_search_rank_breaks_a_near_tie_on_the_name():
-    """ "Las Palmas, Spain" reads almost the same against the Canarian and the
-    Panamanian Las Palmas; the search's rank knows which one matched the
-    typed parent, and the scorer weighs it."""
+def test_a_stored_name_match_breaks_a_tie_the_string_comparison_cannot():
+    """Two rows read the same; only the search knows that one of them
+    matched a stored name (a variant) exactly. Without that tier the
+    deterministic tie-break picks the other."""
     rows = pd.DataFrame(
         [
+            _row("B", "Springfield, Country B", subtype="state-province"),
             _row(
-                "PAN.13.5_1",
-                "Las Palmas, Veraguas, Panama",
-                subtype="district-county",
-                score=0.725,
-            ),
-            _row(
-                "ESP.14.1_1",
-                "Las Palmas, Islas Canarias, Spain",
-                subtype="district-county",
-                score=0.925,
+                "A",
+                "Springfield, Country A",
+                subtype="state-province",
+                tier=EXACT_TIER,
             ),
         ]
     )
 
-    selected = score_best_aoi(rows, ["Las Palmas, Spain"])
-
-    assert selected is not None and selected.src_id == "ESP.14.1_1"
+    assert score_best_aoi(rows, ["Springfield"]).src_id == "A"
+    rows["tier"] = PARTIAL_TIER
+    assert score_best_aoi(rows, ["Springfield"]).src_id == "A"
+    rows.loc[rows.src_id == "B", "tier"] = EXACT_TIER
+    assert score_best_aoi(rows, ["Springfield"]).src_id == "B"
 
 
 def test_a_frame_without_a_search_rank_still_scores():
@@ -342,7 +340,7 @@ def test_a_row_from_the_miss_path_loses_a_near_tie():
 def test_a_typed_parent_beats_a_more_prominent_namesake():
     """ "Victoria, Canada": the Canadian county carries the parent; the
     Australian state reads almost the same and sits a hierarchy step higher.
-    The search's rank alone (a fifth of the score) did not save the county."""
+    The parent bonus has to outweigh that step."""
     rows = pd.DataFrame(
         [
             _row(

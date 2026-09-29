@@ -205,15 +205,14 @@ returns every namesake where the old one missed most of them:
   still are. The options list obeys the same floor. A selected country now
   nudges against a same-named state elsewhere (Georgia, Niger); before, a
   country never nudged because the check keyed on a dotted GADM id.
-- The deterministic scorer adds a fifth of the search's own rank to its
-  name comparison. The rank knows what the string comparison cannot: that a
-  row matched a stored name exactly and that the typed parent matched. "Las
-  Palmas, Spain" reads almost the same against the Canarian and the
-  Panamanian Las Palmas; the rank picks Spain. A typed parent also gets its
-  own bonus from the search's `context_hit` column, because the rank alone
-  is worth less than one hierarchy step: "Victoria, Canada" otherwise picked
-  the Australian state over the Canadian county. Its exact-leaf bonus is
-  judged on the stored `leaf`, not on the name's first comma segment.
+- The deterministic scorer adds what the search knew about a row to its
+  name comparison, from the `tier`, `context_hit` and `corrected` columns:
+  a bonus for a row that matched a stored name exactly (a variant, which the
+  string comparison cannot see), a larger one for a row that has the parent
+  the user typed, worth more than one hierarchy step because "Victoria,
+  Canada" otherwise picked the Australian state over the Canadian county,
+  and a penalty for a guess. Its exact-leaf bonus is judged on the stored
+  `leaf`, not on the name's first comma segment.
 - A candidate the search reached only by correcting a spelling or dropping
   a word is a guess. The scorer docks it, so a row that some spelling
   matched as written wins a near-tie; and when a guess still comes first

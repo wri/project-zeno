@@ -160,6 +160,24 @@ def _arm(
     )
 
 
+# The match tiers. A row keeps the best tier any arm gave it.
+EXACT_TIER = 2  # the leaf, or a stored name variant, equals the query
+PARTIAL_TIER = 1  # the query's tokens are in the name, or it is a prefix
+
+# The rank a search returns as ``similarity_score``. It is a summary of the
+# sort keys for callers that need one number (the API's ``score``, the
+# geocoder's multi-term merge), not the sort key itself: the ORDER BY also
+# breaks ties on an exact leaf and on area, which the score leaves out, so
+# two rows with equal scores can come back in either order. The weights sum
+# to 1 so the score stays in [0, 1], and keep the precedence of the sort:
+# tier, then a context hit, then the prior.
+_SCORE_TIER_WEIGHT = 0.55
+_SCORE_CONTEXT_WEIGHT = 0.2
+_SCORE_PRIOR_WEIGHT = 0.25
+# Autocomplete has no context term: a typed parent filters, it does not rank.
+_AUTOCOMPLETE_TIER_WEIGHT = 0.5
+_AUTOCOMPLETE_PRIOR_WEIGHT = 0.5
+
 # The columns every result carries, in the order callers and the recorded
 # replay fixtures know them (a score and the search-only columns follow).
 _RESULT_COLUMNS = """
@@ -198,6 +216,7 @@ def _tiered_statement(
         best AS (SELECT id, max(tier) AS tier FROM cand GROUP BY id)
         SELECT {_RESULT_COLUMNS},
             {score} AS similarity_score,
+            b.tier,
             a.leaf,
             {corrected} AS corrected{extra_columns}
         FROM best b
@@ -243,17 +262,17 @@ def _search_sql(
     arms = []
     if stage == "typed":
         # The leaf from the covering index, then the variants table.
-        arms.append(arm(2, "a.leaf_norm = :leaf_norm"))
+        arms.append(arm(EXACT_TIER, "a.leaf_norm = :leaf_norm"))
         arms.append(
             arm(
-                2,
+                EXACT_TIER,
                 "n.name_norm = :leaf_norm",
                 "JOIN aoi_names n ON n.aoi_id = a.id",
             )
         )
-    arms.append(arm(1, f"{vector} @@ q.lq"))
+    arms.append(arm(PARTIAL_TIER, f"{vector} @@ q.lq"))
     if stage == "typed":
-        arms.append(arm(1, "a.leaf_norm LIKE :leaf_prefix"))
+        arms.append(arm(PARTIAL_TIER, "a.leaf_norm LIKE :leaf_prefix"))
 
     return _tiered_statement(
         queries=f"""
@@ -263,9 +282,9 @@ def _search_sql(
                 END AS cq""",
         arms=arms,
         score=f"""round(
-                ((b.tier / 2.0) * 0.55
-                 + ({context_hit})::int * 0.2
-                 + {prior} * 0.25) * :scale, 4
+                ((b.tier / {EXACT_TIER}.0) * {_SCORE_TIER_WEIGHT}
+                 + ({context_hit})::int * {_SCORE_CONTEXT_WEIGHT}
+                 + {prior} * {_SCORE_PRIOR_WEIGHT}) * :scale, 4
             )::double precision""",
         corrected=str(stage == "retry").lower(),
         extra_columns=f",\n            {context_hit} AS context_hit",
@@ -341,15 +360,15 @@ def _autocomplete_sql(
     # same way (Lisboa: Lisbon, Lisbonne, Lissabon) takes one slot of the
     # arm's k, which is what keeps the per-arm cut exact.
     arms = [
-        arm(2, "a.leaf_norm LIKE :leaf_prefix"),
+        arm(EXACT_TIER, "a.leaf_norm LIKE :leaf_prefix"),
         arm(
-            2,
+            EXACT_TIER,
             "EXISTS (SELECT 1 FROM aoi_names n WHERE n.aoi_id = a.id "
             "AND n.name_norm LIKE :leaf_prefix)",
         ),
     ]
     if with_tokens:
-        arms.append(arm(1, "a.name_tsv @@ q.lq"))
+        arms.append(arm(PARTIAL_TIER, "a.name_tsv @@ q.lq"))
 
     return _tiered_statement(
         queries=f"""
@@ -361,7 +380,8 @@ def _autocomplete_sql(
                 END AS cq""",
         arms=arms,
         score=f"""round(
-                (b.tier / 2.0) * 0.5 + {prior} * 0.5, 4
+                (b.tier / {EXACT_TIER}.0) * {_AUTOCOMPLETE_TIER_WEIGHT}
+                + {prior} * {_AUTOCOMPLETE_PRIOR_WEIGHT}, 4
             )::double precision""",
         corrected="false",
         extra_columns=",\n            false AS context_hit",
@@ -372,6 +392,7 @@ def _autocomplete_sql(
 
 _BROWSE_SQL = f"""
     SELECT {_RESULT_COLUMNS},
+        NULL::int AS tier,
         a.leaf,
         false AS corrected,
         false AS context_hit
@@ -392,9 +413,19 @@ _BROWSE_SQL = f"""
 # best-known place carrying the token ("paolo" is São Paulo's "paulo" before
 # a village's "palo"), then by how many names carry it; and only at a
 # distance small for the word ("kashmir" is not "kashmore"). Words under
-# three letters have too few trigrams to correct and pass through unchanged.
-# The threshold is set for the transaction only.
+# ``_CORRECTION_MIN_CHARS`` have too few trigrams to correct and pass
+# through unchanged.
 _CORRECTION_MIN_CHARS = 3
+# pg_trgm's similarity gate for a stored token to count as a neighbour at
+# all; set for the transaction only.
+_CORRECTION_TRGM_THRESHOLD = 0.3
+# Neighbours kept per word, and the edit budget: one edit per this many
+# letters of the word, and at least one.
+_CORRECTION_NEAREST = 3
+_CORRECTION_CHARS_PER_EDIT = 4
+# levenshtein() refuses input over 255 characters, so a longer token or word
+# is left out instead of failing the lookup.
+_LEVENSHTEIN_MAX_CHARS = 255
 _LEAF_TOKENS_SQL = f"""
     SELECT t.lexeme,
            COALESCE(own.ndoc, 0),
@@ -410,21 +441,24 @@ _LEAF_TOKENS_SQL = f"""
         SELECT token, ndoc, prominence, dist
         FROM (
             SELECT token, ndoc, prominence,
-                   CASE WHEN length(token) <= 255
+                   CASE WHEN length(token) <= :max_chars
                         THEN levenshtein(token, t.lexeme) END AS dist
             FROM aoi_search_tokens
-            WHERE length(t.lexeme) BETWEEN :min_chars AND 255
+            WHERE length(t.lexeme) BETWEEN :min_chars AND :max_chars
               AND token % t.lexeme
         ) s
-        WHERE dist <= greatest(1, length(t.lexeme) / 4)
+        WHERE dist <= greatest(1, length(t.lexeme) / :chars_per_edit)
         ORDER BY dist, prominence DESC, ndoc DESC, token
-        LIMIT 3
+        LIMIT :nearest
     ) c ON true
     WHERE t.lexeme NOT LIKE '%-%'
     GROUP BY t.lexeme, own.ndoc
     ORDER BY min((t.positions)[1])
 """
-_CORRECTION_THRESHOLD_SQL = "SET LOCAL pg_trgm.similarity_threshold = 0.3"
+# set_config with is_local, the parameterised form of SET LOCAL.
+_CORRECTION_THRESHOLD_SQL = (
+    "SELECT set_config('pg_trgm.similarity_threshold', :threshold, true)"
+)
 # A word in more names than this ("new", "park", "sao", "republic") does not
 # name a place on its own, so a retry that keeps only such words is skipped.
 _COMMON_TOKEN_NDOC = 1000
@@ -462,11 +496,20 @@ async def _leaf_tokens(conn, leaf: str) -> Optional[list[_LeafToken]]:
     The caller has already bounded the word count (``_MAX_MISS_LEXEMES``)
     from the lexemes it bound, so this lookup never runs over a long phrase.
     """
-    await conn.execute(text(_CORRECTION_THRESHOLD_SQL))
+    await conn.execute(
+        text(_CORRECTION_THRESHOLD_SQL),
+        {"threshold": str(_CORRECTION_TRGM_THRESHOLD)},
+    )
     rows = (
         await conn.execute(
             text(_LEAF_TOKENS_SQL),
-            {"leaf": leaf, "min_chars": _CORRECTION_MIN_CHARS},
+            {
+                "leaf": leaf,
+                "min_chars": _CORRECTION_MIN_CHARS,
+                "max_chars": _LEVENSHTEIN_MAX_CHARS,
+                "chars_per_edit": _CORRECTION_CHARS_PER_EDIT,
+                "nearest": _CORRECTION_NEAREST,
+            },
         )
     ).all()
     if not rows:
@@ -645,10 +688,16 @@ async def search_aois(
             corrects a typo.
 
     Returns:
-        DataFrame with columns ``src_id, name, subtype, source, bbox, leaf,
-        corrected, context_hit`` (plus ``similarity_score`` in [0, 1] when
-        searching by name: the match tier, whether the query's parent
-        matched, and the hierarchy prior, scaled down on the miss path).
+        DataFrame with columns ``src_id, name, subtype, source, bbox, tier,
+        leaf, corrected, context_hit`` (plus ``similarity_score`` when
+        searching by name). ``tier`` is ``EXACT_TIER`` for a row whose leaf
+        or a stored variant equals the query, ``PARTIAL_TIER`` for a token
+        or prefix match, and null when browsing. ``similarity_score`` in
+        [0, 1] summarises the rank (the tier, whether the query's parent
+        matched, and the hierarchy prior, scaled down on the miss path) for
+        callers that need one number; it is not the sort key, which also
+        breaks ties on an exact leaf and on area, so rows with equal scores
+        can come back in either order.
         ``leaf`` is the place's own stored name, which a caller comparing
         names should use rather than splitting ``name`` at its first comma.
         ``corrected`` is True for a row the miss path found, after correcting

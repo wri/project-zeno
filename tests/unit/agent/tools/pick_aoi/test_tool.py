@@ -13,6 +13,7 @@ from src.agent.subagents.pick_aoi.tool import (
 )
 from src.agent.subagents.pick_aoi.types import AreaOfInterestType
 from src.shared import geocoding_helpers
+from src.shared.aoi_search import EXACT_TIER
 from src.shared.geocoding_helpers import fetch_aoi_bbox
 from tests.unit.agent.tools.pick_aoi.conftest import (
     _lookup,
@@ -910,19 +911,15 @@ async def test_a_countrys_own_rows_are_not_another_country(monkeypatch):
         monkeypatch,
         {
             "São Tomé": [
-                # The search's ranks: an exact leaf against a token match.
+                # As the search reports them: an exact leaf against a token
+                # match.
                 _row(
                     "STP.1_1",
                     "São Tomé, São Tomé and Príncipe",
                     subtype="state-province",
-                    score=0.78,
+                    tier=EXACT_TIER,
                 ),
-                _row(
-                    "STP",
-                    "São Tomé and Príncipe",
-                    subtype="country",
-                    score=0.53,
-                ),
+                _row("STP", "São Tomé and Príncipe", subtype="country"),
             ]
         },
     )

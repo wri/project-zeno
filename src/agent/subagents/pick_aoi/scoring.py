@@ -3,9 +3,10 @@
 Retrieval and selection need different comparisons. `search_aois` ranks a
 candidate list by match tier and prominence; the geocoder then has several
 such lists, one per spelling it tried, and picks one row across all of them.
-Selection therefore re-scores the retrieved rows here, accent-insensitively
-and with the search's own rank as one term, instead of asking a model to
-choose.
+Selection therefore re-scores the retrieved rows here, accent-insensitively,
+adding what the search knew about a row and the string comparison cannot
+see: that it matched a stored name exactly, that the typed parent matched,
+that it was reached only by a guess. No model chooses.
 
 This module knows nothing about the tool it serves: it returns the winning
 DataFrame row, and the caller turns that into an `AOIIndex`.
@@ -18,32 +19,35 @@ from typing import Optional, Sequence
 
 import pandas as pd
 
-from src.shared.geocoding_helpers import HIERARCHY_SCORES
+from src.shared.aoi_search import EXACT_TIER
+from src.shared.aoi_search_sql import HIERARCHY_SCORES
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
+# The terms of a candidate's score, each in [0, 1] before its weight. The
+# name comparison and the hierarchy are the base; the rest are bonuses and
+# one penalty for what the search reported about the row.
 _SIMILARITY_WEIGHT = 0.5
 _HIERARCHY_WEIGHT = 0.3
+# The term's leaf equals the row's stored leaf, else the row's name starts
+# with the term. "Para" is Pará, not Paraná.
 _EXACT_SEGMENT_BONUS = 0.2
 _PREFIX_BONUS = 0.1
-# The search's own rank (``similarity_score``, in [0, 1]) encodes what the
-# string comparison here cannot see: whether the row matched an exact stored
-# name, and whether the parent the user typed matched too. "Las Palmas,
-# Spain" reads almost the same against the Canarian and the Panamanian Las
-# Palmas, and only the rank knows which one is in Spain.
-_DB_RANK_WEIGHT = 0.2
-# A row the search reached only by correcting a spelling or dropping a word
-# is a guess. It loses a near-tie against any row a spelling matched as
-# written, and when it still wins the geocoder treats the place as unmatched
-# and offers the name instead of selecting it.
-_CORRECTED_PENALTY = 0.15
-# The user named the parent ("Victoria, Canada") and this row has it. The
-# search already ranks such rows first, but its rank enters here at a fifth,
-# which a one-step hierarchy advantage outweighs: the Australian state beat
-# the Canadian county. A typed parent is the strongest signal there is, so
-# it gets its own term.
+# The search matched the row on a stored name exactly (``tier`` is
+# ``EXACT_TIER``), which for a variant ("Lisbon" for Lisboa) the string
+# comparison cannot see. Worth a prefix.
+_STORED_NAME_BONUS = 0.1
+# The user named the parent ("Victoria, Canada") and the row has it
+# (``context_hit``). A typed parent is the strongest signal there is: it has
+# to outweigh a one-step hierarchy advantage, or the Australian state beats
+# the Canadian county.
 _CONTEXT_MATCH_BONUS = 0.2
+# A row the search reached only by correcting a spelling or dropping a word
+# (``corrected``) is a guess. It loses a near-tie against any row a spelling
+# matched as written, and when it still wins the geocoder treats the place
+# as unmatched and offers the name instead of selecting it.
+_CORRECTED_PENALTY = 0.15
 
 # Punctuation that can wrap a name segment. Stored names carry trailing
 # commas ("NA, England, United Kingdom"), and an `aoi_choice` nudge option is
@@ -127,8 +131,8 @@ def _score_candidate(
     hierarchy preference, plus an exact-leaf-name bonus that falls back to a
     weaker prefix bonus. The leaf bonus is what separates "Pará" from
     "Paraná" for the term "Para". *leaf* is the row's stored leaf; without
-    it the first segment of *name* stands in. ``best_candidate_row`` adds the
-    search's own rank on top; this function scores the name alone.
+    it the first segment of *name* stands in. ``best_candidate_row`` adds
+    what the search reported on top; this function scores the name alone.
 
     Raises:
         ValueError: If ``subtype`` is not a known AOI subtype.
@@ -192,12 +196,12 @@ def best_candidate_row(
     best_position = 0
     best_score = 0.0
 
-    # A frame from a search carries the search's rank; one built by hand (a
-    # test, a mocked query) may not, and then the rank term is zero.
-    if "similarity_score" in candidate_aois.columns:
-        db_ranks = candidate_aois["similarity_score"].fillna(0.0).tolist()
+    # A frame from a search carries what it knew about each row; one built by
+    # hand (a test, a mocked query) may not, and then those terms are zero.
+    if "tier" in candidate_aois.columns:
+        tiers = candidate_aois["tier"].fillna(0).tolist()
     else:
-        db_ranks = [0.0] * len(candidate_aois)
+        tiers = [0] * len(candidate_aois)
 
     if "leaf" in candidate_aois.columns:
         leaves = candidate_aois["leaf"].tolist()
@@ -220,7 +224,7 @@ def best_candidate_row(
         candidate_aois["source"],
         candidate_aois["src_id"],
         leaves,
-        db_ranks,
+        tiers,
         corrected,
         context_hits,
     )
@@ -230,7 +234,7 @@ def best_candidate_row(
         source,
         src_id,
         leaf,
-        db_rank,
+        tier,
         guessed,
         parent_matched,
     ) in enumerate(scoring_columns):
@@ -243,11 +247,13 @@ def best_candidate_row(
                 term, term_leaf, candidate, candidate_leaf, hierarchy, matcher
             )
             for term, term_leaf in term_forms
-        ) + _DB_RANK_WEIGHT * float(db_rank)
-        if guessed:
-            score -= _CORRECTED_PENALTY
+        )
+        if tier == EXACT_TIER:
+            score += _STORED_NAME_BONUS
         if parent_matched:
             score += _CONTEXT_MATCH_BONUS
+        if guessed:
+            score -= _CORRECTED_PENALTY
         # Compare on explicit secondary keys rather than the score alone, so
         # equal scores resolve identically whatever order the rows arrived in.
         key = (-score, name, source, str(src_id))
