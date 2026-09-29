@@ -12,7 +12,7 @@ Two providers, with very different shapes. Pick deliberately.
 ## Planet — `show_planet_imagery`
 
 Planet imagery is **only rendered in a buffer around integrated deforestation
-alerts**, inside a limited Amazon footprint. Away from an alert the tiles are
+alerts**, across the full Amazon Basin. Away from an alert the tiles are
 empty. That makes Planet a tool for *inspecting alerts up close*, not a
 general basemap — if the user is not looking at integrated alerts in the
 Amazon, Planet will look blank and Sentinel-2 is the right answer.

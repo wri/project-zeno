@@ -11,7 +11,7 @@ class PlanetImageryProvider:
     """Build imagery state for the limited-coverage Planet tile service."""
 
     BASE_URL = "https://tiles.globalforestwatch.org"
-    COVERAGE = (-70.0, -10.0, -60.0, 0.0)
+    COVERAGE = (-80.0, -30.0, -40.0, 20.0)
 
     def covers(self, aois: list[dict]) -> bool:
         west, south, east, north = self.COVERAGE
@@ -66,8 +66,8 @@ class PlanetImageryProvider:
                 f"{{z}}/{{x}}/{{y}}.png?month={month}"
             ),
             bounds=self._bounds(request.aois),
-            min_zoom=5,
-            max_zoom=15,
+            min_zoom=10,
+            max_zoom=18,
             mosaic_id=f"planet:{month}",
             start_date=month_start.isoformat(),
             end_date=month_end.isoformat(),

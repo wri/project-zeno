@@ -5,6 +5,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.agent.agent_config import PUBLIC_PROFILES
 from src.api.auth.dependencies import require_auth
 from src.api.config import APISettings
 from src.api.data_models import ThreadOrm, UserType
@@ -43,13 +44,19 @@ async def chat(
     Accepts a chat query and returns a streamed response. Tracks quota usage
     and includes quota information in response headers when quota checking is enabled.
     """
-    if chat_request.ff and user.user_type not in {
-        UserType.ADMIN,
-        UserType.SUPERUSER,
-        UserType.MACHINE,
-    }:
+    if (
+        chat_request.ff
+        and chat_request.ff not in PUBLIC_PROFILES
+        and user.user_type
+        not in {
+            UserType.ADMIN,
+            UserType.SUPERUSER,
+            UserType.MACHINE,
+        }
+    ):
         raise HTTPException(
-            status_code=403, detail="Feature flags require admin access"
+            status_code=403,
+            detail=f"Feature flag {chat_request.ff!r} requires admin access",
         )
     bind_request_logging_context(
         thread_id=chat_request.thread_id,

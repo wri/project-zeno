@@ -8,6 +8,8 @@ Profiles form a chain, each one a small delta on its parent:
     default      — base + the core skills (analyze, pull-data, capabilities,
                    show-imagery, wri-insights, dashboard, explore).
     experimental — default + standalone tools not yet owned by any skill.
+    lgms         — default with the LGMS dataset revealed; open to every
+                   user (see PUBLIC_PROFILES).
 
 An ``AgentConfig`` declares three things:
 
@@ -128,21 +130,31 @@ DEFAULT_SKILLS = (
     "dashboard",
     "explore",
 )
+# Standalone tools no skill's workflow owns, bound directly on top of the
+# core toolbox.
+DEFAULT_TOOLS = (update_insight_display_spec,)
 # Datasets hidden from normal traffic; revealed by opting into a flag whose
 # profile omits them (see EXPERIMENTAL_PROFILE below).
 DEFAULT_EXCLUDED_DATASETS = frozenset({"Land GHG Monitoring System (LGMS)"})
 
 # Skills and tools we want internal feedback on before releasing to the
-# public. Both tuples hold only the experimental *additions*; the profile
-# composes them onto the core sets below (DEFAULT_SKILLS + EXPERIMENTAL_SKILLS,
-# CORE_TOOLS + EXPERIMENTAL_TOOLS), so anything added to the default surface
+# public. The tuple holds only the experimental *additions*; the profile
+# composes them onto the default sets below (DEFAULT_SKILLS + EXPERIMENTAL_SKILLS,
+# CORE_TOOLS + DEFAULT_TOOLS), so anything added to the default surface
 # reaches this profile too. `inspect_view_context` is not listed here — the
 # `dashboard` skill took it into its `requires:` (reading a dashboard's
 # sections and widget ids is part of that workflow, not a standalone
 # debugging aid).
 EXPERIMENTAL_PROFILE = "experimental"
 EXPERIMENTAL_SKILLS = ("show-imagery-planet",)
-EXPERIMENTAL_TOOLS = (update_insight_display_spec,)
+
+# The default surface with LGMS revealed. The frontend sends this flag for
+# users who opt into LGMS (`?ff=net-flux`) but cannot use `experimental`.
+LGMS_PROFILE = "lgms"
+
+# Profiles any authenticated user may select with `ff`. All other flags are
+# for admin, superuser and machine users only (see src/api/routers/chat.py).
+PUBLIC_PROFILES = frozenset({LGMS_PROFILE})
 
 
 @dataclass(frozen=True)
@@ -375,6 +387,7 @@ default_registry.register(
         DEFAULT_PROFILE,
         extends=BASE_PROFILE,
         skills=DEFAULT_SKILLS,
+        tools=DEFAULT_TOOLS,
         excluded_datasets=DEFAULT_EXCLUDED_DATASETS,
     )
 )
@@ -382,9 +395,17 @@ default_registry.register(
     AgentConfig(
         EXPERIMENTAL_PROFILE,
         skills=DEFAULT_SKILLS + EXPERIMENTAL_SKILLS,
-        tools=CORE_TOOLS + EXPERIMENTAL_TOOLS,
+        tools=CORE_TOOLS + DEFAULT_TOOLS,
         # Excludes are per-profile (not inherited), so an empty set here
         # reveals the datasets that `default` hides.
+        excluded_datasets=frozenset(),
+    )
+)
+default_registry.register(
+    AgentConfig(
+        LGMS_PROFILE,
+        extends=DEFAULT_PROFILE,
+        # Excludes are not inherited, so an empty set reveals LGMS.
         excluded_datasets=frozenset(),
     )
 )

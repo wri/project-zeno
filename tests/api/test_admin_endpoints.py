@@ -1047,6 +1047,47 @@ async def test_ff_rejected_for_regular_user(client, auth_override):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("ff", ["experimental", "base"])
+async def test_non_public_ff_rejected_for_regular_user(
+    client, auth_override, ff
+):
+    """Regular users cannot select the admin-only profiles."""
+    auth_override(f"ff-regular-{ff}-user")
+
+    with patch("src.api.routers.chat.stream_chat", _mock_stream):
+        response = await client.post(
+            "/api/chat",
+            json={
+                "query": "test",
+                "thread_id": f"ff-regular-{ff}-thread",
+                "ff": ff,
+            },
+            headers={"Authorization": "Bearer test-token"},
+        )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_public_ff_allowed_for_regular_user(client, auth_override):
+    """Regular users can select a public profile such as lgms."""
+    auth_override("ff-lgms-user")
+
+    with patch("src.api.routers.chat.stream_chat", _mock_stream):
+        response = await client.post(
+            "/api/chat",
+            json={
+                "query": "test",
+                "thread_id": "ff-lgms-thread",
+                "ff": "lgms",
+            },
+            headers={"Authorization": "Bearer test-token"},
+        )
+
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
 async def test_ff_allowed_for_admin(client, auth_override, admin_user_factory):
     """Admin users can use the ff parameter."""
     admin = await admin_user_factory("ff-admin@example.test")
