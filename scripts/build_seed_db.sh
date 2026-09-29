@@ -39,24 +39,30 @@ ALL_STEPS=(migrate gadm wdpa kba landmark build-aois snapshot)
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
-: "${DATABASE_URL:?set DATABASE_URL to the seed database, e.g. postgresql+asyncpg://user:pass@host/}"
-export DATABASE_URL
-
 log() {
   printf '\n=== %s ===\n' "$1" >&2
+}
+
+# Only the database steps need a connection; `snapshot` is an RDS API call.
+require_database_url() {
+  : "${DATABASE_URL:?set DATABASE_URL to the seed database, e.g. postgresql+asyncpg://user:pass@host/}"
+  export DATABASE_URL
 }
 
 run_step() {
   case "$1" in
     migrate)
+      require_database_url
       log "alembic upgrade head"
       (cd db && uv run alembic upgrade head)
       ;;
     gadm|wdpa|kba|landmark)
+      require_database_url
       log "ingest $1"
       uv run python "src/ingest/ingest_$1.py"
       ;;
     build-aois)
+      require_database_url
       log "build-aois"
       uv run python src/api/cli.py build-aois
       ;;

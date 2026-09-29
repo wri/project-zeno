@@ -1,26 +1,38 @@
-# Evals environment (ECS Fargate)
+# Evals environments (ECS Fargate)
 
-An isolated environment for running evals against a specific `project-zeno`
-commit. Runs the API and its database only — no frontend, no eoAPI.
+Ephemeral deployments of a specific commit. Each gets its own ECS service and
+database; the database instance, load balancer, cluster and bastion are shared.
 
-Day to day, deploy with the **Deploy Evals Environment** workflow, which takes a
-commit SHA. Everything below is first-time setup.
-
-## Layout
-
-Environments are Terraform workspaces, so a second one is just a new workspace.
-
-```bash
-cd terraform
-terraform init -backend-config=vars/backend-evals.tfvars
-terraform workspace select -or-create=true evals
 ```
+terraform/          shared and long-lived: database, load balancer, cluster,
+                    bastion, IAM, secrets
+terraform/env/      one workspace per commit: service, target group, listener
+```
+
+Split so that destroying a deployment cannot take the database with it. The env
+stack finds shared resources by name (`var.shared_prefix`).
+
+Day to day, use the **Evals Environment** workflow rather than running Terraform
+directly; it takes a commit SHA and a create/destroy action.
+
+## Reaching an environment
+
+Deployments share one load balancer and are separated by port, derived from the
+workspace name so it is stable across applies:
+
+```
+http://<shared-alb-dns>:<port>     # terraform -chdir=terraform/env output api_base_url
+```
+
+**HTTP, not HTTPS.** TLS needs either a domain we control or a CloudFront
+distribution per deployment. Revisit if these stop being short-lived.
 
 ## First-time setup
 
 ### 1. Secrets
 
-Write these once. Terraform reads them by ARN, so the values never enter state.
+Written once, out of band. Terraform references them by ARN, so the values never
+enter state.
 
 ```bash
 for name in GOOGLE_API_KEY ANTHROPIC_API_KEY WRI_BEARER_TOKEN \
@@ -30,69 +42,38 @@ for name in GOOGLE_API_KEY ANTHROPIC_API_KEY WRI_BEARER_TOKEN \
 done
 ```
 
-`DATABASE_URL` is built and stored by this stack, since it depends on the RDS
-endpoint.
+`DATABASE_URL` and `MAINTENANCE_DATABASE_URL` are built by Terraform, since they
+depend on the RDS endpoint.
 
-### 2. Seed the database
-
-The API serves areas from the `aois` table, which migrations create empty.
-Filling it means ingesting GADM, WDPA, KBA and LandMark and then running
-`build-aois` — hours of work and ~20GB of downloads.
-
-That runs **once**. Afterwards every environment restores the resulting snapshot
-in minutes.
+### 2. Shared stack
 
 ```bash
-# a. bring the stack up with no snapshot -> empty database
-terraform apply -var db_password=<pw>
-
-# b. ingest, one step per task (hours; each streams to CloudWatch)
-scripts/run_seed_task.sh gadm
-scripts/run_seed_task.sh wdpa
-scripts/run_seed_task.sh kba
-scripts/run_seed_task.sh landmark
-scripts/run_seed_task.sh build-aois
-
-# c. snapshot it (an RDS API call, so this one runs locally)
-SEED_DB_INSTANCE=$(terraform output -raw db_instance_identifier) \
-  scripts/build_seed_db.sh snapshot
-
-# d. pin the snapshot it printed
+cd terraform
+terraform init -backend-config=vars/backend-evals.tfvars
 terraform apply -var db_password=<pw> -var seed_snapshot_id=zeno-aoi-seed-YYYYMMDD
 ```
 
-Set that snapshot id as the `EVALS_SEED_SNAPSHOT_ID` repository variable so
-deploys pick it up. Repeat only when the source data vintage changes.
+`seed_snapshot_id` has no default: an empty value creates an empty instance,
+which is right for a first bring-up and destructive on a replace.
 
-Ingest runs as a one-off ECS task rather than from a laptop because the data path
-matters: through the bastion tunnel every row crosses SSM, which is far slower
-than S3 -> Fargate -> RDS entirely inside AWS.
+### 3. Seed database and template
 
-## Connecting to the database
-
-For ad-hoc `psql` — debugging a failing eval, checking AOI counts — port-forward
-through the bastion:
-
-```bash
-aws ssm start-session --target $(terraform output -raw bastion_instance_id) \
-  --document-name AWS-StartPortForwardingSessionToRemoteHost \
-  --parameters host=$(terraform output -raw db_address),portNumber=5432,localPortNumber=5432
-```
-
-Then connect to `localhost:5432`. Fine for queries; too slow for bulk loading.
+The API serves areas from a reference table that migrations create empty.
+Filling it is hours of work and runs once; every deployment then clones the
+result. See **`docs/deployment-database.md`**.
 
 ## Notes
 
-- The API is reached at the raw ALB hostname over HTTP; there is no DNS record.
-  `terraform output api_base_url` prints it.
-- The database is private. The bastion is the way in, via SSM port forwarding —
-  it has no inbound rules and no SSH key, so access is authorized by IAM alone.
-  Requires the Session Manager plugin installed locally.
-- Migrations run on every deploy: the api container runs `/app/db/migrate.sh`
-  before starting uvicorn, so a restored snapshot is brought up to the deployed
-  commit's revision automatically.
-- Set `desired_count = 0` to park the environment between runs. The ALB and RDS
-  still cost money; the Fargate task does not.
-- If a migration ever reshapes the AOI tables, re-run `build-aois` against the
-  restored database. It is idempotent, and the snapshot keeps the source tables
-  it needs.
+- Each deployment clones its database from the template at startup, then
+  migrates it. Commits older than the template cannot run; rebuild it to move
+  that floor.
+- Each database is a full copy of the template. Storage autoscales, but destroy
+  deployments you're done with.
+- The database is private; reach it through the bastion via SSM port forwarding.
+  Requires the Session Manager plugin locally.
+- Set `desired_count = 0` to park a deployment without destroying it.
+- **Encryption at rest is off.** Enabling it replaces the instance, and an
+  unencrypted snapshot must be copied with a KMS key first:
+  `aws rds copy-db-snapshot --kms-key-id <key>`, then apply with
+  `-var db_storage_encrypted=true -var seed_snapshot_id=<copy>`, then rebuild
+  the template.

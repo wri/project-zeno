@@ -1,21 +1,13 @@
-# Bastion for reaching the database from a laptop. The database is private, so
-# this is the way in: SSM Session Manager port-forwards through it.
+# Bastion for reaching the private database from a laptop, via SSM port
+# forwarding:
 #
 #   aws ssm start-session --target $(terraform output -raw bastion_instance_id) \
 #     --document-name AWS-StartPortForwardingSessionToRemoteHost \
 #     --parameters host=$(terraform output -raw db_address),portNumber=5432,localPortNumber=5432
 #
-# then connect to localhost:5432.
-#
-# It has a public IP but NO inbound rules and no key pair: the SSM agent dials
-# out to AWS and the session is brokered back down that connection, so nothing
-# is listening for inbound traffic. Access is authorized by IAM, and sessions
-# are logged to CloudTrail. The public IP exists only so the agent can reach the
-# SSM endpoints -- this VPC has no NAT gateway, and a private subnet would
-# otherwise need three interface endpoints at roughly $22/month.
-#
-# Deliberately no key_name: with a key pair present people reach for SSH, which
-# would mean opening port 22 and undoing the above.
+# It has a public IP but no inbound rules and no key pair: the agent dials out,
+# and access is authorized by IAM. Do not add a key pair -- that invites SSH, and
+# with it an open port.
 
 data "aws_ami" "bastion" {
   most_recent = true

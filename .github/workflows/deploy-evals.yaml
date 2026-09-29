@@ -1,42 +1,40 @@
-name: Deploy Evals Environment
+name: Evals Environment
 
-# Deploys an arbitrary project-zeno commit to the ECS evals environment.
+# Creates or destroys an ephemeral deployment of a single commit.
 #
-# The commit must already have an image in ECR, which today means it is on main
-# (docker-build.yml builds on push). Building arbitrary commits is a later change.
+# Each gets its own ECS service, listener port and database. The database
+# instance and load balancer are shared and managed separately.
 #
-# The database is NOT seeded here: it restores from the snapshot built once by
-# scripts/build_seed_db.sh. Only migrations run on deploy.
+# The image must already exist in the registry, which today means the commit is
+# on main.
 
 on:
   workflow_dispatch:
     inputs:
-      commit_hash:
+      commit_sha:
         description: project-zeno commit SHA to deploy (must exist in ECR)
         required: true
         type: string
+      action:
+        description: Create or destroy the environment for this commit
+        required: true
+        default: create
+        type: choice
+        options:
+          - create
+          - destroy
       dry_run:
         description: Plan only, do not apply
         required: false
         default: true
         type: boolean
-      workspace:
-        description: Terraform workspace, i.e. which evals environment
-        required: false
-        default: evals
-        type: string
-      run_evals:
-        description: Run the eval suite against the environment after deploying
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: read
 
-# The state bucket has no lock table, so serialise runs per workspace.
+# One run per deployment; clearer failures than a state lock timeout.
 concurrency:
-  group: deploy-evals-${{ inputs.workspace }}
+  group: evals-env-${{ inputs.commit_sha }}
   cancel-in-progress: false
 
 env:
@@ -44,12 +42,10 @@ env:
   TF_INPUT: "0"
 
 jobs:
-  deploy:
-    name: Deploy ${{ inputs.commit_hash }}
+  environment:
+    name: ${{ inputs.action }} ${{ inputs.commit_sha }}
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    outputs:
-      api_base_url: ${{ steps.outputs.outputs.api_base_url }}
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -62,15 +58,15 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Verify the image exists
+        if: inputs.action == 'create'
         run: |
           set -euo pipefail
           aws ecr-public describe-images \
             --region us-east-1 \
             --repository-name project-zeno/zeno \
-            --image-ids imageTag="${{ inputs.commit_hash }}" \
-            --query 'imageDetails[0].imageTags' \
-            --output text
-          echo "Image found for ${{ inputs.commit_hash }}"
+            --image-ids imageTag="${{ inputs.commit_sha }}" \
+            --query 'imageDetails[0].imageTags' --output text
+          echo "Image found for ${{ inputs.commit_sha }}"
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -79,92 +75,128 @@ jobs:
           terraform_wrapper: false
 
       - name: Terraform init
-        working-directory: ./terraform
-        run: terraform init -backend-config=vars/backend-evals.tfvars
+        working-directory: ./terraform/env
+        run: terraform init -backend-config=vars/backend-evals-env.tfvars
 
       - name: Select workspace
-        working-directory: ./terraform
-        run: terraform workspace select -or-create=true "${{ inputs.workspace }}"
+        working-directory: ./terraform/env
+        run: terraform workspace select -or-create=true "${{ inputs.commit_sha }}"
+
+      # --- create ---------------------------------------------------------
 
       - name: Terraform plan
-        working-directory: ./terraform
+        if: inputs.action == 'create'
+        working-directory: ./terraform/env
         run: |
           terraform plan -out=tf.plan \
-            -var="image_tag=${{ inputs.commit_hash }}" \
-            -var="seed_snapshot_id=${{ vars.EVALS_SEED_SNAPSHOT_ID }}" \
+            -var="image_tag=${{ inputs.commit_sha }}" \
             -var="db_password=${{ secrets.EVALS_DB_PASSWORD }}"
 
       - name: Terraform apply
-        if: inputs.dry_run == false
-        working-directory: ./terraform
+        if: inputs.action == 'create' && inputs.dry_run == false
+        working-directory: ./terraform/env
         run: terraform apply -auto-approve tf.plan
 
-      - name: Read Terraform outputs
+      - name: Read outputs
         id: outputs
-        if: inputs.dry_run == false
-        working-directory: ./terraform
+        if: inputs.action == 'create' && inputs.dry_run == false
+        working-directory: ./terraform/env
         run: |
           set -euo pipefail
           {
             echo "api_base_url=$(terraform output -raw api_base_url)"
             echo "cluster_name=$(terraform output -raw cluster_name)"
             echo "service_name=$(terraform output -raw service_name)"
-            echo "security_group_id=$(terraform output -raw task_security_group_id)"
-            echo "subnet_ids=$(terraform output -json task_subnet_ids | jq -r 'join(",")')"
+            echo "database_name=$(terraform output -raw database_name)"
           } >> "$GITHUB_OUTPUT"
 
-      # Migrations are not a step here: the api container runs /app/db/migrate.sh
-      # before uvicorn, so rolling the service applies them.
-      - name: Roll the service
-        if: inputs.dry_run == false
+      - name: Wait for the service
+        if: inputs.action == 'create' && inputs.dry_run == false
         run: |
           set -euo pipefail
-          aws ecs update-service \
-            --cluster "${{ steps.outputs.outputs.cluster_name }}" \
-            --service "${{ steps.outputs.outputs.service_name }}" \
-            --force-new-deployment >/dev/null
           aws ecs wait services-stable \
             --cluster "${{ steps.outputs.outputs.cluster_name }}" \
             --services "${{ steps.outputs.outputs.service_name }}"
 
+      # The container clones and migrates its own database, so a healthy
+      # service means both succeeded.
       - name: Smoke check
-        if: inputs.dry_run == false
+        if: inputs.action == 'create' && inputs.dry_run == false
         run: |
           set -euo pipefail
-          url="${{ steps.outputs.outputs.api_base_url }}/health"
+          url="${{ steps.outputs.outputs.api_base_url }}/openapi.json"
           for attempt in $(seq 1 30); do
-            if curl -fsS --max-time 10 "$url"; then
-              echo "\nHealthy after $attempt attempt(s)"
+            if curl -fsS --max-time 10 -o /dev/null "$url"; then
+              echo "Healthy after $attempt attempt(s): $url"
               exit 0
             fi
             sleep 10
           done
-          echo "API did not become healthy at $url"
+          echo "Environment did not become healthy at $url"
           exit 1
+
+      # --- destroy --------------------------------------------------------
+
+      # Before the infrastructure goes, while the outputs naming it are still
+      # readable.
+      - name: Drop the database
+        if: inputs.action == 'destroy' && inputs.dry_run == false
+        working-directory: ./terraform/env
+        run: |
+          set -euo pipefail
+          database=$(terraform output -raw database_name)
+          cluster=$(terraform output -raw cluster_name)
+
+          shared_dir=../
+          task_def=$(terraform -chdir=$shared_dir output -raw teardown_task_definition_arn)
+          subnets=$(terraform -chdir=$shared_dir output -json task_subnet_ids | jq -r 'join(",")')
+          sg=$(terraform -chdir=$shared_dir output -raw task_security_group_id)
+
+          overrides=$(jq -nc --arg db "$database" '{
+            containerOverrides: [{
+              name: "teardown",
+              command: ["sh","-c",("psql \"$MAINTENANCE_DATABASE_URL\" -c \"DROP DATABASE IF EXISTS " + $db + " WITH (FORCE)\"")]
+            }]
+          }')
+
+          task_arn=$(aws ecs run-task --cluster "$cluster" --task-definition "$task_def" \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[$subnets],securityGroups=[$sg],assignPublicIp=ENABLED}" \
+            --overrides "$overrides" --query 'tasks[0].taskArn' --output text)
+
+          aws ecs wait tasks-stopped --cluster "$cluster" --tasks "$task_arn"
+          exit_code=$(aws ecs describe-tasks --cluster "$cluster" --tasks "$task_arn" \
+            --query 'tasks[0].containers[0].exitCode' --output text)
+          echo "Drop task exit code: $exit_code"
+          [ "$exit_code" = "0" ]
+
+      - name: Terraform destroy
+        if: inputs.action == 'destroy'
+        working-directory: ./terraform/env
+        run: |
+          terraform destroy ${{ inputs.dry_run == false && '-auto-approve' || '-refresh-only' }} \
+            -var="image_tag=${{ inputs.commit_sha }}" \
+            -var="db_password=${{ secrets.EVALS_DB_PASSWORD }}"
+
+      - name: Delete workspace
+        if: inputs.action == 'destroy' && inputs.dry_run == false
+        working-directory: ./terraform/env
+        run: |
+          terraform workspace select default
+          terraform workspace delete "${{ inputs.commit_sha }}"
 
       - name: Summary
         if: always()
         run: |
           {
-            echo "## Evals deploy"
+            echo "## Evals environment — ${{ inputs.action }}"
             echo ""
             echo "| | |"
             echo "|---|---|"
-            echo "| Commit | \`${{ inputs.commit_hash }}\` |"
-            echo "| Workspace | \`${{ inputs.workspace }}\` |"
+            echo "| Commit | \`${{ inputs.commit_sha }}\` |"
             echo "| Dry run | \`${{ inputs.dry_run }}\` |"
-            if [ "${{ inputs.dry_run }}" = "false" ]; then
+            if [ "${{ inputs.action }}" = "create" ] && [ "${{ inputs.dry_run }}" = "false" ]; then
               echo "| URL | ${{ steps.outputs.outputs.api_base_url }} |"
+              echo "| Database | \`${{ steps.outputs.outputs.database_name }}\` |"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
-
-  evals:
-    name: Run evals
-    needs: deploy
-    if: inputs.dry_run == false && inputs.run_evals
-    uses: ./.github/workflows/evals.yaml
-    with:
-      environment: evals
-      ref: ${{ inputs.commit_hash }}
-      api_base_url: ${{ needs.deploy.outputs.api_base_url }}
-    secrets: inherit
