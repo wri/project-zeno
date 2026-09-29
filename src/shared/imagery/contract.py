@@ -7,7 +7,7 @@ class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class LayerPeriod(BaseModel):
+class LayerPeriod(StrictModel):
     start: date
     end: date
 
