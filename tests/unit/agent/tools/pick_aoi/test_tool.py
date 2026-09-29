@@ -184,7 +184,7 @@ async def test_pick_aoi_tool_resolves_via_geocoder(monkeypatch):
         {
             "args": {
                 "question": "tree cover loss in Para, Brazil",
-                "area_of_interest": "adminstrative area (country, state/region, country/subregion)",
+                "area_of_interest": "administrative area (country, state/region, country/subregion)",
                 "state": {},
             },
             "id": "tc-1",
@@ -221,6 +221,39 @@ async def test_pick_aoi_tool_asks_for_clarification_when_no_place(
     assert "aoi_selection" not in command.update
     assert "couldn't identify a place" in str(
         command.update["messages"][0].content
+    )
+
+
+@pytest.mark.asyncio
+async def test_pick_aoi_logs_geocoding_miss_when_no_place_extracted(
+    monkeypatch,
+):
+    """A total extraction miss must be logged even though the tool message
+    itself reports status="success" (it's a clarification, not an error)."""
+
+    async def fake_extract(self, question, aoi_type):
+        return PlaceQuery(places=[], subregion=None)
+
+    monkeypatch.setattr(Geocoder, "extract", fake_extract)
+    mock_logger = MagicMock()
+    monkeypatch.setattr(tool_module, "logger", mock_logger)
+
+    await pick_aoi.ainvoke(
+        {
+            "args": {
+                "question": "show me tree cover loss",
+                "area_of_interest": None,
+                "state": {},
+            },
+            "id": "tc-2b",
+            "type": "tool_call",
+        }
+    )
+
+    mock_logger.warning.assert_any_call(
+        "geocoding_miss",
+        reason="no_place_extracted",
+        question="show me tree cover loss",
     )
 
 
@@ -271,6 +304,8 @@ async def test_pick_aoi_returns_no_match_when_db_search_empty(monkeypatch):
     monkeypatch.setattr(
         tool_module, "query_aoi_database", fake_query_aoi_database
     )
+    mock_logger = MagicMock()
+    monkeypatch.setattr(tool_module, "logger", mock_logger)
 
     command = await pick_aoi.ainvoke(
         {
@@ -288,6 +323,12 @@ async def test_pick_aoi_returns_no_match_when_db_search_empty(monkeypatch):
     assert (
         "no matching location"
         in str(command.update["messages"][0].content).lower()
+    )
+    mock_logger.warning.assert_any_call(
+        "geocoding_miss",
+        reason="no_candidates",
+        question="trees around Nonexistent Place",
+        unmatched_places=["Nonexistent Place"],
     )
 
 
@@ -319,6 +360,8 @@ async def test_pick_aoi_reports_unmatched_places_alongside_matches(
     monkeypatch.setattr(
         tool_module, "query_aoi_database", fake_query_aoi_database
     )
+    mock_logger = MagicMock()
+    monkeypatch.setattr(tool_module, "logger", mock_logger)
 
     command = await pick_aoi.ainvoke(
         {
@@ -337,6 +380,12 @@ async def test_pick_aoi_reports_unmatched_places_alongside_matches(
     selection = command.update["aoi_selection"]
     assert selection["aois"][0]["src_id"] == "BRA.14_1"
     assert "Nonexistent Place" in str(command.update["messages"][0].content)
+    mock_logger.warning.assert_any_call(
+        "geocoding_partial_miss",
+        question="tree cover loss in Para, Brazil and Nonexistent Place",
+        unmatched_places=["Nonexistent Place"],
+        matched_places=["Para, Brazil"],
+    )
 
 
 # ---------------------------------------------------------------------------

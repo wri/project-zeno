@@ -1,7 +1,7 @@
 """add aoi search columns, name variants and token table
 
 Revision ID: 5b7e2c9a1f40
-Revises: e7c1f4a92b58
+Revises: a3e8c5d17f42
 Create Date: 2026-09-18 16:10:00.000000
 
 Schema only. The new ``aois`` columns are nullable and empty here, and the two
@@ -27,7 +27,7 @@ from src.shared.aoi_search_sql import SEARCH_DDL
 
 # revision identifiers, used by Alembic.
 revision: str = "5b7e2c9a1f40"
-down_revision: Union[str, None] = "e7c1f4a92b58"
+down_revision: Union[str, None] = "a3e8c5d17f42"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

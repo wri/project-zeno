@@ -71,3 +71,15 @@ def test_analytics_only_dataset_keeps_empty_tile_url(tmp_path, monkeypatch):
     [dataset] = _load(tmp_path, monkeypatch)
 
     assert dataset["tile_url"] == ""
+
+
+def test_lgms_layers_carry_title_and_description():
+    """Every LGMS layer names its measure (net flux vs gross emissions) in
+    its description — the only place the selector and agent can read it."""
+    [lgms] = [d for d in datasets_config.DATASETS if d.get("layers")]
+    for layer in lgms["layers"]:
+        assert layer.get("title"), layer["name"]
+        description = layer.get("description") or ""
+        flux_type = layer["tile_url"].split("flux_type=")[1]
+        expected = "Net flux" if flux_type == "net" else "Gross emissions"
+        assert expected in description, layer["name"]

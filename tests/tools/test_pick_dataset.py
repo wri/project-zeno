@@ -891,10 +891,28 @@ async def test_valid_selected_layer_survives_end_to_end():
 
     dataset = command.update.get("dataset", {})
     assert dataset.get("selected_layer") == "agriculture"
+    # Every sibling survives unchanged, in catalog order.
     assert [layer["name"] for layer in dataset["layers"]] == [
+        "lgms",
         "lulucf",
         "agriculture",
+        "cropland",
+        "livestock",
     ]
+
+    # Each layer reaches the agent with its title and description, so it
+    # can tell a gross-emissions layer from a net-flux one.
+    content = command.update["messages"][0].content
+    for layer in dataset["layers"]:
+        assert (
+            f"- {layer['name']} ({layer['title']}): {layer['description']}"
+            in content
+        )
+    assert (
+        "Map layer displayed: agriculture (Agriculture): Gross emissions"
+        in content
+    )
+    assert dataset["layers"][2]["title"] == "Agriculture"
 
 
 async def test_selected_layer_none_for_single_layer_dataset():
