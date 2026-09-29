@@ -259,7 +259,7 @@ def _format_map_widget(config: dict) -> Optional[str]:
         if (contract := from_payload(imagery)) is not None:
             return (
                 f"map: {contract.provider} imagery "
-                f"{contract.period.start} → {contract.period.end} ({areas})"
+                f"{contract.period.label()} ({areas})"
             )
         provider = imagery.get("provider") or "Sentinel-2"
         return (

@@ -12,3 +12,6 @@ class LayerPeriod(BaseModel):
             raise TypeError(
                 "LayerPeriod is abstract; build a specialist period"
             )
+
+    def label(self) -> str:
+        return f"{self.start} → {self.end}"
