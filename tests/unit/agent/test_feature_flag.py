@@ -363,6 +363,7 @@ def test_experimental_profile_derives_exactly_the_experimental_tools():
             "add_text_widget",
             "edit_text_widget",
             "add_dashboard_section",
+            "add_template_section",
             "edit_dashboard_section",
             "move_dashboard_widget",
             "send_nudge",
@@ -410,7 +411,10 @@ def test_experimental_config_adds_standalone_tools_and_planet():
         "inspect_view_context",
         "update_insight_display",
     } <= default_tools
-    assert experimental_tools - default_tools == {"show_planet_imagery"}
+    assert experimental_tools - default_tools == {
+        "show_planet_imagery",
+        "add_template_section",
+    }
 
     default_skills = {s.name for s in default.skill_metas()}
     experimental_skills = {s.name for s in experimental.skill_metas()}

@@ -19,6 +19,42 @@ from src.shared.logging_config import get_logger
 logger = get_logger(__name__)
 
 
+def add_insight_rows(
+    session,
+    insight: Insight,
+    *,
+    user_id: Optional[str],
+    thread_id: Optional[str],
+    statistics_ids: Optional[list[str]] = None,
+    codeact_parts: Optional[list[dict]] = None,
+    is_public: bool = False,
+) -> InsightOrm:
+    """Add an insight and its charts to `session`; the caller commits.
+
+    Lets another writer put the insight in its own transaction, so a later
+    failure leaves no insight behind. The charts hang off the insight
+    relationship, so they get the insight id when the session flushes.
+    """
+    statistics_ids = statistics_ids or []
+    codeact_parts = codeact_parts or []
+    insight_orm = InsightOrm(
+        user_id=user_id,
+        thread_id=thread_id,
+        insight_text=insight.primary_insight,
+        follow_up_suggestions=insight.follow_up_suggestions,
+        statistics_ids=statistics_ids,
+        codeact_types=[p["type"] for p in codeact_parts],
+        codeact_contents=[p["content"] for p in codeact_parts],
+        is_public=is_public,
+        charts=[
+            InsightChartOrm(**chart.to_orm_kwargs())
+            for chart in insight.charts
+        ],
+    )
+    session.add(insight_orm)
+    return insight_orm
+
+
 async def persist_insight(
     insight: Insight,
     *,
@@ -32,27 +68,15 @@ async def persist_insight(
     `codeact_parts` are the base64-encoded code/output blocks (as produced by
     `ExecutionResult.get_encoded_parts`); empty for deterministic charts.
     """
-    statistics_ids = statistics_ids or []
-    codeact_parts = codeact_parts or []
-
     async with get_session_from_pool() as session:
-        insight_orm = InsightOrm(
+        insight_orm = add_insight_rows(
+            session,
+            insight,
             user_id=user_id,
             thread_id=thread_id,
-            insight_text=insight.primary_insight,
-            follow_up_suggestions=insight.follow_up_suggestions,
             statistics_ids=statistics_ids,
-            codeact_types=[p["type"] for p in codeact_parts],
-            codeact_contents=[p["content"] for p in codeact_parts],
+            codeact_parts=codeact_parts,
         )
-        session.add(insight_orm)
-        await session.flush()
-
-        session.add_all(
-            InsightChartOrm(insight_id=insight_orm.id, **chart.to_orm_kwargs())
-            for chart in insight.charts
-        )
-
         await session.commit()
         await session.refresh(insight_orm)
         insight_id = str(insight_orm.id)

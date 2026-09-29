@@ -555,6 +555,10 @@ class DashboardSectionOrm(Base):
     description = Column(String, nullable=True)
     # Order of the section within the dashboard.
     position = Column(Integer, nullable=False, server_default="0")
+    # Provenance of a section built by an analysis template: name, args,
+    # start_date, end_date, built_at. NULL for a hand-composed section.
+    # Informational only; an edited section keeps it.
+    template = Column(JSONB, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.now)
 
     dashboard = relationship("DashboardOrm", back_populates="sections")
