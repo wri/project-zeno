@@ -221,6 +221,11 @@ class MosaicResult:
         )
 
 
+def search_window(recipe: MosaicRecipe, today: date) -> tuple[date, date]:
+    window = timedelta(days=recipe.window_days)
+    return recipe.target_date - window, min(recipe.target_date + window, today)
+
+
 def encode_recipe(recipe: MosaicRecipe) -> str:
     payload = {
         "a": [list(pair) for pair in recipe.aois],
@@ -334,10 +339,7 @@ async def create_sentinel2_mosaic(recipe: MosaicRecipe) -> MosaicResult:
     geometry = await _load_geometry(recipe)
     check_aoi_area(geometry)
 
-    actual_start = recipe.target_date - timedelta(days=recipe.window_days)
-    actual_end = min(
-        recipe.target_date + timedelta(days=recipe.window_days), date.today()
-    )
+    actual_start, actual_end = search_window(recipe, date.today())
 
     def _search() -> list:
         catalog = pystac_client.Client.open(STAC_URL)
