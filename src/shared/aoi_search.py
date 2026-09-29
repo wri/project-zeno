@@ -390,20 +390,19 @@ def _autocomplete_sql(
     )
 
 
-_BROWSE_SQL = f"""
-    SELECT {_RESULT_COLUMNS},
-        NULL::int AS tier,
-        a.leaf,
-        false AS corrected,
-        false AS context_hit
-    FROM aois a
-    WHERE NOT a.is_disputed
-      AND NOT a.is_deprecated
-      AND a.source = ANY(:sources)
-      {{custom_scope}}
-    ORDER BY a.name, a.source, a.source_id
-    LIMIT :limit OFFSET :offset
-"""
+def _browse_sql(requested: set[str]) -> str:
+    """The no-name statement: every live row in the asked sources, by name."""
+    return f"""
+        SELECT {_RESULT_COLUMNS},
+            NULL::int AS tier,
+            a.leaf,
+            false AS corrected,
+            false AS context_hit
+        FROM aois a
+        WHERE {_live_filters(requested)}
+        ORDER BY a.name, a.source, a.source_id
+        LIMIT :limit OFFSET :offset
+    """
 
 
 # The miss path. When nothing matches as typed, one statement looks every
@@ -571,11 +570,13 @@ def _corrected_queries(tokens: list[_LeafToken]) -> list[str]:
 def _names_a_place(kept: list[_LeafToken]) -> bool:
     """Whether a retry over *kept* can return what the user asked for.
 
-    Two or more words together are selective enough. One word on its own is
-    not when the corpus lacks it, has it everywhere ("republic", "sao"), or
-    when it is too short to be a name ("np").
+    The retry ANDs the kept words against the name vector, so every one of
+    them must be in some name or the query cannot match. Two or more words
+    together are then selective enough. One word on its own is not when the
+    corpus has it everywhere ("republic", "sao") or it is too short to be a
+    name ("np").
     """
-    if not any(token.ndoc for token in kept):
+    if not all(token.ndoc for token in kept):
         return False
     if len(kept) > 1:
         return True
@@ -652,8 +653,6 @@ def _validate_request(
             )
         if offset:
             raise SearchRequestError("autocomplete does not accept offset")
-    elif mode != "search":
-        raise SearchRequestError(f"unknown mode {mode!r}")
 
 
 async def search_aois(
@@ -704,11 +703,15 @@ async def search_aois(
         the spelling or dropping a word, so a caller can treat it as a guess.
         ``context_hit`` is True when the query named a parent and the row
         has it, so a caller re-ranking rows can honour the parent the user
-        typed. Disputed and
-        deprecated AOIs are excluded, and a custom area appears only for its
-        owner. An empty page is a miss too: paging past the end of a result
-        runs the miss path, which is what lets page two of a corrected
-        result exist.
+        typed. Disputed and deprecated AOIs are excluded, and a custom area
+        appears only for its owner.
+
+        Paging and the miss path interact: an empty page counts as a miss,
+        so an offset past the end of the as-typed result falls through to
+        the fallback and corrected queries and returns their rows at that
+        offset. Page two of a corrected result exists because of this, but
+        so does a page two of typed results followed by corrected rows. The
+        API's callers page short lists, so this is left as is.
 
     Raises:
         SearchRequestError: For input the search will not serve: a name over
@@ -766,11 +769,7 @@ async def _read(conn, sql_query: str, params: Dict[str, Any]) -> pd.DataFrame:
 
 
 async def _browse(conn, requested: set[str], params: Dict[str, Any]):
-    return await _read(
-        conn,
-        _BROWSE_SQL.format(custom_scope=_custom_scope_sql(requested)),
-        params,
-    )
+    return await _read(conn, _browse_sql(requested), params)
 
 
 async def _bind_leaf(
