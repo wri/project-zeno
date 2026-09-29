@@ -129,7 +129,7 @@ async def query_aoi_database_multiterm(
     low-similarity alias ("Zaire" for "DR Congo") is not crowded out of a
     shared limit by the main spelling. A row that several terms match is
     deduplicated on ``(source, src_id)``, keeping its highest
-    ``similarity_score``.
+    ``similarity_score``; it is ``corrected`` only when every copy was.
 
     ``query_aoi_database`` stays single-term deliberately: the replay
     fixtures and the agent tests patch it once per term.
@@ -174,9 +174,26 @@ async def query_aoi_database_multiterm(
     combined = combined.sort_values(
         "similarity_score", ascending=False, kind="stable"
     )
-    merged = combined.drop_duplicates(
-        subset=["source", "src_id"], keep="first"
-    ).reset_index(drop=True)
+    key = ["source", "src_id"]
+    merged = combined.drop_duplicates(subset=key, keep="first").reset_index(
+        drop=True
+    )
+    if "corrected" in combined.columns:
+        # The kept copy is the best-scoring one, and a corrected copy with a
+        # context hit can outscore a copy a term matched as written. A row
+        # is a guess only when every term that found it had to correct.
+        guessed = (
+            combined.assign(
+                corrected=combined["corrected"].fillna(False).astype(bool)
+            )
+            .groupby(key, sort=False)["corrected"]
+            .all()
+            .rename("corrected")
+            .reset_index()
+        )
+        merged = merged.drop(columns="corrected").merge(
+            guessed, on=key, how="left"
+        )[list(combined.columns)]
     return merged, primary
 
 

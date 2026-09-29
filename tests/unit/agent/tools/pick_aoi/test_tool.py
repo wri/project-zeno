@@ -428,6 +428,63 @@ async def test_a_row_matched_by_two_terms_appears_once_at_its_best_score(
 
 
 @pytest.mark.asyncio
+async def test_a_row_one_term_matched_as_written_is_not_a_guess(monkeypatch):
+    # The corrected copy outscores the as-written one (a context hit), so it
+    # is the copy the merge keeps; the row must still not count as a guess.
+    _patch_search(
+        monkeypatch,
+        {
+            "Victoria": [_row("AUS.10_1", "Victoria, Australia", score=0.5)],
+            "Victorria, Australia": [
+                _row(
+                    "AUS.10_1",
+                    "Victoria, Australia",
+                    score=0.56,
+                    corrected=True,
+                    context_hit=True,
+                )
+            ],
+        },
+    )
+
+    merged, _ = await tool_module.query_aoi_database_multiterm(
+        ["Victoria", "Victorria, Australia"], None
+    )
+
+    assert len(merged) == 1
+    row = merged.iloc[0]
+    assert row["similarity_score"] == 0.56
+    assert not row["corrected"]
+
+
+@pytest.mark.asyncio
+async def test_a_row_every_term_corrected_stays_a_guess(monkeypatch):
+    _patch_search(
+        monkeypatch,
+        {
+            "Victorria": [
+                _row("AUS.10_1", "Victoria, Australia", corrected=True)
+            ],
+            "Viktorria": [
+                _row(
+                    "AUS.10_1",
+                    "Victoria, Australia",
+                    score=0.6,
+                    corrected=True,
+                )
+            ],
+        },
+    )
+
+    merged, _ = await tool_module.query_aoi_database_multiterm(
+        ["Victorria", "Viktorria"], None
+    )
+
+    assert len(merged) == 1
+    assert merged.iloc[0]["corrected"]
+
+
+@pytest.mark.asyncio
 async def test_terms_matching_different_sources_are_all_returned(monkeypatch):
     _patch_search(
         monkeypatch,

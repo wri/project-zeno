@@ -474,6 +474,23 @@ async def test_autocomplete_completes_a_leaf_prefix_prominent_first(
 
 
 @pytest.mark.asyncio
+async def test_autocomplete_does_not_advertise_a_next_page(
+    auth_override, client
+):
+    auth_override("test-user-wri")
+    await _seed_reference_aoi("gadm", "BGD", "Bangladesh", "country")
+    await _seed_reference_aoi(
+        "gadm", "THA.1_1", "Bangkok, Thailand", "state-province"
+    )
+
+    res = await _autocomplete(client, "ban", limit=1)
+    assert res.status_code == 200, res.text
+    assert len(res.json()) == 1
+    # Autocomplete rejects an offset, so no next page is offered.
+    assert "X-Next-Offset" not in res.headers
+
+
+@pytest.mark.asyncio
 async def test_autocomplete_completes_a_variant_and_the_last_word(
     auth_override, client
 ):

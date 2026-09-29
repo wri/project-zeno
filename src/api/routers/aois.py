@@ -71,7 +71,8 @@ async def search_aois_endpoint(
     Use ``GET /api/geometry/{source}/{src_id}`` to read one of those by ID.
 
     When more results are available, the next page offset is returned in the
-    ``X-Next-Offset`` response header.
+    ``X-Next-Offset`` response header. Autocomplete does not page, so it
+    never sets the header.
     """
     try:
         sources = [normalize_aoi_source(s) for s in source] if source else None
@@ -97,7 +98,10 @@ async def search_aois_endpoint(
     has_more = len(rows) > limit
     if has_more:
         rows = rows[:limit]
-        response.headers["X-Next-Offset"] = str(offset + limit)
+        # Autocomplete rejects an offset, so a next page it cannot serve is
+        # not advertised.
+        if mode != "autocomplete":
+            response.headers["X-Next-Offset"] = str(offset + limit)
 
     return [
         AOISearchResult(**row, score=row.get("similarity_score"))

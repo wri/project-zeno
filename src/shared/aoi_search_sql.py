@@ -176,8 +176,12 @@ def tsv_sql(
 # Custom areas stay out: the table is shared by every user, and a private
 # area name must not steer another user's typo correction. A custom area is
 # still found by the exact and token tiers; it just gets no correction.
+# DELETE, not TRUNCATE: TRUNCATE holds an ACCESS EXCLUSIVE lock until the
+# rebuild commits, which blocks every miss-path search reading the table for
+# the length of the aggregate over all of aois. A DELETE lets readers keep the
+# old tokens until the commit; the VACUUM after the build reclaims the rows.
 TOKENS_REBUILD_SQL = [
-    "TRUNCATE aoi_search_tokens",
+    "DELETE FROM aoi_search_tokens",
     f"""
     INSERT INTO aoi_search_tokens (token, ndoc, prominence)
     SELECT t.lexeme, count(*), max({hierarchy_prior_sql("a.subtype")})
