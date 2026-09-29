@@ -31,3 +31,6 @@ class ImageryBase(StrictModel):
     period: LayerPeriod
     tile_url: str
     aoi_names: list[str]
+
+    def label(self) -> str:
+        return f"{self.provider} {self.period.label()}"

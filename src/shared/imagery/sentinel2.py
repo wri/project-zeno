@@ -31,3 +31,8 @@ class Sentinel2Imagery(ImageryBase):
     mosaic_id: str
     max_cloud_cover: int
     scenes: Optional[SceneSummary]
+
+    def label(self) -> str:
+        if self.scenes is None:
+            return super().label()
+        return f"{super().label()} ({self.scenes.item_count} scenes)"

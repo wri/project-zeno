@@ -92,7 +92,7 @@ def format_session_block(state: dict) -> str:
 
     imagery = state.get("imagery") or {}
     if (contract := from_payload(imagery)) is not None:
-        lines.append(f"Imagery: {contract.provider} {contract.period.label()}")
+        lines.append(f"Imagery: {contract.label()}")
     elif imagery:
         provider = imagery.get("provider") or "sentinel-2"
         lines.append(
