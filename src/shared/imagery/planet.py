@@ -4,11 +4,10 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from src.shared.imagery.contract import LayerPeriod
 
-class MonthlyPeriod(BaseModel):
-    start: date
-    end: date
 
+class MonthlyPeriod(LayerPeriod):
     @classmethod
     def from_month(cls, month: str) -> "MonthlyPeriod":
         start = date.fromisoformat(f"{month}-01")

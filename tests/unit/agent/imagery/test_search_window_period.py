@@ -41,3 +41,14 @@ def test_search_window_period_never_ends_after_the_day_the_search_ran():
     )
 
     assert period.end == date(2026, 9, 29)
+
+
+def test_search_window_period_survives_a_json_round_trip_unchanged():
+    period = SearchWindowPeriod.from_search(
+        date(2026, 8, 15), window_days=7, today=date(2026, 9, 29)
+    )
+
+    assert (
+        SearchWindowPeriod.model_validate_json(period.model_dump_json())
+        == period
+    )
