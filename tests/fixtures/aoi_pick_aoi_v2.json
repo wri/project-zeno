@@ -12,7 +12,8 @@
     "tier",
     "leaf",
     "corrected",
-    "context_hit"
+    "context_hit",
+    "stage"
    ],
    "records": [
     {
@@ -30,7 +31,8 @@
      "tier": 2,
      "leaf": "Puri",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "AGO.17.11_1",
@@ -47,7 +49,8 @@
      "tier": 2,
      "leaf": "Puri",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "IND.26.26.2_1",
@@ -64,7 +67,8 @@
      "tier": 2,
      "leaf": "Puri",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "AGO.17.11.1_1",
@@ -81,7 +85,8 @@
      "tier": 2,
      "leaf": "Puri",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "IDN.11.23.15_1",
@@ -98,7 +103,8 @@
      "tier": 2,
      "leaf": "Puri",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "IDN.14.2.10.5_1",
@@ -115,7 +121,8 @@
      "tier": 2,
      "leaf": "Puri",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "IDN.11.23.15.11_1",
@@ -132,7 +139,8 @@
      "tier": 2,
      "leaf": "Puri",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "IDN.10.21.13.18_1",
@@ -149,7 +157,8 @@
      "tier": 2,
      "leaf": "Puri",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "MEX.11.24_2",
@@ -166,7 +175,8 @@
      "tier": 1,
      "leaf": "Purísima del Rincón",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "COL.30.34_2",
@@ -183,7 +193,8 @@
      "tier": 1,
      "leaf": "Purificación",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     }
    ]
   },
@@ -198,7 +209,8 @@
     "tier",
     "leaf",
     "corrected",
-    "context_hit"
+    "context_hit",
+    "stage"
    ],
    "records": [
     {
@@ -216,7 +228,8 @@
      "tier": 2,
      "leaf": "Ecuador",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "200719",
@@ -233,7 +246,8 @@
      "tier": 1,
      "leaf": "Corredor Marino Costero de Ecuador",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "100350",
@@ -250,7 +264,8 @@
      "tier": 1,
      "leaf": "Estribaciones surorientales fronterizas del Ecuador",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     }
    ]
   },
@@ -265,7 +280,8 @@
     "tier",
     "leaf",
     "corrected",
-    "context_hit"
+    "context_hit",
+    "stage"
    ],
    "records": [
     {
@@ -283,7 +299,8 @@
      "tier": 2,
      "leaf": "Bolivia",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "CUB.2.2_1",
@@ -300,7 +317,8 @@
      "tier": 2,
      "leaf": "Bolivia",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "555636034",
@@ -317,7 +335,8 @@
      "tier": 2,
      "leaf": "Bolivia",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "555592595",
@@ -334,7 +353,8 @@
      "tier": 1,
      "leaf": "Jardín de Cactáceas de Bolivia",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "555576299",
@@ -351,7 +371,8 @@
      "tier": 1,
      "leaf": "Área De Proteção Ambiental Da Serra Da Bolívia",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "309996",
@@ -368,7 +389,8 @@
      "tier": 1,
      "leaf": "Bolivia Hill",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "555600315",
@@ -385,7 +407,8 @@
      "tier": 1,
      "leaf": "Monumento Natural Municipal Da Serra Da Bolívia",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     }
    ]
   },
@@ -400,7 +423,8 @@
     "tier",
     "leaf",
     "corrected",
-    "context_hit"
+    "context_hit",
+    "stage"
    ],
    "records": [
     {
@@ -418,7 +442,8 @@
      "tier": 2,
      "leaf": "Pará",
      "corrected": false,
-     "context_hit": true
+     "context_hit": true,
+     "stage": "typed"
     },
     {
      "src_id": "SUR.6_1",
@@ -435,7 +460,8 @@
      "tier": 2,
      "leaf": "Para",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "CRI.4.9.1_1",
@@ -452,7 +478,8 @@
      "tier": 2,
      "leaf": "Pará",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "IDN.29.6.15.5_1",
@@ -469,7 +496,8 @@
      "tier": 2,
      "leaf": "Para",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "PER8555",
@@ -486,7 +514,8 @@
      "tier": 2,
      "leaf": "Para",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "BRA.16_1",
@@ -503,7 +532,8 @@
      "tier": 1,
      "leaf": "Paraná",
      "corrected": false,
-     "context_hit": true
+     "context_hit": true,
+     "stage": "typed"
     },
     {
      "src_id": "BRA.15_1",
@@ -520,7 +550,8 @@
      "tier": 1,
      "leaf": "Paraíba",
      "corrected": false,
-     "context_hit": true
+     "context_hit": true,
+     "stage": "typed"
     },
     {
      "src_id": "BRA.12.90_2",
@@ -537,7 +568,8 @@
      "tier": 1,
      "leaf": "Paranatinga",
      "corrected": false,
-     "context_hit": true
+     "context_hit": true,
+     "stage": "typed"
     },
     {
      "src_id": "BRA.14.89_2",
@@ -554,7 +586,8 @@
      "tier": 1,
      "leaf": "Paragominas",
      "corrected": false,
-     "context_hit": true
+     "context_hit": true,
+     "stage": "typed"
     },
     {
      "src_id": "BRA.14.56_2",
@@ -571,7 +604,8 @@
      "tier": 1,
      "leaf": "Ipixuna do Pará",
      "corrected": false,
-     "context_hit": true
+     "context_hit": true,
+     "stage": "typed"
     }
    ]
   },
@@ -586,7 +620,8 @@
     "tier",
     "leaf",
     "corrected",
-    "context_hit"
+    "context_hit",
+    "stage"
    ],
    "records": [
     {
@@ -604,7 +639,8 @@
      "tier": 2,
      "leaf": "Indonesia",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "IDN.32.3.7.1_1",
@@ -621,7 +657,8 @@
      "tier": 1,
      "leaf": "Jambur Indonesia",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "IDN.18.9.8.5_1",
@@ -638,7 +675,8 @@
      "tier": 1,
      "leaf": "Indonesiana",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     }
    ]
   },
@@ -653,7 +691,8 @@
     "tier",
     "leaf",
     "corrected",
-    "context_hit"
+    "context_hit",
+    "stage"
    ],
    "records": [
     {
@@ -671,7 +710,8 @@
      "tier": 2,
      "leaf": "Castelo Branco",
      "corrected": false,
-     "context_hit": true
+     "context_hit": true,
+     "stage": "typed"
     },
     {
      "src_id": "PRT.6.2_1",
@@ -688,7 +728,8 @@
      "tier": 2,
      "leaf": "Castelo Branco",
      "corrected": false,
-     "context_hit": true
+     "context_hit": true,
+     "stage": "typed"
     },
     {
      "src_id": "PRT.6.2.5_1",
@@ -705,7 +746,8 @@
      "tier": 2,
      "leaf": "Castelo Branco",
      "corrected": false,
-     "context_hit": true
+     "context_hit": true,
+     "stage": "typed"
     },
     {
      "src_id": "PRT.5.8.7_1",
@@ -722,7 +764,8 @@
      "tier": 2,
      "leaf": "Castelo Branco",
      "corrected": false,
-     "context_hit": true
+     "context_hit": true,
+     "stage": "typed"
     },
     {
      "src_id": "PRT.2.4.2_1",
@@ -739,7 +782,8 @@
      "tier": 2,
      "leaf": "Castelo Branco",
      "corrected": false,
-     "context_hit": true
+     "context_hit": true,
+     "stage": "typed"
     },
     {
      "src_id": "388910",
@@ -756,7 +800,8 @@
      "tier": 2,
      "leaf": "Castelo Branco",
      "corrected": false,
-     "context_hit": true
+     "context_hit": true,
+     "stage": "typed"
     },
     {
      "src_id": "388907",
@@ -773,7 +818,8 @@
      "tier": 1,
      "leaf": "Varadouro-Castelo Branco",
      "corrected": false,
-     "context_hit": true
+     "context_hit": true,
+     "stage": "typed"
     },
     {
      "src_id": "555531133",
@@ -790,7 +836,8 @@
      "tier": 1,
      "leaf": "Morro de Castelo Branco - Ilha do Faial",
      "corrected": false,
-     "context_hit": true
+     "context_hit": true,
+     "stage": "typed"
     },
     {
      "src_id": "388904",
@@ -807,7 +854,8 @@
      "tier": 1,
      "leaf": "Morro do Castelo Branco",
      "corrected": false,
-     "context_hit": true
+     "context_hit": true,
+     "stage": "typed"
     },
     {
      "src_id": "BRA.16.286_2",
@@ -824,7 +872,8 @@
      "tier": 1,
      "leaf": "Presidente Castelo Branco",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     }
    ]
   },
@@ -839,7 +888,8 @@
     "tier",
     "leaf",
     "corrected",
-    "context_hit"
+    "context_hit",
+    "stage"
    ],
    "records": [
     {
@@ -857,7 +907,8 @@
      "tier": 2,
      "leaf": "Lisboa",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "555654757",
@@ -874,7 +925,8 @@
      "tier": 2,
      "leaf": "Lisbon",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "370980",
@@ -891,7 +943,8 @@
      "tier": 2,
      "leaf": "Lisbon",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "555659592",
@@ -908,7 +961,8 @@
      "tier": 1,
      "leaf": "Lisbon Island",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     }
    ]
   },
@@ -923,7 +977,8 @@
     "tier",
     "leaf",
     "corrected",
-    "context_hit"
+    "context_hit",
+    "stage"
    ],
    "records": [
     {
@@ -941,7 +996,8 @@
      "tier": 2,
      "leaf": "Resex Catuá-Ipixuna",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     }
    ]
   },
@@ -956,7 +1012,8 @@
     "tier",
     "leaf",
     "corrected",
-    "context_hit"
+    "context_hit",
+    "stage"
    ],
    "records": [
     {
@@ -974,7 +1031,8 @@
      "tier": 2,
      "leaf": "Osceola",
      "corrected": false,
-     "context_hit": true
+     "context_hit": true,
+     "stage": "typed"
     },
     {
      "src_id": "USA.10.49_1",
@@ -991,7 +1049,8 @@
      "tier": 2,
      "leaf": "Osceola",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "USA.23.71_1",
@@ -1008,7 +1067,8 @@
      "tier": 2,
      "leaf": "Osceola",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "USA.16.72_1",
@@ -1025,7 +1085,8 @@
      "tier": 2,
      "leaf": "Osceola",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "555654764",
@@ -1042,7 +1103,8 @@
      "tier": 2,
      "leaf": "Osceola",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "26194",
@@ -1059,7 +1121,8 @@
      "tier": 1,
      "leaf": "Osceola Flatwoods and Prairies",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "555654880",
@@ -1076,7 +1139,8 @@
      "tier": 1,
      "leaf": "Osceola-Missaukee Grasslands State",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "555591",
@@ -1093,7 +1157,8 @@
      "tier": 1,
      "leaf": "Osceola State",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "555662269",
@@ -1110,7 +1175,8 @@
      "tier": 1,
      "leaf": "West Osceola",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "555674637",
@@ -1127,7 +1193,8 @@
      "tier": 1,
      "leaf": "Agricultural Conservation Easement Program - Wetland Reserve Easements (ACEP-WRE), Osceola, FL",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     }
    ]
   },
@@ -1142,7 +1209,8 @@
     "tier",
     "leaf",
     "corrected",
-    "context_hit"
+    "context_hit",
+    "stage"
    ],
    "records": [
     {
@@ -1160,7 +1228,8 @@
      "tier": 2,
      "leaf": "Russia",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "11115313",
@@ -1177,7 +1246,8 @@
      "tier": 1,
      "leaf": "Russian",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "555602063",
@@ -1194,7 +1264,8 @@
      "tier": 1,
      "leaf": "Russian Ridge Open Spac",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "555547364",
@@ -1211,7 +1282,8 @@
      "tier": 1,
      "leaf": "Russian River State Marine Recreational Manag Recreation",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "555586730",
@@ -1228,7 +1300,8 @@
      "tier": 1,
      "leaf": "Russian River State Marine Conservation Area",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "555586869",
@@ -1245,7 +1318,8 @@
      "tier": 1,
      "leaf": "Russian Gulch State Marine Conservation Area",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "555638711",
@@ -1262,7 +1336,8 @@
      "tier": 1,
      "leaf": "Russia Dock Woodland",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     }
    ]
   },
@@ -1277,7 +1352,8 @@
     "tier",
     "leaf",
     "corrected",
-    "context_hit"
+    "context_hit",
+    "stage"
    ],
    "records": [
     {
@@ -1295,7 +1371,8 @@
      "tier": 2,
      "leaf": "Alabama",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "555605408",
@@ -1312,7 +1389,8 @@
      "tier": 1,
      "leaf": "Georgia-Alabama Land Trust Easement #566",
      "corrected": false,
-     "context_hit": true
+     "context_hit": true,
+     "stage": "typed"
     },
     {
      "src_id": "374736",
@@ -1329,7 +1407,8 @@
      "tier": 1,
      "leaf": "Sipsey Fork West Fork, Alabama",
      "corrected": false,
-     "context_hit": true
+     "context_hit": true,
+     "stage": "typed"
     },
     {
      "src_id": "555606837",
@@ -1346,7 +1425,8 @@
      "tier": 1,
      "leaf": "Georgia-Alabama Land Trust Easement #173",
      "corrected": false,
-     "context_hit": true
+     "context_hit": true,
+     "stage": "typed"
     },
     {
      "src_id": "555674517",
@@ -1363,7 +1443,8 @@
      "tier": 1,
      "leaf": "Georgia-Alabama Land Trust Easement #871",
      "corrected": false,
-     "context_hit": true
+     "context_hit": true,
+     "stage": "typed"
     },
     {
      "src_id": "USA19961",
@@ -1380,7 +1461,8 @@
      "tier": 1,
      "leaf": "Alabama and Coushatta",
      "corrected": false,
-     "context_hit": true
+     "context_hit": true,
+     "stage": "typed"
     },
     {
      "src_id": "555674518",
@@ -1397,7 +1479,8 @@
      "tier": 1,
      "leaf": "Georgia-Alabama Land Trust Easement #872",
      "corrected": false,
-     "context_hit": true
+     "context_hit": true,
+     "stage": "typed"
     },
     {
      "src_id": "555674482",
@@ -1414,7 +1497,8 @@
      "tier": 1,
      "leaf": "Georgia-Alabama Land Trust Easement #777",
      "corrected": false,
-     "context_hit": true
+     "context_hit": true,
+     "stage": "typed"
     },
     {
      "src_id": "555674483",
@@ -1431,7 +1515,8 @@
      "tier": 1,
      "leaf": "Georgia-Alabama Land Trust Easement #779",
      "corrected": false,
-     "context_hit": true
+     "context_hit": true,
+     "stage": "typed"
     },
     {
      "src_id": "555674485",
@@ -1448,7 +1533,8 @@
      "tier": 1,
      "leaf": "Georgia-Alabama Land Trust Easement #783",
      "corrected": false,
-     "context_hit": true
+     "context_hit": true,
+     "stage": "typed"
     }
    ]
   },
@@ -1463,7 +1549,8 @@
     "tier",
     "leaf",
     "corrected",
-    "context_hit"
+    "context_hit",
+    "stage"
    ],
    "records": [
     {
@@ -1481,7 +1568,8 @@
      "tier": 2,
      "leaf": "Brazil",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "900631",
@@ -1498,7 +1586,8 @@
      "tier": 1,
      "leaf": "Brazilian Atlantic Islands: Fernando de Noronha and Atol das Rocas Reserves",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "555749710",
@@ -1515,7 +1604,8 @@
      "tier": 1,
      "leaf": "Brazil-Van Ryn Farm",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     },
     {
      "src_id": "343390",
@@ -1532,7 +1622,8 @@
      "tier": 1,
      "leaf": "Brazilka",
      "corrected": false,
-     "context_hit": false
+     "context_hit": false,
+     "stage": "typed"
     }
    ]
   }

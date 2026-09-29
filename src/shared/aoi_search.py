@@ -7,7 +7,8 @@ fills the columns this module reads is in :mod:`src.shared.aoi_search_sql`
 (the fragments) and ``build-aois`` (the build).
 """
 
-from dataclasses import dataclass
+import time
+from dataclasses import dataclass, field
 from typing import Any, Dict, Literal, Optional
 
 import pandas as pd
@@ -19,6 +20,9 @@ from src.shared.geocoding_helpers import (
     VALID_AOI_SOURCES,
     normalize_aoi_source,
 )
+from src.shared.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -233,6 +237,23 @@ def _tiered_statement(
 # ("Bristol England"); "retry" reads the name vector with a query prepared
 # in Python (a corrected spelling, or a word dropped).
 _SearchStage = Literal["typed", "fallback", "retry"]
+
+# Which statement the returned rows came from: the ``stage`` column of the
+# result and the log line. "typed" and "fallback" ran the query as written,
+# "corrected" and "reduced" are the miss path (a spelling corrected, a word
+# dropped); browse and autocomplete run one statement each.
+ResultStage = Literal[
+    "browse", "typed", "fallback", "corrected", "reduced", "autocomplete"
+]
+
+
+@dataclass
+class _Trace:
+    """What one search did, for its log line: the stage whose rows came
+    back and the miss-path queries it tried on the way."""
+
+    stage: ResultStage = "typed"
+    tried: list[str] = field(default_factory=list)
 
 
 def _search_sql(
@@ -688,8 +709,11 @@ async def search_aois(
 
     Returns:
         DataFrame with columns ``src_id, name, subtype, source, bbox, tier,
-        leaf, corrected, context_hit`` (plus ``similarity_score`` when
-        searching by name). ``tier`` is ``EXACT_TIER`` for a row whose leaf
+        leaf, corrected, context_hit, stage`` (plus ``similarity_score``
+        when searching by name). ``stage`` names the statement the rows
+        came from (a ``ResultStage``), the same on every row; the search
+        also logs it with the parsed input and the miss-path queries it
+        tried. ``tier`` is ``EXACT_TIER`` for a row whose leaf
         or a stored variant equals the query, ``PARTIAL_TIER`` for a token
         or prefix match, and null when browsing. ``similarity_score`` in
         [0, 1] summarises the rank (the tier, whether the query's parent
@@ -740,24 +764,48 @@ async def search_aois(
     if "custom" in requested:
         params["user_id"] = user_id
 
+    trace = _Trace()
+    started = time.perf_counter()
     async with get_connection_from_pool() as conn:
         try:
             if not parsed.leaf:
-                return await _browse(conn, requested, params)
-            leaf_lexemes, context_lexemes = await _bind_leaf(
-                conn, parsed, params
-            )
-            if mode == "autocomplete":
-                return await _autocomplete(
-                    conn, requested, params, leaf_lexemes, context_lexemes
+                trace.stage = "browse"
+                result = await _browse(conn, requested, params)
+            else:
+                leaf_lexemes, context_lexemes = await _bind_leaf(
+                    conn, parsed, params
                 )
-            return await _search_with_retries(
-                conn, requested, parsed, params, leaf_lexemes
-            )
+                if mode == "autocomplete":
+                    trace.stage = "autocomplete"
+                    result = await _autocomplete(
+                        conn, requested, params, leaf_lexemes, context_lexemes
+                    )
+                else:
+                    result = await _search_with_retries(
+                        conn, requested, parsed, params, leaf_lexemes, trace
+                    )
         finally:
             # Read-only, and the miss path's threshold was SET LOCAL: end the
             # transaction so the pooled connection carries nothing over.
             await conn.rollback()
+
+    result["stage"] = trace.stage
+    # The one line to read when a search did not return what was expected:
+    # how the input was split, which statement answered, and what the miss
+    # path tried before it.
+    logger.info(
+        "AOI search",
+        mode=mode,
+        name=name,
+        leaf=parsed.leaf,
+        context=parsed.context,
+        sources=params["sources"],
+        stage=trace.stage,
+        tried=trace.tried,
+        rows=len(result),
+        ms=round((time.perf_counter() - started) * 1000, 1),
+    )
+    return result
 
 
 async def _read(conn, sql_query: str, params: Dict[str, Any]) -> pd.DataFrame:
@@ -826,10 +874,13 @@ async def _search_with_retries(
     parsed: SearchText,
     params: Dict[str, Any],
     leaf_lexemes: Optional[list[str]],
+    trace: _Trace,
 ) -> pd.DataFrame:
     """The query as typed, then the miss path, stopping at the first result
     that answers the query. Each step is one more round trip, only on a
-    miss."""
+    miss. *trace* records the stage that answered and the miss-path queries
+    tried; when nothing answers, the as-typed result (usually empty) is
+    returned and the trace still says "typed"."""
     with_context = bool(parsed.context)
 
     def statement(stage: _SearchStage) -> str:
@@ -843,6 +894,7 @@ async def _search_with_retries(
     # try the full vector.
     fallback = await _read(conn, statement("fallback"), params)
     if _satisfies(fallback, parsed):
+        trace.stage = "fallback"
         return fallback
 
     # A phrase of many words is not a place name to correct, and the lookup
@@ -854,15 +906,19 @@ async def _search_with_retries(
     tokens = await _leaf_tokens(conn, parsed.leaf)
     if tokens is None:
         return result
-    retries = [
-        (query, _CORRECTED_SCORE_SCALE) for query in _corrected_queries(tokens)
+    retries: list[tuple[str, float, ResultStage]] = [
+        (query, _CORRECTED_SCORE_SCALE, "corrected")
+        for query in _corrected_queries(tokens)
     ]
     retries += [
-        (query, _PARTIAL_SCORE_SCALE) for query in _reduced_queries(tokens)
+        (query, _PARTIAL_SCORE_SCALE, "reduced")
+        for query in _reduced_queries(tokens)
     ]
     token_statement = statement("retry")
-    for params["leaf_query"], params["scale"] in retries:
+    for params["leaf_query"], params["scale"], stage in retries:
+        trace.tried.append(params["leaf_query"])
         retried = await _read(conn, token_statement, params)
         if _satisfies(retried, parsed):
+            trace.stage = stage
             return retried
     return result

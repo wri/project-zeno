@@ -638,6 +638,42 @@ async def test_an_extra_generic_word_is_dropped(auth_override, client):
 
 
 @pytest.mark.asyncio
+async def test_the_stage_column_names_the_statement_that_answered(
+    auth_override, client
+):
+    """The first thing to check when a search surprises: which path the
+    rows came from. Not on the API; read from the frame or the log."""
+    auth_override("test-user-wri")
+    await _seed_reference_aoi(
+        "gadm", "IND.16.3_1", "Bangalore, Karnataka, India", "district-county"
+    )
+    await _seed_reference_aoi(
+        "gadm",
+        "GBR.1.12_1",
+        "Bristol, England, United Kingdom",
+        "district-county",
+    )
+    await _seed_reference_aoi(
+        "wdpa", "916", "Serengeti, National Park, TZA", "protected-area"
+    )
+    await rebuild_search_tokens()
+
+    async def stage_of(name):
+        frame = await aoi_search.search_aois(name, ["gadm", "wdpa"], None)
+        return set(frame["stage"])
+
+    assert await stage_of("Bangalore") == {"typed"}
+    assert await stage_of("Bristol England") == {"fallback"}
+    assert await stage_of("Banglore") == {"corrected"}
+    assert await stage_of("Serengeti NP") == {"reduced"}
+    assert await stage_of(None) == {"browse"}
+    frame = await aoi_search.search_aois(
+        "ban", ["gadm"], None, mode="autocomplete"
+    )
+    assert set(frame["stage"]) == {"autocomplete"}
+
+
+@pytest.mark.asyncio
 async def test_autocomplete_counts_an_aoi_once_however_many_variants_match(
     auth_override, client
 ):

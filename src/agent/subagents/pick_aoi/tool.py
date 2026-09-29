@@ -101,7 +101,7 @@ async def query_aoi_database(
 
     Returns:
         DataFrame with the columns ``src_id, name, subtype, source, bbox,
-        similarity_score, tier, leaf, corrected, context_hit`` (see
+        similarity_score, tier, leaf, corrected, context_hit, stage`` (see
         ``search_aois``). Disputed and deprecated AOIs are excluded.
     """
     sources = [aoi_to_table[aoi_type]] if aoi_type is not None else None
@@ -307,7 +307,7 @@ async def query_subregion_database(
 
 # Columns the search returns for the selection step only. AOIIndex allows
 # extra fields, so anything left on the row would leak into aoi_selection.
-_SEARCH_ONLY_COLUMNS = {"tier", "leaf", "corrected", "context_hit"}
+_SEARCH_ONLY_COLUMNS = {"tier", "stage", "leaf", "corrected", "context_hit"}
 
 
 def _aoi_from_row(row: dict) -> AOIIndex:
