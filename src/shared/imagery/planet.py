@@ -21,3 +21,8 @@ class PlanetImagery(BaseModel):
 
     provider: Literal["planet"] = "planet"
     period: MonthlyPeriod
+    tile_url: str
+    bounds: tuple[float, float, float, float]
+    min_zoom: int
+    max_zoom: int
+    aoi_names: list[str]

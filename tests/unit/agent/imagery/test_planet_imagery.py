@@ -4,23 +4,54 @@ from pydantic import ValidationError
 from src.shared.imagery.planet import MonthlyPeriod, PlanetImagery
 
 
-def test_planet_imagery_identifies_its_provider_as_planet():
-    imagery = PlanetImagery(period=MonthlyPeriod.from_month("2026-08"))
+def planet_imagery(**overrides) -> PlanetImagery:
+    defaults = {
+        "period": MonthlyPeriod.from_month("2026-08"),
+        "tile_url": "https://tiles.example/{z}/{x}/{y}.png",
+        "bounds": [-56.0, -8.0, -54.0, -6.0],
+        "min_zoom": 10,
+        "max_zoom": 18,
+        "aoi_names": ["Novo Progresso"],
+    }
+    return PlanetImagery(**{**defaults, **overrides})
 
-    assert imagery.provider == "planet"
+
+def test_planet_imagery_identifies_its_provider_as_planet():
+    assert planet_imagery().provider == "planet"
 
 
 def test_planet_imagery_keeps_the_monthly_period_it_was_built_with():
-    period = MonthlyPeriod.from_month("2026-08")
+    period = MonthlyPeriod.from_month("2025-12")
 
-    assert PlanetImagery(period=period).period == period
+    assert planet_imagery(period=period).period == period
+
+
+def test_planet_imagery_keeps_the_tile_source_it_renders_from():
+    imagery = planet_imagery(
+        tile_url="https://planet.example/{z}/{x}/{y}.png",
+        bounds=[-60.0, -10.0, -58.0, -8.0],
+        min_zoom=11,
+        max_zoom=17,
+    )
+
+    assert imagery.tile_url == "https://planet.example/{z}/{x}/{y}.png"
+    assert imagery.bounds == (-60.0, -10.0, -58.0, -8.0)
+    assert (imagery.min_zoom, imagery.max_zoom) == (11, 17)
+
+
+def test_planet_imagery_names_the_areas_it_covers():
+    imagery = planet_imagery(aoi_names=["Novo Progresso", "Altamira"])
+
+    assert imagery.aoi_names == ["Novo Progresso", "Altamira"]
+
+
+def test_planet_imagery_rejects_bounds_without_four_coordinates():
+    with pytest.raises(ValidationError, match="bounds"):
+        planet_imagery(bounds=[-56.0, -8.0])
 
 
 def test_planet_imagery_rejects_fields_it_does_not_define():
     with pytest.raises(
         ValidationError, match="Extra inputs are not permitted"
     ):
-        PlanetImagery(
-            period=MonthlyPeriod.from_month("2026-08"),
-            mosaic_id="planet:2026-08",
-        )
+        planet_imagery(mosaic_id="planet:2026-08")
