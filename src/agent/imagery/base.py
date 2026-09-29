@@ -2,9 +2,10 @@
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Literal, Optional, Protocol
+from typing import Literal, Optional, Protocol, Union
 
 from src.agent.models import ImageryState
+from src.shared.imagery.wire import Imagery
 
 
 @dataclass(frozen=True)
@@ -24,7 +25,7 @@ class ImageryProviderResult:
 
     status: Literal["success", "error"]
     message: str
-    imagery: Optional[ImageryState] = None
+    imagery: Optional[Union[ImageryState, Imagery]] = None
 
 
 class ImageryProvider(Protocol):

@@ -4,7 +4,7 @@ from datetime import date, timedelta
 from typing import Optional
 
 from src.agent.imagery.base import ImageryProviderResult, ImageryRequest
-from src.agent.models import ImageryState
+from src.shared.imagery.planet import MonthlyPeriod, PlanetImagery
 
 
 class PlanetImageryProvider:
@@ -52,15 +52,9 @@ class PlanetImageryProvider:
         self, request: ImageryRequest
     ) -> ImageryProviderResult:
         month = self.month(request.target_date)
-        month_start = date.fromisoformat(f"{month}-01")
-        next_month = date(
-            month_start.year + (month_start.month == 12),
-            month_start.month % 12 + 1,
-            1,
-        )
-        month_end = next_month - timedelta(days=1)
-        imagery = ImageryState(
-            provider="planet",
+        period = MonthlyPeriod.from_month(month)
+        imagery = PlanetImagery(
+            period=period,
             tile_url=(
                 f"{self.BASE_URL}/integrated_alerts_planet_imagery/"
                 f"{{z}}/{{x}}/{{y}}.png?month={month}"
@@ -68,20 +62,12 @@ class PlanetImageryProvider:
             bounds=self._bounds(request.aois),
             min_zoom=10,
             max_zoom=18,
-            mosaic_id=f"planet:{month}",
-            start_date=month_start.isoformat(),
-            end_date=month_end.isoformat(),
-            target_date=(
-                request.target_date.isoformat()
-                if request.target_date
-                else None
-            ),
             aoi_names=[aoi["name"] for aoi in request.aois],
         )
         message = (
             "Showing the limited-coverage Planet monthly mosaic for "
-            f"{month_start.strftime('%B')} {month_start.day}–{month_end.day}, "
-            f"{month_start.year}. Sentinel-2 imagery is also available if "
+            f"{period.start.strftime('%B')} {period.start.day}–{period.end.day}, "
+            f"{period.start.year}. Sentinel-2 imagery is also available if "
             "you'd like to compare it."
         )
         return ImageryProviderResult(

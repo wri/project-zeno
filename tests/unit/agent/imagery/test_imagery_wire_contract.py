@@ -1,9 +1,13 @@
+import json
 from datetime import date
 
-import pytest
+from langchain_core.load import dumps
+from pydantic import TypeAdapter
 
 from src.agent.imagery import ImageryRequest, PlanetImageryProvider
 from src.agent.tools.show_imagery import provider_command
+from src.shared.imagery.planet import MonthlyPeriod, PlanetImagery
+from src.shared.imagery.wire import Imagery
 
 AMAZON_AOI = {
     "name": "Novo Progresso",
@@ -13,20 +17,18 @@ AMAZON_AOI = {
 }
 
 
-@pytest.mark.xfail(strict=True, reason="Imagery wire contract not built yet")
-async def test_planet_imagery_tool_update_satisfies_the_wire_contract_as_planet_imagery():
-    from pydantic import TypeAdapter
+def as_streamed(update: dict) -> dict:
+    return json.loads(dumps(update))
 
-    from src.shared.imagery.planet import MonthlyPeriod, PlanetImagery
-    from src.shared.imagery.wire import Imagery
 
+async def test_planet_imagery_streamed_to_the_client_satisfies_the_wire_contract():
     request = ImageryRequest(
         aois=[AMAZON_AOI], target_date=date(2026, 8, 15), language="en"
     )
     result = await PlanetImageryProvider().get_imagery(request)
 
-    wire_imagery = provider_command(result, "call-1").update["imagery"]
-    imagery = TypeAdapter(Imagery).validate_python(wire_imagery)
+    streamed = as_streamed(provider_command(result, "call-1").update)
+    imagery = TypeAdapter(Imagery).validate_python(streamed["imagery"])
 
     assert isinstance(imagery, PlanetImagery)
     assert imagery.period == MonthlyPeriod.from_month("2026-08")
