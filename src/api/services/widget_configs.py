@@ -13,6 +13,10 @@ instructions, ...) can never leak into the database.
 
 from typing import Optional
 
+from pydantic import TypeAdapter, ValidationError
+
+from src.shared.imagery.wire import Imagery
+
 # Render-relevant fields of the imagery state (ImageryState) — all of it.
 IMAGERY_KEYS = (
     "provider",
@@ -106,13 +110,22 @@ def dataset_config(state: dict) -> Optional[dict]:
     }
 
 
-def imagery_config(state: dict) -> Optional[dict]:
-    """Snapshot the imagery in state (ImageryState shape) for the widget.
+IMAGERY = TypeAdapter(Imagery)
 
-    Returns None when no imagery was built this conversation or the state
-    lacks a tile URL / mosaic id to render from.
+
+def imagery_config(state: dict) -> Optional[dict]:
+    """Snapshot the imagery in state for the widget.
+
+    Imagery that satisfies the wire contract is snapshotted in that shape;
+    anything else takes the legacy ImageryState path. Returns None when no
+    imagery was built this conversation or a legacy payload lacks a tile URL
+    / mosaic id to render from.
     """
     imagery = state.get("imagery") or {}
+    try:
+        return IMAGERY.validate_python(imagery).model_dump(mode="json")
+    except ValidationError:
+        pass
     if not imagery.get("tile_url") or not imagery.get("mosaic_id"):
         return None
     return {key: imagery.get(key) for key in IMAGERY_KEYS}
