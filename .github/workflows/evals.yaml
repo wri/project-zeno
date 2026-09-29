@@ -3,6 +3,20 @@ name: Evals
 on:
   repository_dispatch:
     types: [deploy-complete]
+  workflow_call:
+    inputs:
+      environment:
+        description: API environment to target
+        required: true
+        type: string
+      ref:
+        description: project-zeno ref to check out
+        required: false
+        type: string
+      api_base_url:
+        description: Explicit API base URL, used by environments with no fixed hostname
+        required: false
+        type: string
   workflow_dispatch:
     inputs:
       environment:
@@ -13,8 +27,13 @@ on:
         options:
           - staging
           - production
+          - evals
       ref:
         description: project-zeno ref to check out (defaults to the workflow's branch)
+        required: false
+        type: string
+      api_base_url:
+        description: Explicit API base URL (required for the evals environment)
         required: false
         type: string
 
@@ -40,6 +59,7 @@ jobs:
             echo "environment=${{ inputs.environment }}" >> "$GITHUB_OUTPUT"
             echo "ref=${{ inputs.ref || github.ref }}" >> "$GITHUB_OUTPUT"
             echo "image_tag=" >> "$GITHUB_OUTPUT"
+            echo "api_base_url=${{ inputs.api_base_url }}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Checkout
@@ -57,8 +77,15 @@ jobs:
 
       - name: Select API base URL
         run: |
-          if [ "${{ steps.ctx.outputs.environment }}" = "production" ]; then
+          # The evals environment is a raw ALB hostname that changes when the load
+          # balancer is replaced, so its URL is passed in rather than hardcoded.
+          if [ -n "${{ steps.ctx.outputs.api_base_url }}" ]; then
+            echo "API_BASE_URL=${{ steps.ctx.outputs.api_base_url }}" >> "$GITHUB_ENV"
+          elif [ "${{ steps.ctx.outputs.environment }}" = "production" ]; then
             echo "API_BASE_URL=https://api.globalnaturewatch.org" >> "$GITHUB_ENV"
+          elif [ "${{ steps.ctx.outputs.environment }}" = "evals" ]; then
+            echo "The evals environment requires api_base_url to be supplied." >&2
+            exit 1
           else
             echo "API_BASE_URL=https://api.staging.globalnaturewatch.org" >> "$GITHUB_ENV"
           fi
