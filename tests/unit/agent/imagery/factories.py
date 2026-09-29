@@ -1,5 +1,11 @@
+from datetime import date
+
 from src.shared.imagery.planet import MonthlyPeriod, PlanetImagery
-from src.shared.imagery.sentinel2 import SceneSummary
+from src.shared.imagery.sentinel2 import (
+    SceneSummary,
+    SearchWindowPeriod,
+    Sentinel2Imagery,
+)
 
 
 def planet_imagery(**overrides) -> PlanetImagery:
@@ -24,3 +30,17 @@ def scene_summary(**overrides) -> SceneSummary:
         "max_cloud_cover": 20.0,
     }
     return SceneSummary(**{**defaults, **overrides})
+
+
+def sentinel2_imagery(**overrides) -> Sentinel2Imagery:
+    defaults = {
+        "period": SearchWindowPeriod.from_search(
+            date(2026, 8, 15), window_days=7, today=date(2026, 9, 29)
+        ),
+        "tile_url": "https://tiles.example/{z}/{x}/{y}.png",
+        "tilejson_url": "https://tiles.example/tilejson.json",
+        "mosaic_id": "recipe-token",
+        "max_cloud_cover": 20,
+        "scenes": scene_summary(),
+    }
+    return Sentinel2Imagery(**{**defaults, **overrides})
