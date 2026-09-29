@@ -1,12 +1,12 @@
 """Sentinel-2 mosaic imagery provider."""
 
 from datetime import date, timedelta
+from typing import Optional
 
 from cogeo_mosaic.errors import MosaicNotFoundError
 
 from src.agent.i18n import t
 from src.agent.imagery.base import ImageryProviderResult, ImageryRequest
-from src.agent.models import ImageryState
 from src.api.services.mosaic import (
     AoiTooLargeError,
     MosaicRecipe,
@@ -14,6 +14,11 @@ from src.api.services.mosaic import (
     NoScenesFoundError,
     StacSearchError,
     create_sentinel2_mosaic,
+)
+from src.shared.imagery.sentinel2 import (
+    SceneSummary,
+    SearchWindowPeriod,
+    Sentinel2Imagery,
 )
 from src.shared.logging_config import get_logger
 from src.shared.request_context import current_user_id
@@ -77,22 +82,15 @@ class Sentinel2ImageryProvider:
                 "show_imagery.unexpected_error", request
             )
 
-        imagery = ImageryState(
-            provider="sentinel-2",
+        imagery = Sentinel2Imagery(
+            period=SearchWindowPeriod.from_search(
+                recipe.target_date, recipe.window_days, today=date.today()
+            ),
             tile_url=result.tile_url,
             tilejson_url=result.tilejson_url,
             mosaic_id=result.mosaic_id,
-            item_count=result.item_count,
-            start_date=(
-                result.date_start.isoformat() if result.date_start else None
-            ),
-            end_date=result.date_end.isoformat() if result.date_end else None,
-            mean_cloud_cover=result.mean_cloud_cover,
-            min_cloud_cover=result.min_cloud_cover,
-            max_cloud_cover_observed=result.max_cloud_cover,
-            target_date=recipe.target_date.isoformat(),
-            window_days=recipe.window_days,
             max_cloud_cover=recipe.max_cloud_cover,
+            scenes=self._scenes(result),
             aoi_names=[aoi["name"] for aoi in request.aois],
         )
         summary = ""
@@ -113,6 +111,20 @@ class Sentinel2ImageryProvider:
         return ImageryProviderResult(
             status="success", imagery=imagery, message=message
         )
+
+    @staticmethod
+    def _scenes(result: MosaicResult) -> Optional[SceneSummary]:
+        stats = {
+            "item_count": result.item_count,
+            "start_date": result.date_start,
+            "end_date": result.date_end,
+            "mean_cloud_cover": result.mean_cloud_cover,
+            "min_cloud_cover": result.min_cloud_cover,
+            "max_cloud_cover": result.max_cloud_cover,
+        }
+        if any(stat is None for stat in stats.values()):
+            return None
+        return SceneSummary(**stats)
 
     @staticmethod
     async def _feedback(
