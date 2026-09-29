@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 
-from src.shared.imagery.contract import LayerPeriod
+from src.shared.imagery.contract import LayerPeriod, StrictModel
 
 
 class SearchWindowPeriod(LayerPeriod):
@@ -12,3 +12,7 @@ class SearchWindowPeriod(LayerPeriod):
         return cls(
             start=target_date - window, end=min(target_date + window, today)
         )
+
+
+class SceneSummary(StrictModel):
+    item_count: int

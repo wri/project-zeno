@@ -2,9 +2,7 @@ import calendar
 from datetime import date
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
-
-from src.shared.imagery.contract import LayerPeriod
+from src.shared.imagery.contract import LayerPeriod, StrictModel
 
 
 class MonthlyPeriod(LayerPeriod):
@@ -15,9 +13,7 @@ class MonthlyPeriod(LayerPeriod):
         return cls(start=start, end=start.replace(day=last_day))
 
 
-class PlanetImagery(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
+class PlanetImagery(StrictModel):
     provider: Literal["planet"] = "planet"
     period: MonthlyPeriod
     tile_url: str
