@@ -221,20 +221,20 @@ async def _build_imagery(
             max_cloud_cover=spec.max_cloud_cover,
         )
     )
+    imagery = result.imagery
     snapshot = (
-        imagery_config({"imagery": result.imagery.model_dump()})
-        if result.imagery is not None
+        imagery_config({"imagery": imagery.model_dump()})
+        if imagery is not None
         else None
     )
-    if snapshot is None:
+    if imagery is None or snapshot is None:
         raise WidgetFailedError(result.message)
     return BuiltWidget(
         widget=SectionWidget(
             widget_type="map", config=widget_config("imagery", snapshot, None)
         ),
         summary=(
-            "map: Sentinel-2 satellite imagery around "
-            f"{snapshot['target_date']}"
+            f"map: Sentinel-2 satellite imagery {imagery.period.label()}"
         ),
     )
 
