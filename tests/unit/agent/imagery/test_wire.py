@@ -1,7 +1,9 @@
 from pydantic import TypeAdapter
 
 from src.shared.imagery.planet import PlanetImagery
+from src.shared.imagery.sentinel2 import Sentinel2Imagery
 from src.shared.imagery.wire import Imagery
+from tests.unit.agent.imagery.factories import sentinel2_imagery
 
 PLANET_PAYLOAD = {
     "provider": "planet",
@@ -18,3 +20,11 @@ def test_wire_contract_reads_a_planet_payload_as_planet_imagery():
     imagery = TypeAdapter(Imagery).validate_python(PLANET_PAYLOAD)
 
     assert isinstance(imagery, PlanetImagery)
+
+
+def test_wire_contract_reads_a_sentinel2_payload_as_sentinel2_imagery():
+    payload = sentinel2_imagery().model_dump(mode="json")
+
+    imagery = TypeAdapter(Imagery).validate_python(payload)
+
+    assert isinstance(imagery, Sentinel2Imagery)
