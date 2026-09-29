@@ -1,5 +1,12 @@
 from datetime import date
+from unittest.mock import AsyncMock, patch
 
+from src.agent.imagery import (
+    ImageryProviderResult,
+    ImageryRequest,
+    Sentinel2ImageryProvider,
+)
+from src.api.services.mosaic import MosaicResult
 from src.shared.imagery.planet import MonthlyPeriod, PlanetImagery
 from src.shared.imagery.sentinel2 import (
     SceneSummary,
@@ -45,3 +52,13 @@ def sentinel2_imagery(**overrides) -> Sentinel2Imagery:
         "aoi_names": ["Odzala-Kokoua"],
     }
     return Sentinel2Imagery(**{**defaults, **overrides})
+
+
+async def sentinel2_result_from(
+    mosaic: MosaicResult, request: ImageryRequest
+) -> ImageryProviderResult:
+    with patch(
+        "src.agent.imagery.sentinel2.create_sentinel2_mosaic",
+        AsyncMock(return_value=mosaic),
+    ):
+        return await Sentinel2ImageryProvider().get_imagery(request)

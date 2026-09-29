@@ -1,13 +1,13 @@
 from datetime import date
-from unittest.mock import AsyncMock, patch
 
-from src.agent.imagery import ImageryRequest, Sentinel2ImageryProvider
+from src.agent.imagery import ImageryRequest
 from src.api.services.mosaic import MosaicResult
 from src.shared.imagery.sentinel2 import (
     SceneSummary,
     SearchWindowPeriod,
     Sentinel2Imagery,
 )
+from tests.unit.agent.imagery.factories import sentinel2_result_from
 
 VAUD = {
     "name": "Vaud",
@@ -37,12 +37,7 @@ REQUEST = ImageryRequest(
 
 
 async def imagery_built_from(mosaic: MosaicResult):
-    with patch(
-        "src.agent.imagery.sentinel2.create_sentinel2_mosaic",
-        AsyncMock(return_value=mosaic),
-    ):
-        result = await Sentinel2ImageryProvider().get_imagery(REQUEST)
-    return result.imagery
+    return (await sentinel2_result_from(mosaic, REQUEST)).imagery
 
 
 async def test_sentinel2_provider_builds_sentinel2_imagery_from_the_mosaic_it_searched():
