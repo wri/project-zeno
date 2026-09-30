@@ -51,7 +51,7 @@ resource "aws_iam_instance_profile" "bastion" {
 resource "aws_security_group" "bastion" {
   name_prefix = "${local.prefix}-bastion-"
   vpc_id      = var.vpc_id
-  description = "Security group for the evals bastion"
+  description = "Security group for the bastion"
 
   # No ingress rules. SSM needs none.
 

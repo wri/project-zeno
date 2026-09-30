@@ -1,23 +1,17 @@
 #!/usr/bin/env bash
 #
-# Build the AOI seed database and snapshot it.
+# Build the reference database and snapshot it.
 #
-# The unified `aois` table that the API reads is created EMPTY by migration
-# ceea2a027738; it is populated out of band by the `build-aois` CLI, which in
-# turn reads the `geometries_*` tables written by src/ingest/*.py. This script
-# runs that whole chain once and takes an RDS snapshot of the result, so that
-# evals environments can restore the snapshot instead of re-ingesting (hours,
-# ~20GB of downloads).
+# The unified area table the API reads is created empty by migration; this runs
+# the ingests that fill it, transforms them into that table, and snapshots the
+# result. Deployments restore the snapshot rather than repeating any of it.
 #
-# Run it by hand against the database Terraform created. This script never
-# creates infrastructure: bring the stack up with no seed_snapshot_id (which
-# gives an empty database), plus db_publicly_accessible=true and
-# db_allowed_cidrs=["<your-ip>/32"] so it is reachable from here. See
-# terraform/README.md.
+# Run by hand against a reachable database. Hours of work and ~20GB of downloads,
+# so only when the source data changes.
 #
 # Usage:
-#   DATABASE_URL=postgresql+asyncpg://postgres:<pw>@$(terraform output -raw db_address)/ \
-#   SEED_DB_INSTANCE=$(terraform output -raw db_instance_identifier) \
+#   DATABASE_URL=postgresql+asyncpg://postgres:<pw>@localhost:5432/ \
+#   SEED_DB_INSTANCE=<rds-instance-identifier> \
 #     scripts/build_seed_db.sh [step ...]
 #
 # With no arguments every step runs in order. Naming steps runs only those,

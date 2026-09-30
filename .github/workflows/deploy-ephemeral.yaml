@@ -1,9 +1,9 @@
-name: Evals Environment
+name: Ephemeral Environment
 
 # Creates or destroys an ephemeral deployment of a single commit.
 #
-# Each gets its own ECS service, listener port and database. The database
-# instance and load balancer are shared and managed separately.
+# Each gets its own ECS service, listener port and database instance, restored
+# from the reference snapshot. The load balancer and cluster are shared.
 #
 # The image must already exist in the registry, which today means the commit is
 # on main.
@@ -34,7 +34,7 @@ permissions:
 
 # One run per deployment; clearer failures than a state lock timeout.
 concurrency:
-  group: evals-env-${{ inputs.commit_sha }}
+  group: ephemeral-env-${{ inputs.commit_sha }}
   cancel-in-progress: false
 
 env:
@@ -45,7 +45,7 @@ jobs:
   environment:
     name: ${{ inputs.action }} ${{ inputs.commit_sha }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -76,7 +76,7 @@ jobs:
 
       - name: Terraform init
         working-directory: ./terraform/env
-        run: terraform init -backend-config=vars/backend-evals-env.tfvars
+        run: terraform init -backend-config=vars/backend-env.tfvars
 
       - name: Select workspace
         working-directory: ./terraform/env
@@ -90,7 +90,8 @@ jobs:
         run: |
           terraform plan -out=tf.plan \
             -var="image_tag=${{ inputs.commit_sha }}" \
-            -var="db_password=${{ secrets.EVALS_DB_PASSWORD }}"
+            -var="seed_snapshot_id=${{ vars.EPHEMERAL_SEED_SNAPSHOT_ID }}" \
+            -var="db_password=${{ secrets.EPHEMERAL_DB_PASSWORD }}"
 
       - name: Terraform apply
         if: inputs.action == 'create' && inputs.dry_run == false
@@ -107,7 +108,6 @@ jobs:
             echo "api_base_url=$(terraform output -raw api_base_url)"
             echo "cluster_name=$(terraform output -raw cluster_name)"
             echo "service_name=$(terraform output -raw service_name)"
-            echo "database_name=$(terraform output -raw database_name)"
           } >> "$GITHUB_OUTPUT"
 
       - name: Wait for the service
@@ -118,8 +118,8 @@ jobs:
             --cluster "${{ steps.outputs.outputs.cluster_name }}" \
             --services "${{ steps.outputs.outputs.service_name }}"
 
-      # The container clones and migrates its own database, so a healthy
-      # service means both succeeded.
+      # The container migrates its own database, so a healthy service means
+      # the restore and migrations both succeeded.
       - name: Smoke check
         if: inputs.action == 'create' && inputs.dry_run == false
         run: |
@@ -137,46 +137,14 @@ jobs:
 
       # --- destroy --------------------------------------------------------
 
-      # Before the infrastructure goes, while the outputs naming it are still
-      # readable.
-      - name: Drop the database
-        if: inputs.action == 'destroy' && inputs.dry_run == false
-        working-directory: ./terraform/env
-        run: |
-          set -euo pipefail
-          database=$(terraform output -raw database_name)
-          cluster=$(terraform output -raw cluster_name)
-
-          shared_dir=../
-          task_def=$(terraform -chdir=$shared_dir output -raw teardown_task_definition_arn)
-          subnets=$(terraform -chdir=$shared_dir output -json task_subnet_ids | jq -r 'join(",")')
-          sg=$(terraform -chdir=$shared_dir output -raw task_security_group_id)
-
-          overrides=$(jq -nc --arg db "$database" '{
-            containerOverrides: [{
-              name: "teardown",
-              command: ["sh","-c",("psql \"$MAINTENANCE_DATABASE_URL\" -c \"DROP DATABASE IF EXISTS " + $db + " WITH (FORCE)\"")]
-            }]
-          }')
-
-          task_arn=$(aws ecs run-task --cluster "$cluster" --task-definition "$task_def" \
-            --launch-type FARGATE \
-            --network-configuration "awsvpcConfiguration={subnets=[$subnets],securityGroups=[$sg],assignPublicIp=ENABLED}" \
-            --overrides "$overrides" --query 'tasks[0].taskArn' --output text)
-
-          aws ecs wait tasks-stopped --cluster "$cluster" --tasks "$task_arn"
-          exit_code=$(aws ecs describe-tasks --cluster "$cluster" --tasks "$task_arn" \
-            --query 'tasks[0].containers[0].exitCode' --output text)
-          echo "Drop task exit code: $exit_code"
-          [ "$exit_code" = "0" ]
-
       - name: Terraform destroy
         if: inputs.action == 'destroy'
         working-directory: ./terraform/env
         run: |
           terraform destroy ${{ inputs.dry_run == false && '-auto-approve' || '-refresh-only' }} \
             -var="image_tag=${{ inputs.commit_sha }}" \
-            -var="db_password=${{ secrets.EVALS_DB_PASSWORD }}"
+            -var="seed_snapshot_id=${{ vars.EPHEMERAL_SEED_SNAPSHOT_ID }}" \
+            -var="db_password=${{ secrets.EPHEMERAL_DB_PASSWORD }}"
 
       - name: Delete workspace
         if: inputs.action == 'destroy' && inputs.dry_run == false
@@ -189,7 +157,7 @@ jobs:
         if: always()
         run: |
           {
-            echo "## Evals environment — ${{ inputs.action }}"
+            echo "## Ephemeral environment — ${{ inputs.action }}"
             echo ""
             echo "| | |"
             echo "|---|---|"
@@ -197,6 +165,5 @@ jobs:
             echo "| Dry run | \`${{ inputs.dry_run }}\` |"
             if [ "${{ inputs.action }}" = "create" ] && [ "${{ inputs.dry_run }}" = "false" ]; then
               echo "| URL | ${{ steps.outputs.outputs.api_base_url }} |"
-              echo "| Database | \`${{ steps.outputs.outputs.database_name }}\` |"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
