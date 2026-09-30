@@ -8,7 +8,17 @@ treated as an error. Nothing here writes to the GNW user.
 
 import re
 from typing import Any, Optional
+from urllib.parse import quote
 
+import httpx
+
+from src.api.auth.machine_user import MACHINE_USER_PREFIX
+from src.api.data_models import UserType
+from src.api.schemas import (
+    ProfilePrefillResponse,
+    ProfilePrefillSuggestion,
+    UserModel,
+)
 from src.api.user_profile_configs.countries import COUNTRIES
 from src.api.user_profile_configs.gfw import (
     GADM_ISO3_TO_COUNTRY_CODE,
@@ -23,8 +33,15 @@ from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
+RW_API_URL = "https://api.resourcewatch.org"
+RW_TIMEOUT_SECONDS = 10
+
 # GFW writes "Other" or "Other: <free text>" for a write-in sector or role.
 _OTHER = "other"
+
+
+class ResourceWatchUnavailableError(Exception):
+    """Resource Watch could not be reached or answered unexpectedly."""
 
 
 def _fold(value: str) -> str:
@@ -155,3 +172,99 @@ def map_gfw_profile(attributes: Any) -> dict[str, Any]:
         unmapped_values=unmapped,
     )
     return suggestion
+
+
+async def fetch_gfw_attributes(
+    user_id: str, token: str
+) -> Optional[dict[str, Any]]:
+    """Read the caller's RW user attributes, where MyGFW keeps its profile.
+
+    Returns ``None`` when RW has no profile for the user (404: the MyGFW
+    form was never saved). Raises ``ResourceWatchUnavailableError`` when RW
+    cannot be reached or answers anything but 200/404.
+    """
+    url = f"{RW_API_URL}/v2/user/{quote(user_id, safe='')}"
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                url,
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=RW_TIMEOUT_SECONDS,
+            )
+    except httpx.HTTPError as e:
+        logger.warning(
+            "Could not reach Resource Watch for the MyGFW profile",
+            error_type=type(e).__name__,
+            exc_info=True,
+        )
+        raise ResourceWatchUnavailableError(
+            f"Could not reach Resource Watch: {type(e).__name__}"
+        ) from e
+
+    if resp.status_code == 404:
+        return None
+    if resp.status_code != 200:
+        # A 401/403 lands here too: the token passed require_auth, possibly
+        # from the one-day identity cache, but RW refused it.
+        logger.warning(
+            "Resource Watch refused the MyGFW profile request",
+            status_code=resp.status_code,
+        )
+        raise ResourceWatchUnavailableError(
+            f"Resource Watch answered {resp.status_code}"
+        )
+
+    try:
+        body = resp.json()
+    except ValueError as e:
+        logger.warning(
+            "Resource Watch returned a non-JSON MyGFW profile",
+            exc_info=True,
+        )
+        raise ResourceWatchUnavailableError(
+            "Resource Watch returned a non-JSON body"
+        ) from e
+
+    # The JSON:API shape is inferred from the gfw frontend, not observed
+    # live. If it differs, say so loudly in the logs but degrade to "no
+    # profile", since prefill is best-effort.
+    data = body.get("data") if isinstance(body, dict) else None
+    attributes = data.get("attributes") if isinstance(data, dict) else None
+    if not isinstance(attributes, dict):
+        logger.warning(
+            "Resource Watch user response has no data.attributes",
+            top_level_keys=(
+                sorted(body) if isinstance(body, dict) else type(body).__name__
+            ),
+        )
+        return {}
+    return attributes
+
+
+async def get_profile_prefill(
+    user: UserModel, token: str
+) -> ProfilePrefillResponse:
+    """Suggest profile fields for ``user`` from their MyGFW profile."""
+    not_found = ProfilePrefillResponse(found=False)
+
+    # A machine key is ours and must never be sent to a third party, and a
+    # machine user has no MyGFW profile anyway.
+    if (
+        token.startswith(f"{MACHINE_USER_PREFIX}:")
+        or user.user_type == UserType.MACHINE
+    ):
+        return not_found
+
+    attributes = await fetch_gfw_attributes(user.id, token)
+    if attributes is None:
+        logger.info("No MyGFW profile for this user")
+        return not_found
+
+    suggestion = map_gfw_profile(attributes)
+    if not suggestion:
+        return not_found
+    return ProfilePrefillResponse(
+        found=True,
+        source="gfw",
+        suggestion=ProfilePrefillSuggestion(**suggestion),
+    )

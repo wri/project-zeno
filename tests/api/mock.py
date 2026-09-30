@@ -42,3 +42,23 @@ def mock_rw_api_response(username):
         user = USERS[2]
 
     return MockResponse(user, 200)
+
+
+class MockProfileResponse:
+    """A Resource Watch ``GET /v2/user/{id}`` response."""
+
+    def __init__(self, json_data, status_code=200):
+        self.json_data = json_data
+        self.status_code = status_code
+        self.text = str(json_data)
+
+    def json(self):
+        return self.json_data
+
+
+def mock_rw_profile_response(user_id, attributes, status_code=200):
+    """The JSON:API body the gfw frontend reads (``data.attributes``)."""
+    return MockProfileResponse(
+        {"data": {"id": user_id, "type": "user", "attributes": attributes}},
+        status_code,
+    )

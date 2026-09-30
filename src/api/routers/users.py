@@ -2,19 +2,26 @@
 
 import json
 from datetime import datetime, timezone
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.auth.dependencies import require_auth
+from src.api.auth.dependencies import require_auth, security
 from src.api.config import APISettings
 from src.api.data_models import UserOrm
 from src.api.schemas import (
     ProfileConfigResponse,
+    ProfilePrefillResponse,
     UserModel,
     UserProfileUpdateRequest,
     UserWithQuotaModel,
+)
+from src.api.services.profile_prefill import (
+    ResourceWatchUnavailableError,
+    get_profile_prefill,
 )
 from src.api.services.quota import check_quota
 from src.shared.database import get_session_from_pool_dependency
@@ -104,6 +111,34 @@ async def update_user_profile(
         terms_accepted_at=db_user.terms_accepted_at,
         terms_version=db_user.terms_version,
     )
+
+
+@router.get("/api/auth/profile/prefill", response_model=ProfilePrefillResponse)
+async def get_profile_prefill_suggestion(
+    user: UserModel = Depends(require_auth),
+    authorization: Optional[HTTPAuthorizationCredentials] = Depends(security),
+):
+    """
+    Suggest profile fields from the caller's MyGFW profile.
+
+    Read-only: nothing is written. The suggestion uses the
+    PATCH /api/auth/profile field names and holds only fields that mapped
+    to valid GNW values. Returns found=false when there is no MyGFW
+    profile or nothing maps, and 502 when Resource Watch fails.
+    """
+    if authorization is None:
+        # require_auth has already rejected a missing token; this only
+        # guards a dependency override that bypasses it.
+        raise HTTPException(
+            status_code=401,
+            detail="Missing Bearer token in Authorization header",
+        )
+    try:
+        return await get_profile_prefill(user, authorization.credentials)
+    except ResourceWatchUnavailableError as e:
+        raise HTTPException(
+            status_code=502, detail="Error contacting Resource Watch"
+        ) from e
 
 
 @router.get("/api/profile/config", response_model=ProfileConfigResponse)

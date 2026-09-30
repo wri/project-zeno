@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Annotated, Any, Dict, List, Optional, Union
+from typing import Annotated, Any, Dict, List, Literal, Optional, Union
 from uuid import UUID
 
 from geojson_pydantic import Polygon
@@ -10,6 +10,7 @@ from pydantic import (
     StringConstraints,
     alias_generators,
     field_validator,
+    model_serializer,
     model_validator,
 )
 
@@ -273,6 +274,41 @@ class UserProfileUpdateRequest(BaseModel):
         if v is None:
             raise ValueError("terms_version cannot be null")
         return v
+
+
+class ProfilePrefillSuggestion(BaseModel):
+    """Profile fields suggested from the person's MyGFW profile.
+
+    Keys are the ``PATCH /api/auth/profile`` field names (snake_case, no
+    alias generator) because the frontend sends the confirmed suggestion
+    back as that body. A field that did not map is omitted, not null.
+    """
+
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    job_title: Optional[str] = None
+    company_organization: Optional[str] = None
+    sector_code: Optional[str] = None
+    role_code: Optional[str] = None
+    country_code: Optional[str] = None
+    preferred_language_code: Optional[str] = None
+    topics: Optional[List[str]] = None
+
+    @model_serializer(mode="wrap")
+    def _omit_unmapped(self, handler):
+        return {k: v for k, v in handler(self).items() if v is not None}
+
+
+class ProfilePrefillResponse(BaseModel):
+    """Response of ``GET /api/auth/profile/prefill``.
+
+    Either ``found`` with a non-empty suggestion from ``source``, or
+    ``found: false`` with ``source`` and ``suggestion`` null.
+    """
+
+    found: bool
+    source: Optional[Literal["gfw"]] = None
+    suggestion: Optional[ProfilePrefillSuggestion] = None
 
 
 class ProfileConfigResponse(BaseModel):
