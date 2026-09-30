@@ -574,6 +574,40 @@ class TestUserProfileAPI:
         assert data["helpTestFeatures"] is False
 
 
+class TestTermsAcceptance:
+    """Terms acceptance is exposed on the user and recorded by PATCH."""
+
+    @pytest.mark.asyncio
+    async def test_terms_fields_null_by_default_in_auth_me(
+        self, client, user, auth_override
+    ):
+        auth_override(user.id)
+
+        response = await client.get(
+            "/api/auth/me", headers={"Authorization": "Bearer test-token"}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["termsAcceptedAt"] is None
+        assert data["termsVersion"] is None
+
+    @pytest.mark.asyncio
+    async def test_profile_update_response_includes_terms_fields(
+        self, client, user, auth_override
+    ):
+        auth_override(user.id)
+
+        response = await client.patch(
+            "/api/auth/profile", json={"first_name": "Ada"}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["termsAcceptedAt"] is None
+        assert data["termsVersion"] is None
+
+
 class TestProfileConfigsStructure:
     """Basic tests to ensure configuration files are properly structured."""
 

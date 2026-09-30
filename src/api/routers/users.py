@@ -95,6 +95,8 @@ async def update_user_profile(
         receive_news_emails=db_user.receive_news_emails,
         help_test_features=db_user.help_test_features,
         has_profile=db_user.has_profile,
+        terms_accepted_at=db_user.terms_accepted_at,
+        terms_version=db_user.terms_version,
     )
 
 

@@ -103,6 +103,10 @@ class UserModel(BaseModel):
     help_test_features: bool = False
     has_profile: bool = False
 
+    # Terms acceptance, set by the server (see PATCH /api/auth/profile)
+    terms_accepted_at: Optional[datetime] = None
+    terms_version: Optional[str] = None
+
     @field_validator("created_at", "updated_at", mode="before")
     def parse_dates(cls, value):
         if isinstance(value, str):

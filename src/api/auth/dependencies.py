@@ -103,6 +103,8 @@ def _orm_to_user_model(user: UserOrm) -> UserModel:
         receive_news_emails=user.receive_news_emails,
         help_test_features=user.help_test_features,
         has_profile=user.has_profile,
+        terms_accepted_at=user.terms_accepted_at,
+        terms_version=user.terms_version,
     )
 
 
