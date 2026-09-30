@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Annotated, Any, Dict, List, Optional, Union
 from uuid import UUID
 
 from geojson_pydantic import Polygon
@@ -7,6 +7,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    StringConstraints,
     alias_generators,
     field_validator,
     model_validator,
@@ -178,6 +179,9 @@ class UserTypeUpdateRequest(BaseModel):
         return v
 
 
+TERMS_VERSION_MAX_LENGTH = 32
+
+
 class UserProfileUpdateRequest(BaseModel):
     """Request schema for updating user profile fields."""
 
@@ -201,6 +205,19 @@ class UserProfileUpdateRequest(BaseModel):
     receive_news_emails: Optional[bool] = None
     help_test_features: Optional[bool] = None
     has_profile: Optional[bool] = None
+
+    # Sending this records an acceptance: the server stamps
+    # terms_accepted_at itself and never takes a timestamp from the client.
+    terms_version: Optional[
+        Annotated[
+            str,
+            StringConstraints(
+                strip_whitespace=True,
+                min_length=1,
+                max_length=TERMS_VERSION_MAX_LENGTH,
+            ),
+        ]
+    ] = Field(None, description="Version of the terms being accepted")
 
     @field_validator("sector_code")
     def validate_sector_code(cls, v):
@@ -247,6 +264,14 @@ class UserProfileUpdateRequest(BaseModel):
             for topic in v:
                 if topic not in TOPICS:
                     raise ValueError(f"Invalid topic: {topic}")
+        return v
+
+    @field_validator("terms_version")
+    def reject_null_terms_version(cls, v):
+        # An explicit null would record an acceptance of nothing; there is
+        # no way to withdraw acceptance through this endpoint.
+        if v is None:
+            raise ValueError("terms_version cannot be null")
         return v
 
 

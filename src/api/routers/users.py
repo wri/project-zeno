@@ -1,6 +1,7 @@
 """User profile and authentication endpoints."""
 
 import json
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -68,6 +69,11 @@ async def update_user_profile(
         if field == "topics" and value is not None:
             value = json.dumps(value)
         setattr(db_user, field, value)
+
+    if "terms_version" in update_data:
+        # Each explicit acceptance is an event, so re-sending the same
+        # version moves the timestamp. Only the server clock sets it.
+        db_user.terms_accepted_at = datetime.now(timezone.utc)
 
     await session.commit()
     await session.refresh(db_user)

@@ -1,7 +1,10 @@
 """Tests for user profile API functionality."""
 
+from datetime import datetime, timezone
+
 import pytest
 
+from src.api.schemas import TERMS_VERSION_MAX_LENGTH
 from src.api.user_profile_configs.countries import COUNTRIES
 from src.api.user_profile_configs.gis_expertise import GIS_EXPERTISE_LEVELS
 from src.api.user_profile_configs.languages import LANGUAGES
@@ -606,6 +609,170 @@ class TestTermsAcceptance:
         data = response.json()
         assert data["termsAcceptedAt"] is None
         assert data["termsVersion"] is None
+
+    @pytest.mark.asyncio
+    async def test_accepting_terms_records_version_and_server_time(
+        self, client, user, auth_override
+    ):
+        auth_override(user.id)
+
+        before = datetime.now(timezone.utc)
+        response = await client.patch(
+            "/api/auth/profile", json={"terms_version": "2026-09-30"}
+        )
+        after = datetime.now(timezone.utc)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["termsVersion"] == "2026-09-30"
+        accepted_at = datetime.fromisoformat(data["termsAcceptedAt"])
+        assert accepted_at.tzinfo is not None
+        assert before <= accepted_at <= after
+
+        me = await client.get(
+            "/api/auth/me", headers={"Authorization": "Bearer test-token"}
+        )
+        assert me.json()["termsVersion"] == "2026-09-30"
+        assert (
+            datetime.fromisoformat(me.json()["termsAcceptedAt"]) == accepted_at
+        )
+
+    @pytest.mark.asyncio
+    async def test_client_supplied_acceptance_time_is_ignored(
+        self, client, user, auth_override
+    ):
+        auth_override(user.id)
+
+        before = datetime.now(timezone.utc)
+        response = await client.patch(
+            "/api/auth/profile",
+            json={
+                "terms_version": "2026-09-30",
+                "terms_accepted_at": "2000-01-01T00:00:00Z",
+            },
+        )
+
+        assert response.status_code == 200
+        accepted_at = datetime.fromisoformat(
+            response.json()["termsAcceptedAt"]
+        )
+        assert accepted_at >= before
+
+    @pytest.mark.asyncio
+    async def test_terms_acceptance_time_alone_is_not_accepted(
+        self, client, user, auth_override
+    ):
+        auth_override(user.id)
+
+        response = await client.patch(
+            "/api/auth/profile",
+            json={"terms_accepted_at": "2000-01-01T00:00:00Z"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["termsAcceptedAt"] is None
+        assert response.json()["termsVersion"] is None
+
+    @pytest.mark.asyncio
+    async def test_terms_version_is_trimmed(self, client, user, auth_override):
+        auth_override(user.id)
+
+        response = await client.patch(
+            "/api/auth/profile", json={"terms_version": "  2026-09-30 "}
+        )
+
+        assert response.status_code == 200
+        assert response.json()["termsVersion"] == "2026-09-30"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "terms_version",
+        ["", "   ", "x" * (TERMS_VERSION_MAX_LENGTH + 1), None],
+        ids=["empty", "whitespace", "too-long", "null"],
+    )
+    async def test_invalid_terms_version_is_rejected(
+        self, client, user, auth_override, terms_version
+    ):
+        auth_override(user.id)
+
+        response = await client.patch(
+            "/api/auth/profile", json={"terms_version": terms_version}
+        )
+
+        assert response.status_code == 422
+        me = await client.get(
+            "/api/auth/me", headers={"Authorization": "Bearer test-token"}
+        )
+        assert me.json()["termsVersion"] is None
+        assert me.json()["termsAcceptedAt"] is None
+
+    @pytest.mark.asyncio
+    async def test_terms_version_at_max_length_is_accepted(
+        self, client, user, auth_override
+    ):
+        auth_override(user.id)
+        version = "v" * TERMS_VERSION_MAX_LENGTH
+
+        response = await client.patch(
+            "/api/auth/profile", json={"terms_version": version}
+        )
+
+        assert response.status_code == 200
+        assert response.json()["termsVersion"] == version
+
+    @pytest.mark.asyncio
+    async def test_other_profile_updates_leave_acceptance_untouched(
+        self, client, user, auth_override
+    ):
+        auth_override(user.id)
+        accepted = await client.patch(
+            "/api/auth/profile", json={"terms_version": "2026-09-30"}
+        )
+
+        response = await client.patch(
+            "/api/auth/profile", json={"first_name": "Ada"}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["firstName"] == "Ada"
+        assert data["termsVersion"] == "2026-09-30"
+        assert data["termsAcceptedAt"] == accepted.json()["termsAcceptedAt"]
+
+    @pytest.mark.asyncio
+    async def test_terms_can_be_accepted_with_other_profile_fields(
+        self, client, user, auth_override
+    ):
+        auth_override(user.id)
+
+        response = await client.patch(
+            "/api/auth/profile",
+            json={"terms_version": "2026-09-30", "first_name": "Ada"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["firstName"] == "Ada"
+        assert data["termsVersion"] == "2026-09-30"
+        assert data["termsAcceptedAt"] is not None
+
+    @pytest.mark.asyncio
+    async def test_each_acceptance_restamps_the_time(
+        self, client, user, auth_override
+    ):
+        auth_override(user.id)
+        first = await client.patch(
+            "/api/auth/profile", json={"terms_version": "2026-09-30"}
+        )
+
+        second = await client.patch(
+            "/api/auth/profile", json={"terms_version": "2026-09-30"}
+        )
+
+        assert second.status_code == 200
+        assert datetime.fromisoformat(
+            second.json()["termsAcceptedAt"]
+        ) > datetime.fromisoformat(first.json()["termsAcceptedAt"])
 
 
 class TestProfileConfigsStructure:
