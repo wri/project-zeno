@@ -50,6 +50,12 @@ variable "mosaic_bucket" {
   default     = "gnw-cache"
 }
 
+variable "alb_idle_timeout" {
+  description = "Seconds the load balancer holds a connection open with no data"
+  type        = number
+  default     = 300
+}
+
 variable "env_listener_port_min" {
   description = "Low end of the per-environment listener port range"
   type        = number

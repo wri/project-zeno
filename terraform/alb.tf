@@ -13,6 +13,10 @@ module "alb" {
 
   enable_deletion_protection = false
 
+  # Agent responses stream with long gaps between chunks while tools run; the
+  # 60s default closes the connection mid-response.
+  idle_timeout = var.alb_idle_timeout
+
   # The whole port range, opened once rather than a rule per deployment.
   security_group_ingress_rules = {
     ephemeral_envs = {
