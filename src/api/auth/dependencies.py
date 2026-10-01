@@ -14,6 +14,7 @@ from src.api.auth.machine_user import (
     is_machine_user_token,
     validate_machine_user_token,
 )
+from src.api.auth.resource_watch import RW_API_URL, RW_TIMEOUT_SECONDS
 from src.api.data_models import UserOrm, UserType
 from src.api.schemas import UserModel
 from src.shared.database import get_session_from_pool_dependency
@@ -49,12 +50,12 @@ async def fetch_user_from_rw_api(
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.get(
-                "https://api.resourcewatch.org/auth/user/me",
+                f"{RW_API_URL}/auth/user/me",
                 headers={
                     "Content-Type": "application/json",
                     "Authorization": f"Bearer {token}",
                 },
-                timeout=10,
+                timeout=RW_TIMEOUT_SECONDS,
             )
     except Exception as e:
         logger.exception(f"Error contacting Resource Watch: {e}")

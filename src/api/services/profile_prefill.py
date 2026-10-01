@@ -13,6 +13,7 @@ from urllib.parse import quote
 
 import httpx
 
+from src.api.auth.resource_watch import RW_API_URL, RW_TIMEOUT_SECONDS
 from src.api.schemas import ProfilePrefillResponse, ProfilePrefillSuggestion
 from src.api.user_profile_configs.countries import COUNTRIES
 from src.api.user_profile_configs.gfw import (
@@ -27,9 +28,6 @@ from src.api.user_profile_configs.topics import TOPICS
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
-
-RW_API_URL = "https://api.resourcewatch.org"
-RW_TIMEOUT_SECONDS = 10
 
 # GFW writes "Other" or "Other: <free text>" for a write-in sector or role.
 _OTHER = "other"
