@@ -18,6 +18,7 @@ from src.shared.imagery.sentinel2 import (
 def planet_imagery(**overrides) -> PlanetImagery:
     defaults = {
         "period": MonthlyPeriod.from_month("2026-08"),
+        "layer_id": "planet-layer-id",
         "tile_url": "https://tiles.example/{z}/{x}/{y}.png",
         "bounds": [-56.0, -8.0, -54.0, -6.0],
         "min_zoom": 10,

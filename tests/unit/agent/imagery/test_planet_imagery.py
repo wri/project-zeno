@@ -34,6 +34,10 @@ def test_planet_imagery_names_the_areas_it_covers():
     assert imagery.aoi_names == ["Novo Progresso", "Altamira"]
 
 
+def test_planet_imagery_keeps_the_layer_id_it_was_built_with():
+    assert planet_imagery(layer_id="planet-layer").layer_id == "planet-layer"
+
+
 def test_planet_imagery_rejects_bounds_without_four_coordinates():
     with pytest.raises(ValidationError, match="bounds"):
         planet_imagery(bounds=[-56.0, -8.0])

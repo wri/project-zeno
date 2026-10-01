@@ -8,6 +8,7 @@ from tests.unit.agent.imagery.factories import sentinel2_imagery
 PLANET_PAYLOAD = {
     "provider": "planet",
     "period": {"start": "2026-08-01", "end": "2026-08-31"},
+    "layer_id": "planet-layer-id",
     "tile_url": "https://tiles.example/{z}/{x}/{y}.png",
     "bounds": [-56.0, -8.0, -54.0, -6.0],
     "min_zoom": 10,

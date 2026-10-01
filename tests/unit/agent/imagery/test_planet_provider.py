@@ -20,6 +20,7 @@ async def test_planet_provider_builds_planet_imagery_for_the_requested_month():
 
     assert result.imagery == PlanetImagery(
         period=MonthlyPeriod.from_month("2026-08"),
+        layer_id="planet",
         tile_url=(
             "https://tiles.globalforestwatch.org/integrated_alerts_planet_imagery"
             "/{z}/{x}/{y}.png?month=2026-08"

@@ -55,6 +55,7 @@ class PlanetImageryProvider:
         period = MonthlyPeriod.from_month(month)
         imagery = PlanetImagery(
             period=period,
+            layer_id="planet",
             tile_url=(
                 f"{self.BASE_URL}/integrated_alerts_planet_imagery/"
                 f"{{z}}/{{x}}/{{y}}.png?month={month}"
