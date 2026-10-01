@@ -11,6 +11,7 @@ from sqlalchemy import create_engine, text
 from src.ingest.utils import (
     create_geometry_index_if_not_exists,
     create_id_index_if_not_exists,
+    create_text_search_index_if_not_exists,
 )
 from src.shared.geocoding_helpers import AOI_SOURCE_ID_COLUMNS, GADM_LEVELS
 
@@ -190,6 +191,13 @@ def ingest_gadm_chunked(
         table_name=table_name,
         index_name=f"idx_{table_name}_geom",
         column="geometry",
+    )
+
+    # Create text search index on name column
+    create_text_search_index_if_not_exists(
+        table_name=table_name,
+        index_name=f"idx_{table_name}_name_gin",
+        column="name",
     )
 
     # Create ID index on gadm_id column

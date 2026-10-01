@@ -61,9 +61,10 @@ searchable field. `name` itself, the display string, is unchanged.
 | `idx_aoi_search_tokens_trgm` GIN trigram | typo correction |
 | `idx_aois_source` (existing) | the source filter; `idx_aois_iso3` also exists but nothing in search reads it |
 
-No trigram index remains on `aois`; the composite-name trigram index and the
-ingest scripts' trigram indexes on the `geometries_*` staging tables are
-dropped by migration `9c4e1d7f2a60`.
+Search does not read the composite-name trigram index `idx_aois_name_trgm`
+or the trigram indexes of the ingest scripts on the `geometries_*` staging
+tables. They stay until the new search is stable, so that a rollback to the
+trigram search continues to work. A later migration drops them.
 
 ### The query, in tiers
 
@@ -389,10 +390,19 @@ a later phase.
   scan instead of building the CTE first. The pg_trgm threshold is set with
   `set_config(…, is_local)` inside the correction's transaction only, and the
   connection is rolled back before it returns to the pool.
-- **Deploy order.** The migration adds the search columns empty, and the new
-  search reads only them. Run a full `build-aois` right after the migrate Job
-  of the deploy that ships this; until it finishes, name search returns
-  nothing while browse and id lookups keep working.
+- **Deploy order.** Three deploys, in this order:
+  1. Migration `5b7e2c9a1f40`, the `build-aois` changes and the custom-area
+     mirror. These add the search columns empty and fill them on each write.
+     The trigram search continues to serve requests.
+  2. A full `build-aois`, in the background. Do this step before the next
+     deploy: the new search reads only the search columns, so without a
+     complete build, name search finds nothing (browse and id lookups
+     continue to work).
+  3. The search rewrite (this code). It needs no build. A
+     `build-aois --source custom` after it is cheap and optional.
+
+  After the new search is stable, a fourth deploy drops the unused trigram
+  indexes.
 - **`build-aois`** populates all search columns and tables and ends with the
   token rebuild and `VACUUM (ANALYZE)` of the four tables: the vacuum sets
   the visibility map the search's index-only scans depend on, which a plain

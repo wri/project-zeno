@@ -15,6 +15,9 @@ so the two schemas cannot drift.
 
 Indexes are plain ``CREATE INDEX``: the indexed columns are NULL on every
 row at this point, so each build is small.
+
+The trigram index on ``aois.name`` stays: the current search reads it. A
+later migration drops it once the search rewrite is live.
 """
 
 from typing import Sequence, Union
@@ -43,7 +46,9 @@ def upgrade() -> None:
     # --- aois: structured name columns -------------------------------------
     op.add_column("aois", sa.Column("leaf", sa.String(), nullable=True))
     op.add_column("aois", sa.Column("leaf_norm", sa.String(), nullable=True))
-    op.add_column("aois", sa.Column("context", sa.String(), nullable=True))
+    # The kind of site a source names a place with (WDPA desig_eng, LandMark
+    # category; NULL for the other sources). It feeds name_tsv.
+    op.add_column("aois", sa.Column("designation", sa.String(), nullable=True))
     op.add_column(
         "aois", sa.Column("search_tsv", postgresql.TSVECTOR(), nullable=True)
     )
@@ -133,7 +138,7 @@ def downgrade() -> None:
     op.drop_index("idx_aois_leaf_norm", table_name="aois")
     op.drop_column("aois", "name_tsv")
     op.drop_column("aois", "search_tsv")
-    op.drop_column("aois", "context")
+    op.drop_column("aois", "designation")
     op.drop_column("aois", "leaf_norm")
     op.drop_column("aois", "leaf")
     # The extension and the text search configuration stay: dropping them
