@@ -45,6 +45,7 @@ def sentinel2_imagery(**overrides) -> Sentinel2Imagery:
         "period": SearchWindowPeriod.from_search(
             date(2026, 8, 15), window_days=7, today=date(2026, 9, 29)
         ),
+        "layer_id": "sentinel2-layer-id",
         "tile_url": "https://tiles.example/{z}/{x}/{y}.png",
         "tilejson_url": "https://tiles.example/tilejson.json",
         "mosaic_id": "recipe-token",

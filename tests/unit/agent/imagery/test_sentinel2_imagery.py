@@ -47,3 +47,9 @@ def test_sentinel2_imagery_names_the_areas_it_covers():
     imagery = sentinel2_imagery(aoi_names=["Odzala-Kokoua", "Nouabalé-Ndoki"])
 
     assert imagery.aoi_names == ["Odzala-Kokoua", "Nouabalé-Ndoki"]
+
+
+def test_sentinel2_imagery_keeps_the_layer_id_it_was_built_with():
+    imagery = sentinel2_imagery(layer_id="sentinel2-layer")
+
+    assert imagery.layer_id == "sentinel2-layer"

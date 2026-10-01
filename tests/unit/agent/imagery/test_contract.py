@@ -37,4 +37,5 @@ def test_a_bare_imagery_base_cannot_be_built():
             period=MonthlyPeriod.from_month("2026-08"),
             tile_url="https://tiles.example/{z}/{x}/{y}.png",
             aoi_names=["Novo Progresso"],
+            layer_id="planet-layer-id",
         )

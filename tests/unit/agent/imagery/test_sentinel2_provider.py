@@ -45,6 +45,7 @@ async def test_sentinel2_provider_builds_sentinel2_imagery_from_the_mosaic_it_se
         period=SearchWindowPeriod.from_search(
             date(2025, 6, 1), window_days=7, today=date.today()
         ),
+        layer_id="abc123",
         tile_url=MOSAIC.tile_url,
         tilejson_url=MOSAIC.tilejson_url,
         mosaic_id="abc123",

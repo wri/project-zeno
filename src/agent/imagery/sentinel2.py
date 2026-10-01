@@ -86,6 +86,7 @@ class Sentinel2ImageryProvider:
             period=SearchWindowPeriod.from_search(
                 recipe.target_date, recipe.window_days, today=date.today()
             ),
+            layer_id=result.mosaic_id,
             tile_url=result.tile_url,
             tilejson_url=result.tilejson_url,
             mosaic_id=result.mosaic_id,
