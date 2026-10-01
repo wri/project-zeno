@@ -25,6 +25,12 @@ from src.shared.aoi_geometry import (
     CUSTOM_AREA_GEOM_SQL,
     bbox_float_array_sql,
 )
+from src.shared.aoi_search_sql import (
+    clean_name_sql,
+    name_tsv_sql,
+    norm_sql,
+    tsv_sql,
+)
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -42,14 +48,16 @@ def _upsert_sql(scoped: bool) -> str:
                 ca.properties,
                 ca.created_at,
                 ca.updated_at,
-                {CUSTOM_AREA_GEOM_SQL} AS geom
+                {CUSTOM_AREA_GEOM_SQL} AS geom,
+                {clean_name_sql("ca.name")} AS leaf
             FROM custom_areas ca
             {where_area}
         ),
         ins AS (
             INSERT INTO aois (
                 source, source_id, name, subtype, geometry,
-                bbox, area_km2, properties, created_by, created_at, updated_at
+                bbox, area_km2, properties, created_by, created_at, updated_at,
+                leaf, leaf_norm, designation, search_tsv, name_tsv
             )
             SELECT
                 'custom',
@@ -62,7 +70,12 @@ def _upsert_sql(scoped: bool) -> str:
                 properties,
                 user_id,
                 created_at,
-                updated_at
+                updated_at,
+                leaf,
+                {norm_sql("leaf")},
+                NULL,
+                {tsv_sql("leaf", "NULL", "NULL", "name")},
+                {name_tsv_sql("leaf", "NULL", "NULL")}
             FROM collected
             WHERE name IS NOT NULL AND geom IS NOT NULL AND NOT ST_IsEmpty(geom)
             ON CONFLICT (source, source_id) WHERE NOT is_deprecated
@@ -72,6 +85,10 @@ def _upsert_sql(scoped: bool) -> str:
                 bbox = EXCLUDED.bbox,
                 area_km2 = EXCLUDED.area_km2,
                 properties = EXCLUDED.properties,
+                leaf = EXCLUDED.leaf,
+                leaf_norm = EXCLUDED.leaf_norm,
+                search_tsv = EXCLUDED.search_tsv,
+                name_tsv = EXCLUDED.name_tsv,
                 updated_at = now()
             RETURNING id AS aoi_id, created_by AS user_id
         )
@@ -138,11 +155,12 @@ async def upsert_custom_aoi(
     result = await session.execute(text(_upsert_sql(scoped)), params)
 
     if ids is not None:
+        src_ids = [str(i) for i in ids]
         rows = await session.execute(
-            text(_MIRRORED_IDS_SQL), {"src_ids": [str(i) for i in ids]}
+            text(_MIRRORED_IDS_SQL), {"src_ids": src_ids}
         )
         mirrored = {str(row[0]) for row in rows}
-        skipped = [str(i) for i in ids if str(i) not in mirrored]
+        skipped = [src_id for src_id in src_ids if src_id not in mirrored]
         if skipped:
             logger.warning(
                 "Custom area(s) not mirrored into aois: geometries not "
