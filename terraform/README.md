@@ -4,10 +4,9 @@ Ephemeral deployments of a specific commit. Each gets its own ECS service and
 its own database instance; the load balancer, cluster and bastion are shared.
 
 ```
-terraform/          shared and long-lived: load balancer, cluster, bastion,
-                    IAM, secrets
-terraform/env/      one workspace per commit: database, service, target group,
-                    listener
+terraform/shared/     long-lived: load balancer, cluster, bastion, IAM, secrets
+terraform/ephemeral/  one workspace per commit: database, service, target group,
+                      listener
 ```
 
 Split so that destroying a deployment cannot take the shared infrastructure with
@@ -22,7 +21,7 @@ Deployments share one load balancer and are separated by port, derived from the
 workspace name so it is stable across applies:
 
 ```
-http://<shared-alb-dns>:<port>     # terraform -chdir=terraform/env output api_base_url
+http://<shared-alb-dns>:<port>     # terraform -chdir=terraform/ephemeral output api_base_url
 ```
 
 **HTTP, not HTTPS.** TLS needs either a domain we control or a CloudFront
@@ -49,7 +48,7 @@ depends on the RDS endpoint.
 ### 2. Shared stack
 
 ```bash
-cd terraform
+cd terraform/shared
 terraform init -backend-config=vars/backend-shared.tfvars
 terraform apply
 ```

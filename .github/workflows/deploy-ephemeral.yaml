@@ -75,18 +75,18 @@ jobs:
           terraform_wrapper: false
 
       - name: Terraform init
-        working-directory: ./terraform/env
-        run: terraform init -backend-config=vars/backend-env.tfvars
+        working-directory: ./terraform/ephemeral
+        run: terraform init -backend-config=vars/backend-ephemeral.tfvars
 
       - name: Select workspace
-        working-directory: ./terraform/env
+        working-directory: ./terraform/ephemeral
         run: terraform workspace select -or-create=true "${{ inputs.commit_sha }}"
 
       # --- create ---------------------------------------------------------
 
       - name: Terraform plan
         if: inputs.action == 'create'
-        working-directory: ./terraform/env
+        working-directory: ./terraform/ephemeral
         run: |
           terraform plan -out=tf.plan \
             -var="image_tag=${{ inputs.commit_sha }}" \
@@ -95,13 +95,13 @@ jobs:
 
       - name: Terraform apply
         if: inputs.action == 'create' && inputs.dry_run == false
-        working-directory: ./terraform/env
+        working-directory: ./terraform/ephemeral
         run: terraform apply -auto-approve tf.plan
 
       - name: Read outputs
         id: outputs
         if: inputs.action == 'create' && inputs.dry_run == false
-        working-directory: ./terraform/env
+        working-directory: ./terraform/ephemeral
         run: |
           set -euo pipefail
           {
@@ -139,7 +139,7 @@ jobs:
 
       - name: Terraform destroy
         if: inputs.action == 'destroy'
-        working-directory: ./terraform/env
+        working-directory: ./terraform/ephemeral
         run: |
           terraform destroy ${{ inputs.dry_run == false && '-auto-approve' || '-refresh-only' }} \
             -var="image_tag=${{ inputs.commit_sha }}" \
@@ -148,7 +148,7 @@ jobs:
 
       - name: Delete workspace
         if: inputs.action == 'destroy' && inputs.dry_run == false
-        working-directory: ./terraform/env
+        working-directory: ./terraform/ephemeral
         run: |
           terraform workspace select default
           terraform workspace delete "${{ inputs.commit_sha }}"
