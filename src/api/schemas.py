@@ -606,6 +606,20 @@ class AnalyzeRequest(BaseModel):
         description="Start of the date range (YYYY-MM-DD)."
     )
     end_date: date = Field(description="End of the date range (YYYY-MM-DD).")
+    context_layer: Optional[str] = Field(
+        default=None,
+        description=(
+            "Context layer of the dataset, e.g. `primary_forest`. Only the "
+            "datasets with context layers in the catalog use it."
+        ),
+    )
+    canopy_cover: Optional[int] = Field(
+        default=None,
+        description=(
+            "Minimum canopy cover in percent, for the datasets with a "
+            "`canopy_cover` parameter. The default is 30."
+        ),
+    )
     thread_id: Optional[str] = Field(
         default=None,
         description=(
