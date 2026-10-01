@@ -205,7 +205,8 @@ class AoiOrm(Base):
 
     ``leaf``, ``leaf_norm``, ``designation``, ``search_tsv`` and ``name_tsv`` are the search
     columns. ``build-aois`` and the custom-area mirror fill them with the
-    fragments in :mod:`src.shared.aoi_search_sql`.
+    fragments in :mod:`src.shared.aoi_search_sql`; ``docs/aoi-full-text-search.md``
+    describes how search reads them.
     """
 
     __tablename__ = "aois"

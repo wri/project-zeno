@@ -843,7 +843,7 @@ _ISO3_SOURCE_COLUMNS = {
 
 # The source columns that feed the search columns (leaf, context,
 # designation, name variants), resolved case-insensitively like the ISO3
-# columns. The per-source builders below show what each source contributes.
+# columns. docs/aoi-full-text-search.md lists what each source contributes.
 _SEARCH_SOURCE_COLUMNS = {
     "gadm": [level["name_col"] for level in GADM_LEVELS.values()]
     + [f"VARNAME_{n}" for n in range(1, 5)]

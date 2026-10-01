@@ -216,9 +216,12 @@ async def test_pick_aoi_handles_empty_subregion_results(
                     "name": "Colorado, United States",
                     "subtype": "state-province",
                     "source": "gadm",
-                    # Present because every search by name returns it, and the
-                    # multi-term merge sorts on it.
+                    # Present because every search by name returns them: the
+                    # multi-term merge sorts on the score, and the namesake
+                    # check reads the leaf.
                     "similarity_score": 0.9,
+                    "leaf": "Colorado",
+                    "corrected": False,
                 }
             ]
         )
@@ -368,8 +371,7 @@ async def test_extract_translates_place_to_english(structlog_context):
     )
     joined = " ".join(p.place for p in query.places).lower()
     assert "sao paulo" in joined
-    # canonical restores the official accented spelling for the
-    # accent-sensitive trigram search.
+    # canonical restores the official accented spelling.
     canonical = " ".join(p.canonical for p in query.places).lower()
     assert "são paulo" in canonical
 
