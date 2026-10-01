@@ -209,15 +209,15 @@ class UserProfileUpdateRequest(BaseModel):
 
     # Sending this records an acceptance: the server stamps
     # terms_accepted_at itself and never takes a timestamp from the client.
-    terms_version: Optional[
-        Annotated[
-            str,
-            StringConstraints(
-                strip_whitespace=True,
-                min_length=1,
-                max_length=TERMS_VERSION_MAX_LENGTH,
-            ),
-        ]
+    # Not Optional: pydantic does not validate the default, so an omitted
+    # field stays unset while an explicit null is rejected (422).
+    terms_version: Annotated[
+        str,
+        StringConstraints(
+            strip_whitespace=True,
+            min_length=1,
+            max_length=TERMS_VERSION_MAX_LENGTH,
+        ),
     ] = Field(None, description="Version of the terms being accepted")
 
     @field_validator("sector_code")
@@ -265,14 +265,6 @@ class UserProfileUpdateRequest(BaseModel):
             for topic in v:
                 if topic not in TOPICS:
                     raise ValueError(f"Invalid topic: {topic}")
-        return v
-
-    @field_validator("terms_version")
-    def reject_null_terms_version(cls, v):
-        # An explicit null would record an acceptance of nothing; there is
-        # no way to withdraw acceptance through this endpoint.
-        if v is None:
-            raise ValueError("terms_version cannot be null")
         return v
 
 
