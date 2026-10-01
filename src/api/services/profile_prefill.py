@@ -7,6 +7,7 @@ treated as an error. Nothing here writes to the GNW user.
 """
 
 import re
+from collections.abc import Container, Mapping
 from typing import Any, Optional
 from urllib.parse import quote
 
@@ -58,6 +59,17 @@ def _fold(value: str) -> str:
 _SECTOR_BY_KEY = {_fold(k): v for k, v in GFW_SECTORS.items()}
 _ROLE_BY_KEY = {_fold(k): v for k, v in GFW_SUBSECTORS.items()}
 _TOPIC_BY_KEY = {_fold(k): v for k, v in GFW_INTERESTS.items()}
+_COUNTRY_BY_KEY = {_fold(k): v for k, v in GADM_ISO3_TO_COUNTRY_CODE.items()}
+_LANGUAGE_BY_KEY = {code: code for code in LANGUAGES}
+
+# GFW values that are enumerations, by suggestion key. Only these are ever
+# logged when they fail to map; free text never is.
+_ENUMERATED_SOURCES = (
+    ("sector_code", "sector"),
+    ("role_code", "subsector"),
+    ("country_code", "country"),
+    ("preferred_language_code", "preferred_language"),
+)
 
 
 def _text(value: Any) -> Optional[str]:
@@ -66,40 +78,33 @@ def _text(value: Any) -> Optional[str]:
     return value.strip() or None
 
 
-def _sector_code(value: Any) -> Optional[str]:
+def _is_other(text: str) -> bool:
+    return _fold(text).startswith(_OTHER)
+
+
+def _coded(
+    value: Any, table: Mapping[str, str], valid: Container[str]
+) -> Optional[str]:
+    """The GNW code for a GFW value, or None when it has no valid one.
+
+    A write-in "Other..." becomes "other", which only survives where "other"
+    is a valid code (sectors and roles).
+    """
     text = _text(value)
     if text is None:
         return None
-    key = _fold(text)
-    code = _OTHER if key.startswith(_OTHER) else _SECTOR_BY_KEY.get(key)
-    return code if code in SECTORS else None
-
-
-def _role_code(value: Any, sector_code: Optional[str]) -> Optional[str]:
-    # PATCH /api/auth/profile validates a role against the sector in the
-    # same body, so a role is only worth suggesting alongside its sector.
-    text = _text(value)
-    if text is None or sector_code is None:
-        return None
-    key = _fold(text)
-    code = _OTHER if key.startswith(_OTHER) else _ROLE_BY_KEY.get(key)
-    return code if code in SECTOR_ROLES.get(sector_code, {}) else None
-
-
-def _country_code(value: Any) -> Optional[str]:
-    text = _text(value)
-    if text is None:
-        return None
-    code = GADM_ISO3_TO_COUNTRY_CODE.get(text.upper())
-    return code if code in COUNTRIES else None
+    code = _OTHER if _is_other(text) else table.get(_fold(text))
+    return code if code in valid else None
 
 
 def _language_code(value: Any) -> Optional[str]:
-    text = _text(value)
-    if text is None:
-        return None
-    code = re.split(r"[-_]", text.lower(), maxsplit=1)[0]
-    return code if code in LANGUAGES else None
+    # GNW stores the primary subtag only, so "pt-BR" suggests "pt".
+    primary = (
+        re.split(r"[-_]", value, maxsplit=1)[0]
+        if isinstance(value, str)
+        else None
+    )
+    return _coded(primary, _LANGUAGE_BY_KEY, LANGUAGES)
 
 
 def _topics(*values: Any) -> list[str]:
@@ -109,14 +114,13 @@ def _topics(*values: Any) -> list[str]:
         if not isinstance(items, list):
             continue
         for item in items:
-            text = _text(item)
-            code = _TOPIC_BY_KEY.get(_fold(text)) if text else None
-            if code is not None and code in TOPICS and code not in topics:
+            code = _coded(item, _TOPIC_BY_KEY, TOPICS)
+            if code is not None and code not in topics:
                 topics.append(code)
     return topics
 
 
-def map_gfw_profile(attributes: Any) -> dict[str, Any]:
+def map_gfw_profile(attributes: dict[str, Any]) -> dict[str, Any]:
     """Map RW user attributes to a partial ``PATCH /api/auth/profile`` body.
 
     ``attributes`` is ``data.attributes`` of ``GET /v2/user/{id}``. Keys
@@ -125,8 +129,7 @@ def map_gfw_profile(attributes: Any) -> dict[str, Any]:
     carried over: a suggestion the person confirms in one click must not
     pre-tick consent.
     """
-    attrs = attributes if isinstance(attributes, dict) else {}
-    application_data = attrs.get("applicationData")
+    application_data = attributes.get("applicationData")
     gfw = (
         application_data.get("gfw")
         if isinstance(application_data, dict)
@@ -135,15 +138,22 @@ def map_gfw_profile(attributes: Any) -> dict[str, Any]:
     if not isinstance(gfw, dict):
         gfw = {}
 
-    sector_code = _sector_code(gfw.get("sector"))
+    sector_code = _coded(gfw.get("sector"), _SECTOR_BY_KEY, SECTORS)
+    # PATCH /api/auth/profile validates a role against the sector in the
+    # same body, so a role is only worth suggesting alongside its sector.
+    role_code = (
+        _coded(gfw.get("subsector"), _ROLE_BY_KEY, SECTOR_ROLES[sector_code])
+        if sector_code
+        else None
+    )
     candidates = {
-        "first_name": _text(attrs.get("firstName")),
-        "last_name": _text(attrs.get("lastName")),
+        "first_name": _text(attributes.get("firstName")),
+        "last_name": _text(attributes.get("lastName")),
         "job_title": _text(gfw.get("jobTitle")),
         "company_organization": _text(gfw.get("company")),
         "sector_code": sector_code,
-        "role_code": _role_code(gfw.get("subsector"), sector_code),
-        "country_code": _country_code(gfw.get("country")),
+        "role_code": role_code,
+        "country_code": _coded(gfw.get("country"), _COUNTRY_BY_KEY, COUNTRIES),
         "preferred_language_code": _language_code(
             gfw.get("preferred_language")
         ),
@@ -152,20 +162,12 @@ def map_gfw_profile(attributes: Any) -> dict[str, Any]:
     suggestion = {k: v for k, v in candidates.items() if v is not None}
 
     # Name the enumerated GFW values that did not map, so the tables can be
-    # extended. Free-text fields are never logged.
-    unmapped = {
-        field: gfw[source]
-        for field, source in (
-            ("sector_code", "sector"),
-            ("role_code", "subsector"),
-            ("country_code", "country"),
-            ("preferred_language_code", "preferred_language"),
-        )
-        if field not in suggestion
-        and isinstance(gfw.get(source), str)
-        and gfw[source].strip()
-        and not gfw[source].strip().lower().startswith(_OTHER)
-    }
+    # extended. "Other: <text>" is a write-in, so it is never logged.
+    unmapped: dict[str, str] = {}
+    for field, source in _ENUMERATED_SOURCES:
+        text = _text(gfw.get(source))
+        if field not in suggestion and text and not _is_other(text):
+            unmapped[field] = text
     logger.info(
         "Mapped MyGFW profile to a GNW suggestion",
         mapped_fields=sorted(suggestion),
@@ -174,14 +176,13 @@ def map_gfw_profile(attributes: Any) -> dict[str, Any]:
     return suggestion
 
 
-async def fetch_gfw_attributes(
-    user_id: str, token: str
-) -> Optional[dict[str, Any]]:
+async def fetch_gfw_attributes(user_id: str, token: str) -> dict[str, Any]:
     """Read the caller's RW user attributes, where MyGFW keeps its profile.
 
-    Returns ``None`` when RW has no profile for the user (404: the MyGFW
-    form was never saved). Raises ``ResourceWatchUnavailableError`` when RW
-    cannot be reached or answers anything but 200/404.
+    Returns ``{}`` when there is no profile to read: RW answers 404 (the
+    MyGFW form was never saved) or the body has no ``data.attributes``.
+    Raises ``ResourceWatchUnavailableError`` when RW cannot be reached or
+    answers anything but 200/404.
     """
     url = f"{RW_API_URL}/v2/user/{quote(user_id, safe='')}"
     try:
@@ -202,7 +203,8 @@ async def fetch_gfw_attributes(
         ) from e
 
     if resp.status_code == 404:
-        return None
+        logger.info("No MyGFW profile for this user")
+        return {}
     if resp.status_code != 200:
         # A 401/403 lands here too: the token passed require_auth, possibly
         # from the one-day identity cache, but RW refused it.
@@ -255,12 +257,7 @@ async def get_profile_prefill(
     ):
         return not_found
 
-    attributes = await fetch_gfw_attributes(user.id, token)
-    if attributes is None:
-        logger.info("No MyGFW profile for this user")
-        return not_found
-
-    suggestion = map_gfw_profile(attributes)
+    suggestion = map_gfw_profile(await fetch_gfw_attributes(user.id, token))
     if not suggestion:
         return not_found
     return ProfilePrefillResponse(

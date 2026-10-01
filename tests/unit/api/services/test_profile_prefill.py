@@ -112,10 +112,7 @@ def test_thin_profile_maps_what_it_has():
 @pytest.mark.parametrize(
     "attributes",
     [
-        None,
         {},
-        [],
-        "not-a-profile",
         {"applicationData": None},
         {"applicationData": "x"},
         {"applicationData": {"gfw": None}},
