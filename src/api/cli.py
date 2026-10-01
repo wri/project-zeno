@@ -46,6 +46,13 @@ from src.shared.aoi_geometry import (
     bbox_float_array_sql,
     multipolygon_sql,
 )
+from src.shared.aoi_search_sql import (
+    TOKENS_REBUILD_SQL,
+    clean_name_sql,
+    name_tsv_sql,
+    norm_sql,
+    tsv_sql,
+)
 from src.shared.config import SharedSettings
 from src.shared.geocoding_helpers import (
     AOI_SOURCE_ID_COLUMNS,
@@ -834,6 +841,223 @@ _ISO3_SOURCE_COLUMNS = {
     "landmark": ["iso_code"],
 }
 
+# The source columns that feed the search columns (leaf, context,
+# designation, name variants), resolved case-insensitively like the ISO3
+# columns. The per-source builders below show what each source contributes.
+_SEARCH_SOURCE_COLUMNS = {
+    "gadm": [level["name_col"] for level in GADM_LEVELS.values()]
+    + [f"VARNAME_{n}" for n in range(1, 5)]
+    + [f"NL_NAME_{n}" for n in range(1, 4)],
+    "wdpa": ["wdpa_name", "orig_name", "desig_eng", "iso3"],
+    "kba": ["NatName", "IntName", "Country"],
+    "landmark": ["landmark_name", "category", "country"],
+}
+
+# Collapses a run of repeated segments in a GADM context string. GADM repeats
+# a unit's name down the hierarchy ("Lisboa, Lisboa, Portugal"; "11e
+# arrondissement, Paris, 11e arrondissement, Paris, ..."), and a token search
+# should not weight a parent by how many times GADM restated it. Groups of up
+# to three segments, because the Paris rows repeat a two-segment pair. The
+# group is anchored to segment boundaries on both sides, so "Île-de-France,
+# France" is not a repeat of "France".
+_REPEATED_SEGMENTS_RE = r"(^|, )((?:[^,]+, ){0,2}[^,]+)(, \2)+(?=,|$)"
+_REPEATED_SEGMENTS_REPLACEMENT = r"\1\2"
+
+
+class SearchExprs(NamedTuple):
+    """SQL fragments deriving one source's search columns from a staging row.
+
+    Each is an expression over the staging columns, qualified as the calling
+    statement needs (``""`` in the build's CTE, ``"s."`` in the names
+    insert), so the build and the names insert derive the same leaf and the
+    same variants. ``context`` (parents, designation, country) feeds the full
+    tsvector at build time and is not stored; ``designation`` is stored and
+    feeds the name vector.
+    """
+
+    leaf: str
+    context: str
+    designation: str
+    variants: list[tuple[str, str]]  # (kind, text[] expression)
+
+    @property
+    def variants_text(self) -> str:
+        """Every variant in one string, for the A weight of the tsvectors."""
+        if not self.variants:
+            return "NULL::text"
+        parts = ", ".join(
+            f"array_to_string({expr}, ' ')" for _, expr in self.variants
+        )
+        return f"NULLIF(concat_ws(' ', {parts}), '')"
+
+
+class _StagingColumns:
+    """One source's resolved staging columns, read with a qualifier.
+
+    A column staging does not have reads as NULL, so a partial table still
+    builds.
+    """
+
+    def __init__(self, columns: dict[str, Optional[str]], q: str):
+        self._columns = columns
+        self.q = q
+
+    def raw(self, name: str) -> str:
+        real = self._columns.get(name)
+        return f'{self.q}"{real}"' if real else "NULL::text"
+
+    def clean(self, name: str) -> str:
+        return clean_name_sql(self.raw(name))
+
+    def differs(self, other: str, primary: str) -> str:
+        """*other* when it is not just a re-spelling of *primary*'s case."""
+        return (
+            f"CASE WHEN lower(btrim({self.raw(other)})) IS DISTINCT FROM "
+            f"lower(btrim({self.raw(primary)})) "
+            f"THEN {self.clean(other)} END"
+        )
+
+
+def _gadm_level_case(q: str, arm) -> str:
+    """``CASE subtype`` over the GADM levels; *arm(level)* is one branch."""
+    branches = " ".join(
+        f"WHEN '{subtype}' THEN {arm(level)}"
+        for level, subtype in enumerate(GADM_LEVELS)
+    )
+    return f"(CASE {q}subtype {branches} ELSE NULL END)"
+
+
+def _gadm_name_col(level: int) -> str:
+    return list(GADM_LEVELS.values())[level]["name_col"]
+
+
+def _gadm_optional(col: _StagingColumns, prefix: str, max_level: int) -> str:
+    """The per-level optional column (``VARNAME_n`` / ``NL_NAME_n``)."""
+    return _gadm_level_case(
+        col.q,
+        lambda level: (
+            col.clean(f"{prefix}_{level}")
+            if 1 <= level <= max_level
+            else "NULL::text"
+        ),
+    )
+
+
+def _gadm_exprs(col: _StagingColumns) -> SearchExprs:
+    def parents(level: int) -> str:
+        if level == 0:
+            return "NULL::text"
+        cols = ", ".join(
+            col.clean(_gadm_name_col(parent))
+            for parent in range(level - 1, -1, -1)
+        )
+        return f"concat_ws(', ', {cols})"
+
+    # A country is also known by its ISO3 code, which is its GADM id ("USA",
+    # "BRA"); people type those.
+    id_col = AOI_SOURCE_ID_COLUMNS["gadm"]
+    code = (
+        f"CASE WHEN {col.q}subtype = 'country' "
+        f'THEN CAST({col.q}"{id_col}" AS TEXT) END'
+    )
+    return SearchExprs(
+        leaf=_gadm_level_case(
+            col.q, lambda level: col.clean(_gadm_name_col(level))
+        ),
+        context=(
+            f"NULLIF(regexp_replace({_gadm_level_case(col.q, parents)}, "
+            f"'{_REPEATED_SEGMENTS_RE}', "
+            f"'{_REPEATED_SEGMENTS_REPLACEMENT}', 'g'), '')"
+        ),
+        designation="NULL::text",
+        variants=[
+            (
+                "variant",
+                f"string_to_array({_gadm_optional(col, 'VARNAME', 4)}, '|')",
+            ),
+            (
+                "native",
+                f"string_to_array({_gadm_optional(col, 'NL_NAME', 3)}, '|')",
+            ),
+            ("code", f"ARRAY[{code}]"),
+        ],
+    )
+
+
+def _wdpa_exprs(col: _StagingColumns) -> SearchExprs:
+    # The country name comes from the GADM level-0 rows, which the build
+    # order guarantees are in aois first. The raw ISO3 code is the fallback
+    # when a code has no GADM country.
+    iso3 = col.raw("iso3")
+    country = (
+        "COALESCE((SELECT string_agg(g.name, ', ' ORDER BY g.name) "
+        f"FROM unnest(string_to_array(NULLIF(btrim({iso3}), ''), ';'))"
+        " AS c(code) JOIN aois g ON g.source = 'gadm' "
+        "AND g.subtype = 'country' AND g.source_id = c.code "
+        f"AND NOT g.is_deprecated), NULLIF(btrim({iso3}), ''))"
+    )
+    designation = col.clean("desig_eng")
+    return SearchExprs(
+        leaf=col.clean("wdpa_name"),
+        context=f"NULLIF(concat_ws(', ', {designation}, {country}), '')",
+        designation=designation,
+        variants=[
+            ("native", f"ARRAY[{col.differs('orig_name', 'wdpa_name')}]")
+        ],
+    )
+
+
+def _kba_exprs(col: _StagingColumns) -> SearchExprs:
+    return SearchExprs(
+        leaf=f"COALESCE({col.clean('NatName')}, {col.clean('IntName')})",
+        context=col.clean("Country"),
+        designation="NULL::text",
+        variants=[
+            ("international", f"ARRAY[{col.differs('IntName', 'NatName')}]")
+        ],
+    )
+
+
+def _landmark_exprs(col: _StagingColumns) -> SearchExprs:
+    designation = col.clean("category")
+    return SearchExprs(
+        leaf=col.clean("landmark_name"),
+        context=(
+            f"NULLIF(concat_ws(', ', {designation}, {col.clean('country')}), '')"
+        ),
+        designation=designation,
+        variants=[],
+    )
+
+
+_SEARCH_EXPR_BUILDERS = {
+    "gadm": _gadm_exprs,
+    "wdpa": _wdpa_exprs,
+    "kba": _kba_exprs,
+    "landmark": _landmark_exprs,
+}
+
+
+def _search_exprs(
+    source: str, columns: dict[str, Optional[str]], q: str
+) -> SearchExprs:
+    """The source's search expressions over its staging columns, qualified
+    by *q*. *columns* comes from ``_resolve_search_columns``."""
+    return _SEARCH_EXPR_BUILDERS[source](_StagingColumns(columns, q))
+
+
+async def _resolve_search_columns(
+    session: AsyncSession, source: str
+) -> dict[str, Optional[str]]:
+    """Resolve the source's search columns against its staging table, once
+    per source: the build and the names insert both read the result."""
+    table = SOURCE_STAGING_TABLES[source]
+    return {
+        name: await _resolve_column(session, table, [name])
+        for name in _SEARCH_SOURCE_COLUMNS[source]
+    }
+
+
 # GADM 4.1 ships the literal string "NA" as its no-data marker, and ingest
 # composes display names from the NAME_* columns without recognising it, so
 # England's row is named "NA, United Kingdom" and is unfindable by search.
@@ -1085,9 +1309,21 @@ async def _derive_gadm_name_repairs(
 
 
 async def _build_reference_aois(
-    session: AsyncSession, source: str, *, nchunks: int, dry_run: bool
+    session: AsyncSession,
+    source: str,
+    *,
+    columns: dict[str, Optional[str]],
+    nchunks: int,
+    dry_run: bool,
 ) -> int:
     """Transform one ``geometries_<source>`` table into ``aois`` (idempotent).
+
+    *columns* is the source's resolved search columns (see
+    ``_resolve_search_columns``).
+
+    Returns the number of rows written. A row whose every column already
+    matches is left alone, so a rebuild over unchanged data writes nothing
+    and neither bloats the heap nor clears the visibility map.
 
     The INSERT runs in ``nchunks`` passes partitioned by a hash of the source
     id -- each pass its own statement and its own transaction. This bounds the
@@ -1116,6 +1352,25 @@ async def _build_reference_aois(
         if iso3_col
         else "NULL::text[]"
     )
+
+    search = _search_exprs(source, columns, "")
+    leaf_expr = search.leaf
+
+    if source == "wdpa":
+        # The WDPA context names the country through the GADM country rows;
+        # without them it falls back to the raw ISO3 code, and "Kruger
+        # National Park, ZAF" is what a typed "South Africa" cannot match.
+        countries = await session.scalar(
+            text(
+                "SELECT count(*) FROM aois WHERE source = 'gadm' "
+                "AND subtype = 'country' AND NOT is_deprecated"
+            )
+        )
+        if not countries:
+            click.echo(
+                "⚠️  wdpa: no GADM country rows in aois; contexts will carry "
+                "ISO3 codes instead of country names. Build gadm first."
+            )
 
     # Only gadm carries broken source names, so every other source selects
     # `name` unchanged, joins nothing extra and binds no repair parameters.
@@ -1151,6 +1406,10 @@ async def _build_reference_aois(
                 f' ON r.repair_id = CAST("{id_col}" AS TEXT)'
             )
             name_expr = "COALESCE(r.repair_name, name)"
+            # The repair replaces the leading segment, which is the leaf.
+            leaf_expr = (
+                f"COALESCE(split_part(r.repair_name, ', ', 1), {leaf_expr})"
+            )
             repair_params = {"repairs": json.dumps(repairs)}
         else:
             # Staging always carries GADM's 'NA' rows, so an empty map means
@@ -1187,7 +1446,11 @@ async def _build_reference_aois(
                 {norm_geom} AS geom,
                 {iso3_expr} AS iso3,
                 {admin_expr} AS admin_level,
-                {disputed_expr} AS is_disputed
+                {disputed_expr} AS is_disputed,
+                {leaf_expr} AS leaf,
+                {search.context} AS context,
+                {search.designation} AS designation,
+                {search.variants_text} AS variants
             FROM {table}{repair_join}
             WHERE name IS NOT NULL AND geometry IS NOT NULL
               AND (abs(hashtext(CAST("{id_col}" AS TEXT))::bigint) % :nchunks)
@@ -1199,7 +1462,8 @@ async def _build_reference_aois(
         )
         INSERT INTO aois (
             source, source_id, name, subtype, geometry,
-            bbox, area_km2, iso3, admin_level, is_disputed
+            bbox, area_km2, iso3, admin_level, is_disputed,
+            leaf, leaf_norm, designation, search_tsv, name_tsv
         )
         SELECT
             '{source}',
@@ -1211,7 +1475,12 @@ async def _build_reference_aois(
             ST_Area(geom::geography) / 1e6,
             iso3,
             admin_level,
-            is_disputed
+            is_disputed,
+            leaf,
+            {norm_sql("leaf")},
+            designation,
+            {tsv_sql("leaf", "variants", "context", "name")},
+            {name_tsv_sql("leaf", "variants", "designation")}
         FROM normalized
         WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom)
         ON CONFLICT (source, source_id) WHERE NOT is_deprecated
@@ -1224,14 +1493,29 @@ async def _build_reference_aois(
             iso3 = EXCLUDED.iso3,
             admin_level = EXCLUDED.admin_level,
             is_disputed = EXCLUDED.is_disputed,
+            leaf = EXCLUDED.leaf,
+            leaf_norm = EXCLUDED.leaf_norm,
+            designation = EXCLUDED.designation,
+            search_tsv = EXCLUDED.search_tsv,
+            name_tsv = EXCLUDED.name_tsv,
             updated_at = now()
+        WHERE (aois.name, aois.subtype, aois.bbox, aois.area_km2, aois.iso3,
+               aois.admin_level, aois.is_disputed, aois.leaf, aois.leaf_norm,
+               aois.designation, aois.search_tsv, aois.name_tsv,
+               aois.geometry::bytea)
+              IS DISTINCT FROM
+              (EXCLUDED.name, EXCLUDED.subtype, EXCLUDED.bbox,
+               EXCLUDED.area_km2, EXCLUDED.iso3, EXCLUDED.admin_level,
+               EXCLUDED.is_disputed, EXCLUDED.leaf, EXCLUDED.leaf_norm,
+               EXCLUDED.designation, EXCLUDED.search_tsv, EXCLUDED.name_tsv,
+               EXCLUDED.geometry::bytea)
     """
-    inserted = 0
+    written = 0
     for chunk in range(nchunks):
         result = await session.execute(
             text(sql), {"nchunks": nchunks, "chunk": chunk, **repair_params}
         )
-        inserted += result.rowcount
+        written += result.rowcount
         # One transaction per chunk: bounds the open transaction and makes a
         # real run resumable. dry_run discards each chunk once its counts land.
         if dry_run:
@@ -1259,15 +1543,95 @@ async def _build_reference_aois(
         )
 
     # Distinct ids whose largest representative row didn't coerce to a
-    # non-empty MultiPolygon (so it never made it into aois). Derived by
-    # arithmetic to avoid a second full-table ST_MakeValid pass.
-    skipped = distinct_ids - inserted
-    if skipped:
+    # non-empty MultiPolygon (so it never made it into aois). Compared against
+    # the rows present rather than the rows written: an unchanged row is not
+    # rewritten, so the write count says nothing about coverage.
+    present = await session.scalar(
+        text(
+            "SELECT count(*) FROM aois "
+            "WHERE source = :source AND NOT is_deprecated"
+        ),
+        {"source": source},
+    )
+    skipped = distinct_ids - int(present or 0)
+    if skipped > 0:
         click.echo(
             f"⚠️  {source}: {skipped} AOI(s) dropped (representative "
             f"geometry not coercible to a non-empty MultiPolygon)."
         )
-    return inserted
+    return written
+
+
+async def _build_aoi_names(
+    session: AsyncSession, source: str, *, columns: dict[str, Optional[str]]
+) -> int:
+    """Rebuild the ``aoi_names`` rows of one reference source (idempotent).
+
+    The alternate names come from the staging columns the source has
+    (*columns*, from ``_resolve_search_columns``); the leaf itself lives on
+    ``aois``. Delete then insert per source, so a re-ingest that drops a
+    variant drops its row. Staging repeats ids, and a variant can restate the leaf, so the
+    insert ignores conflicts on the unique key and skips a variant whose
+    normalized form equals the leaf's. Runs after the chunked build, in the
+    caller's transaction. Returns the number of rows inserted.
+    """
+    table = SOURCE_STAGING_TABLES[source]
+    id_col = AOI_SOURCE_ID_COLUMNS[source]
+    search = _search_exprs(source, columns, "s.")
+
+    arms = [
+        f"SELECT '{kind}', unnest({array_expr})"
+        for kind, array_expr in search.variants
+    ]
+    if not arms:
+        await session.execute(
+            text(
+                "DELETE FROM aoi_names n USING aois a "
+                "WHERE n.aoi_id = a.id AND a.source = :source"
+            ),
+            {"source": source},
+        )
+        return 0
+    cleaned = clean_name_sql("v.name")
+
+    await session.execute(
+        text(
+            "DELETE FROM aoi_names n USING aois a "
+            "WHERE n.aoi_id = a.id AND a.source = :source"
+        ),
+        {"source": source},
+    )
+    result = await session.execute(
+        text(
+            f"""
+            INSERT INTO aoi_names (aoi_id, name, name_norm, kind)
+            SELECT c.aoi_id, c.name, c.name_norm, c.kind
+            FROM (
+                SELECT a.id AS aoi_id, v.kind, {cleaned} AS name,
+                       {norm_sql(cleaned)} AS name_norm, a.leaf_norm
+                FROM aois a
+                JOIN {table} s
+                  ON CAST(s."{id_col}" AS TEXT) = a.source_id
+                CROSS JOIN LATERAL ({" UNION ALL ".join(arms)}) AS v(kind, name)
+                WHERE a.source = :source AND NOT a.is_deprecated
+            ) c
+            WHERE c.name IS NOT NULL
+              AND c.name_norm IS DISTINCT FROM c.leaf_norm
+            ON CONFLICT (aoi_id, name_norm) DO NOTHING
+            """
+        ),
+        {"source": source},
+    )
+    return result.rowcount
+
+
+async def _rebuild_search_tokens(session: AsyncSession) -> int:
+    """Rebuild ``aoi_search_tokens`` from the live name vectors; returns its size."""
+    for statement in TOKENS_REBUILD_SQL:
+        await session.execute(text(statement))
+    return int(
+        await session.scalar(text("SELECT count(*) FROM aoi_search_tokens"))
+    )
 
 
 async def _inspect_reference_aois(session: AsyncSession, source: str) -> None:
@@ -1406,7 +1770,7 @@ def build_aois_command(
     delete that the mirror missed.
     """
     selected = list(sources) or _BUILD_SOURCES
-    outcome = "would be upserted" if dry_run else "upserted"
+    outcome = "would be written" if dry_run else "written"
 
     if prune and inspect:
         raise click.UsageError("--prune cannot run with --inspect.")
@@ -1468,10 +1832,23 @@ def build_aois_command(
                                 f"🧹 custom: {gone} orphan row(s) {pruned}."
                             )
                     else:
+                        columns = await _resolve_search_columns(
+                            session, source
+                        )
                         n = await _build_reference_aois(
-                            session, source, nchunks=chunks, dry_run=dry_run
+                            session,
+                            source,
+                            columns=columns,
+                            nchunks=chunks,
+                            dry_run=dry_run,
                         )
                         click.echo(f"✅ {source}: {n} aoi row(s) {outcome}.")
+                        # Under --dry-run the chunks above were rolled back,
+                        # so this counts against whatever aois already holds.
+                        names = await _build_aoi_names(
+                            session, source, columns=columns
+                        )
+                        click.echo(f"   {source}: {names} name(s) {outcome}.")
 
                     # Reference sources self-commit per chunk; this trailing
                     # commit/rollback is then a no-op for them and remains the
@@ -1514,11 +1891,30 @@ def build_aois_command(
             # until then it does not use the indexes on aois. Skipped under
             # --dry-run, which rolls every source back.
             if committed:
+                # The token table serves typo correction only, so it is
+                # derived once here from every committed tsvector rather than
+                # maintained per row.
                 async with db.async_session() as session:
-                    await session.execute(text("ANALYZE aois"))
-                    await session.execute(text("ANALYZE user_aois"))
+                    tokens = await _rebuild_search_tokens(session)
                     await session.commit()
-                click.echo("\n📈 Planner statistics refreshed.")
+                click.echo(f"\n🔤 Search tokens rebuilt: {tokens}.")
+                # VACUUM, not just ANALYZE: the search's index-only scans
+                # need the visibility map, which the rewritten pages lost.
+                # VACUUM refuses a transaction block, hence autocommit.
+                async with db.engine.connect() as conn:
+                    conn = await conn.execution_options(
+                        isolation_level="AUTOCOMMIT"
+                    )
+                    for table in (
+                        "aois",
+                        "user_aois",
+                        "aoi_names",
+                        "aoi_search_tokens",
+                    ):
+                        await conn.execute(text(f"VACUUM (ANALYZE) {table}"))
+                click.echo(
+                    "\n📈 Tables vacuumed, planner statistics refreshed."
+                )
         except Exception:
             if committed:
                 click.echo(
