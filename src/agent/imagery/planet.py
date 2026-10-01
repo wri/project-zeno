@@ -1,5 +1,7 @@
 """Planet monthly mosaic imagery provider."""
 
+import hashlib
+import json
 from datetime import date, timedelta
 from typing import Optional
 
@@ -48,6 +50,12 @@ class PlanetImageryProvider:
             max(bbox[3] for bbox in bboxes),
         ]
 
+    @staticmethod
+    def _layer_id(month: str, aois: list[dict]) -> str:
+        refs = sorted([aoi["source"], aoi["src_id"]] for aoi in aois)
+        payload = json.dumps([month, refs])
+        return hashlib.sha256(payload.encode()).hexdigest()[:16]
+
     async def get_imagery(
         self, request: ImageryRequest
     ) -> ImageryProviderResult:
@@ -55,7 +63,7 @@ class PlanetImageryProvider:
         period = MonthlyPeriod.from_month(month)
         imagery = PlanetImagery(
             period=period,
-            layer_id="planet",
+            layer_id=self._layer_id(month, request.aois),
             tile_url=(
                 f"{self.BASE_URL}/integrated_alerts_planet_imagery/"
                 f"{{z}}/{{x}}/{{y}}.png?month={month}"

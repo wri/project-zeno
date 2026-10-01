@@ -1,7 +1,6 @@
 import json
 from datetime import date
 
-import pytest
 from langchain_core.load import dumps
 from pydantic import TypeAdapter
 
@@ -15,20 +14,11 @@ from src.api.services.mosaic import MosaicResult
 from src.shared.imagery.planet import MonthlyPeriod, PlanetImagery
 from src.shared.imagery.sentinel2 import Sentinel2Imagery
 from src.shared.imagery.wire import Imagery
-from tests.unit.agent.imagery.factories import sentinel2_result_from
-
-AMAZON_AOI = {
-    "name": "Novo Progresso",
-    "source": "gadm",
-    "src_id": "BRA.14.83_2",
-    "bbox": [-56.0, -8.0, -54.0, -6.0],
-}
-ALTAMIRA_AOI = {
-    "name": "Altamira",
-    "source": "gadm",
-    "src_id": "BRA.14.5_2",
-    "bbox": [-55.6, -9.6, -51.6, -3.0],
-}
+from tests.unit.agent.imagery.factories import (
+    ALTAMIRA,
+    NOVO_PROGRESSO,
+    sentinel2_result_from,
+)
 
 
 def streamed_imagery(result: ImageryProviderResult) -> Imagery:
@@ -39,7 +29,7 @@ def streamed_imagery(result: ImageryProviderResult) -> Imagery:
 
 async def test_planet_imagery_streamed_to_the_client_satisfies_the_wire_contract():
     request = ImageryRequest(
-        aois=[AMAZON_AOI], target_date=date(2026, 8, 15), language="en"
+        aois=[NOVO_PROGRESSO], target_date=date(2026, 8, 15), language="en"
     )
     result = await PlanetImageryProvider().get_imagery(request)
 
@@ -51,7 +41,7 @@ async def test_planet_imagery_streamed_to_the_client_satisfies_the_wire_contract
 
 async def test_sentinel2_imagery_streamed_to_the_client_satisfies_the_wire_contract():
     request = ImageryRequest(
-        aois=[AMAZON_AOI],
+        aois=[NOVO_PROGRESSO],
         target_date=date(2025, 6, 1),
         language="en",
     )
@@ -73,12 +63,9 @@ async def test_sentinel2_imagery_streamed_to_the_client_satisfies_the_wire_contr
     assert imagery.scenes.item_count == 4
 
 
-@pytest.mark.xfail(
-    strict=True, reason="Planet layer_id is a constant, so every area collides"
-)
 async def test_planet_imagery_for_different_areas_in_the_same_month_streams_as_different_layers():
     layer_ids = set()
-    for aoi in (AMAZON_AOI, ALTAMIRA_AOI):
+    for aoi in (NOVO_PROGRESSO, ALTAMIRA):
         request = ImageryRequest(
             aois=[aoi], target_date=date(2026, 8, 15), language="en"
         )

@@ -14,6 +14,19 @@ from src.shared.imagery.sentinel2 import (
     Sentinel2Imagery,
 )
 
+NOVO_PROGRESSO = {
+    "name": "Novo Progresso",
+    "source": "gadm",
+    "src_id": "BRA.14.83_2",
+    "bbox": [-56.0, -8.0, -54.0, -6.0],
+}
+ALTAMIRA = {
+    "name": "Altamira",
+    "source": "gadm",
+    "src_id": "BRA.14.5_2",
+    "bbox": [-55.6, -9.6, -51.6, -3.0],
+}
+
 
 def planet_imagery(**overrides) -> PlanetImagery:
     defaults = {
