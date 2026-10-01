@@ -11,9 +11,9 @@ from pydantic import (
     alias_generators,
     computed_field,
     field_validator,
-    model_serializer,
     model_validator,
 )
+from typing_extensions import TypedDict
 
 from src.api.data_models import UserType
 from src.api.user_profile_configs.countries import COUNTRIES
@@ -281,27 +281,23 @@ class UserProfileUpdateRequest(BaseModel):
         return v
 
 
-class ProfilePrefillSuggestion(BaseModel):
+class ProfilePrefillSuggestion(TypedDict, total=False):
     """Profile fields suggested from the person's MyGFW profile.
 
-    Keys are the ``PATCH /api/auth/profile`` field names (snake_case, no
-    alias generator) because the frontend sends the confirmed suggestion
-    back as that body. A field that did not map is omitted, not null.
+    Keys are the ``PATCH /api/auth/profile`` field names (snake_case)
+    because the frontend sends the confirmed suggestion back as that body.
+    A field that did not map is absent, not null.
     """
 
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    job_title: Optional[str] = None
-    company_organization: Optional[str] = None
-    sector_code: Optional[str] = None
-    role_code: Optional[str] = None
-    country_code: Optional[str] = None
-    preferred_language_code: Optional[str] = None
-    topics: Optional[List[str]] = None
-
-    @model_serializer(mode="wrap")
-    def _omit_unmapped(self, handler):
-        return {k: v for k, v in handler(self).items() if v is not None}
+    first_name: str
+    last_name: str
+    job_title: str
+    company_organization: str
+    sector_code: str
+    role_code: str
+    country_code: str
+    preferred_language_code: str
+    topics: List[str]
 
 
 class ProfilePrefillResponse(BaseModel):

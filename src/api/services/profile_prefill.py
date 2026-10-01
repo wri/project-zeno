@@ -8,7 +8,7 @@ treated as an error. Nothing here writes to the GNW user.
 
 import re
 from collections.abc import Container, Mapping
-from typing import Any, Optional
+from typing import Any, Optional, cast
 from urllib.parse import quote
 
 import httpx
@@ -120,7 +120,7 @@ def _topics(*values: Any) -> list[str]:
     return topics
 
 
-def map_gfw_profile(attributes: dict[str, Any]) -> dict[str, Any]:
+def map_gfw_profile(attributes: dict[str, Any]) -> ProfilePrefillSuggestion:
     """Map RW user attributes to a partial ``PATCH /api/auth/profile`` body.
 
     ``attributes`` is ``data.attributes`` of ``GET /v2/user/{id}``. Keys
@@ -159,7 +159,10 @@ def map_gfw_profile(attributes: dict[str, Any]) -> dict[str, Any]:
         ),
         "topics": _topics(gfw.get("interests"), gfw.get("topics")) or None,
     }
-    suggestion = {k: v for k, v in candidates.items() if v is not None}
+    suggestion = cast(
+        ProfilePrefillSuggestion,
+        {k: v for k, v in candidates.items() if v is not None},
+    )
 
     # Name the enumerated GFW values that did not map, so the tables can be
     # extended. "Other: <text>" is a write-in, so it is never logged.
@@ -263,5 +266,5 @@ async def get_profile_prefill(
     return ProfilePrefillResponse(
         found=True,
         source="gfw",
-        suggestion=ProfilePrefillSuggestion(**suggestion),
+        suggestion=suggestion,
     )
