@@ -15,7 +15,7 @@ from src.api.user_profile_configs.languages import LANGUAGES
 from src.api.user_profile_configs.sectors import SECTOR_ROLES, SECTORS
 from src.api.user_profile_configs.topics import TOPICS
 from tests.api.mock import (
-    MockProfileResponse,
+    MockResponse,
     mock_rw_api_response,
     mock_rw_profile_response,
 )
@@ -856,6 +856,25 @@ NOT_FOUND = {"found": False, "source": None, "suggestion": None}
 RW_TOKEN = {"Authorization": "Bearer rw-token"}
 
 
+async def _prefill(client, rw_response, headers=RW_TOKEN):
+    """GET /api/auth/profile/prefill with Resource Watch mocked.
+
+    ``rw_response`` is what RW's GET answers: a response, an exception to
+    raise, or a function of the URL. Returns the API response and the mocked
+    ``get`` so a test can inspect the RW calls.
+    """
+    with patch("httpx.AsyncClient") as mock_client_class:
+        rw_get = mock_client_class.return_value.__aenter__.return_value.get
+        if isinstance(rw_response, BaseException) or callable(rw_response):
+            rw_get.side_effect = rw_response
+        else:
+            rw_get.return_value = rw_response
+        response = await client.get(
+            "/api/auth/profile/prefill", headers=headers
+        )
+    return response, rw_get
+
+
 class TestProfilePrefillAPI:
     """GET /api/auth/profile/prefill suggests fields from MyGFW."""
 
@@ -871,16 +890,9 @@ class TestProfilePrefillAPI:
     ):
         auth_override(user.id)
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = (
-                mock_client_class.return_value.__aenter__.return_value
-            )
-            mock_client.get.return_value = mock_rw_profile_response(
-                user.id, MYGFW_ATTRIBUTES
-            )
-            response = await client.get(
-                "/api/auth/profile/prefill", headers=RW_TOKEN
-            )
+        response, rw_get = await _prefill(
+            client, mock_rw_profile_response(user.id, MYGFW_ATTRIBUTES)
+        )
 
         assert response.status_code == 200
         assert response.json() == {
@@ -888,9 +900,9 @@ class TestProfilePrefillAPI:
             "source": "gfw",
             "suggestion": MYGFW_SUGGESTION,
         }
-        mock_client.get.assert_called_once()
-        url = mock_client.get.call_args.args[0]
-        headers = mock_client.get.call_args.kwargs["headers"]
+        rw_get.assert_called_once()
+        url = rw_get.call_args.args[0]
+        headers = rw_get.call_args.kwargs["headers"]
         assert url == f"https://api.resourcewatch.org/v2/user/{user.id}"
         assert headers["Authorization"] == "Bearer rw-token"
 
@@ -900,14 +912,9 @@ class TestProfilePrefillAPI:
     ):
         auth_override(user.id)
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = (
-                mock_client_class.return_value.__aenter__.return_value
-            )
-            mock_client.get.return_value = mock_rw_profile_response(
-                user.id, MYGFW_ATTRIBUTES
-            )
-            await client.get("/api/auth/profile/prefill", headers=RW_TOKEN)
+        await _prefill(
+            client, mock_rw_profile_response(user.id, MYGFW_ATTRIBUTES)
+        )
 
         me = await client.get("/api/auth/me", headers=RW_TOKEN)
         assert me.json()["firstName"] is None
@@ -921,17 +928,13 @@ class TestProfilePrefillAPI:
     ):
         auth_override(user.id)
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = (
-                mock_client_class.return_value.__aenter__.return_value
-            )
-            mock_client.get.return_value = MockProfileResponse(
+        response, _ = await _prefill(
+            client,
+            MockResponse(
                 {"errors": [{"status": 404, "detail": "User not found"}]},
                 404,
-            )
-            response = await client.get(
-                "/api/auth/profile/prefill", headers=RW_TOKEN
-            )
+            ),
+        )
 
         assert response.status_code == 200
         assert response.json() == NOT_FOUND
@@ -948,16 +951,9 @@ class TestProfilePrefillAPI:
             },
         }
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = (
-                mock_client_class.return_value.__aenter__.return_value
-            )
-            mock_client.get.return_value = mock_rw_profile_response(
-                user.id, attributes
-            )
-            response = await client.get(
-                "/api/auth/profile/prefill", headers=RW_TOKEN
-            )
+        response, _ = await _prefill(
+            client, mock_rw_profile_response(user.id, attributes)
+        )
 
         assert response.status_code == 200
         assert response.json() == NOT_FOUND
@@ -970,16 +966,9 @@ class TestProfilePrefillAPI:
         # response. A different shape must degrade to "nothing to prefill".
         auth_override(user.id)
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = (
-                mock_client_class.return_value.__aenter__.return_value
-            )
-            mock_client.get.return_value = MockProfileResponse(
-                {"id": user.id, **MYGFW_ATTRIBUTES}
-            )
-            response = await client.get(
-                "/api/auth/profile/prefill", headers=RW_TOKEN
-            )
+        response, _ = await _prefill(
+            client, MockResponse({"id": user.id, **MYGFW_ATTRIBUTES})
+        )
 
         assert response.status_code == 200
         assert response.json() == NOT_FOUND
@@ -991,16 +980,9 @@ class TestProfilePrefillAPI:
     ):
         auth_override(user.id)
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = (
-                mock_client_class.return_value.__aenter__.return_value
-            )
-            mock_client.get.return_value = MockProfileResponse(
-                {"errors": [{"detail": "nope"}]}, status_code
-            )
-            response = await client.get(
-                "/api/auth/profile/prefill", headers=RW_TOKEN
-            )
+        response, _ = await _prefill(
+            client, MockResponse({"errors": [{"detail": "nope"}]}, status_code)
+        )
 
         assert response.status_code == 502
         assert "nope" not in response.text
@@ -1016,14 +998,7 @@ class TestProfilePrefillAPI:
     ):
         auth_override(user.id)
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = (
-                mock_client_class.return_value.__aenter__.return_value
-            )
-            mock_client.get.side_effect = error
-            response = await client.get(
-                "/api/auth/profile/prefill", headers=RW_TOKEN
-            )
+        response, _ = await _prefill(client, error)
 
         assert response.status_code == 502
 
@@ -1032,17 +1007,10 @@ class TestProfilePrefillAPI:
         self, client, user, auth_override
     ):
         auth_override(user.id)
-        not_json = MockProfileResponse(None)
+        not_json = MockResponse(None)
         not_json.json = MagicMock(side_effect=ValueError("not json"))
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = (
-                mock_client_class.return_value.__aenter__.return_value
-            )
-            mock_client.get.return_value = not_json
-            response = await client.get(
-                "/api/auth/profile/prefill", headers=RW_TOKEN
-            )
+        response, _ = await _prefill(client, not_json)
 
         assert response.status_code == 502
 
@@ -1054,15 +1022,15 @@ class TestProfilePrefillAPI:
             )
             token, _ = await create_api_key(session, machine.id, "test")
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            response = await client.get(
-                "/api/auth/profile/prefill",
-                headers={"Authorization": f"Bearer {token}"},
-            )
+        response, rw_get = await _prefill(
+            client,
+            MockResponse({}),
+            headers={"Authorization": f"Bearer {token}"},
+        )
 
         assert response.status_code == 200
         assert response.json() == NOT_FOUND
-        mock_client_class.assert_not_called()
+        rw_get.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_prefill_through_real_rw_login(self, client):
@@ -1079,14 +1047,7 @@ class TestProfilePrefillAPI:
                 return profile
             raise AssertionError(f"Unexpected RW call: {url}")
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = (
-                mock_client_class.return_value.__aenter__.return_value
-            )
-            mock_client.get.side_effect = route
-            response = await client.get(
-                "/api/auth/profile/prefill", headers=RW_TOKEN
-            )
+        response, _ = await _prefill(client, route)
         _user_info_cache.clear()
 
         assert response.status_code == 200
