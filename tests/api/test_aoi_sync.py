@@ -17,7 +17,12 @@ from src.api.services.aoi_sync import (
     prune_orphan_custom_aois,
     upsert_custom_aoi,
 )
-from tests.conftest import async_session_maker, seed_reference_aoi
+from tests.conftest import (
+    async_session_maker,
+    has_lexeme,
+    rebuild_search_tokens,
+    seed_reference_aoi,
+)
 
 AUTH = {"Authorization": "Bearer abc123"}
 
@@ -78,7 +83,8 @@ async def _fetch_aoi(area_id):
                 text(
                     "SELECT id, name, subtype, source, created_by, bbox, "
                     "area_km2, is_disputed, is_deprecated, "
-                    "ST_GeometryType(geometry) AS gtype "
+                    "ST_GeometryType(geometry) AS gtype, "
+                    "leaf, leaf_norm, designation, search_tsv::text AS tsv "
                     "FROM aois "
                     "WHERE source = 'custom' AND source_id = :src_id"
                 ),
@@ -102,6 +108,51 @@ async def _fetch_aoi(area_id):
             .all()
         )
         return aoi, links
+
+
+async def _fetch_names(aoi_id):
+    """Return ``{(kind, name_norm)}`` of the ``aoi_names`` rows for an AOI."""
+    async with async_session_maker() as session:
+        rows = await session.execute(
+            text(
+                "SELECT kind, name_norm FROM aoi_names WHERE aoi_id = :aoi_id"
+            ),
+            {"aoi_id": aoi_id},
+        )
+        return {(row[0], row[1]) for row in rows}
+
+
+@pytest.mark.asyncio
+async def test_create_fills_search_columns(auth_override, client):
+    auth_override("test-user-wri")
+    area_id = await _create_area(client, "  Área do Rio  ")
+
+    aoi, _ = await _fetch_aoi(area_id)
+    # The leaf is the trimmed name; its normalized form is lowercase with the
+    # accents removed, which is what the exact and prefix tiers compare.
+    assert aoi["leaf"] == "Área do Rio"
+    assert aoi["leaf_norm"] == "area do rio"
+    assert aoi["designation"] is None
+    assert has_lexeme(aoi["tsv"], "area", "A") and has_lexeme(
+        aoi["tsv"], "rio", "A"
+    )
+    # A custom area has no alternate spellings, so no aoi_names rows.
+    assert await _fetch_names(aoi["id"]) == set()
+
+
+@pytest.mark.asyncio
+async def test_patch_updates_the_search_columns(auth_override, client):
+    auth_override("test-user-wri")
+    area_id = await _create_area(client, "Before")
+
+    res = await client.patch(
+        f"/api/custom_areas/{area_id}", json={"name": "After"}, headers=AUTH
+    )
+    assert res.status_code == 200, res.text
+
+    aoi, _ = await _fetch_aoi(area_id)
+    assert aoi["leaf_norm"] == "after"
+    assert has_lexeme(aoi["tsv"], "after", "A") and "before" not in aoi["tsv"]
 
 
 @pytest.mark.asyncio
@@ -431,3 +482,22 @@ async def test_prune_does_not_commit(auth_override, client):
 
     aoi, _ = await _fetch_aoi(orphan)
     assert aoi is not None
+
+
+@pytest.mark.asyncio
+async def test_custom_area_names_stay_out_of_the_token_table(
+    auth_override, client
+):
+    """The token table is shared by every user, so a private name must not
+    become another user's typo correction."""
+    auth_override("test-user-wri")
+    await _create_area(client, "Zqxvba Reserve")
+    await rebuild_search_tokens()
+    async with async_session_maker() as session:
+        tokens = {
+            row[0]
+            for row in await session.execute(
+                text("SELECT token FROM aoi_search_tokens")
+            )
+        }
+    assert "zqxvba" not in tokens
