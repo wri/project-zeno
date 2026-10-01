@@ -117,7 +117,8 @@ async def _get_or_create_user(
     user = result.scalars().first()
 
     if not user:
-        user = UserOrm(**user_info.model_dump())
+        # terms_accepted is computed, not a column.
+        user = UserOrm(**user_info.model_dump(exclude={"terms_accepted"}))
         session.add(user)
         await session.commit()
 

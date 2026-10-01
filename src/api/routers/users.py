@@ -82,8 +82,7 @@ async def update_user_profile(
         setattr(db_user, field, value)
 
     if "terms_version" in update_data:
-        # Each explicit acceptance is an event, so re-sending the same
-        # version moves the timestamp. Only the server clock sets it.
+        # Each acceptance is an event; only the server clock sets the time.
         db_user.terms_accepted_at = datetime.now(timezone.utc)
 
     await session.commit()

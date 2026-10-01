@@ -73,9 +73,7 @@ class UserOrm(Base):
     help_test_features = Column(Boolean, nullable=False, default=False)
     has_profile = Column(Boolean, nullable=False, default=False)
 
-    # Terms acceptance. The server stamps terms_accepted_at whenever a
-    # profile update carries terms_version; it is tz-aware because it is a
-    # legal audit record.
+    # Terms acceptance; see UserModel.terms_accepted.
     terms_accepted_at = Column(DateTime(timezone=True), nullable=True)
     terms_version = Column(String, nullable=True)
 

@@ -604,6 +604,7 @@ class TestTermsAcceptance:
         data = response.json()
         assert data["termsAcceptedAt"] is None
         assert data["termsVersion"] is None
+        assert data["termsAccepted"] is False
 
     @pytest.mark.asyncio
     async def test_profile_update_response_includes_terms_fields(
@@ -619,6 +620,41 @@ class TestTermsAcceptance:
         data = response.json()
         assert data["termsAcceptedAt"] is None
         assert data["termsVersion"] is None
+        assert data["termsAccepted"] is False
+
+    @pytest.mark.asyncio
+    async def test_accepting_terms_marks_terms_accepted(
+        self, client, user, auth_override
+    ):
+        auth_override(user.id)
+
+        response = await client.patch(
+            "/api/auth/profile", json={"terms_version": "2026-09-30"}
+        )
+
+        assert response.json()["termsAccepted"] is True
+        me = await client.get(
+            "/api/auth/me", headers={"Authorization": "Bearer test-token"}
+        )
+        assert me.json()["termsAccepted"] is True
+
+    @pytest.mark.asyncio
+    async def test_completed_legacy_profile_counts_as_terms_accepted(
+        self, client, user, auth_override
+    ):
+        auth_override(user.id)
+
+        response = await client.patch(
+            "/api/auth/profile", json={"has_profile": True}
+        )
+
+        assert response.json()["termsAccepted"] is True
+        assert response.json()["termsAcceptedAt"] is None
+        me = await client.get(
+            "/api/auth/me", headers={"Authorization": "Bearer test-token"}
+        )
+        assert me.json()["termsAccepted"] is True
+        assert me.json()["termsAcceptedAt"] is None
 
     @pytest.mark.asyncio
     async def test_accepting_terms_records_version_and_server_time(

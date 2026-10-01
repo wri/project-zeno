@@ -9,6 +9,7 @@ from pydantic import (
     Field,
     StringConstraints,
     alias_generators,
+    computed_field,
     field_validator,
     model_serializer,
     model_validator,
@@ -105,9 +106,24 @@ class UserModel(BaseModel):
     help_test_features: bool = False
     has_profile: bool = False
 
-    # Terms acceptance, set by the server (see PATCH /api/auth/profile)
+    # Set by the server; see terms_accepted below.
     terms_accepted_at: Optional[datetime] = None
     terms_version: Optional[str] = None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def terms_accepted(self) -> bool:
+        """Whether the person has accepted the terms.
+
+        True once the consent screen has recorded an acceptance
+        (``terms_accepted_at``, stamped by the server whenever
+        PATCH /api/auth/profile carries ``terms_version``), or when the
+        person completed the legacy onboarding form (``has_profile``). That
+        form required ticking the terms box, so a completed legacy profile
+        implies acceptance and those rows are not backfilled:
+        ``terms_accepted_at`` stays null for them.
+        """
+        return self.terms_accepted_at is not None or self.has_profile
 
     @field_validator("created_at", "updated_at", mode="before")
     def parse_dates(cls, value):
@@ -207,10 +223,7 @@ class UserProfileUpdateRequest(BaseModel):
     help_test_features: Optional[bool] = None
     has_profile: Optional[bool] = None
 
-    # Sending this records an acceptance: the server stamps
-    # terms_accepted_at itself and never takes a timestamp from the client.
-    # Not Optional: pydantic does not validate the default, so an omitted
-    # field stays unset while an explicit null is rejected (422).
+    # Not Optional: the default is not validated, so explicit null is a 422.
     terms_version: Annotated[
         str,
         StringConstraints(
