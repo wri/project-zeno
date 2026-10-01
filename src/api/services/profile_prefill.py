@@ -13,13 +13,7 @@ from urllib.parse import quote
 
 import httpx
 
-from src.api.auth.machine_user import MACHINE_USER_PREFIX
-from src.api.data_models import UserType
-from src.api.schemas import (
-    ProfilePrefillResponse,
-    ProfilePrefillSuggestion,
-    UserModel,
-)
+from src.api.schemas import ProfilePrefillResponse, ProfilePrefillSuggestion
 from src.api.user_profile_configs.countries import COUNTRIES
 from src.api.user_profile_configs.gfw import (
     GADM_ISO3_TO_COUNTRY_CODE,
@@ -247,20 +241,18 @@ async def fetch_gfw_attributes(user_id: str, token: str) -> dict[str, Any]:
 
 
 async def get_profile_prefill(
-    user: UserModel, token: str
+    user_id: str, rw_token: Optional[str]
 ) -> ProfilePrefillResponse:
-    """Suggest profile fields for ``user`` from their MyGFW profile."""
-    not_found = ProfilePrefillResponse(found=False)
+    """Suggest profile fields for the user from their MyGFW profile.
 
-    # A machine key is ours and must never be sent to a third party, and a
-    # machine user has no MyGFW profile anyway.
-    if (
-        token.startswith(f"{MACHINE_USER_PREFIX}:")
-        or user.user_type == UserType.MACHINE
-    ):
+    ``rw_token`` is the caller's Resource Watch token, or None for a
+    machine key (see ``rw_bearer_token``), which has no MyGFW profile.
+    """
+    not_found = ProfilePrefillResponse(found=False)
+    if rw_token is None:
         return not_found
 
-    suggestion = map_gfw_profile(await fetch_gfw_attributes(user.id, token))
+    suggestion = map_gfw_profile(await fetch_gfw_attributes(user_id, rw_token))
     if not suggestion:
         return not_found
     return ProfilePrefillResponse(

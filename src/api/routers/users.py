@@ -5,14 +5,13 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth.dependencies import (
     _orm_to_user_model,
     require_auth,
-    security,
+    rw_bearer_token,
 )
 from src.api.config import APISettings
 from src.api.data_models import UserOrm
@@ -94,7 +93,7 @@ async def update_user_profile(
 @router.get("/api/auth/profile/prefill", response_model=ProfilePrefillResponse)
 async def get_profile_prefill_suggestion(
     user: UserModel = Depends(require_auth),
-    authorization: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    rw_token: Optional[str] = Depends(rw_bearer_token),
 ):
     """
     Suggest profile fields from the caller's MyGFW profile.
@@ -104,15 +103,8 @@ async def get_profile_prefill_suggestion(
     to valid GNW values. Returns found=false when there is no MyGFW
     profile or nothing maps, and 502 when Resource Watch fails.
     """
-    if authorization is None:
-        # require_auth has already rejected a missing token; this only
-        # guards a dependency override that bypasses it.
-        raise HTTPException(
-            status_code=401,
-            detail="Missing Bearer token in Authorization header",
-        )
     try:
-        return await get_profile_prefill(user, authorization.credentials)
+        return await get_profile_prefill(user.id, rw_token)
     except ResourceWatchUnavailableError as e:
         raise HTTPException(
             status_code=502, detail="Error contacting Resource Watch"

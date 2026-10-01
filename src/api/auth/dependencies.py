@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth.machine_user import (
-    MACHINE_USER_PREFIX,
+    is_machine_user_token,
     validate_machine_user_token,
 )
 from src.api.data_models import UserOrm, UserType
@@ -40,7 +40,7 @@ async def fetch_user_from_rw_api(
 
     token = authorization.credentials
 
-    if token and token.startswith(f"{MACHINE_USER_PREFIX}:"):
+    if is_machine_user_token(token):
         return await validate_machine_user_token(token, session, request)
 
     if token and token in _user_info_cache:
@@ -77,6 +77,21 @@ async def fetch_user_from_rw_api(
     user_model = UserModel.model_validate(user_info)
     _user_info_cache[token] = user_model
     return user_model
+
+
+async def rw_bearer_token(
+    authorization: Optional[HTTPAuthorizationCredentials] = Depends(security),
+) -> Optional[str]:
+    """The caller's Resource Watch token, to call RW on their behalf.
+
+    None for a machine key: it is ours, so it must never be sent to RW, and
+    a machine user has no RW profile anyway.
+    """
+    if authorization is None or is_machine_user_token(
+        authorization.credentials
+    ):
+        return None
+    return authorization.credentials
 
 
 def _orm_to_user_model(user: UserOrm) -> UserModel:
