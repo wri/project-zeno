@@ -48,7 +48,6 @@ async def test_sentinel2_provider_builds_sentinel2_imagery_from_the_mosaic_it_se
         ),
         layer_id="abc123",
         tile_url=MOSAIC.tile_url,
-        tilejson_url=MOSAIC.tilejson_url,
         source=RasterSource(
             tiles=[MOSAIC.tile_url],
             bounds=(6.0, 46.2, 7.2, 46.9),

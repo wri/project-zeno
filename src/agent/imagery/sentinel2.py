@@ -95,7 +95,6 @@ class Sentinel2ImageryProvider:
             ),
             layer_id=result.mosaic_id,
             tile_url=result.tile_url,
-            tilejson_url=result.tilejson_url,
             source=RasterSource(
                 tiles=[result.tile_url],
                 bounds=aoi_bounds(request.aois),

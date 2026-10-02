@@ -13,12 +13,10 @@ def test_sentinel2_imagery_identifies_its_provider_as_sentinel_2():
 def test_sentinel2_imagery_keeps_the_mosaic_it_renders_from():
     imagery = sentinel2_imagery(
         tile_url="https://tiles.example/mosaic/{z}/{x}/{y}.png",
-        tilejson_url="https://tiles.example/mosaic/tilejson.json",
         mosaic_id="abc123",
     )
 
     assert imagery.tile_url == "https://tiles.example/mosaic/{z}/{x}/{y}.png"
-    assert imagery.tilejson_url == "https://tiles.example/mosaic/tilejson.json"
     assert imagery.mosaic_id == "abc123"
 
 
@@ -65,3 +63,7 @@ def test_sentinel2_imagery_keeps_the_raster_source_it_was_built_with():
     )
 
     assert sentinel2_imagery(source=source).source == source
+
+
+def test_sentinel2_imagery_carries_no_tilejson_url():
+    assert "tilejson_url" not in sentinel2_imagery().model_dump()

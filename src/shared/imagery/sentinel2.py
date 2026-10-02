@@ -27,7 +27,6 @@ class SceneSummary(StrictModel):
 class Sentinel2Imagery(ImageryBase):
     provider: Literal["sentinel-2"] = "sentinel-2"
     period: SearchWindowPeriod
-    tilejson_url: str
     mosaic_id: str
     max_cloud_cover: int
     scenes: Optional[SceneSummary]
