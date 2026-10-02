@@ -165,6 +165,18 @@ async def require_superuser(
     return user
 
 
+async def require_admin(
+    user: UserModel = Depends(require_auth),
+) -> UserModel:
+    """Requires the authenticated user to be an admin or a superuser."""
+    if user.user_type not in (UserType.ADMIN, UserType.SUPERUSER):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required",
+        )
+    return user
+
+
 def require_scope(scope: str):
     """Dependency factory: allow a superuser, or a machine key whose scopes
     include ``scope``. The key's scopes are read from ``request.state``, set

@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from src.api.auth.dependencies import require_auth
+from src.api.auth.dependencies import require_admin
 from src.api.schemas import UserModel
 from src.api.services.zap.jev import JevError
 from src.api.services.zap.models import ZapPlan, ZapRequest
@@ -15,9 +15,11 @@ router = APIRouter()
 
 
 @router.post("/api/zap", response_model=ZapPlan)
-async def zap(request: ZapRequest, user: UserModel = Depends(require_auth)):
+async def zap(request: ZapRequest, user: UserModel = Depends(require_admin)):
     """
     Plan the map changes for one prompt with the jev decision model.
+
+    Experimental: admins and superusers only.
 
     Returns up to three steps (show a dataset, go to an area, chart the
     dataset for the area) for the frontend to run in order, and the jev
