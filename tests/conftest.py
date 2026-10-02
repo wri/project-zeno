@@ -1,6 +1,7 @@
 """Test configuration and fixtures."""
 
 import os
+import re
 import uuid
 from collections.abc import AsyncGenerator
 from unittest.mock import patch
@@ -16,6 +17,14 @@ from src.api.app import app
 from src.api.auth.dependencies import fetch_user_from_rw_api
 from src.api.data_models import Base, ThreadOrm, UserOrm, UserType
 from src.api.schemas import UserModel
+from src.shared.aoi_search_sql import (
+    SEARCH_DDL,
+    TOKENS_REBUILD_SQL,
+    clean_name_sql,
+    name_tsv_sql,
+    norm_sql,
+    tsv_sql,
+)
 from src.shared.database import (
     close_global_pool,
     get_session_from_pool_dependency,
@@ -53,6 +62,8 @@ async def seed_reference_aoi(
     geometry_wkt=UNIT_SQUARE_WKT,
     bbox=(0, 0, 1, 1),
     is_disputed=False,
+    variants=(),
+    designation=None,
 ):
     """Insert a reference AOI as build-aois does, with raw SQL and real geometry.
 
@@ -62,15 +73,28 @@ async def seed_reference_aoi(
     can seed a bbox that disagrees with the geometry and show which one a read
     path uses. ``None`` leaves the bbox null.
     """
+    # The search columns follow the corpus convention: the leaf is the first
+    # comma segment of the name, the context the rest. *variants* seed extra
+    # ``aoi_names`` rows, as GADM's VARNAME or WDPA's orig_name would;
+    # *designation* is what WDPA's desig_eng or LandMark's category would be.
+    leaf = clean_name_sql("split_part(:name, ',', 1)")
+    context = "NULLIF(btrim(substr(:name, length(split_part(:name, ',', 1)) + 2)), '')"
     async with async_session_maker() as session:
-        await session.execute(
+        aoi_id = await session.scalar(
             text(
                 "INSERT INTO aois "
                 "(source, source_id, name, subtype, geometry, bbox, "
-                " is_disputed) "
-                "VALUES (:source, :source_id, :name, :subtype, "
+                " is_disputed, leaf, leaf_norm, designation, search_tsv, "
+                " name_tsv) "
+                "SELECT :source, :source_id, :name, :subtype, "
                 " ST_Multi(ST_GeomFromText(:geometry_wkt, 4326)), "
-                " :bbox, :is_disputed)"
+                " :bbox, :is_disputed, s.leaf, "
+                f" {norm_sql('s.leaf')}, s.designation, "
+                f" {tsv_sql('s.leaf', ':variants', 's.context', ':name')}, "
+                f" {name_tsv_sql('s.leaf', ':variants', 's.designation')} "
+                f"FROM (SELECT {leaf} AS leaf, {context} AS context, "
+                " CAST(:designation AS text) AS designation) s "
+                "RETURNING id"
             ),
             {
                 "source": source,
@@ -80,8 +104,51 @@ async def seed_reference_aoi(
                 "geometry_wkt": geometry_wkt,
                 "bbox": list(bbox) if bbox is not None else None,
                 "is_disputed": is_disputed,
+                "variants": " ".join(variants) or None,
+                "designation": designation,
             },
         )
+        if variants:
+            await session.execute(
+                text(
+                    "INSERT INTO aoi_names (aoi_id, name, name_norm, kind) "
+                    "SELECT :aoi_id, v.name, "
+                    f"{norm_sql('v.name')}, 'variant' "
+                    "FROM unnest(CAST(:variants AS text[])) AS v(name) "
+                    "WHERE btrim(v.name) <> '' "
+                    "ON CONFLICT DO NOTHING"
+                ),
+                {"aoi_id": aoi_id, "variants": list(variants)},
+            )
+        await session.commit()
+
+
+def tsvector_lexemes(tsv_text: str) -> dict[str, set[str]]:
+    """Parse a tsvector's text form into ``{lexeme: weights}``.
+
+    ``'reserve':3A,7B 'nature':6B`` gives ``{"reserve": {"A", "B"},
+    "nature": {"B"}}``. Positions are dropped: a test that pins them breaks
+    on any reordering of the vector's inputs, which is never the point.
+    """
+    lexemes: dict[str, set[str]] = {}
+    for match in re.finditer(r"'((?:[^']|'')*)':([\d,ABCD]+)", tsv_text or ""):
+        weights = {w for w in match.group(2) if w in "ABCD"} or {"D"}
+        lexemes.setdefault(match.group(1).replace("''", "'"), set()).update(
+            weights
+        )
+    return lexemes
+
+
+def has_lexeme(tsv_text: str, lexeme: str, weight: str) -> bool:
+    """Whether *tsv_text* carries *lexeme* at *weight*."""
+    return weight in tsvector_lexemes(tsv_text).get(lexeme, set())
+
+
+async def rebuild_search_tokens() -> None:
+    """Rebuild ``aoi_search_tokens`` from the seeded rows, as build-aois does."""
+    async with async_session_maker() as session:
+        for statement in TOKENS_REBUILD_SQL:
+            await session.execute(text(statement))
         await session.commit()
 
 
@@ -132,6 +199,10 @@ async def test_db():
         # column.
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+        # The search migration runs the same statements: unaccent and the
+        # aoi_search text search configuration that every tsvector uses.
+        for statement in SEARCH_DDL:
+            await conn.execute(text(statement))
         await conn.run_sync(Base.metadata.create_all)
     yield
     # Clean up

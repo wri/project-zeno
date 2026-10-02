@@ -22,13 +22,26 @@ import pytest_asyncio
 from click.testing import CliRunner
 from sqlalchemy import text
 
-from src.api.cli import _build_reference_aois, _derive_gadm_name_repairs, cli
+from src.api.cli import (
+    _build_aoi_names,
+    _build_reference_aois,
+    _derive_gadm_name_repairs,
+    _rebuild_search_tokens,
+    _resolve_search_columns,
+    _search_exprs,
+    cli,
+)
 from src.shared.geocoding_helpers import (
     AOI_SOURCE_ID_COLUMNS,
     GADM_LEVELS,
     SOURCE_STAGING_TABLES,
 )
-from tests.conftest import UNIT_SQUARE_WKT, async_session_maker
+from tests.conftest import (
+    UNIT_SQUARE_WKT,
+    async_session_maker,
+    has_lexeme,
+    tsvector_lexemes,
+)
 
 # Chunk count for the seeded builds. The real default is 16; a smaller number
 # keeps the tests quick while still running the multi-pass, per-chunk-commit
@@ -47,6 +60,8 @@ _GADM_COLUMNS = (
     "NAME_2",
     "GID_3",
     "NAME_3",
+    "VARNAME_1",
+    "NL_NAME_1",
     "gadm_id",
     "name",
     "subtype",
@@ -144,8 +159,12 @@ _GADM_ROWS = [
     _gadm("GBR.1.1_1", _UK, "England", "Barnsley"),
     _gadm("GBR.1.4_1", _UK, "Wales", "Wakefield"),
     _gadm("GBR.1.3_1", _UK, "NA", "Sheffield"),
-    # Level 1 control: a sibling GADM named correctly.
-    _gadm("GBR.2_1", _UK, "Scotland"),
+    # Level 1 control: a sibling GADM named correctly. It also carries the
+    # two optional name columns as GADM ships them: pipe-separated variants
+    # and a native-script name.
+    _gadm(
+        "GBR.2_1", _UK, "Scotland", VARNAME_1="Alba|Scotia", NL_NAME_1="Alba"
+    ),
     # Level 1 refusal: MHL.19_1 has no children at all, so nothing to borrow.
     _gadm("MHL.19_1", "Marshall Islands", "NA"),
     # Level 1 refusal: the all-NA ghost row, whose children split 1-1. GADM's
@@ -176,6 +195,13 @@ _GADM_ROWS = [
     _gadm("GBR.1.7.1_1", _UK, "England", "NA", "NA"),
     # Level 2 refusal: no children.
     _gadm("GBR.1.8_1", _UK, "England", "NA"),
+    # Context shapes: GADM restates a unit's name down the hierarchy, and a
+    # segment can end with the text of the next one ("Île-de-France, France").
+    _gadm("PRT.12_1", "Portugal", "Lisboa"),
+    _gadm("PRT.12.7_1", "Portugal", "Lisboa", "Lisboa"),
+    _gadm("PRT.12.7.1_1", "Portugal", "Lisboa", "Lisboa", "Alvalade"),
+    _gadm("FRA.8_1", "France", "Île-de-France"),
+    _gadm("FRA.8.3_1", "France", "Île-de-France", "Paris"),
 ]
 
 
@@ -191,8 +217,9 @@ async def _aoi_names(source: str) -> dict[str, str]:
 
 async def _build(source: str) -> int:
     async with async_session_maker() as session:
+        columns = await _resolve_search_columns(session, source)
         return await _build_reference_aois(
-            session, source, nchunks=_CHUNKS, dry_run=False
+            session, source, columns=columns, nchunks=_CHUNKS, dry_run=False
         )
 
 
@@ -351,11 +378,12 @@ async def test_a_repaired_parent_leaves_its_childs_middle_segment_broken(
 
 @pytest.mark.asyncio
 async def test_gadm_rebuild_is_idempotent(gadm_staging):
-    """A second build upserts the same rows to the same names.
+    """A second build over unchanged data writes nothing and changes nothing.
 
     This is the ``ON CONFLICT ... DO UPDATE`` path every environment takes,
-    because build-aois is re-run rather than reset. The repair is re-derived
-    from staging on each run, which is what makes a re-ingest self-healing.
+    because build-aois is re-run rather than reset. A row whose columns all
+    match is left alone, so the rebuild neither bloats the heap nor clears
+    the visibility map the search's index-only scans depend on.
     """
     first = await _build("gadm")
     before = await _aoi_names("gadm")
@@ -363,9 +391,247 @@ async def test_gadm_rebuild_is_idempotent(gadm_staging):
     second = await _build("gadm")
     after = await _aoi_names("gadm")
 
-    assert first == second == len(_GADM_ROWS)
+    assert first == len(_GADM_ROWS)
+    assert second == 0
     assert before == after
     assert len(after) == len(_GADM_ROWS)
+
+
+async def _search_columns(source: str) -> dict[str, dict]:
+    """Return ``{source_id: {leaf, leaf_norm, designation, tsv, ntsv}}``."""
+    async with async_session_maker() as session:
+        result = await session.execute(
+            text(
+                "SELECT source_id, leaf, leaf_norm, designation, "
+                "search_tsv::text AS tsv, name_tsv::text AS ntsv "
+                "FROM aois WHERE source = :source"
+            ),
+            {"source": source},
+        )
+        return {row[0]: dict(row._mapping) for row in result.all()}
+
+
+async def _names(source: str) -> dict[str, set[tuple[str, str]]]:
+    """Return ``{source_id: {(kind, name_norm)}}`` for a source."""
+    async with async_session_maker() as session:
+        result = await session.execute(
+            text(
+                "SELECT a.source_id, n.kind, n.name_norm "
+                "FROM aoi_names n JOIN aois a ON a.id = n.aoi_id "
+                "WHERE a.source = :source"
+            ),
+            {"source": source},
+        )
+        out: dict[str, set[tuple[str, str]]] = {}
+        for source_id, kind, norm in result.all():
+            out.setdefault(source_id, set()).add((kind, norm))
+        return out
+
+
+async def _build_names(source: str) -> int:
+    async with async_session_maker() as session:
+        columns = await _resolve_search_columns(session, source)
+        n = await _build_aoi_names(session, source, columns=columns)
+        await session.commit()
+        return n
+
+
+async def _contexts(source: str) -> dict[str, str]:
+    """Evaluate the source's context expression over its staging rows.
+
+    The context (parents, designation, country) feeds ``search_tsv`` at
+    build time and is not stored, so its derivation is checked at the
+    expression. The WDPA country lookup reads ``aois``, so build gadm first.
+    """
+    table = SOURCE_STAGING_TABLES[source]
+    id_col = AOI_SOURCE_ID_COLUMNS[source]
+    async with async_session_maker() as session:
+        columns = await _resolve_search_columns(session, source)
+        rows = await session.execute(
+            text(
+                f'SELECT DISTINCT CAST("{id_col}" AS TEXT), '
+                f"{_search_exprs(source, columns, '').context} FROM {table}"
+            )
+        )
+        return dict(rows.all())
+
+
+@pytest.mark.asyncio
+async def test_gadm_build_fills_the_search_columns(gadm_staging):
+    """Leaf, context and tsvector come from GADM's own level columns.
+
+    The leaf is the unit's own NAME_n, repaired where the repair applies, and
+    NULL where GADM has no name at all: a no-data marker must not become a
+    searchable name. The context is the parents, country last.
+    """
+    await _build("gadm")
+    cols = await _search_columns("gadm")
+    contexts = await _contexts("gadm")
+
+    barnsley = cols["GBR.1.1_1"]
+    assert barnsley["leaf"] == "Barnsley"
+    assert barnsley["leaf_norm"] == "barnsley"
+    assert barnsley["designation"] is None
+    assert contexts["GBR.1.1_1"] == "England, United Kingdom"
+    assert has_lexeme(barnsley["tsv"], "barnsley", "A")
+    assert has_lexeme(barnsley["tsv"], "england", "B")
+    # The name vector carries the names only: a parent's name would match
+    # every row beneath it.
+    assert barnsley["ntsv"] == "'barnsley':1A"
+
+    # The repaired leading segment is the leaf.
+    assert cols["GBR.1_1"]["leaf"] == "England"
+    assert contexts["GBR.1_1"] == "United Kingdom"
+    # A country has no context.
+    assert cols["GBR"]["leaf"] == "United Kingdom"
+    assert contexts["GBR"] is None
+    # Irreparable "NA" gives no leaf; the context still carries the parents.
+    assert cols["MHL.19_1"]["leaf"] is None
+    assert cols["MHL.19_1"]["leaf_norm"] is None
+    assert contexts["MHL.19_1"] == "Marshall Islands"
+    # A "NA" parent drops out of the context rather than becoming a token.
+    assert contexts["GBR.1.7.1_1"] == "England, United Kingdom"
+    # A parent restated down the hierarchy appears once in the context; a
+    # segment that merely ends with the next one's text is not a repeat.
+    assert contexts["PRT.12.7.1_1"] == "Lisboa, Portugal"
+    assert cols["PRT.12.7_1"]["leaf"] == "Lisboa"
+    assert contexts["PRT.12.7_1"] == "Lisboa, Portugal"
+    assert contexts["FRA.8.3_1"] == "Île-de-France, France"
+    assert has_lexeme(cols["FRA.8.3_1"]["tsv"], "france", "B")
+
+
+@pytest.mark.asyncio
+async def test_gadm_names_hold_variants_and_native_spellings(gadm_staging):
+    """The leaf lives on aois; aoi_names holds the other spellings only."""
+    await _build("gadm")
+    inserted = await _build_names("gadm")
+    names = await _names("gadm")
+
+    # One row per spelling: "Alba" is both a variant and the native name.
+    assert {norm for _, norm in names["GBR.2_1"]} == {"alba", "scotia"}
+    # A unit with no alternate spelling has no rows at all.
+    assert "GBR.1.1_1" not in names
+    assert "GBR.1_1" not in names
+    assert "MHL.19_1" not in names
+    # The variants are also tokens of the tsvector, at the leaf's weight.
+    cols = await _search_columns("gadm")
+    assert has_lexeme(cols["GBR.2_1"]["tsv"], "scotia", "A")
+
+    # A second run replaces the rows rather than adding to them.
+    assert await _build_names("gadm") == inserted
+    assert await _names("gadm") == names
+
+
+@pytest.mark.asyncio
+async def test_wdpa_context_names_the_country_and_keeps_orig_name(
+    gadm_staging,
+):
+    """A protected area's context is its designation and country name.
+
+    The country name is looked up from the GADM level-0 rows, which the build
+    order puts in aois first; the original-language name becomes a native
+    variant when it differs from the English one.
+    """
+    await _build("gadm")
+    columns = (
+        "wdpa_pid",
+        "wdpa_name",
+        "orig_name",
+        "desig_eng",
+        "iso3",
+        "name",
+        "subtype",
+    )
+    rows = [
+        {
+            "wdpa_pid": "1",
+            "wdpa_name": "Masirah Island Reserve",
+            "orig_name": "محمية مصيرة",
+            "desig_eng": "Nature Reserve",
+            "iso3": "GBR",
+            "name": "Masirah Island Reserve, Nature Reserve, GBR",
+            "subtype": "protected-area",
+        },
+        {
+            "wdpa_pid": "2",
+            "wdpa_name": "Same Name",
+            "orig_name": "same name",
+            "desig_eng": "Park",
+            "iso3": "ZZZ",
+            "name": "Same Name, Park, ZZZ",
+            "subtype": "protected-area",
+        },
+    ]
+    async with _staging_table("wdpa", columns, rows):
+        await _build("wdpa")
+        await _build_names("wdpa")
+
+        cols = await _search_columns("wdpa")
+        contexts = await _contexts("wdpa")
+        assert cols["1"]["leaf"] == "Masirah Island Reserve"
+        assert cols["1"]["designation"] == "Nature Reserve"
+        assert contexts["1"] == "Nature Reserve, United Kingdom"
+        assert has_lexeme(cols["1"]["tsv"], "محمية", "A")
+        # The designation is in the name vector, the country is not.
+        assert tsvector_lexemes(cols["1"]["ntsv"])["nature"] == {"B"}
+        assert tsvector_lexemes(cols["1"]["ntsv"])["reserve"] == {"A", "B"}
+        assert "kingdom" not in cols["1"]["ntsv"]
+        # No GADM country for the code, so the code itself is the context.
+        assert contexts["2"] == "Park, ZZZ"
+
+        names = await _names("wdpa")
+        assert names["1"] == {("native", "محمية مصيرة")}
+        # A case-only difference is not a variant, so the row has no names.
+        assert "2" not in names
+
+
+@pytest.mark.asyncio
+async def test_kba_uses_national_name_with_international_variant():
+    columns = ("sitrecid", "NatName", "IntName", "Country", "name", "subtype")
+    rows = [
+        {
+            "sitrecid": "10",
+            "NatName": "Van Ovasi",
+            "IntName": "Van Plains",
+            "Country": "Turkey",
+            "name": "Van Ovasi, Van Plains, TUR",
+            "subtype": "key-biodiversity-area",
+        }
+    ]
+    async with _staging_table("kba", columns, rows):
+        await _build("kba")
+        await _build_names("kba")
+
+        cols = await _search_columns("kba")
+        assert cols["10"]["leaf"] == "Van Ovasi"
+        assert cols["10"]["designation"] is None
+        assert (await _contexts("kba"))["10"] == "Turkey"
+        assert (await _names("kba"))["10"] == {("international", "van plains")}
+
+
+@pytest.mark.asyncio
+async def test_token_table_holds_the_distinct_lexemes(gadm_staging):
+    await _build("gadm")
+    await _build_names("gadm")
+    async with async_session_maker() as session:
+        count = await _rebuild_search_tokens(session)
+        await session.commit()
+        tokens = {
+            row[0]: (row[1], row[2])
+            for row in await session.execute(
+                text("SELECT token, ndoc, prominence FROM aoi_search_tokens")
+            )
+        }
+
+    assert count == len(tokens)
+    assert {"barnsley", "scotland", "scotia", "kingdom"} <= set(tokens)
+    # The name vector, not the full one: a parent is not a token of its
+    # children, so "kingdom" is carried by the country alone.
+    assert tokens["kingdom"] == (1, 1.0)
+    # A token's prominence is that of the best-known place carrying it.
+    assert tokens["scotland"] == (1, 0.9)
+    # No-data markers never enter the tsvector, so they are not tokens.
+    assert "na" not in tokens
 
 
 @pytest.mark.asyncio
