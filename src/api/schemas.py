@@ -69,6 +69,21 @@ class ThreadNameOutput(BaseModel):
         return value
 
 
+def _rw_apps(extra_user_data: Any) -> Optional[List[str]]:
+    """The app names in RW's ``extraUserData.apps``, or None if unusable."""
+    apps = (
+        extra_user_data.get("apps")
+        if isinstance(extra_user_data, dict)
+        else None
+    )
+    if not isinstance(apps, list):
+        return None
+    names = dict.fromkeys(
+        app.strip() for app in apps if isinstance(app, str) and app.strip()
+    )
+    return list(names) or None
+
+
 class UserModel(BaseModel):
     """User model with relationships to threads and custom areas."""
 
@@ -109,6 +124,21 @@ class UserModel(BaseModel):
     # Set by the server; see terms_accepted below.
     terms_accepted_at: Optional[datetime] = None
     terms_version: Optional[str] = None
+
+    # Signup origin, written once by the first login (_get_or_create_user):
+    # when the person first entered GNW and which apps their RW account was
+    # registered with then ("gfw" for an existing GFW account).
+    first_seen_at: Optional[datetime] = None
+    rw_apps: Optional[List[str]] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def lift_rw_apps(cls, data: Any) -> Any:
+        # RW's /auth/user/me nests the account's apps under extraUserData.
+        # The live shape is unconfirmed, so anything unexpected becomes None.
+        if isinstance(data, dict) and "extraUserData" in data:
+            data = {**data, "rw_apps": _rw_apps(data["extraUserData"])}
+        return data
 
     @computed_field  # type: ignore[prop-decorator]
     @property

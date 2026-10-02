@@ -1,6 +1,7 @@
 """FastAPI authentication dependencies."""
 
 import json
+from datetime import datetime, timezone
 from typing import Optional
 
 import cachetools
@@ -121,6 +122,8 @@ def _orm_to_user_model(user: UserOrm) -> UserModel:
         has_profile=user.has_profile,
         terms_accepted_at=user.terms_accepted_at,
         terms_version=user.terms_version,
+        first_seen_at=user.first_seen_at,
+        rw_apps=user.rw_apps,
     )
 
 
@@ -133,8 +136,15 @@ async def _get_or_create_user(
     user = result.scalars().first()
 
     if not user:
-        # terms_accepted is computed, not a column.
-        user = UserOrm(**user_info.model_dump(exclude={"terms_accepted"}))
+        # Only a first login inserts, so first_seen_at (server clock) and
+        # rw_apps (from the RW payload) record that one and are never
+        # updated by a later login. terms_accepted is computed, not a column.
+        user = UserOrm(
+            **user_info.model_dump(
+                exclude={"terms_accepted", "first_seen_at"}
+            ),
+            first_seen_at=datetime.now(timezone.utc),
+        )
         session.add(user)
         await session.commit()
 
