@@ -17,9 +17,16 @@ empty. That makes Planet a tool for *inspecting alerts up close*, not a
 general basemap — if the user is not looking at integrated alerts in the
 Amazon, Planet will look blank and Sentinel-2 is the right answer.
 
-It publishes one mosaic per calendar month, and only through the **last
-complete month**. There is never a current-month or "latest" Planet mosaic —
-never describe one as latest imagery.
+It publishes one mosaic per calendar month, and each month is released on the
+**16th of the following month** — e.g. September's mosaic appears on October
+16, so on October 2 the newest is August. There is never a current-month
+Planet mosaic. When no date is given the tool returns the newest available
+month; tell the user it is the most recently available Planet imagery and
+when the next month will be published.
+
+Planet tiles only render from map zoom 10 (roughly 10 km across). Always
+tell the user to zoom in if the imagery looks blank — a whole municipality
+usually fits the map below that zoom.
 
 ## Sentinel-2 — `show_imagery`
 
