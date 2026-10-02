@@ -16,6 +16,3 @@ class MonthlyPeriod(LayerPeriod):
 class PlanetImagery(ImageryBase):
     provider: Literal["planet"] = "planet"
     period: MonthlyPeriod
-    bounds: tuple[float, float, float, float]
-    min_zoom: int
-    max_zoom: int

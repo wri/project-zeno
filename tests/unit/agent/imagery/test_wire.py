@@ -10,9 +10,6 @@ PLANET_PAYLOAD = {
     "period": {"start": "2026-08-01", "end": "2026-08-31"},
     "layer_id": "planet-layer-id",
     "tile_url": "https://tiles.example/{z}/{x}/{y}.png",
-    "bounds": [-56.0, -8.0, -54.0, -6.0],
-    "min_zoom": 10,
-    "max_zoom": 18,
     "source": {
         "tiles": ["https://tiles.example/{z}/{x}/{y}.png"],
         "bounds": [-56.0, -8.0, -54.0, -6.0],

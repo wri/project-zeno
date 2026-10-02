@@ -70,3 +70,8 @@ def test_a_raster_source_rejects_fields_it_does_not_define():
         ValidationError, match="Extra inputs are not permitted"
     ):
         raster_source(scheme="tms")
+
+
+def test_a_raster_source_rejects_bounds_without_four_coordinates():
+    with pytest.raises(ValidationError, match="bounds"):
+        raster_source(bounds=(-56.0, -8.0))

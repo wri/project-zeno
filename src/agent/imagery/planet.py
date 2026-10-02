@@ -67,9 +67,6 @@ class PlanetImageryProvider:
             period=period,
             layer_id=self._layer_id(month, request.aois),
             tile_url=tile_url,
-            bounds=bounds,
-            min_zoom=self.MIN_ZOOM,
-            max_zoom=self.MAX_ZOOM,
             source=RasterSource(
                 tiles=[tile_url],
                 bounds=bounds,
