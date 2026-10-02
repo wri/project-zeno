@@ -77,6 +77,11 @@ class UserOrm(Base):
     terms_accepted_at = Column(DateTime(timezone=True), nullable=True)
     terms_version = Column(String, nullable=True)
 
+    # Signup origin, written once by the first login (see migration
+    # 9f91079f0670 and _get_or_create_user).
+    first_seen_at = Column(DateTime(timezone=True), nullable=True)
+    rw_apps = Column(ARRAY(String), nullable=True)
+
     # Machine user fields
     machine_description = Column(String, nullable=True)
 
