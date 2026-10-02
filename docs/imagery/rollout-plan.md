@@ -17,7 +17,7 @@
 
 | # | repo | change | depends on | ships alone because… |
 |---|---|---|---|---|
-| **1** | frontend | **expand**: `toImageryMeta` and `showImagery` read **both** shapes (v1 when `period` is present, otherwise legacy). v1: the layer id is `layer_id`, and the layer is drawn from `source`. Legacy: the layer id is `mosaic_id`, falling back to `tile_url`. Unknown `provider` → the layer is skipped | the v1 contract document | today's backend sends only legacy, which it still reads |
+| **1** | frontend | **expand**: the three imagery readers (`toImageryMeta` for the legend, `showImagery` for the explorer map, `mapWidgetLayer` for dashboard map widgets) read **both** shapes (v1 when `period` is present, otherwise legacy). v1: the layer id is `layer_id`, and the layer is drawn from `source`. Legacy: the layer id is `mosaic_id`, falling back to `tile_url`. Unknown `provider` → the layer is skipped | the v1 contract document | today's backend sends only legacy, which it still reads |
 | **2** | backend | producers emit v1 (branch `feat/imagery-wire-contract`); backend readers try the contract first, then legacy (`wire.from_payload` plus the legacy fallbacks) | phase 1 **live** | the frontend reads both shapes |
 | **3** | backend | **convert legacy on read**: `ImageryState` moves to `src/shared/imagery/legacy.py` as the legacy parser, with a converter to v1, applied in `replay_chat` and dashboard widget reads. The legacy tests marked strict xfail become the converter's tests | phase 2 | the frontend still reads both; now it only ever gets v1 |
 | **4** | frontend | **contract**: drop reading the legacy shape | phase 3 **live** | the backend never sends legacy after phase 3 |
@@ -72,12 +72,12 @@ sequenceDiagram
 
 What happens if one side is rolled back while the other stays on its current release.
 
-> Verdicts come from **reading the code** on both sides (`main` and the branch backend; `toImageryMeta` / `showImagery.ts` in the frontend). They haven't been checked by running mixed versions. Before phase 2, a staging check of the "BE 2 → 1" row would confirm the degraded-not-broken claim.
+> Verdicts come from **reading the code** on both sides (`main` and the branch backend; `toImageryMeta`, `showImagery.ts` and `mapWidgetLayer` in the frontend). They haven't been checked by running mixed versions. Before phase 2, a staging check of the "BE 2 → 1" row would confirm the degraded-not-broken claim.
 
 | rolled back | other side | new payloads | stored v1 payloads (written after phase 2) | stored legacy payloads | verdict |
 |---|---|---|---|---|---|
 | FE 1 → 0 | BE 0/1 (legacy) | legacy ✅ | none exist yet | legacy ✅ | ✅ safe |
-| FE 1 → 0 | BE 2+ (v1) | **v1 ✗**: old FE reads flat fields, Planet layer id `imagery-undefined` | ✗ | ✅ | ❌ **broken**: never roll FE back past phase 1 while BE is at phase 2+ |
+| FE 1 → 0 | BE 2+ (v1) | **v1 ✗**: old FE reads flat fields, Planet layer id `imagery-undefined`; dashboard map widgets from v1 imagery show "This map widget can't be displayed" (no `tile_url`) | ✗ | ✅ | ❌ **broken**: never roll FE back past phase 1 while BE is at phase 2+ |
 | BE 2 → 1 | FE 1+ | legacy ✅ (FE reads both) | old BE reads v1 widget configs through legacy paths: summaries degrade (`around ?` / `around None`), no crash. v1 has no `tile_url`, and the old `validate_map_config` only knows `tile_url`, so **adding a map widget from v1 imagery the FE still holds** (a thread from the BE 2 period) **fails with 422**. New layers from the old BE are legacy and save normally | ✅ | ⚠️ **degraded**, acceptable for a short rollback |
 | BE 3 → 2 | FE 1–3 | v1 ✅ | v1 ✅ | legacy passed through ✅ (FE still reads both) | ✅ safe |
 | BE 3 → 2 | FE 4 (v1 only) | v1 ✅ | v1 ✅ | **legacy ✗**: FE 4 can't read it | ❌ **broken**: don't roll BE back past phase 3 while FE is at phase 4 |
