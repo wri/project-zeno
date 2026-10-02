@@ -8,16 +8,18 @@ from uuid import UUID, uuid4
 import pytest
 
 from src.agent.middleware import format_session_block
+from src.agent.subagents.analyst.charts.chart_data_format import (
+    format_chart_data,
+    format_numeric_stats,
+)
 from src.agent.tools.inspect_view_context import (
     TEXT_WIDGET_CHAR_LIMIT,
     _chart_variables,
     _extract_insight_ids,
     _format_map_widget,
     _format_text_widget,
-    format_chart_data,
     format_dashboard,
     format_insights,
-    format_numeric_stats,
     format_view_context,
     inspect_view_context,
 )
@@ -402,7 +404,9 @@ async def test_format_chart_data_empty():
 async def test_format_chart_data_char_limit_fallback():
     """Few rows but many columns/truncated values → falls back to stats if
     the table would exceed the char limit."""
-    from src.agent.tools.inspect_view_context import DATA_TABLE_CHAR_LIMIT
+    from src.agent.subagents.analyst.charts.chart_data_format import (
+        DATA_TABLE_CHAR_LIMIT,
+    )
 
     # Build a table that's small in rows but wide enough to exceed the limit.
     wide_cols = [f"col_{i:04d}" for i in range(100)]
