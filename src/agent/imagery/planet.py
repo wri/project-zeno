@@ -12,6 +12,8 @@ class PlanetImageryProvider:
 
     BASE_URL = "https://tiles.globalforestwatch.org"
     COVERAGE = (-80.0, -30.0, -40.0, 20.0)
+    # A month's mosaic is published on this day of the following month.
+    PUBLISH_DAY = 16
 
     def covers(self, aois: list[dict]) -> bool:
         west, south, east, north = self.COVERAGE
@@ -24,18 +26,27 @@ class PlanetImageryProvider:
             for aoi in aois
         )
 
-    def is_newer_than_last_full_month(
+    def latest_available_month(self, *, today: Optional[date] = None) -> date:
+        """First day of the most recent month Planet has published."""
+        today = today or date.today()
+        latest = today.replace(day=1) - timedelta(days=1)
+        if today.day < self.PUBLISH_DAY:
+            latest = latest.replace(day=1) - timedelta(days=1)
+        return latest.replace(day=1)
+
+    def is_newer_than_latest_available(
         self, target: Optional[date], *, today: Optional[date] = None
     ) -> bool:
         if target is None:
             return False
-        return target >= (today or date.today()).replace(day=1)
+        latest = self.latest_available_month(today=today)
+        return target.replace(day=1) > latest
 
     def month(
         self, target: Optional[date], *, today: Optional[date] = None
     ) -> str:
         if target is None:
-            target = (today or date.today()).replace(day=1) - timedelta(days=1)
+            target = self.latest_available_month(today=today)
         return target.strftime("%Y-%m")
 
     @staticmethod
@@ -67,7 +78,7 @@ class PlanetImageryProvider:
             ),
             bounds=self._bounds(request.aois),
             min_zoom=10,
-            max_zoom=18,
+            max_zoom=15,
             mosaic_id=f"planet:{month}",
             start_date=month_start.isoformat(),
             end_date=month_end.isoformat(),
@@ -78,11 +89,22 @@ class PlanetImageryProvider:
             ),
             aoi_names=[aoi["name"] for aoi in request.aois],
         )
+        latest_note = (
+            ""
+            if request.target_date
+            else (
+                " This is the most recent Planet mosaic available; each "
+                f"month is published on the {self.PUBLISH_DAY}th of the "
+                "following month."
+            )
+        )
         message = (
             "Showing the limited-coverage Planet monthly mosaic for "
             f"{month_start.strftime('%B')} {month_start.day}–{month_end.day}, "
-            f"{month_start.year}. Sentinel-2 imagery is also available if "
-            "you'd like to compare it."
+            f"{month_start.year}.{latest_note} Planet imagery only appears "
+            "once the map is zoomed in to about 10 km across, so zoom in if "
+            "it looks blank. Sentinel-2 imagery is also available if you'd "
+            "like to compare it."
         )
         return ImageryProviderResult(
             status="success", imagery=imagery, message=message
