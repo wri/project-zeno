@@ -79,17 +79,8 @@ async def sentinel2_result_for(
 
 @pytest.mark.parametrize(
     "result_for, zooms",
-    [
-        pytest.param(planet_result_for, (10, 18), id="planet"),
-        pytest.param(
-            sentinel2_result_for,
-            (8, 14),
-            id="sentinel-2",
-            marks=pytest.mark.xfail(
-                strict=True, reason="sentinel-2 source not built yet"
-            ),
-        ),
-    ],
+    [(planet_result_for, (10, 18)), (sentinel2_result_for, (8, 14))],
+    ids=["planet", "sentinel-2"],
 )
 async def test_imagery_streams_a_raster_source_framed_on_the_requested_areas(
     result_for, zooms

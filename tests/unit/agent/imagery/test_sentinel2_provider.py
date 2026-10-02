@@ -2,6 +2,7 @@ from datetime import date
 
 from src.agent.imagery import ImageryRequest
 from src.api.services.mosaic import MosaicResult
+from src.shared.imagery.contract import RasterSource
 from src.shared.imagery.sentinel2 import (
     SceneSummary,
     SearchWindowPeriod,
@@ -48,6 +49,12 @@ async def test_sentinel2_provider_builds_sentinel2_imagery_from_the_mosaic_it_se
         layer_id="abc123",
         tile_url=MOSAIC.tile_url,
         tilejson_url=MOSAIC.tilejson_url,
+        source=RasterSource(
+            tiles=[MOSAIC.tile_url],
+            bounds=(6.0, 46.2, 7.2, 46.9),
+            minzoom=8,
+            maxzoom=14,
+        ),
         mosaic_id="abc123",
         max_cloud_cover=20,
         scenes=SceneSummary(

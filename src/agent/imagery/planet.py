@@ -5,7 +5,11 @@ import json
 from datetime import date, timedelta
 from typing import Optional
 
-from src.agent.imagery.base import ImageryProviderResult, ImageryRequest
+from src.agent.imagery.base import (
+    ImageryProviderResult,
+    ImageryRequest,
+    aoi_bounds,
+)
 from src.shared.imagery.contract import RasterSource
 from src.shared.imagery.planet import MonthlyPeriod, PlanetImagery
 
@@ -14,6 +18,8 @@ class PlanetImageryProvider:
     """Build imagery state for the limited-coverage Planet tile service."""
 
     BASE_URL = "https://tiles.globalforestwatch.org"
+    MIN_ZOOM = 10
+    MAX_ZOOM = 18
     COVERAGE = (-80.0, -30.0, -40.0, 20.0)
 
     def covers(self, aois: list[dict]) -> bool:
@@ -42,16 +48,6 @@ class PlanetImageryProvider:
         return target.strftime("%Y-%m")
 
     @staticmethod
-    def _bounds(aois: list[dict]) -> list[float]:
-        bboxes = [aoi["bbox"] for aoi in aois]
-        return [
-            min(bbox[0] for bbox in bboxes),
-            min(bbox[1] for bbox in bboxes),
-            max(bbox[2] for bbox in bboxes),
-            max(bbox[3] for bbox in bboxes),
-        ]
-
-    @staticmethod
     def _layer_id(month: str, aois: list[dict]) -> str:
         refs = sorted([aoi["source"], aoi["src_id"]] for aoi in aois)
         payload = json.dumps([month, refs])
@@ -66,16 +62,19 @@ class PlanetImageryProvider:
             f"{self.BASE_URL}/integrated_alerts_planet_imagery/"
             f"{{z}}/{{x}}/{{y}}.png?month={month}"
         )
-        bounds = self._bounds(request.aois)
+        bounds = aoi_bounds(request.aois)
         imagery = PlanetImagery(
             period=period,
             layer_id=self._layer_id(month, request.aois),
             tile_url=tile_url,
             bounds=bounds,
-            min_zoom=10,
-            max_zoom=18,
+            min_zoom=self.MIN_ZOOM,
+            max_zoom=self.MAX_ZOOM,
             source=RasterSource(
-                tiles=[tile_url], bounds=bounds, minzoom=10, maxzoom=18
+                tiles=[tile_url],
+                bounds=bounds,
+                minzoom=self.MIN_ZOOM,
+                maxzoom=self.MAX_ZOOM,
             ),
             aoi_names=[aoi["name"] for aoi in request.aois],
         )

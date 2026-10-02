@@ -6,8 +6,14 @@ from typing import Optional
 from cogeo_mosaic.errors import MosaicNotFoundError
 
 from src.agent.i18n import t
-from src.agent.imagery.base import ImageryProviderResult, ImageryRequest
+from src.agent.imagery.base import (
+    ImageryProviderResult,
+    ImageryRequest,
+    aoi_bounds,
+)
 from src.api.services.mosaic import (
+    MOSAIC_MAXZOOM,
+    MOSAIC_MINZOOM,
     AoiTooLargeError,
     MosaicRecipe,
     MosaicResult,
@@ -15,6 +21,7 @@ from src.api.services.mosaic import (
     StacSearchError,
     create_sentinel2_mosaic,
 )
+from src.shared.imagery.contract import RasterSource
 from src.shared.imagery.sentinel2 import (
     SceneSummary,
     SearchWindowPeriod,
@@ -89,6 +96,12 @@ class Sentinel2ImageryProvider:
             layer_id=result.mosaic_id,
             tile_url=result.tile_url,
             tilejson_url=result.tilejson_url,
+            source=RasterSource(
+                tiles=[result.tile_url],
+                bounds=aoi_bounds(request.aois),
+                minzoom=MOSAIC_MINZOOM,
+                maxzoom=MOSAIC_MAXZOOM,
+            ),
             mosaic_id=result.mosaic_id,
             max_cloud_cover=recipe.max_cloud_cover,
             scenes=self._scenes(result),

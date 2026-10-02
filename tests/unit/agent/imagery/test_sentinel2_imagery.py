@@ -1,6 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
+from src.shared.imagery.contract import RasterSource
 from src.shared.imagery.sentinel2 import Sentinel2Imagery
 from tests.unit.agent.imagery.factories import scene_summary, sentinel2_imagery
 
@@ -53,3 +54,14 @@ def test_sentinel2_imagery_keeps_the_layer_id_it_was_built_with():
     imagery = sentinel2_imagery(layer_id="sentinel2-layer")
 
     assert imagery.layer_id == "sentinel2-layer"
+
+
+def test_sentinel2_imagery_keeps_the_raster_source_it_was_built_with():
+    source = RasterSource(
+        tiles=["https://tiles.example/sentinel2/{z}/{x}/{y}.png"],
+        bounds=(-55.6, -9.6, -51.6, -3.0),
+        minzoom=7,
+        maxzoom=13,
+    )
+
+    assert sentinel2_imagery(source=source).source == source

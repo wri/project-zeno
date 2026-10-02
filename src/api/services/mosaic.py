@@ -42,6 +42,9 @@ from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
+MOSAIC_MINZOOM = 8
+MOSAIC_MAXZOOM = 14
+
 STAC_URL = "https://earth-search.aws.element84.com/v1"
 SENTINEL2_COLLECTION = "sentinel-2-l2a"
 VISUAL_ASSET = "visual"
@@ -392,8 +395,8 @@ async def create_sentinel2_mosaic(recipe: MosaicRecipe) -> MosaicResult:
     build_start = time.perf_counter()
     mosaic = MosaicJSON.from_features(
         [item.to_dict() for item in items],
-        minzoom=8,
-        maxzoom=14,
+        minzoom=MOSAIC_MINZOOM,
+        maxzoom=MOSAIC_MAXZOOM,
         accessor=lambda f: f["assets"][VISUAL_ASSET]["href"],
         # Bound the sequential first-match reads per tile; items are sorted
         # by date proximity, so the nearest scenes are kept.

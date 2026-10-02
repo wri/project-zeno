@@ -68,6 +68,12 @@ def sentinel2_imagery(**overrides) -> Sentinel2Imagery:
         "layer_id": "sentinel2-layer-id",
         "tile_url": "https://tiles.example/{z}/{x}/{y}.png",
         "tilejson_url": "https://tiles.example/tilejson.json",
+        "source": RasterSource(
+            tiles=["https://tiles.example/{z}/{x}/{y}.png"],
+            bounds=(10.5, -1.5, 15.0, 2.0),
+            minzoom=8,
+            maxzoom=14,
+        ),
         "mosaic_id": "recipe-token",
         "max_cloud_cover": 20,
         "scenes": scene_summary(),

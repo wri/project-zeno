@@ -7,6 +7,16 @@ from typing import Literal, Optional, Protocol
 from src.shared.imagery.wire import Imagery
 
 
+def aoi_bounds(aois: list[dict]) -> list[float]:
+    bboxes = [aoi["bbox"] for aoi in aois]
+    return [
+        min(bbox[0] for bbox in bboxes),
+        min(bbox[1] for bbox in bboxes),
+        max(bbox[2] for bbox in bboxes),
+        max(bbox[3] for bbox in bboxes),
+    ]
+
+
 @dataclass(frozen=True)
 class ImageryRequest:
     """Provider-independent inputs resolved by the imagery tool."""

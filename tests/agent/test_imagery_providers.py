@@ -23,7 +23,14 @@ PLANET_AOIS = [
         "bbox": [-69.5, -1.0, -69.0, -0.5],
     }
 ]
-SENTINEL_AOIS = [{"name": "Zurich", "source": "gadm", "src_id": "CHE.26_1"}]
+SENTINEL_AOIS = [
+    {
+        "name": "Zurich",
+        "source": "gadm",
+        "src_id": "CHE.26_1",
+        "bbox": [8.36, 47.16, 8.98, 47.69],
+    }
+]
 
 
 def _request(aois=PLANET_AOIS, target=date(2025, 6, 15), **kwargs):
