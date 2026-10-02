@@ -24,6 +24,13 @@ class LayerPeriod(StrictModel):
         return f"{self.start} → {self.end}"
 
 
+class RasterSource(StrictModel):
+    tiles: list[str]
+    bounds: tuple[float, float, float, float]
+    minzoom: int
+    maxzoom: int
+
+
 class ImageryBase(StrictModel):
     abstract: ClassVar[bool] = True
 
