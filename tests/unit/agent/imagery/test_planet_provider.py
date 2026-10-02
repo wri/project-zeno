@@ -1,6 +1,7 @@
 from datetime import date
 
 from src.agent.imagery import ImageryRequest, PlanetImageryProvider
+from src.shared.imagery.contract import RasterSource
 from src.shared.imagery.planet import MonthlyPeriod, PlanetImagery
 from tests.unit.agent.imagery.factories import ALTAMIRA, NOVO_PROGRESSO
 
@@ -20,16 +21,23 @@ async def test_planet_provider_builds_planet_imagery_for_the_requested_month():
 
     result = await PlanetImageryProvider().get_imagery(request)
 
+    tile_url = (
+        "https://tiles.globalforestwatch.org/integrated_alerts_planet_imagery"
+        "/{z}/{x}/{y}.png?month=2026-08"
+    )
     assert result.imagery == PlanetImagery(
         period=MonthlyPeriod.from_month("2026-08"),
         layer_id=result.imagery.layer_id,
-        tile_url=(
-            "https://tiles.globalforestwatch.org/integrated_alerts_planet_imagery"
-            "/{z}/{x}/{y}.png?month=2026-08"
-        ),
+        tile_url=tile_url,
         bounds=(-56.0, -8.0, -54.0, -6.0),
         min_zoom=10,
         max_zoom=18,
+        source=RasterSource(
+            tiles=[tile_url],
+            bounds=(-56.0, -8.0, -54.0, -6.0),
+            minzoom=10,
+            maxzoom=18,
+        ),
         aoi_names=["Novo Progresso"],
     )
 

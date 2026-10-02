@@ -6,6 +6,7 @@ from datetime import date, timedelta
 from typing import Optional
 
 from src.agent.imagery.base import ImageryProviderResult, ImageryRequest
+from src.shared.imagery.contract import RasterSource
 from src.shared.imagery.planet import MonthlyPeriod, PlanetImagery
 
 
@@ -61,16 +62,21 @@ class PlanetImageryProvider:
     ) -> ImageryProviderResult:
         month = self.month(request.target_date)
         period = MonthlyPeriod.from_month(month)
+        tile_url = (
+            f"{self.BASE_URL}/integrated_alerts_planet_imagery/"
+            f"{{z}}/{{x}}/{{y}}.png?month={month}"
+        )
+        bounds = self._bounds(request.aois)
         imagery = PlanetImagery(
             period=period,
             layer_id=self._layer_id(month, request.aois),
-            tile_url=(
-                f"{self.BASE_URL}/integrated_alerts_planet_imagery/"
-                f"{{z}}/{{x}}/{{y}}.png?month={month}"
-            ),
-            bounds=self._bounds(request.aois),
+            tile_url=tile_url,
+            bounds=bounds,
             min_zoom=10,
             max_zoom=18,
+            source=RasterSource(
+                tiles=[tile_url], bounds=bounds, minzoom=10, maxzoom=18
+            ),
             aoi_names=[aoi["name"] for aoi in request.aois],
         )
         message = (

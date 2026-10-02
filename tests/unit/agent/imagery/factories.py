@@ -7,6 +7,7 @@ from src.agent.imagery import (
     Sentinel2ImageryProvider,
 )
 from src.api.services.mosaic import MosaicResult
+from src.shared.imagery.contract import RasterSource
 from src.shared.imagery.planet import MonthlyPeriod, PlanetImagery
 from src.shared.imagery.sentinel2 import (
     SceneSummary,
@@ -36,6 +37,12 @@ def planet_imagery(**overrides) -> PlanetImagery:
         "bounds": [-56.0, -8.0, -54.0, -6.0],
         "min_zoom": 10,
         "max_zoom": 18,
+        "source": RasterSource(
+            tiles=["https://tiles.example/{z}/{x}/{y}.png"],
+            bounds=(-56.0, -8.0, -54.0, -6.0),
+            minzoom=10,
+            maxzoom=18,
+        ),
         "aoi_names": ["Novo Progresso"],
     }
     return PlanetImagery(**{**defaults, **overrides})

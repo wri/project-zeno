@@ -77,11 +77,19 @@ async def sentinel2_result_for(
     return await sentinel2_result_from(mosaic_result(), request)
 
 
-@pytest.mark.xfail(strict=True, reason="source: RasterSource not built yet")
 @pytest.mark.parametrize(
     "result_for, zooms",
-    [(planet_result_for, (10, 18)), (sentinel2_result_for, (8, 14))],
-    ids=["planet", "sentinel-2"],
+    [
+        pytest.param(planet_result_for, (10, 18), id="planet"),
+        pytest.param(
+            sentinel2_result_for,
+            (8, 14),
+            id="sentinel-2",
+            marks=pytest.mark.xfail(
+                strict=True, reason="sentinel-2 source not built yet"
+            ),
+        ),
+    ],
 )
 async def test_imagery_streams_a_raster_source_framed_on_the_requested_areas(
     result_for, zooms
