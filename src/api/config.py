@@ -9,6 +9,12 @@ class _APISettings(BaseSettings):
 
     mapbox_api_token: str = ""
 
+    # Zap mode: the jev decision model on OpenRouter's decisions API.
+    openrouter_api_key: str = ""
+    jev_model: str = "typesafe/jev-1.13"
+    jev_url: str = "https://openrouter.ai/api/alpha/decisions"
+    jev_timeout_seconds: float = 20.0
+
     # Quota settings
     daily_quota_warning_threshold: int = 5
     admin_user_daily_quota: int = 100
