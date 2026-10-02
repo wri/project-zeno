@@ -5,7 +5,9 @@ from pydantic import BaseModel, ConfigDict
 
 
 class StrictModel(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid", json_schema_serialization_defaults_required=True
+    )
 
     def model_post_init(self, context) -> None:
         if type(self).__dict__.get("abstract", False):

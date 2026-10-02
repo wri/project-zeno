@@ -17,3 +17,26 @@ def from_payload(payload: dict) -> Optional[Imagery]:
         return _ADAPTER.validate_python(payload)
     except ValidationError:
         return None
+
+
+def json_schema() -> dict:
+    schema = _ADAPTER.json_schema(mode="serialization")
+    _make_tolerant(schema)
+    return {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "imagery.schema.json",
+        "title": "Imagery",
+        **schema,
+    }
+
+
+def _make_tolerant(node: object) -> None:
+    if isinstance(node, dict):
+        node.pop("additionalProperties", None)
+        for field in node.get("properties", {}).values():
+            field.pop("title", None)
+        for value in node.values():
+            _make_tolerant(value)
+    elif isinstance(node, list):
+        for value in node:
+            _make_tolerant(value)
