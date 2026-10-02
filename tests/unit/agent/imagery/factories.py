@@ -77,3 +77,16 @@ async def sentinel2_result_from(
         AsyncMock(return_value=mosaic),
     ):
         return await Sentinel2ImageryProvider().get_imagery(request)
+
+
+def mosaic_result(**overrides) -> MosaicResult:
+    defaults = {
+        "mosaic_id": "mosaic-token",
+        "item_count": 6,
+        "date_start": date(2026, 8, 9),
+        "date_end": date(2026, 8, 20),
+        "mean_cloud_cover": 8.0,
+        "min_cloud_cover": 1.5,
+        "max_cloud_cover": 16.0,
+    }
+    return MosaicResult(**{**defaults, **overrides})

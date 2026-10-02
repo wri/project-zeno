@@ -1,6 +1,7 @@
 import json
 from datetime import date
 
+import pytest
 from langchain_core.load import dumps
 from pydantic import TypeAdapter
 
@@ -10,13 +11,13 @@ from src.agent.imagery import (
     PlanetImageryProvider,
 )
 from src.agent.tools.show_imagery import provider_command
-from src.api.services.mosaic import MosaicResult
 from src.shared.imagery.planet import MonthlyPeriod, PlanetImagery
 from src.shared.imagery.sentinel2 import Sentinel2Imagery
 from src.shared.imagery.wire import Imagery
 from tests.unit.agent.imagery.factories import (
     ALTAMIRA,
     NOVO_PROGRESSO,
+    mosaic_result,
     sentinel2_result_from,
 )
 
@@ -45,16 +46,7 @@ async def test_sentinel2_imagery_streamed_to_the_client_satisfies_the_wire_contr
         target_date=date(2025, 6, 1),
         language="en",
     )
-    mosaic = MosaicResult(
-        mosaic_id="abc123",
-        item_count=4,
-        date_start=date(2025, 5, 28),
-        date_end=date(2025, 6, 6),
-        mean_cloud_cover=7.35,
-        min_cloud_cover=2.1,
-        max_cloud_cover=14.8,
-    )
-    result = await sentinel2_result_from(mosaic, request)
+    result = await sentinel2_result_from(mosaic_result(item_count=4), request)
 
     imagery = streamed_imagery(result)
 
@@ -73,3 +65,34 @@ async def test_planet_imagery_for_different_areas_in_the_same_month_streams_as_d
         layer_ids.add(streamed_imagery(result).layer_id)
 
     assert len(layer_ids) == 2
+
+
+async def planet_result_for(request: ImageryRequest) -> ImageryProviderResult:
+    return await PlanetImageryProvider().get_imagery(request)
+
+
+async def sentinel2_result_for(
+    request: ImageryRequest,
+) -> ImageryProviderResult:
+    return await sentinel2_result_from(mosaic_result(), request)
+
+
+@pytest.mark.xfail(strict=True, reason="source: RasterSource not built yet")
+@pytest.mark.parametrize(
+    "result_for, zooms",
+    [(planet_result_for, (10, 18)), (sentinel2_result_for, (8, 14))],
+    ids=["planet", "sentinel-2"],
+)
+async def test_imagery_streams_a_raster_source_framed_on_the_requested_areas(
+    result_for, zooms
+):
+    request = ImageryRequest(
+        aois=[NOVO_PROGRESSO, ALTAMIRA],
+        target_date=date(2026, 8, 15),
+        language="en",
+    )
+
+    imagery = streamed_imagery(await result_for(request))
+
+    assert imagery.source.bounds == (-56.0, -9.6, -51.6, -3.0)
+    assert (imagery.source.minzoom, imagery.source.maxzoom) == zooms
