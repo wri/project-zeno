@@ -1,12 +1,7 @@
 from datetime import date, timedelta
 from typing import Literal, Optional
 
-from src.shared.imagery.contract import (
-    ImageryBase,
-    LayerPeriod,
-    RasterSource,
-    StrictModel,
-)
+from src.shared.imagery.contract import ImageryBase, LayerPeriod, StrictModel
 
 
 class SearchWindowPeriod(LayerPeriod):
@@ -36,7 +31,6 @@ class Sentinel2Imagery(ImageryBase):
     mosaic_id: str
     max_cloud_cover: int
     scenes: Optional[SceneSummary]
-    source: RasterSource
 
     def label(self) -> str:
         if self.scenes is None:

@@ -48,6 +48,7 @@ def test_a_bare_imagery_base_cannot_be_built():
             tile_url="https://tiles.example/{z}/{x}/{y}.png",
             aoi_names=["Novo Progresso"],
             layer_id="planet-layer-id",
+            source=raster_source(),
         )
 
 

@@ -39,6 +39,7 @@ class ImageryBase(StrictModel):
     tile_url: str
     aoi_names: list[str]
     layer_id: str
+    source: RasterSource
 
     def label(self) -> str:
         return f"{self.provider} {self.period.label()}"

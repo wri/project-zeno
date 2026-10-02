@@ -2,7 +2,7 @@ import calendar
 from datetime import date
 from typing import Literal
 
-from src.shared.imagery.contract import ImageryBase, LayerPeriod, RasterSource
+from src.shared.imagery.contract import ImageryBase, LayerPeriod
 
 
 class MonthlyPeriod(LayerPeriod):
@@ -19,4 +19,3 @@ class PlanetImagery(ImageryBase):
     bounds: tuple[float, float, float, float]
     min_zoom: int
     max_zoom: int
-    source: RasterSource
