@@ -33,7 +33,6 @@ def planet_imagery(**overrides) -> PlanetImagery:
     defaults = {
         "period": MonthlyPeriod.from_month("2026-08"),
         "layer_id": "planet-layer-id",
-        "tile_url": "https://tiles.example/{z}/{x}/{y}.png",
         "source": RasterSource(
             tiles=["https://tiles.example/{z}/{x}/{y}.png"],
             bounds=(-56.0, -8.0, -54.0, -6.0),
@@ -63,7 +62,6 @@ def sentinel2_imagery(**overrides) -> Sentinel2Imagery:
             date(2026, 8, 15), window_days=7, today=date(2026, 9, 29)
         ),
         "layer_id": "sentinel2-layer-id",
-        "tile_url": "https://tiles.example/{z}/{x}/{y}.png",
         "source": RasterSource(
             tiles=["https://tiles.example/{z}/{x}/{y}.png"],
             bounds=(10.5, -1.5, 15.0, 2.0),

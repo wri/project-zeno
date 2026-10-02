@@ -28,7 +28,6 @@ async def test_planet_provider_builds_planet_imagery_for_the_requested_month():
     assert result.imagery == PlanetImagery(
         period=MonthlyPeriod.from_month("2026-08"),
         layer_id=result.imagery.layer_id,
-        tile_url=tile_url,
         source=RasterSource(
             tiles=[tile_url],
             bounds=(-56.0, -8.0, -54.0, -6.0),

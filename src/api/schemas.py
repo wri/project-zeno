@@ -763,7 +763,8 @@ class DashboardWidgetCreateRequest(BaseModel):
             )
         if not _has_tiles(config[kinds[0]]):
             raise ValueError(
-                f"map widget {kinds[0]} config requires a tile_url"
+                f"map widget {kinds[0]} config requires tiles "
+                "(a tile_url, or source.tiles for imagery)"
             )
         return self
 

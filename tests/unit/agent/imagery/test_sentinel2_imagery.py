@@ -11,12 +11,8 @@ def test_sentinel2_imagery_identifies_its_provider_as_sentinel_2():
 
 
 def test_sentinel2_imagery_keeps_the_mosaic_it_renders_from():
-    imagery = sentinel2_imagery(
-        tile_url="https://tiles.example/mosaic/{z}/{x}/{y}.png",
-        mosaic_id="abc123",
-    )
+    imagery = sentinel2_imagery(mosaic_id="abc123")
 
-    assert imagery.tile_url == "https://tiles.example/mosaic/{z}/{x}/{y}.png"
     assert imagery.mosaic_id == "abc123"
 
 

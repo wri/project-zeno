@@ -16,12 +16,6 @@ def test_planet_imagery_keeps_the_monthly_period_it_was_built_with():
     assert planet_imagery(period=period).period == period
 
 
-def test_planet_imagery_keeps_the_tile_source_it_renders_from():
-    imagery = planet_imagery(tile_url="https://planet.example/{z}/{x}/{y}.png")
-
-    assert imagery.tile_url == "https://planet.example/{z}/{x}/{y}.png"
-
-
 def test_planet_imagery_names_the_areas_it_covers():
     imagery = planet_imagery(aoi_names=["Novo Progresso", "Altamira"])
 

@@ -66,7 +66,6 @@ class PlanetImageryProvider:
         imagery = PlanetImagery(
             period=period,
             layer_id=self._layer_id(month, request.aois),
-            tile_url=tile_url,
             source=RasterSource(
                 tiles=[tile_url],
                 bounds=bounds,

@@ -35,7 +35,6 @@ def _imagery_ok():
         status="success",
         message="ok",
         imagery=sentinel2_imagery(
-            tile_url="https://titiler/mosaic/{z}/{x}/{y}",
             mosaic_id="mosaic-1",
             aoi_names=["Paraná"],
         ),

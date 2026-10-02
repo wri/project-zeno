@@ -94,7 +94,6 @@ class Sentinel2ImageryProvider:
                 recipe.target_date, recipe.window_days, today=date.today()
             ),
             layer_id=result.mosaic_id,
-            tile_url=result.tile_url,
             source=RasterSource(
                 tiles=[result.tile_url],
                 bounds=aoi_bounds(request.aois),

@@ -36,7 +36,6 @@ class ImageryBase(StrictModel):
 
     provider: str
     period: LayerPeriod
-    tile_url: str
     aoi_names: list[str]
     layer_id: str
     source: RasterSource
