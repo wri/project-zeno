@@ -1,6 +1,6 @@
 # Imagery wire contract (v1)
 
-**Status:** the contract the frontend builds against in rollout **phase 1** (see [rollout-plan.md](rollout-plan.md)).
+**Status:** the contract the frontend builds against in rollout **phase 1** (see [rollout-plan.md](rollout-plan.md)). Revised in the PR #844 review, before release: it adds `layer_id` and `source`, and removes `tile_url`, `tilejson_url` and Planet's flat `bounds`/`min_zoom`/`max_zoom`. No reader has shipped against the earlier draft, so it stays v1.
 **Source of truth:** `src/shared/imagery/wire.py` (`Imagery`), on backend branch `feat/imagery-wire-contract`.
 **Robustness principle:** the backend is **strict** when it builds a payload (`extra="forbid"`). The published schema below is **tolerant**: it doesn't set `additionalProperties: false`, so adding a field later is never a breaking change for readers.
 
@@ -22,21 +22,26 @@ Imagery = PlanetImagery | Sentinel2Imagery        discriminated on "provider"
 every Imagery                                     # ImageryBase
   provider      "planet" | "sentinel-2"           discriminator, always present
   period        { start: date, end: date }        the time range the layer represents
-  tile_url      string                            XYZ template ({z}/{x}/{y})
   aoi_names     string[]
+  layer_id      string                            opaque, stable per request: the map layer id
+  source        RasterSource                      everything needed to draw the layer
+
+RasterSource                                      the keys of a MapLibre raster source
+  tiles         string[]                          XYZ templates ({z}/{x}/{y}); one entry today
+  bounds        [west, south, east, north]        exactly 4 numbers; covers the requested areas
+  minzoom       integer
+  maxzoom       integer
 
 PlanetImagery   (provider = "planet")
   period        calendar month (1st → last day)
-  bounds        [west, south, east, north]        exactly 4 numbers
-  min_zoom      integer
-  max_zoom      integer
+  (zooms 10–18)
 
 Sentinel2Imagery (provider = "sentinel-2")
   period        search window: target ± window_days, end never after the search day
-  tilejson_url  string                            fetch for bounds / zooms
   mosaic_id     string                            opaque recipe token, stable per request
   max_cloud_cover integer                         the cloud-cover LIMIT the search used (%)
   scenes        SceneSummary | null               ALWAYS present; null for old cached mosaics
+  (zooms 8–14, the mosaic's own)
 
 SceneSummary
   item_count        integer
@@ -60,22 +65,35 @@ Dates are ISO `YYYY-MM-DD` strings. There are no optional keys: every key listed
    - `period.start` → `period.end`: the range the layer was *built for* (a Planet month, or a Sentinel-2 search window). Use this to describe the layer.
    - `scenes.start_date` → `scenes.end_date`: when the scenes were *actually captured*. Use this for "Acquired" or "Scenes from" labels.
    - Legacy Sentinel-2 `start_date`/`end_date` meant the **captured** range, so they correspond to `scenes.*`, not `period.*`.
-7. **Layer identity.** Sentinel-2 has `mosaic_id`, which is stable per request. **Planet has no `mosaic_id`**, so derive the layer id from `tile_url`, which is unique per month.
+7. **Layer identity is `layer_id`.** Use it as the map layer and source id. It's opaque: don't parse it. The same request always gives the same `layer_id`, so a replayed or repeated call updates the layer instead of adding a second one. Different areas or months give different ids. (Sentinel-2's `layer_id` happens to equal its `mosaic_id` today; don't rely on that.)
 8. **Two different `max_cloud_cover` fields.** `Sentinel2Imagery.max_cloud_cover` is the search *limit* (an integer %). `scenes.max_cloud_cover` is the *observed* maximum (a number %). The legacy `max_cloud_cover_observed` is now `scenes.max_cloud_cover`.
+9. **Draw the layer from `source`.** It has the keys of a MapLibre raster source (`tiles`, `bounds`, `minzoom`, `maxzoom`), so it can be spread into `map.addSource(layer_id, { type: "raster", ...source })`. `tiles` is a list of XYZ templates (`{z}/{x}/{y}`) and has one entry today. `bounds` is `[west, south, east, north]` and covers the requested areas. There's no TileJSON to fetch. `tileSize` isn't part of the contract.
 
 ## Examples
+
+Both examples are real provider output (the S3 part of the Sentinel-2 URL is shortened).
 
 ### Planet
 
 ```json
 {
   "provider": "planet",
-  "period": { "start": "2026-08-01", "end": "2026-08-31" },
-  "tile_url": "https://tiles.globalforestwatch.org/integrated_alerts_planet_imagery/{z}/{x}/{y}.png?month=2026-08",
-  "aoi_names": ["Novo Progresso"],
-  "bounds": [-56.0, -8.0, -54.0, -6.0],
-  "min_zoom": 10,
-  "max_zoom": 18
+  "period": {
+    "start": "2026-08-01",
+    "end": "2026-08-31"
+  },
+  "aoi_names": [
+    "Novo Progresso"
+  ],
+  "layer_id": "bbddba21393743b3",
+  "source": {
+    "tiles": [
+      "https://tiles.globalforestwatch.org/integrated_alerts_planet_imagery/{z}/{x}/{y}.png?month=2026-08"
+    ],
+    "bounds": [-56.0, -8.0, -54.0, -6.0],
+    "minzoom": 10,
+    "maxzoom": 18
+  }
 }
 ```
 
@@ -86,10 +104,22 @@ The search ran on 2026-09-29, with target 2026-09-25 and a 7-day window, so the 
 ```json
 {
   "provider": "sentinel-2",
-  "period": { "start": "2026-09-18", "end": "2026-09-29" },
-  "tile_url": "https://tiles.globalforestwatch.org/cog/mosaic/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=s3%3A%2F%2F...%2Feyj9.json",
-  "aoi_names": ["Vaud"],
-  "tilejson_url": "https://tiles.globalforestwatch.org/cog/mosaic/WebMercatorQuad/tilejson.json?url=s3%3A%2F%2F...%2Feyj9.json",
+  "period": {
+    "start": "2026-09-18",
+    "end": "2026-09-29"
+  },
+  "aoi_names": [
+    "Vaud"
+  ],
+  "layer_id": "eyJhIjpbWyJnYWRtIiwiQ0hFLjI2XzEiXV0sImQiOiIyMDI2LTA5LTI1In0",
+  "source": {
+    "tiles": [
+      "https://tiles.globalforestwatch.org/cog/mosaic/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=s3%3A%2F%2F...%2FeyJhIjpbWyJnYWRtIiwiQ0hFLjI2XzEiXV0sImQiOiIyMDI2LTA5LTI1In0.json"
+    ],
+    "bounds": [6.0, 46.2, 7.2, 46.9],
+    "minzoom": 8,
+    "maxzoom": 14
+  },
   "mosaic_id": "eyJhIjpbWyJnYWRtIiwiQ0hFLjI2XzEiXV0sImQiOiIyMDI2LTA5LTI1In0",
   "max_cloud_cover": 20,
   "scenes": {
@@ -112,18 +142,23 @@ The same payload, except for `"scenes": null`.
 ```ts
 export type ImageryV1 = PlanetImageryV1 | Sentinel2ImageryV1;
 
+export interface RasterSourceV1 {
+  tiles: string[];
+  bounds: [number, number, number, number];
+  minzoom: number;
+  maxzoom: number;
+}
+
 interface ImageryBaseV1 {
   provider: string;
   period: { start: string; end: string };
-  tile_url: string;
   aoi_names: string[];
+  layer_id: string;
+  source: RasterSourceV1;
 }
 
 export interface PlanetImageryV1 extends ImageryBaseV1 {
   provider: "planet";
-  bounds: [number, number, number, number];
-  min_zoom: number;
-  max_zoom: number;
 }
 
 export interface SceneSummaryV1 {
@@ -137,7 +172,6 @@ export interface SceneSummaryV1 {
 
 export interface Sentinel2ImageryV1 extends ImageryBaseV1 {
   provider: "sentinel-2";
-  tilejson_url: string;
   mosaic_id: string;
   max_cloud_cover: number;
   scenes: SceneSummaryV1 | null;
@@ -149,11 +183,11 @@ export const isImageryV1 = (payload: object): boolean => "period" in payload;
 ## JSON Schema (tolerant, draft 2020-12)
 
 Generated from `TypeAdapter(Imagery).json_schema(mode="serialization")`, then made tolerant:
-- `additionalProperties: false` removed from all 5 object schemas;
+- `additionalProperties: false` removed from all 6 object schemas;
 - `provider` added to `required`, because the backend always sends it. Pydantic doesn't mark fields that have defaults as required. Follow-up: set `json_schema_serialization_defaults_required` in code and add a schema snapshot test;
 - field-level `title`s removed.
 
-Checked with `jsonschema`: real Planet, Sentinel-2 and `scenes: null` payloads are valid, a payload with an extra field is valid, and a payload without `provider` is rejected.
+Checked with `jsonschema`: the two examples above and a `scenes: null` payload are valid, a payload with an extra field is valid, and a payload without `provider` is rejected.
 
 ```json
 {
@@ -183,15 +217,38 @@ Checked with `jsonschema`: real Planet, Sentinel-2 and `scenes: null` payloads a
       "properties": {
         "provider": {
           "const": "planet",
+          "default": "planet",
           "type": "string"
         },
         "period": {
           "$ref": "#/$defs/MonthlyPeriod"
         },
-        "tile_url": {
+        "aoi_names": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "layer_id": {
           "type": "string"
         },
-        "aoi_names": {
+        "source": {
+          "$ref": "#/$defs/RasterSource"
+        }
+      },
+      "required": [
+        "provider",
+        "period",
+        "aoi_names",
+        "layer_id",
+        "source"
+      ],
+      "title": "PlanetImagery",
+      "type": "object"
+    },
+    "RasterSource": {
+      "properties": {
+        "tiles": {
           "items": {
             "type": "string"
           },
@@ -216,23 +273,20 @@ Checked with `jsonschema`: real Planet, Sentinel-2 and `scenes: null` payloads a
           ],
           "type": "array"
         },
-        "min_zoom": {
+        "minzoom": {
           "type": "integer"
         },
-        "max_zoom": {
+        "maxzoom": {
           "type": "integer"
         }
       },
       "required": [
-        "provider",
-        "period",
-        "tile_url",
-        "aoi_names",
+        "tiles",
         "bounds",
-        "min_zoom",
-        "max_zoom"
+        "minzoom",
+        "maxzoom"
       ],
-      "title": "PlanetImagery",
+      "title": "RasterSource",
       "type": "object"
     },
     "SceneSummary": {
@@ -291,13 +345,11 @@ Checked with `jsonschema`: real Planet, Sentinel-2 and `scenes: null` payloads a
       "properties": {
         "provider": {
           "const": "sentinel-2",
+          "default": "sentinel-2",
           "type": "string"
         },
         "period": {
           "$ref": "#/$defs/SearchWindowPeriod"
-        },
-        "tile_url": {
-          "type": "string"
         },
         "aoi_names": {
           "items": {
@@ -305,8 +357,11 @@ Checked with `jsonschema`: real Planet, Sentinel-2 and `scenes: null` payloads a
           },
           "type": "array"
         },
-        "tilejson_url": {
+        "layer_id": {
           "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/RasterSource"
         },
         "mosaic_id": {
           "type": "string"
@@ -328,9 +383,9 @@ Checked with `jsonschema`: real Planet, Sentinel-2 and `scenes: null` payloads a
       "required": [
         "provider",
         "period",
-        "tile_url",
         "aoi_names",
-        "tilejson_url",
+        "layer_id",
+        "source",
         "mosaic_id",
         "max_cloud_cover",
         "scenes"
@@ -364,18 +419,20 @@ This is the flat `ImageryState` payload, sent by today's backend and by every re
 | legacy field | contract v1 |
 |---|---|
 | `provider` (missing → `"sentinel-2"`) | `provider` |
-| `tile_url` | `tile_url` |
+| `tile_url` | `source.tiles[0]` |
 | `aoi_names` | `aoi_names` |
-| `tilejson_url` | Sentinel-2 `tilejson_url` |
-| `bounds`, `min_zoom`, `max_zoom` | Planet `bounds`, `min_zoom`, `max_zoom` |
-| `mosaic_id` | Sentinel-2 `mosaic_id`; Planet's `"planet:YYYY-MM"` → **no field** (the month is in `period`) |
+| `tilejson_url` | **no field**: bounds and zooms are in `source` |
+| `bounds`, `min_zoom`, `max_zoom` (Planet) | `source.bounds`, `source.minzoom`, `source.maxzoom` |
+| `mosaic_id` | Sentinel-2 `mosaic_id`, and its `layer_id`; Planet's `"planet:YYYY-MM"` → **no field** (the month is in `period`; the layer id is `layer_id`) |
 | `start_date` / `end_date` (or `date_start` / `date_end`) | **Planet:** `period.start` / `period.end`. **Sentinel-2:** `scenes.start_date` / `scenes.end_date` (captured range) |
 | `target_date`, `window_days` | Sentinel-2 `period` (target ± window) |
 | `item_count`, `mean_cloud_cover`, `min_cloud_cover` | `scenes.item_count`, `scenes.mean_cloud_cover`, `scenes.min_cloud_cover` |
 | `max_cloud_cover_observed` | `scenes.max_cloud_cover` |
 | `max_cloud_cover` | Sentinel-2 `max_cloud_cover` (search limit) |
 
-In phase 3 the backend converts legacy payloads to v1 on read, so after phase 4 the frontend reads only v1.
+In phase 3 the backend converts legacy payloads to v1 on read, so after phase 4 the frontend reads only v1. Two legacy gaps the converter has to fill:
+- **Legacy Sentinel-2 has no bounds.** Use the mosaic zooms (8–14) and either the mosaic's TileJSON `bounds` (from `tilejson_url`) or the world bbox.
+- **Legacy payloads have no AOI refs**, only `aoi_names`, so Planet's `layer_id` (a hash of the month and the `(source, src_id)` refs) can't be recomputed. The converter needs its own stable id (for example from the month and the names); it only has to be stable, not equal to what the provider would send today.
 
 ## Changing the contract
 
