@@ -689,6 +689,16 @@ class DashboardSectionUpdateRequest(BaseModel):
 _WIDGET_TYPES = ("insight", "map", "text")
 
 
+def _has_tiles(layer: Any) -> bool:
+    if not isinstance(layer, dict):
+        return False
+    source = layer.get("source")
+    return bool(
+        layer.get("tile_url")
+        or (isinstance(source, dict) and source.get("tiles"))
+    )
+
+
 class DashboardWidgetCreateRequest(BaseModel):
     widget_type: str = Field(
         description="Widget kind: `insight`, `map` or `text`.",
@@ -738,8 +748,9 @@ class DashboardWidgetCreateRequest(BaseModel):
     def validate_map_config(self) -> "DashboardWidgetCreateRequest":
         """Map widgets need a renderable layer snapshot in config.
 
-        Only the discriminator and its tile_url are checked — the remaining
-        snapshot keys may evolve without a schema change here.
+        Only the discriminator and its tiles are checked (a tile_url, or the
+        contract imagery's source.tiles) — the remaining snapshot keys may
+        evolve without a schema change here.
         """
         if self.widget_type != "map":
             return self
@@ -750,8 +761,7 @@ class DashboardWidgetCreateRequest(BaseModel):
                 "map widgets require a config with exactly one of "
                 "'dataset' or 'imagery'"
             )
-        layer = config[kinds[0]]
-        if not isinstance(layer, dict) or not layer.get("tile_url"):
+        if not _has_tiles(config[kinds[0]]):
             raise ValueError(
                 f"map widget {kinds[0]} config requires a tile_url"
             )
