@@ -86,12 +86,12 @@ What happens if one side is rolled back while the other stays on its current rel
 
 **Rule:** roll back only within a phase pair. Each ❌ row has the same cause: one side's reader can't read what the other side sends.
 
-## Status (2026-09-29)
+## Status (2026-10-02)
 
 | phase | status |
 |---|---|
-| 1 | not started. Contract document ready: [wire-contract-schema.md](wire-contract-schema.md) |
-| 2 | built on `feat/imagery-wire-contract` (local, not pushed). **Must not merge before phase 1 is live** |
+| 1 | built in project-zeno-next on `feat/imagery-wire-contract-reader`: all three readers (`showImagery`, `toImageryMeta` and the legend, `mapWidgetLayer`) read both shapes and skip unknown providers. **Not yet merged or deployed** |
+| 2 | built on `feat/imagery-wire-contract`, draft PR #844. **Must not merge before phase 1 is live** |
 | 3 | not started. Legacy knowledge kept in strict-xfailed tests (`tests/agent/test_imagery_providers.py`) and in `src/agent/models.py` (`ImageryState`) |
 | 4, 5 | not started |
 
