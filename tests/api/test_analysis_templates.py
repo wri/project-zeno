@@ -12,7 +12,6 @@ from sqlalchemy import delete, func, select
 
 from src.agent.datasets.handlers.base import DataPullResult
 from src.agent.imagery.base import ImageryProviderResult
-from src.agent.models import ImageryState
 from src.api.data_models import (
     DashboardAoiOrm,
     DashboardSectionOrm,
@@ -22,6 +21,7 @@ from src.api.services.analysis_templates import builder
 from src.api.services.analysis_templates.registry import NrtMonitoringArgs
 from tests.api.test_dashboards import AUTH, _create_dashboard, _create_user
 from tests.conftest import async_session_maker
+from tests.unit.agent.imagery.factories import sentinel2_imagery
 
 ROWS = {
     "alert_date": ["2026-09-10", "2026-09-12"],
@@ -34,10 +34,8 @@ def _imagery_ok():
     return ImageryProviderResult(
         status="success",
         message="ok",
-        imagery=ImageryState(
-            tile_url="https://titiler/mosaic/{z}/{x}/{y}",
+        imagery=sentinel2_imagery(
             mosaic_id="mosaic-1",
-            target_date="2026-09-23",
             aoi_names=["Paraná"],
         ),
     )

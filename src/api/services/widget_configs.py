@@ -13,7 +13,9 @@ instructions, ...) can never leak into the database.
 
 from typing import Optional
 
-# Render-relevant fields of the imagery state (ImageryState) — all of it.
+from src.shared.imagery.wire import Imagery, from_payload
+
+# Legacy ImageryState keys, snapshotted only for payloads that predate the wire contract.
 IMAGERY_KEYS = (
     "provider",
     "tile_url",
@@ -106,13 +108,25 @@ def dataset_config(state: dict) -> Optional[dict]:
     }
 
 
-def imagery_config(state: dict) -> Optional[dict]:
-    """Snapshot the imagery in state (ImageryState shape) for the widget.
+def areas_label(aoi_names: list[str]) -> str:
+    return ", ".join(aoi_names) or "?"
 
-    Returns None when no imagery was built this conversation or the state
-    lacks a tile URL / mosaic id to render from.
+
+def imagery_snapshot(imagery: Imagery) -> dict:
+    return imagery.model_dump(mode="json")
+
+
+def imagery_config(state: dict) -> Optional[dict]:
+    """Snapshot the imagery in state for the widget.
+
+    Imagery that satisfies the wire contract is snapshotted in that shape;
+    anything else takes the legacy ImageryState path. Returns None when no
+    imagery was built this conversation or a legacy payload lacks a tile URL
+    / mosaic id to render from.
     """
     imagery = state.get("imagery") or {}
+    if (contract := from_payload(imagery)) is not None:
+        return imagery_snapshot(contract)
     if not imagery.get("tile_url") or not imagery.get("mosaic_id"):
         return None
     return {key: imagery.get(key) for key in IMAGERY_KEYS}

@@ -162,6 +162,36 @@ class TestMapWidgetConfig:
         )
         assert body.config["imagery"]["mosaic_id"] == "abc123"
 
+    def test_imagery_snapshot_with_tiles_only_in_its_source_accepted(self):
+        imagery = {
+            "provider": "planet",
+            "layer_id": "planet-layer-id",
+            "source": {
+                "tiles": ["https://tiles.example.com/planet/{z}/{x}/{y}.png"],
+                "bounds": [-56.0, -8.0, -54.0, -6.0],
+                "minzoom": 10,
+                "maxzoom": 18,
+            },
+        }
+
+        body = DashboardWidgetCreateRequest(
+            widget_type="map", config={"imagery": imagery}
+        )
+
+        assert body.config["imagery"]["source"]["tiles"]
+
+    @pytest.mark.parametrize(
+        "source",
+        [{"tiles": []}, "not-an-object"],
+        ids=["no-tiles", "not-a-dict"],
+    )
+    def test_imagery_source_without_tiles_rejected(self, source):
+        with pytest.raises(ValidationError, match="tile_url"):
+            DashboardWidgetCreateRequest(
+                widget_type="map",
+                config={"imagery": {"provider": "planet", "source": source}},
+            )
+
     def test_extra_config_keys_tolerated(self):
         # The snapshot shape may evolve without a schema change here — only
         # the discriminator and tile_url are load-bearing.

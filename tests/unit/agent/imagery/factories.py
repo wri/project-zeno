@@ -1,0 +1,99 @@
+from datetime import date
+from unittest.mock import AsyncMock, patch
+
+from src.agent.imagery import (
+    ImageryProviderResult,
+    ImageryRequest,
+    Sentinel2ImageryProvider,
+)
+from src.api.services.mosaic import MosaicResult
+from src.shared.imagery.contract import RasterSource
+from src.shared.imagery.planet import MonthlyPeriod, PlanetImagery
+from src.shared.imagery.sentinel2 import (
+    SceneSummary,
+    SearchWindowPeriod,
+    Sentinel2Imagery,
+)
+
+NOVO_PROGRESSO = {
+    "name": "Novo Progresso",
+    "source": "gadm",
+    "src_id": "BRA.14.83_2",
+    "bbox": [-56.0, -8.0, -54.0, -6.0],
+}
+ALTAMIRA = {
+    "name": "Altamira",
+    "source": "gadm",
+    "src_id": "BRA.14.5_2",
+    "bbox": [-55.6, -9.6, -51.6, -3.0],
+}
+
+
+def planet_imagery(**overrides) -> PlanetImagery:
+    defaults = {
+        "period": MonthlyPeriod.from_month("2026-08"),
+        "layer_id": "planet-layer-id",
+        "source": RasterSource(
+            tiles=["https://tiles.example/{z}/{x}/{y}.png"],
+            bounds=(-56.0, -8.0, -54.0, -6.0),
+            minzoom=10,
+            maxzoom=18,
+        ),
+        "aoi_names": ["Novo Progresso"],
+    }
+    return PlanetImagery(**{**defaults, **overrides})
+
+
+def scene_summary(**overrides) -> SceneSummary:
+    defaults = {
+        "item_count": 9,
+        "start_date": "2026-08-10",
+        "end_date": "2026-08-18",
+        "mean_cloud_cover": 10.0,
+        "min_cloud_cover": 1.0,
+        "max_cloud_cover": 20.0,
+    }
+    return SceneSummary(**{**defaults, **overrides})
+
+
+def sentinel2_imagery(**overrides) -> Sentinel2Imagery:
+    defaults = {
+        "period": SearchWindowPeriod.from_search(
+            date(2026, 8, 15), window_days=7, today=date(2026, 9, 29)
+        ),
+        "layer_id": "sentinel2-layer-id",
+        "source": RasterSource(
+            tiles=["https://tiles.example/{z}/{x}/{y}.png"],
+            bounds=(10.5, -1.5, 15.0, 2.0),
+            minzoom=8,
+            maxzoom=14,
+        ),
+        "mosaic_id": "recipe-token",
+        "max_cloud_cover": 20,
+        "scenes": scene_summary(),
+        "aoi_names": ["Odzala-Kokoua"],
+    }
+    return Sentinel2Imagery(**{**defaults, **overrides})
+
+
+async def sentinel2_result_from(
+    mosaic: MosaicResult, request: ImageryRequest
+) -> ImageryProviderResult:
+    with patch(
+        "src.agent.imagery.sentinel2.create_sentinel2_mosaic",
+        AsyncMock(return_value=mosaic),
+    ):
+        return await Sentinel2ImageryProvider().get_imagery(request)
+
+
+def mosaic_result(**overrides) -> MosaicResult:
+    defaults = {
+        "mosaic_id": "mosaic-token",
+        "item_count": 6,
+        "date_start": date(2026, 8, 9),
+        "date_end": date(2026, 8, 20),
+        "mean_cloud_cover": 8.0,
+        "min_cloud_cover": 1.5,
+        "max_cloud_cover": 16.0,
+    }
+    return MosaicResult(**{**defaults, **overrides})

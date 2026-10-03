@@ -21,9 +21,11 @@ from src.agent.datasets.handlers.analytics_handler import (
 )
 from src.agent.middleware import format_session_block
 from src.agent.subagents.analyst import tool as analyst_tool
+from src.agent.subagents.analyst.charts.chart_data_format import (
+    format_chart_data,
+)
 from src.agent.subagents.analyst.charts.model import InsightChart
 from src.agent.subagents.analyst.tool import Analyst
-from src.agent.tools.inspect_view_context import format_chart_data
 from src.agent.tools.pull_data import pull_data
 from src.agent.tools.update_insight_display import update_insight_display
 from tests.unit.api.services.test_chart_generators import LGMS_DATA
