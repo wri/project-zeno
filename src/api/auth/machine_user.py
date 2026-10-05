@@ -15,6 +15,11 @@ logger = structlog.get_logger()
 MACHINE_USER_PREFIX = "zeno-key"
 
 
+def is_machine_user_token(token: str) -> bool:
+    """Whether ``token`` is one of our machine API keys, not an RW token."""
+    return token.startswith(f"{MACHINE_USER_PREFIX}:")
+
+
 async def validate_machine_user_token(
     token: str, session: AsyncSession, request: Request
 ) -> UserModel:

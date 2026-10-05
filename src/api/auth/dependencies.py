@@ -1,6 +1,7 @@
 """FastAPI authentication dependencies."""
 
 import json
+from datetime import datetime, timezone
 from typing import Optional
 
 import cachetools
@@ -11,9 +12,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth.machine_user import (
-    MACHINE_USER_PREFIX,
+    is_machine_user_token,
     validate_machine_user_token,
 )
+from src.api.auth.resource_watch import RW_API_URL, RW_TIMEOUT_SECONDS
 from src.api.data_models import UserOrm, UserType
 from src.api.schemas import UserModel
 from src.shared.database import get_session_from_pool_dependency
@@ -40,7 +42,7 @@ async def fetch_user_from_rw_api(
 
     token = authorization.credentials
 
-    if token and token.startswith(f"{MACHINE_USER_PREFIX}:"):
+    if is_machine_user_token(token):
         return await validate_machine_user_token(token, session, request)
 
     if token and token in _user_info_cache:
@@ -49,12 +51,12 @@ async def fetch_user_from_rw_api(
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.get(
-                "https://api.resourcewatch.org/auth/user/me",
+                f"{RW_API_URL}/auth/user/me",
                 headers={
                     "Content-Type": "application/json",
                     "Authorization": f"Bearer {token}",
                 },
-                timeout=10,
+                timeout=RW_TIMEOUT_SECONDS,
             )
     except Exception as e:
         logger.exception(f"Error contacting Resource Watch: {e}")
@@ -77,6 +79,21 @@ async def fetch_user_from_rw_api(
     user_model = UserModel.model_validate(user_info)
     _user_info_cache[token] = user_model
     return user_model
+
+
+async def rw_bearer_token(
+    authorization: Optional[HTTPAuthorizationCredentials] = Depends(security),
+) -> Optional[str]:
+    """The caller's Resource Watch token, to call RW on their behalf.
+
+    None for a machine key: it is ours, so it must never be sent to RW, and
+    a machine user has no RW profile anyway.
+    """
+    if authorization is None or is_machine_user_token(
+        authorization.credentials
+    ):
+        return None
+    return authorization.credentials
 
 
 def _orm_to_user_model(user: UserOrm) -> UserModel:
@@ -103,6 +120,10 @@ def _orm_to_user_model(user: UserOrm) -> UserModel:
         receive_news_emails=user.receive_news_emails,
         help_test_features=user.help_test_features,
         has_profile=user.has_profile,
+        terms_accepted_at=user.terms_accepted_at,
+        terms_version=user.terms_version,
+        first_seen_at=user.first_seen_at,
+        rw_apps=user.rw_apps,
     )
 
 
@@ -115,7 +136,15 @@ async def _get_or_create_user(
     user = result.scalars().first()
 
     if not user:
-        user = UserOrm(**user_info.model_dump())
+        # Only a first login inserts, so first_seen_at (server clock) and
+        # rw_apps (from the RW payload) record that one and are never
+        # updated by a later login. terms_accepted is computed, not a column.
+        user = UserOrm(
+            **user_info.model_dump(
+                exclude={"terms_accepted", "first_seen_at"}
+            ),
+            first_seen_at=datetime.now(timezone.utc),
+        )
         session.add(user)
         await session.commit()
 

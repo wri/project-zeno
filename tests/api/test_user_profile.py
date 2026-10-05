@@ -1,12 +1,25 @@
 """Tests for user profile API functionality."""
 
+from datetime import datetime, timezone
+from unittest.mock import MagicMock, patch
+
+import httpx
 import pytest
 
+from src.api.auth.dependencies import _user_info_cache
+from src.api.cli import create_api_key, create_machine_user
+from src.api.schemas import TERMS_VERSION_MAX_LENGTH
 from src.api.user_profile_configs.countries import COUNTRIES
 from src.api.user_profile_configs.gis_expertise import GIS_EXPERTISE_LEVELS
 from src.api.user_profile_configs.languages import LANGUAGES
 from src.api.user_profile_configs.sectors import SECTOR_ROLES, SECTORS
 from src.api.user_profile_configs.topics import TOPICS
+from tests.api.mock import (
+    MockResponse,
+    mock_rw_api_response,
+    mock_rw_profile_response,
+)
+from tests.conftest import async_session_maker
 
 
 class TestProfileConfigAPI:
@@ -572,6 +585,474 @@ class TestUserProfileAPI:
         assert data["topics"] is None
         assert data["receiveNewsEmails"] is False
         assert data["helpTestFeatures"] is False
+
+
+class TestTermsAcceptance:
+    """Terms acceptance is exposed on the user and recorded by PATCH."""
+
+    @pytest.mark.asyncio
+    async def test_terms_fields_null_by_default_in_auth_me(
+        self, client, user, auth_override
+    ):
+        auth_override(user.id)
+
+        response = await client.get(
+            "/api/auth/me", headers={"Authorization": "Bearer test-token"}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["termsAcceptedAt"] is None
+        assert data["termsVersion"] is None
+        assert data["termsAccepted"] is False
+
+    @pytest.mark.asyncio
+    async def test_profile_update_response_includes_terms_fields(
+        self, client, user, auth_override
+    ):
+        auth_override(user.id)
+
+        response = await client.patch(
+            "/api/auth/profile", json={"first_name": "Ada"}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["termsAcceptedAt"] is None
+        assert data["termsVersion"] is None
+        assert data["termsAccepted"] is False
+
+    @pytest.mark.asyncio
+    async def test_accepting_terms_marks_terms_accepted(
+        self, client, user, auth_override
+    ):
+        auth_override(user.id)
+
+        response = await client.patch(
+            "/api/auth/profile", json={"terms_version": "2026-09-30"}
+        )
+
+        assert response.json()["termsAccepted"] is True
+        me = await client.get(
+            "/api/auth/me", headers={"Authorization": "Bearer test-token"}
+        )
+        assert me.json()["termsAccepted"] is True
+
+    @pytest.mark.asyncio
+    async def test_completed_legacy_profile_counts_as_terms_accepted(
+        self, client, user, auth_override
+    ):
+        auth_override(user.id)
+
+        response = await client.patch(
+            "/api/auth/profile", json={"has_profile": True}
+        )
+
+        assert response.json()["termsAccepted"] is True
+        assert response.json()["termsAcceptedAt"] is None
+        me = await client.get(
+            "/api/auth/me", headers={"Authorization": "Bearer test-token"}
+        )
+        assert me.json()["termsAccepted"] is True
+        assert me.json()["termsAcceptedAt"] is None
+
+    @pytest.mark.asyncio
+    async def test_accepting_terms_records_version_and_server_time(
+        self, client, user, auth_override
+    ):
+        auth_override(user.id)
+
+        before = datetime.now(timezone.utc)
+        response = await client.patch(
+            "/api/auth/profile", json={"terms_version": "2026-09-30"}
+        )
+        after = datetime.now(timezone.utc)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["termsVersion"] == "2026-09-30"
+        accepted_at = datetime.fromisoformat(data["termsAcceptedAt"])
+        assert accepted_at.tzinfo is not None
+        assert before <= accepted_at <= after
+
+        me = await client.get(
+            "/api/auth/me", headers={"Authorization": "Bearer test-token"}
+        )
+        assert me.json()["termsVersion"] == "2026-09-30"
+        assert (
+            datetime.fromisoformat(me.json()["termsAcceptedAt"]) == accepted_at
+        )
+
+    @pytest.mark.asyncio
+    async def test_client_supplied_acceptance_time_is_ignored(
+        self, client, user, auth_override
+    ):
+        auth_override(user.id)
+
+        before = datetime.now(timezone.utc)
+        response = await client.patch(
+            "/api/auth/profile",
+            json={
+                "terms_version": "2026-09-30",
+                "terms_accepted_at": "2000-01-01T00:00:00Z",
+            },
+        )
+
+        assert response.status_code == 200
+        accepted_at = datetime.fromisoformat(
+            response.json()["termsAcceptedAt"]
+        )
+        assert accepted_at >= before
+
+    @pytest.mark.asyncio
+    async def test_terms_acceptance_time_alone_is_not_accepted(
+        self, client, user, auth_override
+    ):
+        auth_override(user.id)
+
+        response = await client.patch(
+            "/api/auth/profile",
+            json={"terms_accepted_at": "2000-01-01T00:00:00Z"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["termsAcceptedAt"] is None
+        assert response.json()["termsVersion"] is None
+
+    @pytest.mark.asyncio
+    async def test_terms_version_is_trimmed(self, client, user, auth_override):
+        auth_override(user.id)
+
+        response = await client.patch(
+            "/api/auth/profile", json={"terms_version": "  2026-09-30 "}
+        )
+
+        assert response.status_code == 200
+        assert response.json()["termsVersion"] == "2026-09-30"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "terms_version",
+        ["", "   ", "x" * (TERMS_VERSION_MAX_LENGTH + 1), None],
+        ids=["empty", "whitespace", "too-long", "null"],
+    )
+    async def test_invalid_terms_version_is_rejected(
+        self, client, user, auth_override, terms_version
+    ):
+        auth_override(user.id)
+
+        response = await client.patch(
+            "/api/auth/profile", json={"terms_version": terms_version}
+        )
+
+        assert response.status_code == 422
+        me = await client.get(
+            "/api/auth/me", headers={"Authorization": "Bearer test-token"}
+        )
+        assert me.json()["termsVersion"] is None
+        assert me.json()["termsAcceptedAt"] is None
+
+    @pytest.mark.asyncio
+    async def test_terms_version_at_max_length_is_accepted(
+        self, client, user, auth_override
+    ):
+        auth_override(user.id)
+        version = "v" * TERMS_VERSION_MAX_LENGTH
+
+        response = await client.patch(
+            "/api/auth/profile", json={"terms_version": version}
+        )
+
+        assert response.status_code == 200
+        assert response.json()["termsVersion"] == version
+
+    @pytest.mark.asyncio
+    async def test_other_profile_updates_leave_acceptance_untouched(
+        self, client, user, auth_override
+    ):
+        auth_override(user.id)
+        accepted = await client.patch(
+            "/api/auth/profile", json={"terms_version": "2026-09-30"}
+        )
+
+        response = await client.patch(
+            "/api/auth/profile", json={"first_name": "Ada"}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["firstName"] == "Ada"
+        assert data["termsVersion"] == "2026-09-30"
+        assert data["termsAcceptedAt"] == accepted.json()["termsAcceptedAt"]
+
+    @pytest.mark.asyncio
+    async def test_terms_can_be_accepted_with_other_profile_fields(
+        self, client, user, auth_override
+    ):
+        auth_override(user.id)
+
+        response = await client.patch(
+            "/api/auth/profile",
+            json={"terms_version": "2026-09-30", "first_name": "Ada"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["firstName"] == "Ada"
+        assert data["termsVersion"] == "2026-09-30"
+        assert data["termsAcceptedAt"] is not None
+
+    @pytest.mark.asyncio
+    async def test_each_acceptance_restamps_the_time(
+        self, client, user, auth_override
+    ):
+        auth_override(user.id)
+        first = await client.patch(
+            "/api/auth/profile", json={"terms_version": "2026-09-30"}
+        )
+
+        second = await client.patch(
+            "/api/auth/profile", json={"terms_version": "2026-09-30"}
+        )
+
+        assert second.status_code == 200
+        assert datetime.fromisoformat(
+            second.json()["termsAcceptedAt"]
+        ) > datetime.fromisoformat(first.json()["termsAcceptedAt"])
+
+
+# What the gfw profile form saves on the RW user (see
+# tests/unit/api/services/test_profile_prefill.py for the mapping cases).
+MYGFW_ATTRIBUTES = {
+    "firstName": "Ana",
+    "lastName": "Silva",
+    "email": "ana@example.org",
+    "applicationData": {
+        "gfw": {
+            "country": "BRA",
+            "sector": "Local NGO (national or subnational)",
+            "company": "Instituto Floresta",
+            "jobTitle": "GIS analyst",
+            "interests": ["deforestation", "biodiversity"],
+            "receive_updates": True,
+            "preferred_language": "pt",
+            "signUpForTesting": "true",
+        }
+    },
+}
+
+MYGFW_SUGGESTION = {
+    "first_name": "Ana",
+    "last_name": "Silva",
+    "job_title": "GIS analyst",
+    "company_organization": "Instituto Floresta",
+    "sector_code": "local_ngo",
+    "country_code": "BR",
+    "preferred_language_code": "pt",
+    "topics": ["combating_deforestation", "protecting_ecosystems"],
+}
+
+NOT_FOUND = {"found": False, "source": None, "suggestion": None}
+RW_TOKEN = {"Authorization": "Bearer rw-token"}
+
+
+async def _prefill(client, rw_response, headers=RW_TOKEN):
+    """GET /api/auth/profile/prefill with Resource Watch mocked.
+
+    ``rw_response`` is what RW's GET answers: a response, an exception to
+    raise, or a function of the URL. Returns the API response and the mocked
+    ``get`` so a test can inspect the RW calls.
+    """
+    with patch("httpx.AsyncClient") as mock_client_class:
+        rw_get = mock_client_class.return_value.__aenter__.return_value.get
+        if isinstance(rw_response, BaseException) or callable(rw_response):
+            rw_get.side_effect = rw_response
+        else:
+            rw_get.return_value = rw_response
+        response = await client.get(
+            "/api/auth/profile/prefill", headers=headers
+        )
+    return response, rw_get
+
+
+class TestProfilePrefillAPI:
+    """GET /api/auth/profile/prefill suggests fields from MyGFW."""
+
+    @pytest.mark.asyncio
+    async def test_prefill_requires_auth(self, client):
+        response = await client.get("/api/auth/profile/prefill")
+
+        assert response.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_prefill_suggests_fields_from_mygfw_profile(
+        self, client, user, auth_override
+    ):
+        auth_override(user.id)
+
+        response, rw_get = await _prefill(
+            client, mock_rw_profile_response(user.id, MYGFW_ATTRIBUTES)
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "found": True,
+            "source": "gfw",
+            "suggestion": MYGFW_SUGGESTION,
+        }
+        rw_get.assert_called_once()
+        url = rw_get.call_args.args[0]
+        headers = rw_get.call_args.kwargs["headers"]
+        assert url == f"https://api.resourcewatch.org/v2/user/{user.id}"
+        assert headers["Authorization"] == "Bearer rw-token"
+
+    @pytest.mark.asyncio
+    async def test_prefill_never_writes_the_profile(
+        self, client, user, auth_override
+    ):
+        auth_override(user.id)
+
+        await _prefill(
+            client, mock_rw_profile_response(user.id, MYGFW_ATTRIBUTES)
+        )
+
+        me = await client.get("/api/auth/me", headers=RW_TOKEN)
+        assert me.json()["firstName"] is None
+        assert me.json()["sectorCode"] is None
+        assert me.json()["countryCode"] is None
+        assert me.json()["topics"] is None
+
+    @pytest.mark.asyncio
+    async def test_prefill_without_mygfw_profile_is_not_found(
+        self, client, user, auth_override
+    ):
+        auth_override(user.id)
+
+        response, _ = await _prefill(
+            client,
+            MockResponse(
+                {"errors": [{"status": 404, "detail": "User not found"}]},
+                404,
+            ),
+        )
+
+        assert response.status_code == 200
+        assert response.json() == NOT_FOUND
+
+    @pytest.mark.asyncio
+    async def test_prefill_with_nothing_mappable_is_not_found(
+        self, client, user, auth_override
+    ):
+        auth_override(user.id)
+        attributes = {
+            "email": "ana@example.org",
+            "applicationData": {
+                "gfw": {"sector": "Space agency", "receive_updates": True}
+            },
+        }
+
+        response, _ = await _prefill(
+            client, mock_rw_profile_response(user.id, attributes)
+        )
+
+        assert response.status_code == 200
+        assert response.json() == NOT_FOUND
+
+    @pytest.mark.asyncio
+    async def test_prefill_body_without_data_attributes_is_not_found(
+        self, client, user, auth_override
+    ):
+        # The RW shape comes from reading the gfw frontend, not from a live
+        # response. A different shape must degrade to "nothing to prefill".
+        auth_override(user.id)
+
+        response, _ = await _prefill(
+            client, MockResponse({"id": user.id, **MYGFW_ATTRIBUTES})
+        )
+
+        assert response.status_code == 200
+        assert response.json() == NOT_FOUND
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status_code", [400, 401, 403, 500, 503])
+    async def test_prefill_fails_loudly_on_unexpected_rw_status(
+        self, client, user, auth_override, status_code
+    ):
+        auth_override(user.id)
+
+        response, _ = await _prefill(
+            client, MockResponse({"errors": [{"detail": "nope"}]}, status_code)
+        )
+
+        assert response.status_code == 502
+        assert "nope" not in response.text
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "error",
+        [httpx.ConnectError("refused"), httpx.ReadTimeout("slow")],
+        ids=["connect", "timeout"],
+    )
+    async def test_prefill_fails_loudly_when_rw_is_unreachable(
+        self, client, user, auth_override, error
+    ):
+        auth_override(user.id)
+
+        response, _ = await _prefill(client, error)
+
+        assert response.status_code == 502
+
+    @pytest.mark.asyncio
+    async def test_prefill_fails_loudly_on_non_json_body(
+        self, client, user, auth_override
+    ):
+        auth_override(user.id)
+        not_json = MockResponse(None)
+        not_json.json = MagicMock(side_effect=ValueError("not json"))
+
+        response, _ = await _prefill(client, not_json)
+
+        assert response.status_code == 502
+
+    @pytest.mark.asyncio
+    async def test_prefill_for_machine_user_never_calls_rw(self, client):
+        async with async_session_maker() as session:
+            machine = await create_machine_user(
+                session, "prefill-bot", "prefill-bot@example.org"
+            )
+            token, _ = await create_api_key(session, machine.id, "test")
+
+        response, rw_get = await _prefill(
+            client,
+            MockResponse({}),
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 200
+        assert response.json() == NOT_FOUND
+        rw_get.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_prefill_through_real_rw_login(self, client):
+        # No auth override: the same RW token validates the caller
+        # (/auth/user/me) and then reads their MyGFW profile.
+        _user_info_cache.clear()
+        rw_user = mock_rw_api_response("Test User").json_data
+        profile = mock_rw_profile_response(rw_user["id"], MYGFW_ATTRIBUTES)
+
+        def route(url, **kwargs):
+            if url.endswith("/auth/user/me"):
+                return mock_rw_api_response("Test User")
+            if url.endswith(f"/v2/user/{rw_user['id']}"):
+                return profile
+            raise AssertionError(f"Unexpected RW call: {url}")
+
+        response, _ = await _prefill(client, route)
+        _user_info_cache.clear()
+
+        assert response.status_code == 200
+        assert response.json()["found"] is True
+        assert response.json()["suggestion"] == MYGFW_SUGGESTION
 
 
 class TestProfileConfigsStructure:

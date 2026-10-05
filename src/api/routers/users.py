@@ -1,19 +1,30 @@
 """User profile and authentication endpoints."""
 
 import json
+from datetime import datetime, timezone
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.auth.dependencies import require_auth
+from src.api.auth.dependencies import (
+    _orm_to_user_model,
+    require_auth,
+    rw_bearer_token,
+)
 from src.api.config import APISettings
 from src.api.data_models import UserOrm
 from src.api.schemas import (
     ProfileConfigResponse,
+    ProfilePrefillResponse,
     UserModel,
     UserProfileUpdateRequest,
     UserWithQuotaModel,
+)
+from src.api.services.profile_prefill import (
+    ResourceWatchUnavailableError,
+    get_profile_prefill,
 )
 from src.api.services.quota import check_quota
 from src.shared.database import get_session_from_pool_dependency
@@ -69,33 +80,35 @@ async def update_user_profile(
             value = json.dumps(value)
         setattr(db_user, field, value)
 
+    if "terms_version" in update_data:
+        # Each acceptance is an event; only the server clock sets the time.
+        db_user.terms_accepted_at = datetime.now(timezone.utc)
+
     await session.commit()
     await session.refresh(db_user)
 
-    return UserModel(
-        id=db_user.id,
-        name=db_user.name,
-        email=db_user.email,
-        created_at=db_user.created_at,
-        updated_at=db_user.updated_at,
-        user_type=db_user.user_type,
-        threads=[],
-        first_name=db_user.first_name,
-        last_name=db_user.last_name,
-        profile_description=db_user.profile_description,
-        sector_code=db_user.sector_code,
-        role_code=db_user.role_code,
-        job_title=db_user.job_title,
-        company_organization=db_user.company_organization,
-        country_code=db_user.country_code,
-        preferred_language_code=db_user.preferred_language_code,
-        gis_expertise_level=db_user.gis_expertise_level,
-        areas_of_interest=db_user.areas_of_interest,
-        topics=json.loads(db_user.topics) if db_user.topics else None,
-        receive_news_emails=db_user.receive_news_emails,
-        help_test_features=db_user.help_test_features,
-        has_profile=db_user.has_profile,
-    )
+    return _orm_to_user_model(db_user)
+
+
+@router.get("/api/auth/profile/prefill", response_model=ProfilePrefillResponse)
+async def get_profile_prefill_suggestion(
+    user: UserModel = Depends(require_auth),
+    rw_token: Optional[str] = Depends(rw_bearer_token),
+):
+    """
+    Suggest profile fields from the caller's MyGFW profile.
+
+    Read-only: nothing is written. The suggestion uses the
+    PATCH /api/auth/profile field names and holds only fields that mapped
+    to valid GNW values. Returns found=false when there is no MyGFW
+    profile or nothing maps, and 502 when Resource Watch fails.
+    """
+    try:
+        return await get_profile_prefill(user.id, rw_token)
+    except ResourceWatchUnavailableError as e:
+        raise HTTPException(
+            status_code=502, detail="Error contacting Resource Watch"
+        ) from e
 
 
 @router.get("/api/profile/config", response_model=ProfileConfigResponse)
