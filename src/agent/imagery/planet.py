@@ -1,6 +1,5 @@
 """Planet monthly mosaic imagery provider."""
 
-import time
 from datetime import date, timedelta
 from typing import Awaitable, Callable, Optional
 
@@ -18,40 +17,25 @@ class PlanetImageryProvider:
     # A month's mosaic is published on this day of the following month.
     PUBLISH_DAY = 16
     START_DATE = date(2020, 9, 1)
-    # A tile over recent alerts; the service returns 429 once its quota is used.
-    PROBE_TILE = "10/354/532"
-    AVAILABILITY_TTL_SECONDS = 3600
+    STATUS_URL = f"{BASE_URL}/integrated_alerts_planet_imagery/status"
 
     def __init__(
-        self,
-        fetch_status: Optional[Callable[[str], Awaitable[int]]] = None,
-        clock: Callable[[], float] = time.monotonic,
+        self, fetch_status: Optional[Callable[[str], Awaitable[str]]] = None
     ):
         self.fetch_status = fetch_status or self._fetch_status
-        self.clock = clock
-        self.availability: Optional[tuple[float, bool]] = None
 
     @staticmethod
-    async def _fetch_status(url: str) -> int:
+    async def _fetch_status(url: str) -> str:
         async with httpx.AsyncClient(timeout=5) as client:
-            return (await client.get(url)).status_code
+            response = await client.get(url)
+            response.raise_for_status()
+            return response.json()["status"]
 
     async def is_available(self) -> bool:
-        now = self.clock()
-        if self.availability and (
-            now - self.availability[0] < self.AVAILABILITY_TTL_SECONDS
-        ):
-            return self.availability[1]
-        url = (
-            f"{self.BASE_URL}/integrated_alerts_planet_imagery/"
-            f"{self.PROBE_TILE}.png?month={self.month(None)}"
-        )
         try:
-            available = await self.fetch_status(url) != 429
+            return await self.fetch_status(self.STATUS_URL) != "unavailable"
         except Exception:
-            available = True
-        self.availability = (now, available)
-        return available
+            return True
 
     def covers(self, aois: list[dict]) -> bool:
         west, south, east, north = self.COVERAGE

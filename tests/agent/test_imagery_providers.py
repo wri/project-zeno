@@ -95,8 +95,10 @@ def test_planet_date_and_coverage_rules():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(("status", "expected"), [(200, True), (429, False)])
-async def test_planet_availability_follows_tile_status(status, expected):
+@pytest.mark.parametrize(
+    ("status", "expected"), [("available", True), ("unavailable", False)]
+)
+async def test_planet_availability_follows_service_status(status, expected):
     provider = PlanetImageryProvider(
         fetch_status=AsyncMock(return_value=status)
     )
@@ -105,28 +107,12 @@ async def test_planet_availability_follows_tile_status(status, expected):
 
 
 @pytest.mark.asyncio
-async def test_planet_availability_treats_probe_errors_as_available():
+async def test_planet_availability_treats_status_errors_as_available():
     provider = PlanetImageryProvider(
         fetch_status=AsyncMock(side_effect=TimeoutError)
     )
 
     assert await provider.is_available()
-
-
-@pytest.mark.asyncio
-async def test_planet_availability_is_cached_for_an_hour():
-    now = [0.0]
-    fetch_status = AsyncMock(side_effect=[429, 200])
-    provider = PlanetImageryProvider(
-        fetch_status=fetch_status, clock=lambda: now[0]
-    )
-
-    assert not await provider.is_available()
-    now[0] = 3599
-    assert not await provider.is_available()
-    now[0] = 3600
-    assert await provider.is_available()
-    assert fetch_status.await_count == 2
 
 
 @pytest.mark.asyncio
