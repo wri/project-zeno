@@ -1,6 +1,7 @@
 import pytest
 
 from src.agent.datasets.handlers.analytics_handler import (
+    INTEGRATED_ALERTS_ID,
     TREE_COVER_LOSS_ID,
     AnalyticsHandler,
     _count_and_enrich,
@@ -98,6 +99,31 @@ async def test_build_payload_uses_no_canopy_cover_parameter():
         "forest_filter": None,
         "intersections": [],
     }
+
+
+@pytest.mark.parametrize(
+    "context_layer, land_filter",
+    [("natural_lands", "natural_lands"), (None, None)],
+)
+async def test_build_payload_integrated_alerts_land_filter(
+    context_layer, land_filter
+):
+    handler = AnalyticsHandler()
+    dataset = {
+        "dataset_id": INTEGRATED_ALERTS_ID,
+        "dataset_name": "Integrated alerts",
+        "context_layer": context_layer,
+    }
+    aois = [{"name": "Indonesia", "subtype": "country", "src_id": "IDN"}]
+
+    payload = await handler._build_payload(
+        dataset=dataset,
+        aois=aois,
+        start_date="2026-07-01",
+        end_date="2026-10-01",
+    )
+
+    assert payload.get("land_filter") == land_filter
 
 
 # --- LGMS per-section result merged into one flat category/class table -------

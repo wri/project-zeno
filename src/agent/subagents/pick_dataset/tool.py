@@ -700,9 +700,12 @@ def get_tile_services_for_dataset(
             ),
             None,
         )
+        context_tile_url = selected_context_layer.get("tile_url")
+        if context_tile_url and not context_tile_url.startswith("http"):
+            context_tile_url = SharedSettings.eoapi_base_url + context_tile_url
         context_layer = ContextLayer(
             name=selected_context_layer.get("value"),
-            tile_url=selected_context_layer.get("tile_url"),
+            tile_url=context_tile_url,
         )
         context_layers.append(context_layer)
 

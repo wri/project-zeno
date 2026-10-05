@@ -365,11 +365,15 @@ class AnalyticsHandler(DataSourceHandler):
 
         payload: dict[str, Any]
         if dataset.get("dataset_id") == INTEGRATED_ALERTS_ID:
-            # Integrated Alerts has no intersections; it takes full dates only.
+            land_filter = None
+            if dataset.get("context_layer") == "natural_lands":
+                land_filter = "natural_lands"
+
             payload = {
                 **base_payload,
                 "start_date": start_date,
                 "end_date": end_date,
+                "land_filter": land_filter,
             }
 
         elif dataset.get("dataset_id") in [
