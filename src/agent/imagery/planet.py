@@ -1,7 +1,10 @@
 """Planet monthly mosaic imagery provider."""
 
+import time
 from datetime import date, timedelta
-from typing import Optional
+from typing import Awaitable, Callable, Optional
+
+import httpx
 
 from src.agent.imagery.base import ImageryProviderResult, ImageryRequest
 from src.agent.models import ImageryState
@@ -14,7 +17,41 @@ class PlanetImageryProvider:
     COVERAGE = (-80.0, -30.0, -40.0, 20.0)
     # A month's mosaic is published on this day of the following month.
     PUBLISH_DAY = 16
-    EARLIEST_MONTH = date(2020, 9, 1)
+    START_DATE = date(2020, 9, 1)
+    # A tile over recent alerts; the service returns 429 once its quota is used.
+    PROBE_TILE = "10/354/532"
+    AVAILABILITY_TTL_SECONDS = 3600
+
+    def __init__(
+        self,
+        fetch_status: Optional[Callable[[str], Awaitable[int]]] = None,
+        clock: Callable[[], float] = time.monotonic,
+    ):
+        self.fetch_status = fetch_status or self._fetch_status
+        self.clock = clock
+        self.availability: Optional[tuple[float, bool]] = None
+
+    @staticmethod
+    async def _fetch_status(url: str) -> int:
+        async with httpx.AsyncClient(timeout=5) as client:
+            return (await client.get(url)).status_code
+
+    async def is_available(self) -> bool:
+        now = self.clock()
+        if self.availability and (
+            now - self.availability[0] < self.AVAILABILITY_TTL_SECONDS
+        ):
+            return self.availability[1]
+        url = (
+            f"{self.BASE_URL}/integrated_alerts_planet_imagery/"
+            f"{self.PROBE_TILE}.png?month={self.month(None)}"
+        )
+        try:
+            available = await self.fetch_status(url) != 429
+        except Exception:
+            available = True
+        self.availability = (now, available)
+        return available
 
     def covers(self, aois: list[dict]) -> bool:
         west, south, east, north = self.COVERAGE
@@ -43,8 +80,8 @@ class PlanetImageryProvider:
         latest = self.latest_available_month(today=today)
         return target.replace(day=1) > latest
 
-    def is_before_earliest_available(self, target: Optional[date]) -> bool:
-        return target is not None and target < self.EARLIEST_MONTH
+    def is_before_start_date(self, target: Optional[date]) -> bool:
+        return target is not None and target < self.START_DATE
 
     def month(
         self, target: Optional[date], *, today: Optional[date] = None

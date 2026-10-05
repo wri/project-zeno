@@ -55,12 +55,35 @@ def _message(command):
 async def test_planet_shown_inside_coverage():
     planet = AsyncMock(return_value=_result("planet"))
 
-    with patch.object(PLANET_PROVIDER, "get_imagery", planet):
+    with (
+        patch.object(PLANET_PROVIDER, "get_imagery", planet),
+        patch.object(
+            PLANET_PROVIDER, "is_available", AsyncMock(return_value=True)
+        ),
+    ):
         command = await show_planet_imagery.coroutine(
             state=IN_COVERAGE, target_date="2025-06-15", tool_call_id="t1"
         )
 
     assert command.update["imagery"]["provider"] == "planet"
+
+
+@pytest.mark.asyncio
+async def test_explains_planet_is_temporarily_unavailable():
+    sentinel = AsyncMock(return_value=_result("sentinel-2"))
+
+    with (
+        patch.object(SENTINEL2_PROVIDER, "get_imagery", sentinel),
+        patch.object(
+            PLANET_PROVIDER, "is_available", AsyncMock(return_value=False)
+        ),
+    ):
+        command = await show_planet_imagery.coroutine(
+            state=IN_COVERAGE, target_date="2025-06-15", tool_call_id="t1"
+        )
+
+    assert command.update["imagery"]["provider"] == "sentinel-2"
+    assert "back next month" in _message(command)
 
 
 @pytest.mark.asyncio

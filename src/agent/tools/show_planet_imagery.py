@@ -24,9 +24,16 @@ FALLBACK_PREFIX = (
     "Planet imagery is not available for this area and month, so Sentinel-2 "
     "is shown instead. "
 )
-BEFORE_EARLIEST_PREFIX = (
+UNAVAILABLE_PREFIX = (
+    "Planet imagery is unavailable at this time; we expect it to be back "
+    "next month. In the meantime, we've shown Sentinel-2 instead. "
+)
+BEFORE_START_PREFIX = (
     "Planet imagery is only available from September 2020, so Sentinel-2 "
     "is shown instead. "
+)
+MENTION_PLANET_NOTE = (
+    "(Only mention Planet if the user asked for it by name.) "
 )
 
 
@@ -61,30 +68,26 @@ async def show_planet_imagery(
         target_date,
     )
 
-    servable = (
-        PLANET_PROVIDER.covers(request.aois)
-        and not PLANET_PROVIDER.is_newer_than_latest_available(
-            request.target_date
-        )
-        and not PLANET_PROVIDER.is_before_earliest_available(
-            request.target_date
-        )
-    )
-    if servable:
+    if PLANET_PROVIDER.is_before_start_date(request.target_date):
+        prefix = BEFORE_START_PREFIX
+    elif not PLANET_PROVIDER.covers(
+        request.aois
+    ) or PLANET_PROVIDER.is_newer_than_latest_available(request.target_date):
+        prefix = FALLBACK_PREFIX
+    elif not await PLANET_PROVIDER.is_available():
+        prefix = UNAVAILABLE_PREFIX
+    else:
         return provider_command(
             await PLANET_PROVIDER.get_imagery(request), tool_call_id
         )
 
-    prefix = (
-        BEFORE_EARLIEST_PREFIX
-        if PLANET_PROVIDER.is_before_earliest_available(request.target_date)
-        else FALLBACK_PREFIX
-    )
     # Still show imagery rather than dead-ending with no layer, and keep the
     # reason attached even when Sentinel-2 itself fails.
     result = await SENTINEL2_PROVIDER.get_imagery(request)
     return provider_command(
-        replace(result, message=f"{prefix}{result.message}"),
+        replace(
+            result, message=f"{prefix}{MENTION_PLANET_NOTE}{result.message}"
+        ),
         tool_call_id,
     )
 
