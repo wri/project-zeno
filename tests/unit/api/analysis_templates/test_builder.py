@@ -10,7 +10,6 @@ import pytest
 from src.agent.datasets.handlers.analytics_handler import INTEGRATED_ALERTS_ID
 from src.agent.datasets.handlers.base import DataPullResult
 from src.agent.imagery.base import ImageryProviderResult
-from src.agent.models import ImageryState
 from src.api.services.analysis_templates import builder
 from src.api.services.analysis_templates.builder import (
     DashboardGoneError,
@@ -19,6 +18,7 @@ from src.api.services.analysis_templates.builder import (
     apply_template,
 )
 from src.api.services.analysis_templates.registry import get_template
+from tests.unit.agent.imagery.factories import sentinel2_imagery
 
 NRT = get_template("nrt-monitoring")
 TODAY = date(2026, 9, 23)
@@ -59,11 +59,8 @@ def _imagery():
     return ImageryProviderResult(
         status="success",
         message="ok",
-        imagery=ImageryState(
-            provider="sentinel-2",
-            tile_url="https://titiler/mosaic/{z}/{x}/{y}",
+        imagery=sentinel2_imagery(
             mosaic_id="mosaic-1",
-            target_date="2026-09-23",
             aoi_names=["Paraná"],
         ),
     )

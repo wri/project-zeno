@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "imagery.schema.json",
+  "title": "Imagery",
+  "$defs": {
+    "MonthlyPeriod": {
+      "properties": {
+        "start": {
+          "format": "date",
+          "type": "string"
+        },
+        "end": {
+          "format": "date",
+          "type": "string"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "MonthlyPeriod",
+      "type": "object"
+    },
+    "PlanetImagery": {
+      "properties": {
+        "provider": {
+          "const": "planet",
+          "default": "planet",
+          "type": "string"
+        },
+        "period": {
+          "$ref": "#/$defs/MonthlyPeriod"
+        },
+        "aoi_names": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "layer_id": {
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/RasterSource"
+        }
+      },
+      "required": [
+        "provider",
+        "period",
+        "aoi_names",
+        "layer_id",
+        "source"
+      ],
+      "title": "PlanetImagery",
+      "type": "object"
+    },
+    "RasterSource": {
+      "properties": {
+        "tiles": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "bounds": {
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "type": "array"
+        },
+        "minzoom": {
+          "type": "integer"
+        },
+        "maxzoom": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tiles",
+        "bounds",
+        "minzoom",
+        "maxzoom"
+      ],
+      "title": "RasterSource",
+      "type": "object"
+    },
+    "SceneSummary": {
+      "properties": {
+        "item_count": {
+          "type": "integer"
+        },
+        "start_date": {
+          "format": "date",
+          "type": "string"
+        },
+        "end_date": {
+          "format": "date",
+          "type": "string"
+        },
+        "mean_cloud_cover": {
+          "type": "number"
+        },
+        "min_cloud_cover": {
+          "type": "number"
+        },
+        "max_cloud_cover": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "item_count",
+        "start_date",
+        "end_date",
+        "mean_cloud_cover",
+        "min_cloud_cover",
+        "max_cloud_cover"
+      ],
+      "title": "SceneSummary",
+      "type": "object"
+    },
+    "SearchWindowPeriod": {
+      "properties": {
+        "start": {
+          "format": "date",
+          "type": "string"
+        },
+        "end": {
+          "format": "date",
+          "type": "string"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "SearchWindowPeriod",
+      "type": "object"
+    },
+    "Sentinel2Imagery": {
+      "properties": {
+        "provider": {
+          "const": "sentinel-2",
+          "default": "sentinel-2",
+          "type": "string"
+        },
+        "period": {
+          "$ref": "#/$defs/SearchWindowPeriod"
+        },
+        "aoi_names": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "layer_id": {
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/RasterSource"
+        },
+        "mosaic_id": {
+          "type": "string"
+        },
+        "max_cloud_cover": {
+          "type": "integer"
+        },
+        "scenes": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SceneSummary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "provider",
+        "period",
+        "aoi_names",
+        "layer_id",
+        "source",
+        "mosaic_id",
+        "max_cloud_cover",
+        "scenes"
+      ],
+      "title": "Sentinel2Imagery",
+      "type": "object"
+    }
+  },
+  "discriminator": {
+    "mapping": {
+      "planet": "#/$defs/PlanetImagery",
+      "sentinel-2": "#/$defs/Sentinel2Imagery"
+    },
+    "propertyName": "provider"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/PlanetImagery"
+    },
+    {
+      "$ref": "#/$defs/Sentinel2Imagery"
+    }
+  ]
+}

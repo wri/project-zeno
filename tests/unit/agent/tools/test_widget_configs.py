@@ -10,6 +10,7 @@ from src.api.services.widget_configs import (
     imagery_config,
     widget_config,
 )
+from tests.unit.agent.imagery.factories import planet_imagery
 
 
 def _dataset_state():
@@ -225,6 +226,19 @@ def test_imagery_config_includes_cloud_cover():
     assert config["bounds"] == [-70.0, -10.0, -60.0, 0.0]
     assert config["min_zoom"] == 5
     assert config["max_zoom"] == 15
+
+
+def test_imagery_config_snapshots_planet_imagery_in_its_wire_contract_shape():
+    streamed = planet_imagery().model_dump(mode="json")
+
+    assert imagery_config({"imagery": streamed}) == streamed
+
+
+def test_imagery_config_rejects_planet_imagery_that_breaks_its_contract():
+    broken = planet_imagery().model_dump(mode="json")
+    del broken["period"]
+
+    assert imagery_config({"imagery": broken}) is None
 
 
 def test_widget_config_wraps_one_layer_and_optional_title():

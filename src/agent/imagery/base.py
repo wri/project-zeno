@@ -4,7 +4,17 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Literal, Optional, Protocol
 
-from src.agent.models import ImageryState
+from src.shared.imagery.wire import Imagery
+
+
+def aoi_bounds(aois: list[dict]) -> list[float]:
+    bboxes = [aoi["bbox"] for aoi in aois]
+    return [
+        min(bbox[0] for bbox in bboxes),
+        min(bbox[1] for bbox in bboxes),
+        max(bbox[2] for bbox in bboxes),
+        max(bbox[3] for bbox in bboxes),
+    ]
 
 
 @dataclass(frozen=True)
@@ -24,7 +34,7 @@ class ImageryProviderResult:
 
     status: Literal["success", "error"]
     message: str
-    imagery: Optional[ImageryState] = None
+    imagery: Optional[Imagery] = None
 
 
 class ImageryProvider(Protocol):

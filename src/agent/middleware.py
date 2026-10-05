@@ -19,6 +19,7 @@ from src.agent.datasets.curated_only import (
 )
 from src.agent.language import DEFAULT_LANGUAGE, language_name
 from src.agent.view_pages import get_page, on_screen_counts
+from src.shared.imagery.wire import from_payload
 
 
 def format_session_block(state: dict) -> str:
@@ -90,7 +91,9 @@ def format_session_block(state: dict) -> str:
         lines.append("Pulled data: none")
 
     imagery = state.get("imagery") or {}
-    if imagery:
+    if (contract := from_payload(imagery)) is not None:
+        lines.append(f"Imagery: {contract.label()}")
+    elif imagery:
         provider = imagery.get("provider") or "sentinel-2"
         lines.append(
             f"Imagery: {provider} around {imagery.get('target_date')}"

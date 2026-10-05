@@ -1,16 +1,25 @@
 """Planet monthly mosaic imagery provider."""
 
+import hashlib
+import json
 from datetime import date, timedelta
 from typing import Optional
 
-from src.agent.imagery.base import ImageryProviderResult, ImageryRequest
-from src.agent.models import ImageryState
+from src.agent.imagery.base import (
+    ImageryProviderResult,
+    ImageryRequest,
+    aoi_bounds,
+)
+from src.shared.imagery.contract import RasterSource
+from src.shared.imagery.planet import MonthlyPeriod, PlanetImagery
 
 
 class PlanetImageryProvider:
     """Build imagery state for the limited-coverage Planet tile service."""
 
     BASE_URL = "https://tiles.globalforestwatch.org"
+    MIN_ZOOM = 10
+    MAX_ZOOM = 18
     COVERAGE = (-80.0, -30.0, -40.0, 20.0)
 
     def covers(self, aois: list[dict]) -> bool:
@@ -39,49 +48,36 @@ class PlanetImageryProvider:
         return target.strftime("%Y-%m")
 
     @staticmethod
-    def _bounds(aois: list[dict]) -> list[float]:
-        bboxes = [aoi["bbox"] for aoi in aois]
-        return [
-            min(bbox[0] for bbox in bboxes),
-            min(bbox[1] for bbox in bboxes),
-            max(bbox[2] for bbox in bboxes),
-            max(bbox[3] for bbox in bboxes),
-        ]
+    def _layer_id(month: str, aois: list[dict]) -> str:
+        refs = sorted([aoi["source"], aoi["src_id"]] for aoi in aois)
+        payload = json.dumps([month, refs])
+        return hashlib.sha256(payload.encode()).hexdigest()[:16]
 
     async def get_imagery(
         self, request: ImageryRequest
     ) -> ImageryProviderResult:
         month = self.month(request.target_date)
-        month_start = date.fromisoformat(f"{month}-01")
-        next_month = date(
-            month_start.year + (month_start.month == 12),
-            month_start.month % 12 + 1,
-            1,
+        period = MonthlyPeriod.from_month(month)
+        tile_url = (
+            f"{self.BASE_URL}/integrated_alerts_planet_imagery/"
+            f"{{z}}/{{x}}/{{y}}.png?month={month}"
         )
-        month_end = next_month - timedelta(days=1)
-        imagery = ImageryState(
-            provider="planet",
-            tile_url=(
-                f"{self.BASE_URL}/integrated_alerts_planet_imagery/"
-                f"{{z}}/{{x}}/{{y}}.png?month={month}"
-            ),
-            bounds=self._bounds(request.aois),
-            min_zoom=10,
-            max_zoom=18,
-            mosaic_id=f"planet:{month}",
-            start_date=month_start.isoformat(),
-            end_date=month_end.isoformat(),
-            target_date=(
-                request.target_date.isoformat()
-                if request.target_date
-                else None
+        bounds = aoi_bounds(request.aois)
+        imagery = PlanetImagery(
+            period=period,
+            layer_id=self._layer_id(month, request.aois),
+            source=RasterSource(
+                tiles=[tile_url],
+                bounds=bounds,
+                minzoom=self.MIN_ZOOM,
+                maxzoom=self.MAX_ZOOM,
             ),
             aoi_names=[aoi["name"] for aoi in request.aois],
         )
         message = (
             "Showing the limited-coverage Planet monthly mosaic for "
-            f"{month_start.strftime('%B')} {month_start.day}–{month_end.day}, "
-            f"{month_start.year}. Sentinel-2 imagery is also available if "
+            f"{period.start.strftime('%B')} {period.start.day}–{period.end.day}, "
+            f"{period.start.year}. Sentinel-2 imagery is also available if "
             "you'd like to compare it."
         )
         return ImageryProviderResult(

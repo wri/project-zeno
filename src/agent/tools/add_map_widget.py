@@ -29,10 +29,12 @@ from src.agent.tools.common import (
 )
 from src.api.repositories import dashboard_writer
 from src.api.services.widget_configs import (
+    areas_label,
     dataset_config,
     imagery_config,
     widget_config,
 )
+from src.shared.imagery.wire import from_payload
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -46,6 +48,11 @@ def _dataset_summary(snapshot: dict) -> str:
 
 
 def _imagery_summary(snapshot: dict) -> str:
+    if (contract := from_payload(snapshot)) is not None:
+        return (
+            f"{contract.provider} {contract.period.label()} imagery map "
+            f"widget (areas: {areas_label(contract.aoi_names)})"
+        )
     provider = snapshot.get("provider") or "Sentinel-2"
     return (
         f"{provider} imagery map widget (around "

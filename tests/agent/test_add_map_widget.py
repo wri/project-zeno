@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from src.agent.tools.add_map_widget import add_map_widget
 from src.shared.request_context import bound_user_id
+from tests.unit.agent.imagery.factories import planet_imagery
 
 
 def _content(command):
@@ -210,6 +211,27 @@ async def test_add_map_widget_imagery_from_state():
     assert imagery == _imagery_state()
     assert imagery["mosaic_id"] == "abc123"
     assert imagery["tilejson_url"].startswith("https://")
+
+
+async def test_add_map_widget_saves_contract_imagery_and_describes_its_period():
+    dashboard = _dashboard()
+    get_dash, add_widget = _patches(dashboard)
+    contract = planet_imagery().model_dump(mode="json")
+    state = {"imagery": contract, "dashboard_id": str(dashboard.id)}
+    with (
+        get_dash,
+        add_widget as add_widget_mock,
+        bound_user_id("user-1"),
+    ):
+        command = await add_map_widget.coroutine(
+            layer="imagery", state=state, tool_call_id="t1"
+        )
+
+    assert command.update["messages"][0].status == "success"
+    assert add_widget_mock.await_args.kwargs["config"]["imagery"] == contract
+    assert "planet 2026-08-01 → 2026-08-31 imagery map widget" in _content(
+        command
+    )
 
 
 async def test_add_map_widget_title_passthrough():

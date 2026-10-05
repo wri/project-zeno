@@ -58,7 +58,7 @@ def provider_command(
     )
     update = {"messages": [message]}
     if result.imagery is not None:
-        update["imagery"] = result.imagery.model_dump()
+        update["imagery"] = result.imagery.model_dump(mode="json")
     return Command(update=update)
 
 

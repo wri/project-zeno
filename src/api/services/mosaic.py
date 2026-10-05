@@ -42,6 +42,9 @@ from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
+MOSAIC_MINZOOM = 8
+MOSAIC_MAXZOOM = 14
+
 STAC_URL = "https://earth-search.aws.element84.com/v1"
 SENTINEL2_COLLECTION = "sentinel-2-l2a"
 VISUAL_ASSET = "visual"
@@ -221,6 +224,11 @@ class MosaicResult:
         )
 
 
+def search_window(recipe: MosaicRecipe, today: date) -> tuple[date, date]:
+    window = timedelta(days=recipe.window_days)
+    return recipe.target_date - window, min(recipe.target_date + window, today)
+
+
 def encode_recipe(recipe: MosaicRecipe) -> str:
     payload = {
         "a": [list(pair) for pair in recipe.aois],
@@ -334,10 +342,7 @@ async def create_sentinel2_mosaic(recipe: MosaicRecipe) -> MosaicResult:
     geometry = await _load_geometry(recipe)
     check_aoi_area(geometry)
 
-    actual_start = recipe.target_date - timedelta(days=recipe.window_days)
-    actual_end = min(
-        recipe.target_date + timedelta(days=recipe.window_days), date.today()
-    )
+    actual_start, actual_end = search_window(recipe, date.today())
 
     def _search() -> list:
         catalog = pystac_client.Client.open(STAC_URL)
@@ -390,8 +395,8 @@ async def create_sentinel2_mosaic(recipe: MosaicRecipe) -> MosaicResult:
     build_start = time.perf_counter()
     mosaic = MosaicJSON.from_features(
         [item.to_dict() for item in items],
-        minzoom=8,
-        maxzoom=14,
+        minzoom=MOSAIC_MINZOOM,
+        maxzoom=MOSAIC_MAXZOOM,
         accessor=lambda f: f["assets"][VISUAL_ASSET]["href"],
         # Bound the sequential first-match reads per tile; items are sorted
         # by date proximity, so the nearest scenes are kept.
