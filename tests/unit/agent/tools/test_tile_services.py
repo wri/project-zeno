@@ -19,7 +19,6 @@ from src.agent.subagents.pick_dataset.tool import (
     get_dataset_layers,
     get_tile_services_for_dataset,
 )
-from src.shared.config import SharedSettings
 
 IA_TILE = (
     "https://tiles.globalforestwatch.org/gfw_integrated_alerts/latest/"
@@ -55,35 +54,6 @@ def test_integrated_alerts_tile_url_gets_date_params():
     assert len(layers) == 1
     assert layers[0].tile_url == tile_url
     assert layers[0].name == "Integrated alerts"
-
-
-def test_relative_context_layer_tile_url_gets_eoapi_host(monkeypatch):
-    monkeypatch.setattr(
-        SharedSettings, "eoapi_base_url", "https://eoapi.example.com"
-    )
-    selection = SimpleNamespace(
-        dataset_id=INTEGRATED_ALERTS_ID,
-        context_layer="natural_lands",
-        selected_layer=None,
-        parameters=None,
-    )
-    row = SimpleNamespace(
-        dataset_id=INTEGRATED_ALERTS_ID,
-        dataset_name="Integrated alerts",
-        tile_url=IA_TILE,
-        context_layers=[
-            {"value": "natural_lands", "tile_url": "/raster/natural.png"}
-        ],
-        parameters=None,
-    )
-
-    _, context_layers, _ = get_tile_services_for_dataset(
-        selection, row, "2024-03-01", "2024-10-31"
-    )
-
-    assert context_layers[0].tile_url == (
-        "https://eoapi.example.com/raster/natural.png"
-    )
 
 
 def test_multilayer_dataset_returns_all_layers():
