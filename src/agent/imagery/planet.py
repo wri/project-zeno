@@ -1,7 +1,7 @@
 """Planet monthly mosaic imagery provider."""
 
 from datetime import date, timedelta
-from typing import Awaitable, Callable, Optional
+from typing import Optional
 
 import httpx
 
@@ -19,21 +19,15 @@ class PlanetImageryProvider:
     START_DATE = date(2020, 9, 1)
     STATUS_URL = f"{BASE_URL}/integrated_alerts_planet_imagery/status"
 
-    def __init__(
-        self, fetch_status: Optional[Callable[[str], Awaitable[str]]] = None
-    ):
-        self.fetch_status = fetch_status or self._fetch_status
-
-    @staticmethod
-    async def _fetch_status(url: str) -> str:
+    async def fetch_status(self) -> str:
         async with httpx.AsyncClient(timeout=5) as client:
-            response = await client.get(url)
+            response = await client.get(self.STATUS_URL)
             response.raise_for_status()
             return response.json()["status"]
 
     async def is_available(self) -> bool:
         try:
-            return await self.fetch_status(self.STATUS_URL) != "unavailable"
+            return await self.fetch_status() != "unavailable"
         except Exception:
             return True
 

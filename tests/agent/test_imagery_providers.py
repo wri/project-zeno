@@ -99,20 +99,22 @@ def test_planet_date_and_coverage_rules():
     ("status", "expected"), [("available", True), ("unavailable", False)]
 )
 async def test_planet_availability_follows_service_status(status, expected):
-    provider = PlanetImageryProvider(
-        fetch_status=AsyncMock(return_value=status)
-    )
+    provider = PlanetImageryProvider()
 
-    assert await provider.is_available() is expected
+    with patch.object(
+        provider, "fetch_status", AsyncMock(return_value=status)
+    ):
+        assert await provider.is_available() is expected
 
 
 @pytest.mark.asyncio
 async def test_planet_availability_treats_status_errors_as_available():
-    provider = PlanetImageryProvider(
-        fetch_status=AsyncMock(side_effect=TimeoutError)
-    )
+    provider = PlanetImageryProvider()
 
-    assert await provider.is_available()
+    with patch.object(
+        provider, "fetch_status", AsyncMock(side_effect=TimeoutError)
+    ):
+        assert await provider.is_available()
 
 
 @pytest.mark.asyncio
