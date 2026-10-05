@@ -88,6 +88,9 @@ def test_planet_date_and_coverage_rules():
     assert provider.is_newer_than_latest_available(
         date(2026, 7, 1), today=date(2026, 8, 10)
     )
+    assert provider.is_before_earliest_available(date(2020, 8, 31))
+    assert not provider.is_before_earliest_available(date(2020, 9, 1))
+    assert not provider.is_before_earliest_available(None)
     assert not provider.covers(SENTINEL_AOIS)
 
 

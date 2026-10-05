@@ -24,6 +24,10 @@ FALLBACK_PREFIX = (
     "Planet imagery is not available for this area and month, so Sentinel-2 "
     "is shown instead. "
 )
+BEFORE_EARLIEST_PREFIX = (
+    "Planet imagery is only available from September 2020, so Sentinel-2 "
+    "is shown instead. "
+)
 
 
 @tool("show_planet_imagery")
@@ -34,12 +38,12 @@ async def show_planet_imagery(
 ) -> Command:
     """Show Planet's high-resolution monthly mosaic for the AOI in state.
 
-    Use this to inspect integrated deforestation alerts up close in the
-    Amazon. Planet renders only inside a buffer around those alerts within a
-    limited Amazon footprint, so it is blank away from alerts and is not a
-    general basemap. It publishes one mosaic per calendar month, released on
-    the 16th of the following month, so there is never a current-month
-    mosaic and before the 16th the previous month is not yet available.
+    Use this to inspect Integrated Disturbance Alerts up close in the
+    Amazon biome. Planet renders only inside a 500 m buffer around alerts
+    from the past 2 years, so it is blank away from alerts and is not a
+    general basemap. Mosaics start in September 2020; each month is
+    published around the 15th of the following month, so there is never a
+    current-month mosaic.
     target_date (YYYY-MM-DD) selects the month; pass null to get the most
     recent available month, and tell the user it is the most recently
     available Planet imagery. Outside the footprint, or for
@@ -57,21 +61,30 @@ async def show_planet_imagery(
         target_date,
     )
 
-    servable = PLANET_PROVIDER.covers(
-        request.aois
-    ) and not PLANET_PROVIDER.is_newer_than_latest_available(
-        request.target_date
+    servable = (
+        PLANET_PROVIDER.covers(request.aois)
+        and not PLANET_PROVIDER.is_newer_than_latest_available(
+            request.target_date
+        )
+        and not PLANET_PROVIDER.is_before_earliest_available(
+            request.target_date
+        )
     )
     if servable:
         return provider_command(
             await PLANET_PROVIDER.get_imagery(request), tool_call_id
         )
 
+    prefix = (
+        BEFORE_EARLIEST_PREFIX
+        if PLANET_PROVIDER.is_before_earliest_available(request.target_date)
+        else FALLBACK_PREFIX
+    )
     # Still show imagery rather than dead-ending with no layer, and keep the
     # reason attached even when Sentinel-2 itself fails.
     result = await SENTINEL2_PROVIDER.get_imagery(request)
     return provider_command(
-        replace(result, message=f"{FALLBACK_PREFIX}{result.message}"),
+        replace(result, message=f"{prefix}{result.message}"),
         tool_call_id,
     )
 
@@ -81,9 +94,9 @@ SPEC = ToolSpec(
     category=ToolCategory.PRIMITIVE,
     prompt_fragment=(
         "- show_planet_imagery: show Planet's high-resolution monthly mosaic "
-        "for the AOI in state, for inspecting integrated deforestation "
-        "alerts up close in the Amazon. Blank away from alerts; a month is "
-        "published on the 16th of the next month. Use show_imagery for "
-        "recent or non-Amazon imagery."
+        "for the AOI in state, for inspecting Integrated Disturbance Alerts "
+        "up close in the Amazon. Blank away from alerts; available from "
+        "September 2020, each month published around the 15th of the next "
+        "month. Use show_imagery for recent or non-Amazon imagery."
     ),
 )

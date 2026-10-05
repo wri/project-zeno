@@ -14,6 +14,7 @@ class PlanetImageryProvider:
     COVERAGE = (-80.0, -30.0, -40.0, 20.0)
     # A month's mosaic is published on this day of the following month.
     PUBLISH_DAY = 16
+    EARLIEST_MONTH = date(2020, 9, 1)
 
     def covers(self, aois: list[dict]) -> bool:
         west, south, east, north = self.COVERAGE
@@ -41,6 +42,9 @@ class PlanetImageryProvider:
             return False
         latest = self.latest_available_month(today=today)
         return target.replace(day=1) > latest
+
+    def is_before_earliest_available(self, target: Optional[date]) -> bool:
+        return target is not None and target < self.EARLIEST_MONTH
 
     def month(
         self, target: Optional[date], *, today: Optional[date] = None
@@ -94,8 +98,7 @@ class PlanetImageryProvider:
             if request.target_date
             else (
                 " This is the most recent Planet mosaic available; each "
-                f"month is published on the {self.PUBLISH_DAY}th of the "
-                "following month."
+                "month is published around the 15th of the following month."
             )
         )
         message = (

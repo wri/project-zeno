@@ -89,6 +89,19 @@ async def test_falls_back_to_sentinel_with_reason(state, target_date):
 
 
 @pytest.mark.asyncio
+async def test_explains_planet_starts_september_2020():
+    sentinel = AsyncMock(return_value=_result("sentinel-2"))
+
+    with patch.object(SENTINEL2_PROVIDER, "get_imagery", sentinel):
+        command = await show_planet_imagery.coroutine(
+            state=IN_COVERAGE, target_date="2019-03-15", tool_call_id="t1"
+        )
+
+    assert command.update["imagery"]["provider"] == "sentinel-2"
+    assert "September 2020" in _message(command)
+
+
+@pytest.mark.asyncio
 async def test_fallback_reason_survives_a_sentinel_error():
     sentinel = AsyncMock(
         return_value=ImageryProviderResult(
