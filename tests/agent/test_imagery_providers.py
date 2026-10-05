@@ -48,7 +48,7 @@ async def test_planet_provider_builds_monthly_imagery():
         ),
         "bounds": [-69.5, -1.0, -69.0, -0.5],
         "min_zoom": 10,
-        "max_zoom": 18,
+        "max_zoom": 15,
         "mosaic_id": "planet:2025-06",
         "start_date": "2025-06-01",
         "end_date": "2025-06-30",
@@ -56,6 +56,18 @@ async def test_planet_provider_builds_monthly_imagery():
         "aoi_names": ["Planet test area"],
     }
     assert "June 1–30, 2025" in result.message
+    assert "most recent" not in result.message
+    assert "zoomed in to about 10 km" in result.message
+
+
+@pytest.mark.asyncio
+async def test_planet_provider_flags_latest_available_month():
+    provider = PlanetImageryProvider()
+
+    result = await provider.get_imagery(_request(target=None))
+
+    assert result.imagery.mosaic_id == (f"planet:{provider.month(None)}")
+    assert "most recent Planet mosaic available" in result.message
 
 
 def test_planet_date_and_coverage_rules():
@@ -63,12 +75,18 @@ def test_planet_date_and_coverage_rules():
     today = date(2026, 8, 25)
 
     assert provider.month(None, today=today) == "2026-07"
-    assert provider.month(None, today=date(2026, 1, 3)) == "2025-12"
-    assert not provider.is_newer_than_last_full_month(
+    assert provider.month(None, today=date(2026, 8, 16)) == "2026-07"
+    assert provider.month(None, today=date(2026, 8, 15)) == "2026-06"
+    assert provider.month(None, today=date(2026, 10, 2)) == "2026-08"
+    assert provider.month(None, today=date(2026, 1, 3)) == "2025-11"
+    assert not provider.is_newer_than_latest_available(
         date(2026, 7, 31), today=today
     )
-    assert provider.is_newer_than_last_full_month(
+    assert provider.is_newer_than_latest_available(
         date(2026, 8, 1), today=today
+    )
+    assert provider.is_newer_than_latest_available(
+        date(2026, 7, 1), today=date(2026, 8, 10)
     )
     assert not provider.covers(SENTINEL_AOIS)
 
