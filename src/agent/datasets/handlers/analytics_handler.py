@@ -220,6 +220,17 @@ def merge_lgms_sections(raw_data: dict) -> dict:
     return merged
 
 
+def keep_natural_forest_rows(raw_data: dict) -> dict:
+    """Keep only rows classed as natural forest and drop the class column."""
+    classes = raw_data["natural_forests_class"]
+    keep = [i for i, c in enumerate(classes) if c.lower() == "natural forest"]
+    return {
+        column: [values[i] for i in keep]
+        for column, values in raw_data.items()
+        if column != "natural_forests_class"
+    }
+
+
 def _count_and_enrich(raw_data: Any, aois: list[dict]) -> tuple[Any, int]:
     """Count data points and add AOI names (by ``aoi_id``) to a flat result."""
     count = _first_list_len(raw_data) if isinstance(raw_data, dict) else 0
@@ -365,11 +376,15 @@ class AnalyticsHandler(DataSourceHandler):
 
         payload: dict[str, Any]
         if dataset.get("dataset_id") == INTEGRATED_ALERTS_ID:
-            # Integrated Alerts has no intersections; it takes full dates only.
+            land_filter = None
+            if dataset.get("context_layer") == "natural_lands":
+                land_filter = "natural_lands"
+
             payload = {
                 **base_payload,
                 "start_date": start_date,
                 "end_date": end_date,
+                "land_filter": land_filter,
             }
 
         elif dataset.get("dataset_id") in [
@@ -397,6 +412,9 @@ class AnalyticsHandler(DataSourceHandler):
 
             elif dataset.get("context_layer") == "intact_forest":
                 forest_filter = "intact_forest"
+
+            elif dataset.get("context_layer") == "natural_forest":
+                forest_filter = "natural_forest"
             intersections = []
             if dataset.get("dataset_id") == TREE_COVER_LOSS_BY_DRIVER_ID:
                 intersections = ["driver"]
@@ -459,13 +477,19 @@ class AnalyticsHandler(DataSourceHandler):
                 f"Unknown dataset ID: {dataset.get('dataset_id')}"
             )
 
-        if dataset.get("dataset_id") in [
-            TREE_COVER_LOSS_ID,
-            TREE_COVER_ID,
-            TREE_COVER_LOSS_BY_DRIVER_ID,
-            TREE_COVER_LOSS_BY_FIRES_ID,
-            FOREST_CARBON_FLUX_ID,
-        ]:
+        # The API rejects a canopy cover threshold with the natural forest
+        # filter, since natural forest is a 2020 map independent of canopy.
+        if (
+            dataset.get("dataset_id")
+            in [
+                TREE_COVER_LOSS_ID,
+                TREE_COVER_ID,
+                TREE_COVER_LOSS_BY_DRIVER_ID,
+                TREE_COVER_LOSS_BY_FIRES_ID,
+                FOREST_CARBON_FLUX_ID,
+            ]
+            and dataset.get("context_layer") != "natural_forest"
+        ):
             canopy_cover: int = 30
             params = dataset.get("parameters")
             if params is not None:
@@ -570,6 +594,8 @@ class AnalyticsHandler(DataSourceHandler):
         # flows through the normal single-table analysis path.
         if dataset.get("dataset_id") == LAND_GHG_INVENTORY_ID:
             raw_data = merge_lgms_sections(raw_data)
+        if dataset.get("context_layer") == "natural_forest":
+            raw_data = keep_natural_forest_rows(raw_data)
         raw_data, data_points_count = _count_and_enrich(raw_data, aois)
         message_detail = f"Found {data_points_count} data points"
         analytics_url = result["data"]["link"]

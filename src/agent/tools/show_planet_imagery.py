@@ -37,10 +37,12 @@ async def show_planet_imagery(
     Use this to inspect integrated deforestation alerts up close in the
     Amazon. Planet renders only inside a buffer around those alerts within a
     limited Amazon footprint, so it is blank away from alerts and is not a
-    general basemap. It publishes one mosaic per calendar month and only
-    through the last complete month, so there is never a current-month or
-    "latest" Planet mosaic. target_date (YYYY-MM-DD) selects the month; pass
-    null to get the previous complete month. Outside the footprint, or for
+    general basemap. It publishes one mosaic per calendar month, released on
+    the 16th of the following month, so there is never a current-month
+    mosaic and before the 16th the previous month is not yet available.
+    target_date (YYYY-MM-DD) selects the month; pass null to get the most
+    recent available month, and tell the user it is the most recently
+    available Planet imagery. Outside the footprint, or for
     "latest"/"recent" imagery, use show_imagery instead — this tool falls
     back to Sentinel-2 and says so. Run pick_aoi first. Regional areas only.
     """
@@ -57,7 +59,7 @@ async def show_planet_imagery(
 
     servable = PLANET_PROVIDER.covers(
         request.aois
-    ) and not PLANET_PROVIDER.is_newer_than_last_full_month(
+    ) and not PLANET_PROVIDER.is_newer_than_latest_available(
         request.target_date
     )
     if servable:
@@ -80,7 +82,8 @@ SPEC = ToolSpec(
     prompt_fragment=(
         "- show_planet_imagery: show Planet's high-resolution monthly mosaic "
         "for the AOI in state, for inspecting integrated deforestation "
-        "alerts up close in the Amazon. Blank away from alerts and never "
-        "current-month; use show_imagery for recent or non-Amazon imagery."
+        "alerts up close in the Amazon. Blank away from alerts; a month is "
+        "published on the 16th of the next month. Use show_imagery for "
+        "recent or non-Amazon imagery."
     ),
 )
