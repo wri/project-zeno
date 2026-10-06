@@ -58,7 +58,9 @@ async def test_planet_shown_inside_coverage():
     with (
         patch.object(PLANET_PROVIDER, "get_imagery", planet),
         patch.object(
-            PLANET_PROVIDER, "is_available", AsyncMock(return_value=True)
+            PLANET_PROVIDER,
+            "service_status",
+            AsyncMock(return_value="available"),
         ),
     ):
         command = await show_planet_imagery.coroutine(
@@ -69,13 +71,17 @@ async def test_planet_shown_inside_coverage():
 
 
 @pytest.mark.asyncio
-async def test_explains_planet_is_temporarily_unavailable():
+@pytest.mark.parametrize(
+    ("status", "reason"),
+    [("unavailable", "back next month"), ("error", "check back soon")],
+)
+async def test_explains_planet_service_outage(status, reason):
     sentinel = AsyncMock(return_value=_result("sentinel-2"))
 
     with (
         patch.object(SENTINEL2_PROVIDER, "get_imagery", sentinel),
         patch.object(
-            PLANET_PROVIDER, "is_available", AsyncMock(return_value=False)
+            PLANET_PROVIDER, "service_status", AsyncMock(return_value=status)
         ),
     ):
         command = await show_planet_imagery.coroutine(
@@ -83,7 +89,7 @@ async def test_explains_planet_is_temporarily_unavailable():
         )
 
     assert command.update["imagery"]["provider"] == "sentinel-2"
-    assert "back next month" in _message(command)
+    assert reason in _message(command)
 
 
 @pytest.mark.asyncio

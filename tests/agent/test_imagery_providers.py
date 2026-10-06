@@ -3,6 +3,7 @@
 from datetime import date, timedelta
 from unittest.mock import AsyncMock, patch
 
+import httpx
 import pytest
 from cogeo_mosaic.errors import MosaicNotFoundError
 
@@ -95,26 +96,33 @@ def test_planet_date_and_coverage_rules():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("status", "expected"), [("available", True), ("unavailable", False)]
-)
-async def test_planet_availability_follows_service_status(status, expected):
+@pytest.mark.parametrize("status", ["available", "unavailable"])
+async def test_planet_service_status_follows_status_endpoint(status):
     provider = PlanetImageryProvider()
 
     with patch.object(
         provider, "fetch_status", AsyncMock(return_value=status)
     ):
-        assert await provider.is_available() is expected
+        assert await provider.service_status() == status
 
 
 @pytest.mark.asyncio
-async def test_planet_availability_treats_status_errors_as_available():
+@pytest.mark.parametrize(
+    "get",
+    [
+        AsyncMock(
+            return_value=httpx.Response(
+                503, request=httpx.Request("GET", "https://example.com")
+            )
+        ),
+        AsyncMock(side_effect=httpx.ConnectTimeout("timed out")),
+    ],
+)
+async def test_planet_service_status_is_error_when_status_check_fails(get):
     provider = PlanetImageryProvider()
 
-    with patch.object(
-        provider, "fetch_status", AsyncMock(side_effect=TimeoutError)
-    ):
-        assert await provider.is_available()
+    with patch.object(httpx.AsyncClient, "get", get):
+        assert await provider.service_status() == "error"
 
 
 @pytest.mark.asyncio

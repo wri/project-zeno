@@ -25,11 +25,13 @@ class PlanetImageryProvider:
             response.raise_for_status()
             return response.json()["status"]
 
-    async def is_available(self) -> bool:
+    async def service_status(self) -> str:
+        """Return "available", "unavailable" (quota used up) or "error"."""
         try:
-            return await self.fetch_status() != "unavailable"
+            status = await self.fetch_status()
         except Exception:
-            return True
+            return "error"
+        return status if status in ("available", "unavailable") else "error"
 
     def covers(self, aois: list[dict]) -> bool:
         west, south, east, north = self.COVERAGE

@@ -28,6 +28,10 @@ UNAVAILABLE_PREFIX = (
     "Planet imagery is unavailable at this time; we expect it to be back "
     "next month. In the meantime, we've shown Sentinel-2 instead. "
 )
+ERROR_PREFIX = (
+    "Planet imagery is temporarily unavailable, please check back soon. In "
+    "the meantime, we've shown Sentinel-2 instead. "
+)
 BEFORE_START_PREFIX = (
     "Planet imagery is only available from September 2020, so Sentinel-2 "
     "is shown instead. "
@@ -74,11 +78,14 @@ async def show_planet_imagery(
         request.aois
     ) or PLANET_PROVIDER.is_newer_than_latest_available(request.target_date):
         prefix = FALLBACK_PREFIX
-    elif not await PLANET_PROVIDER.is_available():
-        prefix = UNAVAILABLE_PREFIX
     else:
-        return provider_command(
-            await PLANET_PROVIDER.get_imagery(request), tool_call_id
+        status = await PLANET_PROVIDER.service_status()
+        if status == "available":
+            return provider_command(
+                await PLANET_PROVIDER.get_imagery(request), tool_call_id
+            )
+        prefix = (
+            UNAVAILABLE_PREFIX if status == "unavailable" else ERROR_PREFIX
         )
 
     # Still show imagery rather than dead-ending with no layer, and keep the
