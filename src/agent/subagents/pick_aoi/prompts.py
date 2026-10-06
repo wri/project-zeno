@@ -7,11 +7,11 @@ from that request. Every translation / subregion / global-query rule lives
 here, behind the tool boundary — the orchestrator never needs to know them.
 
 The `place` and `canonical` fields deliberately follow OPPOSITE accent
-rules. `place` stays de-accented English, which is what the search has
-always used; `canonical` restores the official spelling because the stored
-names keep their accents and the trigram search is accent-sensitive, so
-"Pará, Brazil" retrieves the row that "Para, Brazil" only half-matches.
-Both are searched, so neither spelling can cost recall.
+rules. `place` stays de-accented English, the form the user is most likely
+to recognise in a message; `canonical` restores the official spelling and
+expands exonyms and acronyms, which is how the stored names read. The search
+itself ignores accents, so both forms reach the same rows; both are searched
+so that neither spelling can cost recall.
 """
 
 from src.agent.subagents.pick_aoi.types import AreaOfInterestType
