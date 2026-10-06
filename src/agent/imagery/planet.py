@@ -3,6 +3,8 @@
 from datetime import date, timedelta
 from typing import Optional
 
+import httpx
+
 from src.agent.imagery.base import ImageryProviderResult, ImageryRequest
 from src.agent.models import ImageryState
 
@@ -14,6 +16,22 @@ class PlanetImageryProvider:
     COVERAGE = (-80.0, -30.0, -40.0, 20.0)
     # A month's mosaic is published on this day of the following month.
     PUBLISH_DAY = 16
+    START_DATE = date(2020, 9, 1)
+    STATUS_URL = f"{BASE_URL}/integrated_alerts_planet_imagery/status"
+
+    async def fetch_status(self) -> str:
+        async with httpx.AsyncClient(timeout=5) as client:
+            response = await client.get(self.STATUS_URL)
+            response.raise_for_status()
+            return response.json()["status"]
+
+    async def service_status(self) -> str:
+        """Return "available", "unavailable" (quota used up) or "error"."""
+        try:
+            status = await self.fetch_status()
+        except Exception:
+            return "error"
+        return status if status in ("available", "unavailable") else "error"
 
     def covers(self, aois: list[dict]) -> bool:
         west, south, east, north = self.COVERAGE
@@ -41,6 +59,9 @@ class PlanetImageryProvider:
             return False
         latest = self.latest_available_month(today=today)
         return target.replace(day=1) > latest
+
+    def is_before_start_date(self, target: Optional[date]) -> bool:
+        return target is not None and target < self.START_DATE
 
     def month(
         self, target: Optional[date], *, today: Optional[date] = None
@@ -94,8 +115,7 @@ class PlanetImageryProvider:
             if request.target_date
             else (
                 " This is the most recent Planet mosaic available; each "
-                f"month is published on the {self.PUBLISH_DAY}th of the "
-                "following month."
+                "month is published around the 15th of the following month."
             )
         )
         message = (

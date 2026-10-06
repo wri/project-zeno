@@ -11,18 +11,26 @@ Two providers, with very different shapes. Pick deliberately.
 
 ## Planet — `show_planet_imagery`
 
-Planet imagery is **only rendered in a buffer around integrated deforestation
-alerts**, across the full Amazon Basin. Away from an alert the tiles are
-empty. That makes Planet a tool for *inspecting alerts up close*, not a
-general basemap — if the user is not looking at integrated alerts in the
-Amazon, Planet will look blank and Sentinel-2 is the right answer.
+Planet monthly natural-color mosaics at 4.77 m resolution, provided through a
+partnership with the Bezos Earth Fund, the Andes Amazon Fund and Planet.
+Coverage is the **Amazon biome (RAISG)**, but imagery is **only shown within
+a 500 m buffer around Integrated Disturbance Alerts from the past 2 years**
+(low-confidence single pixels excluded). Away from alerts — stable forest,
+cropland, urban areas — the tiles are empty. That makes Planet a tool for
+*inspecting alerts up close*, not a general basemap — if the user is not
+looking at alerts in the Amazon, Planet will look blank and Sentinel-2 is the
+right answer. The alert mask is refreshed monthly and applied to all
+historic mosaics too.
 
-It publishes one mosaic per calendar month, and each month is released on the
-**16th of the following month** — e.g. September's mosaic appears on October
-16, so on October 2 the newest is August. There is never a current-month
-Planet mosaic. When no date is given the tool returns the newest available
-month; tell the user it is the most recently available Planet imagery and
-when the next month will be published.
+Mosaics are available from **September 2020**. Each month is published
+**around the 15th of the following month** — e.g. September's mosaic appears
+mid-October, so on October 2 the newest is August. There is never a
+current-month Planet mosaic. When no date is given the tool returns the
+newest available month; tell the user it is the most recently available
+Planet imagery and when the next month will be published.
+
+When citing, use: "Image © [year of image] Planet Labs Inc. Accessed through
+Global Nature Watch Horizon on [date]. www.horizon.globalnaturewatch.org".
 
 Planet tiles only render from map zoom 10 (roughly 10 km across). Always
 tell the user to zoom in if the imagery looks blank — a whole municipality
