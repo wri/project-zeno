@@ -13,6 +13,7 @@ from src.agent.subagents.pick_aoi.tool import (
 )
 from src.agent.subagents.pick_aoi.types import AreaOfInterestType
 from src.shared import geocoding_helpers
+from src.shared.aoi_search import EXACT_TIER
 from src.shared.geocoding_helpers import fetch_aoi_bbox
 from tests.unit.agent.tools.pick_aoi.conftest import (
     _lookup,
@@ -476,6 +477,63 @@ async def test_a_row_matched_by_two_terms_appears_once_at_its_best_score(
 
 
 @pytest.mark.asyncio
+async def test_a_row_one_term_matched_as_written_is_not_a_guess(monkeypatch):
+    # The corrected copy outscores the as-written one (a context hit), so it
+    # is the copy the merge keeps; the row must still not count as a guess.
+    _patch_search(
+        monkeypatch,
+        {
+            "Victoria": [_row("AUS.10_1", "Victoria, Australia", score=0.5)],
+            "Victorria, Australia": [
+                _row(
+                    "AUS.10_1",
+                    "Victoria, Australia",
+                    score=0.56,
+                    corrected=True,
+                    context_hit=True,
+                )
+            ],
+        },
+    )
+
+    merged, _ = await tool_module.query_aoi_database_multiterm(
+        ["Victoria", "Victorria, Australia"], None
+    )
+
+    assert len(merged) == 1
+    row = merged.iloc[0]
+    assert row["similarity_score"] == 0.56
+    assert not row["corrected"]
+
+
+@pytest.mark.asyncio
+async def test_a_row_every_term_corrected_stays_a_guess(monkeypatch):
+    _patch_search(
+        monkeypatch,
+        {
+            "Victorria": [
+                _row("AUS.10_1", "Victoria, Australia", corrected=True)
+            ],
+            "Viktorria": [
+                _row(
+                    "AUS.10_1",
+                    "Victoria, Australia",
+                    score=0.6,
+                    corrected=True,
+                )
+            ],
+        },
+    )
+
+    merged, _ = await tool_module.query_aoi_database_multiterm(
+        ["Victorria", "Viktorria"], None
+    )
+
+    assert len(merged) == 1
+    assert merged.iloc[0]["corrected"]
+
+
+@pytest.mark.asyncio
 async def test_terms_matching_different_sources_are_all_returned(monkeypatch):
     _patch_search(
         monkeypatch,
@@ -711,6 +769,40 @@ async def test_an_ambiguity_nudge_still_fires_for_the_place_name_itself(
     _patch_search(
         monkeypatch,
         {
+            "Puri": [
+                _row(
+                    "IND.26.26_1",
+                    "Puri, Odisha, India",
+                    subtype="district-county",
+                ),
+                _row(
+                    "SLE.1.2_1",
+                    "Puri, Sierra Leone",
+                    subtype="district-county",
+                ),
+            ]
+        },
+    )
+
+    command = await _lookup(
+        [ExtractedPlace(place="Puri")],
+        question="deforestation in Puri",
+    )
+
+    assert command.update["nudge"]["type"] == "aoi_choice"
+    assert len(command.update["nudge"]["options"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_a_place_given_with_its_parent_raises_no_nudge(monkeypatch):
+    """ "Puri, India" is already disambiguated by the user.
+
+    The search ranks the parent's match first and still returns the other
+    countries' Puris below it, which is not a question to put back.
+    """
+    _patch_search(
+        monkeypatch,
+        {
             "Puri, India": [
                 _row(
                     "IND.26.26_1",
@@ -731,8 +823,10 @@ async def test_an_ambiguity_nudge_still_fires_for_the_place_name_itself(
         question="deforestation in Puri, India",
     )
 
-    assert command.update["nudge"]["type"] == "aoi_choice"
-    assert len(command.update["nudge"]["options"]) == 2
+    assert "nudge" not in command.update
+    assert (
+        command.update["aoi_selection"]["aois"][0]["src_id"] == "IND.26.26_1"
+    )
 
 
 @pytest.mark.asyncio
@@ -803,3 +897,276 @@ async def test_a_place_resolved_only_by_an_alternative_raises_no_nudge(
 
     assert "nudge" not in command.update
     assert command.update["aoi_selection"]["aois"][0]["src_id"] == "USA.6_1"
+
+
+@pytest.mark.asyncio
+async def test_a_less_prominent_namesake_raises_no_nudge(monkeypatch):
+    """Scotland is a state; the US districts called Scotland are not a
+    question to ask back. The search now returns every namesake, so the
+    nudge weighs prominence."""
+    _patch_search(
+        monkeypatch,
+        {
+            "Scotland": [
+                _row(
+                    "GBR.3_1",
+                    "Scotland, United Kingdom",
+                    subtype="state-province",
+                ),
+                _row(
+                    "USA.7.8_1",
+                    "Scotland, Windham, Connecticut, United States",
+                    subtype="district-county",
+                ),
+            ]
+        },
+    )
+
+    command = await _lookup(
+        [ExtractedPlace(place="Scotland")], question="peatland in Scotland"
+    )
+
+    assert "nudge" not in command.update
+    assert command.update["aoi_selection"]["aois"][0]["src_id"] == "GBR.3_1"
+
+
+@pytest.mark.asyncio
+async def test_namesakes_of_the_same_prominence_still_nudge(monkeypatch):
+    _patch_search(
+        monkeypatch,
+        {
+            "Amazonas": [
+                _row("BRA.4_1", "Amazonas, Brazil", subtype="state-province"),
+                _row("PER.1_1", "Amazonas, Peru", subtype="state-province"),
+            ]
+        },
+    )
+
+    command = await _lookup(
+        [ExtractedPlace(place="Amazonas")], question="forest loss in Amazonas"
+    )
+
+    assert command.update["nudge"]["type"] == "aoi_choice"
+    assert len(command.update["nudge"]["options"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_a_name_that_merely_starts_with_the_leaf_is_no_namesake(
+    monkeypatch,
+):
+    """ "Parisi" is not a Paris to choose between."""
+    _patch_search(
+        monkeypatch,
+        {
+            "Paris": [
+                _row(
+                    "FRA.8.3_1",
+                    "Paris, Île-de-France, France",
+                    subtype="district-county",
+                ),
+                _row(
+                    "BRA.25.380_1",
+                    "Parisi, São Paulo, Brazil",
+                    subtype="district-county",
+                ),
+            ]
+        },
+    )
+
+    command = await _lookup(
+        [ExtractedPlace(place="Paris")], question="tree cover in Paris"
+    )
+
+    assert "nudge" not in command.update
+    assert command.update["aoi_selection"]["aois"][0]["src_id"] == "FRA.8.3_1"
+
+
+@pytest.mark.asyncio
+async def test_nudge_options_keep_to_the_prominence_floor(monkeypatch):
+    """The Colombian municipality is neither the trigger nor an option."""
+    _patch_search(
+        monkeypatch,
+        {
+            "Amazonas": [
+                _row("BRA.4_1", "Amazonas, Brazil", subtype="state-province"),
+                _row("PER.1_1", "Amazonas, Peru", subtype="state-province"),
+                _row(
+                    "COL.3.1_1",
+                    "Amazonas, Caquetá, Colombia",
+                    subtype="municipality",
+                ),
+            ]
+        },
+    )
+
+    command = await _lookup(
+        [ExtractedPlace(place="Amazonas")], question="forest loss in Amazonas"
+    )
+
+    assert [c["src_id"] for c in command.update["nudge"]["data"]] == [
+        "BRA.4_1",
+        "PER.1_1",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_a_countrys_own_rows_are_not_another_country(monkeypatch):
+    """São Tomé the district against São Tomé and Príncipe the country is
+    not a choice between countries."""
+    _patch_search(
+        monkeypatch,
+        {
+            "São Tomé": [
+                # As the search reports them: an exact leaf against a token
+                # match.
+                _row(
+                    "STP.1_1",
+                    "São Tomé, São Tomé and Príncipe",
+                    subtype="state-province",
+                    tier=EXACT_TIER,
+                ),
+                _row("STP", "São Tomé and Príncipe", subtype="country"),
+            ]
+        },
+    )
+
+    command = await _lookup(
+        [ExtractedPlace(place="São Tomé")], question="mangroves in São Tomé"
+    )
+
+    assert "nudge" not in command.update
+    assert command.update["aoi_selection"]["aois"][0]["src_id"] == "STP.1_1"
+
+
+@pytest.mark.asyncio
+async def test_a_country_nudges_against_a_namesake_state_elsewhere(
+    monkeypatch,
+):
+    _patch_search(
+        monkeypatch,
+        {
+            "Georgia": [
+                _row("GEO", "Georgia", subtype="country"),
+                _row(
+                    "USA.11_1",
+                    "Georgia, United States",
+                    subtype="state-province",
+                ),
+            ]
+        },
+    )
+
+    command = await _lookup(
+        [ExtractedPlace(place="Georgia")], question="peach orchards in Georgia"
+    )
+
+    assert command.update["nudge"]["type"] == "aoi_choice"
+    assert len(command.update["nudge"]["options"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_a_pick_reached_only_by_correction_is_offered_not_selected(
+    monkeypatch,
+):
+    """ "Kashmir" is not in the corpus; the search's closest guess is a
+    Persian reserve one edit away. A guess is a question, not a map."""
+    _patch_search(
+        monkeypatch,
+        {
+            "Kashmir": [
+                _row(
+                    "555",
+                    "Bagh-e-Keshmir, Protected Area, IRN",
+                    source="wdpa",
+                    subtype="protected-area",
+                    score=0.2,
+                    corrected=True,
+                )
+            ]
+        },
+    )
+
+    command = await _lookup(
+        [ExtractedPlace(place="Kashmir")], question="glaciers in Kashmir"
+    )
+
+    assert "aoi_selection" not in command.update
+    message = str(command.update["messages"][0].content)
+    assert message.startswith("No matching location was found for: Kashmir")
+    assert "closest stored names: Bagh-e-Keshmir" in message
+
+
+@pytest.mark.asyncio
+async def test_a_guessed_place_is_skipped_beside_a_matched_one(monkeypatch):
+    _patch_search(
+        monkeypatch,
+        {
+            "Kenya": [_row("KEN", "Kenya", subtype="country", score=0.8)],
+            "Coral Triangle": [
+                _row(
+                    "AUS.3_1",
+                    "Coral Sea Islands Territory, Australia",
+                    subtype="state-province",
+                    score=0.27,
+                    corrected=True,
+                ),
+                _row(
+                    "9",
+                    "Coral Sea Islands, Coral Sea Islands, AUS",
+                    source="kba",
+                    subtype="key-biodiversity-area",
+                    score=0.2,
+                    corrected=True,
+                ),
+            ],
+        },
+    )
+
+    command = await _lookup(
+        [
+            ExtractedPlace(place="Kenya"),
+            ExtractedPlace(place="Coral Triangle"),
+        ],
+        question="reefs in Kenya and the Coral Triangle",
+    )
+
+    aois = command.update["aoi_selection"]["aois"]
+    assert [a["src_id"] for a in aois] == ["KEN"]
+    message = str(command.update["messages"][0].content)
+    assert "No match found for: Coral Triangle" in message
+    assert (
+        "closest stored names: Coral Sea Islands Territory, Australia; "
+        "Coral Sea Islands, Coral Sea Islands, AUS" in message
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_resubmitted_nudge_option_is_searched_without_its_decoration(
+    monkeypatch,
+):
+    """An ``aoi_choice`` option comes back verbatim as the next question, and
+    the search must see only the name."""
+    calls = _patch_search(
+        monkeypatch,
+        {
+            "Paris, Île-de-France, France": [
+                _row(
+                    "FRA.8.3_1",
+                    "Paris, Île-de-France, France",
+                    subtype="district-county",
+                )
+            ]
+        },
+    )
+
+    command = await _lookup(
+        [
+            ExtractedPlace(
+                place="Paris, Île-de-France, France - (district-county) [FRA]"
+            )
+        ],
+        question="Paris, Île-de-France, France - (district-county) [FRA]",
+    )
+
+    assert [call[0] for call in calls] == ["Paris, Île-de-France, France"]
+    assert command.update["aoi_selection"]["aois"][0]["src_id"] == "FRA.8.3_1"

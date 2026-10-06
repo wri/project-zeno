@@ -1,10 +1,12 @@
 """Deterministic candidate scoring for the `pick_aoi` geocoder (PZB-1272).
 
-Retrieval and selection need different comparisons. `search_aois` ranks by
-pg_trgm similarity over the whole stored name, which is accent-sensitive: for
-the query "Para" it puts "Paraná" ABOVE "Pará", because the accent breaks
-Pará's trigrams. Selection therefore re-scores the retrieved rows here,
-accent-insensitively, instead of asking a model to repair the ranking.
+Retrieval and selection need different comparisons. `search_aois` ranks a
+candidate list by match tier and prominence; the geocoder then has several
+such lists, one per spelling it tried, and picks one row across all of them.
+Selection therefore re-scores the retrieved rows here, accent-insensitively,
+adding what the search knew about a row and the string comparison cannot
+see: that it matched a stored name exactly, that the typed parent matched,
+that it was reached only by a guess. No model chooses.
 
 This module knows nothing about the tool it serves: it returns the winning
 DataFrame row, and the caller turns that into an `AOIIndex`.
@@ -17,15 +19,35 @@ from typing import Optional, Sequence
 
 import pandas as pd
 
-from src.shared.geocoding_helpers import SUBREGION_TO_SUBTYPE_MAPPING
+from src.shared.aoi_search import EXACT_TIER
+from src.shared.aoi_search_sql import HIERARCHY_SCORES
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
+# The terms of a candidate's score, each in [0, 1] before its weight. The
+# name comparison and the hierarchy are the base; the rest are bonuses and
+# one penalty for what the search reported about the row.
 _SIMILARITY_WEIGHT = 0.5
 _HIERARCHY_WEIGHT = 0.3
+# The term's leaf equals the row's stored leaf, else the row's name starts
+# with the term. "Para" is Pará, not Paraná.
 _EXACT_SEGMENT_BONUS = 0.2
 _PREFIX_BONUS = 0.1
+# The search matched the row on a stored name exactly (``tier`` is
+# ``EXACT_TIER``), which for a variant ("Lisbon" for Lisboa) the string
+# comparison cannot see. Worth a prefix.
+_STORED_NAME_BONUS = 0.1
+# The user named the parent ("Victoria, Canada") and the row has it
+# (``context_hit``). A typed parent is the strongest signal there is: it has
+# to outweigh a one-step hierarchy advantage, or the Australian state beats
+# the Canadian county.
+_CONTEXT_MATCH_BONUS = 0.2
+# A row the search reached only by correcting a spelling or dropping a word
+# (``corrected``) is a guess. It loses a near-tie against any row a spelling
+# matched as written, and when it still wins the geocoder treats the place
+# as unmatched and offers the name instead of selecting it.
+_CORRECTED_PENALTY = 0.15
 
 # Punctuation that can wrap a name segment. Stored names carry trailing
 # commas ("NA, England, United Kingdom"), and an `aoi_choice` nudge option is
@@ -34,27 +56,9 @@ _PREFIX_BONUS = 0.1
 # would never match the same place spelled plainly.
 _SEGMENT_PUNCTUATION = string.punctuation + string.whitespace
 
-# Preference by subtype: broader admin units beat narrower ones, and admin
-# units beat named sites (KBA/WDPA/Landmark), so a bare "Lisbon" resolves to
-# the Portuguese district rather than a small "Lisbon Forest Preserve". These
-# ten values are everything `search_aois` can emit. The weights are tuning
-# constants, hand-authored: they are not derived from any other ordering.
-_HIERARCHY_SCORES: dict[str, float] = {
-    "country": 1.0,
-    "state-province": 0.9,
-    "district-county": 0.7,
-    "custom-area": 0.7,
-    "municipality": 0.5,
-    "locality": 0.35,
-    "neighbourhood": 0.25,
-    "key-biodiversity-area": 0.2,
-    "protected-area": 0.2,
-    "indigenous-and-community-land": 0.2,
-}
-
-# A subtype missing from the map raises on the query that returns it, so pin
-# the coverage at import time: CI sees it, a user does not.
-assert set(_HIERARCHY_SCORES) == set(SUBREGION_TO_SUBTYPE_MAPPING.values())
+# The subtype preference lives with the search, which ranks by it in SQL;
+# the scorer applies the same table so the two orderings agree.
+_HIERARCHY_SCORES = HIERARCHY_SCORES
 
 
 def _strip_accents(text_value: str) -> str:
@@ -65,15 +69,22 @@ def _strip_accents(text_value: str) -> str:
     )
 
 
-def _first_segment(name: str) -> str:
-    """The leaf name: first comma-separated segment, accent-stripped.
-
-    Stored names are comma-joined most-specific-first ("Pará, Brazil";
-    "Botum Sakor, ..., KHM") and the geocoder emits "Place, Parent" strings,
-    so the first segment is the place's own name.
-    """
-    leaf = name.split(",")[0]
+def leaf_key(leaf: str) -> str:
+    """The form in which two leaf names are compared: accent-stripped,
+    lowercased, outer punctuation removed."""
     return _strip_accents(leaf).strip(_SEGMENT_PUNCTUATION)
+
+
+def _first_segment(name: str) -> str:
+    """The leaf of a query term: its first comma-separated segment.
+
+    The geocoder emits "Place, Parent" strings, so the first segment is the
+    place's own name. A stored row carries its real leaf in the ``leaf``
+    column; only a term, or a row without that column, is split here, because
+    a stored leaf can itself contain a comma ("Krüger-, Rähden- und
+    Möschensee").
+    """
+    return leaf_key(name.split(",")[0])
 
 
 def _hierarchy_score(subtype: str) -> float:
@@ -111,13 +122,17 @@ def _score_prepared(
     return score
 
 
-def _score_candidate(place_name: str, name: str, subtype: str) -> float:
+def _score_candidate(
+    place_name: str, name: str, subtype: str, leaf: Optional[str] = None
+) -> float:
     """Composite score for one AOI candidate against one search term.
 
     Weighted sum of accent-insensitive string similarity and an admin
     hierarchy preference, plus an exact-leaf-name bonus that falls back to a
     weaker prefix bonus. The leaf bonus is what separates "Pará" from
-    "Paraná" for the term "Para".
+    "Paraná" for the term "Para". *leaf* is the row's stored leaf; without
+    it the first segment of *name* stands in. ``best_candidate_row`` adds
+    what the search reported on top; this function scores the name alone.
 
     Raises:
         ValueError: If ``subtype`` is not a known AOI subtype.
@@ -129,10 +144,18 @@ def _score_candidate(place_name: str, name: str, subtype: str) -> float:
         _strip_accents(place_name),
         _first_segment(place_name),
         candidate,
-        _first_segment(name),
+        _candidate_leaf(name, leaf),
         _hierarchy_score(subtype),
         matcher,
     )
+
+
+def _candidate_leaf(name: str, leaf: Optional[str]) -> str:
+    """The comparison key of a row's leaf: the stored ``leaf`` when the row
+    has one, else the first segment of its name."""
+    if isinstance(leaf, str) and leaf:
+        return leaf_key(leaf)
+    return _first_segment(name)
 
 
 def best_candidate_row(
@@ -173,20 +196,51 @@ def best_candidate_row(
     best_position = 0
     best_score = 0.0
 
-    # Only the four columns that scoring and the tie-break read, so no row
-    # this function does not select is ever built as a dict.
+    # A frame from a search carries what it knew about each row; one built by
+    # hand (a test, a mocked query) may not, and then those terms are zero.
+    if "tier" in candidate_aois.columns:
+        tiers = candidate_aois["tier"].fillna(0).tolist()
+    else:
+        tiers = [0] * len(candidate_aois)
+
+    if "leaf" in candidate_aois.columns:
+        leaves = candidate_aois["leaf"].tolist()
+    else:
+        leaves = [None] * len(candidate_aois)
+    if "corrected" in candidate_aois.columns:
+        corrected = candidate_aois["corrected"].fillna(False).tolist()
+    else:
+        corrected = [False] * len(candidate_aois)
+    if "context_hit" in candidate_aois.columns:
+        context_hits = candidate_aois["context_hit"].fillna(False).tolist()
+    else:
+        context_hits = [False] * len(candidate_aois)
+
+    # Only the columns that scoring and the tie-break read, so no row this
+    # function does not select is ever built as a dict.
     scoring_columns = zip(
         candidate_aois["name"],
         candidate_aois["subtype"],
         candidate_aois["source"],
         candidate_aois["src_id"],
+        leaves,
+        tiers,
+        corrected,
+        context_hits,
     )
-    for position, (name, subtype, source, src_id) in enumerate(
-        scoring_columns
-    ):
+    for position, (
+        name,
+        subtype,
+        source,
+        src_id,
+        leaf,
+        tier,
+        guessed,
+        parent_matched,
+    ) in enumerate(scoring_columns):
         hierarchy = _hierarchy_score(subtype)
         candidate = _strip_accents(name)
-        candidate_leaf = _first_segment(name)
+        candidate_leaf = _candidate_leaf(name, leaf)
         matcher.set_seq2(candidate)
         score = max(
             _score_prepared(
@@ -194,6 +248,12 @@ def best_candidate_row(
             )
             for term, term_leaf in term_forms
         )
+        if tier == EXACT_TIER:
+            score += _STORED_NAME_BONUS
+        if parent_matched:
+            score += _CONTEXT_MATCH_BONUS
+        if guessed:
+            score -= _CORRECTED_PENALTY
         # Compare on explicit secondary keys rather than the score alone, so
         # equal scores resolve identically whatever order the rows arrived in.
         key = (-score, name, source, str(src_id))

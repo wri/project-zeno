@@ -36,7 +36,7 @@ from src.api.services.zap.models import (
     ZapPlan,
     ZapStep,
 )
-from src.shared.geocoding_helpers import search_aois
+from src.shared.aoi_search import search_aois
 
 CANDIDATES = 8
 # A period answer below this probability leaves the dataset's own dates:
