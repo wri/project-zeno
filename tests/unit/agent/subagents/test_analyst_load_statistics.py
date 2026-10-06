@@ -5,7 +5,7 @@ import pytest
 from src.agent.datasets.handlers.analytics_handler import TREE_COVER_LOSS_ID
 from src.agent.subagents.analyst.tool import _load_statistics_data
 
-pytestmark = pytest.mark.asyncio(loop_scope="session")
+pytestmark = pytest.mark.asyncio
 
 
 async def test_refetched_natural_forest_data_keeps_only_natural_rows():
