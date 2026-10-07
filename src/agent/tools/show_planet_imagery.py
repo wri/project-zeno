@@ -25,8 +25,8 @@ FALLBACK_PREFIX = (
     "is shown instead. "
 )
 UNAVAILABLE_PREFIX = (
-    "Planet imagery is unavailable at this time; we expect it to be back "
-    "next month. In the meantime, we've shown Sentinel-2 instead. "
+    "Planet satellite imagery is currently limited; we expect it to be "
+    "back next month. In the meantime, we've shown Sentinel-2 instead. "
 )
 ERROR_PREFIX = (
     "Planet imagery is temporarily unavailable, please check back soon. In "
