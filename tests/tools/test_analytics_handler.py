@@ -146,6 +146,69 @@ async def test_build_payload_natural_forest_omits_canopy_cover():
     assert "canopy_cover" not in payload
 
 
+async def test_build_payload_natural_forest_breakdown_groups_by_class():
+    handler = AnalyticsHandler()
+    dataset = {
+        "dataset_id": TREE_COVER_LOSS_ID,
+        "forest_breakdown": "natural_forest",
+    }
+    aois = [{"name": "Pará", "subtype": "state-province", "src_id": "BRA.14"}]
+
+    payload = await handler._build_payload(
+        dataset=dataset,
+        aois=aois,
+        start_date="2021-01-01",
+        end_date="2025-12-31",
+    )
+
+    # No canopy_cover: the API rejects a threshold with this filter.
+    assert payload == {
+        "aoi": {"type": "admin", "ids": ["BRA.14"]},
+        "start_year": "2021",
+        "end_year": "2025",
+        "forest_filter": "natural_forest",
+        "intersections": [],
+    }
+
+
+@pytest.mark.parametrize(
+    ("dataset", "problem"),
+    [
+        (
+            {
+                "dataset_id": TREE_COVER_LOSS_ID,
+                "forest_breakdown": "natural_forest",
+                "context_layer": "natural_forest",
+            },
+            "cannot be combined",
+        ),
+        (
+            {
+                "dataset_id": INTEGRATED_ALERTS_ID,
+                "forest_breakdown": "natural_forest",
+            },
+            "only available for tree cover loss",
+        ),
+        (
+            {"dataset_id": TREE_COVER_LOSS_ID, "forest_breakdown": "primary"},
+            "Unknown forest breakdown",
+        ),
+    ],
+)
+async def test_build_payload_rejects_an_invalid_forest_breakdown(
+    dataset, problem
+):
+    aois = [{"name": "Pará", "subtype": "state-province", "src_id": "BRA.14"}]
+
+    with pytest.raises(ValueError, match=problem):
+        await AnalyticsHandler()._build_payload(
+            dataset=dataset,
+            aois=aois,
+            start_date="2021-01-01",
+            end_date="2025-12-31",
+        )
+
+
 # --- LGMS per-section result merged into one flat category/class table -------
 # The Land GHG Monitoring System returns a per-section result; the handler
 # flattens it into one column-oriented table with unified category/class
