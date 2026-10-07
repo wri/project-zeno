@@ -6,7 +6,7 @@ Profiles form a chain, each one a small delta on its parent:
                    generate_insights), no skills. Ships on its own so raw
                    tool-calling can be evaluated without recipe guidance.
     default      — base + the core skills (analyze, pull-data, capabilities,
-                   show-imagery, wri-insights, dashboard, explore).
+                   show-imagery-planet, wri-insights, dashboard, explore).
     experimental — default + standalone tools not yet owned by any skill.
     lgms         — default with the LGMS dataset revealed; open to every
                    user (see PUBLIC_PROFILES).
@@ -129,7 +129,7 @@ DEFAULT_SKILLS = (
     "analyze",
     "pull-data",
     "capabilities",
-    "show-imagery",
+    "show-imagery-planet",
     "wri-insights",
     "dashboard",
     "explore",
@@ -150,7 +150,7 @@ DEFAULT_EXCLUDED_DATASETS = frozenset({"Land GHG Monitoring System (LGMS)"})
 # sections and widget ids is part of that workflow, not a standalone
 # debugging aid).
 EXPERIMENTAL_PROFILE = "experimental"
-EXPERIMENTAL_SKILLS = ("show-imagery-planet",)
+EXPERIMENTAL_SKILLS: tuple[str, ...] = ()
 EXPERIMENTAL_TOOLS = (add_template_section_spec,)
 
 # The default surface with LGMS revealed. The frontend sends this flag for

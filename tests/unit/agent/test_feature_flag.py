@@ -327,6 +327,7 @@ def test_default_profile_derives_exactly_the_core_tools():
             "inspect_view_context",
             "search_blogs",
             "show_imagery",
+            "show_planet_imagery",
             "update_insight_display",
             "search_insights",
             "create_dashboard",
@@ -391,37 +392,6 @@ async def test_fetch_zeno_binds_the_resolved_configs_availability():
     available = bound_availability()
     assert available.skills == frozenset({"capabilities"})
     assert available.tools == frozenset({"_fake_tool", "read_skill"})
-
-
-def test_experimental_config_adds_standalone_tools_and_planet():
-    """dashboard, explore and update_insight_display graduated into the
-    default set; experimental now layers only the opt-in Planet imagery
-    recipe."""
-    default = default_registry.resolve(DEFAULT_PROFILE)
-    experimental = default_registry.resolve(EXPERIMENTAL_PROFILE)
-
-    default_tools = {t.name for t in default.bound_tools()}
-    experimental_tools = {t.name for t in experimental.bound_tools()}
-    assert {
-        "show_imagery",
-        "search_blogs",
-        "add_to_dashboard",
-        # Owned by the dashboard skill's workflow: it reads a dashboard's
-        # sections and widget ids before grouping or moving anything.
-        "inspect_view_context",
-        "update_insight_display",
-    } <= default_tools
-    assert experimental_tools - default_tools == {
-        "show_planet_imagery",
-        "add_template_section",
-    }
-
-    default_skills = {s.name for s in default.skill_metas()}
-    experimental_skills = {s.name for s in experimental.skill_metas()}
-    assert {"show-imagery", "explore", "wri-insights", "dashboard"} <= (
-        default_skills
-    )
-    assert experimental_skills - default_skills == {"show-imagery-planet"}
 
 
 # --- excluded_datasets enforcement in pick_dataset ---------------------------
