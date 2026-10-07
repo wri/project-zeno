@@ -6,6 +6,10 @@ from src.agent.datasets.handlers.analytics_handler import TREE_COVER_LOSS_ID
 from src.agent.subagents.analyst.charts import InsightChart
 from src.api.services.charts.base import ChartGenerator
 
+# The SBTN Natural Lands Map is a 2020 baseline, so the split covers loss
+# from 2021 on. The analytics API rejects an earlier start.
+FIRST_YEAR = 2021
+
 CLASS_COLUMN = "natural_forests_class"
 NATURAL_FOREST_CLASS = "Natural Forest"
 # Plantations and tree crops, and loss outside the 2020 forest classes.

@@ -27,6 +27,7 @@ import pandas as pd
 from src.agent.datasets.config import DATASETS
 from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import AnalyticsHandler
+from src.agent.i18n import t
 from src.agent.imagery import ImageryRequest, Sentinel2ImageryProvider
 from src.agent.language import DEFAULT_LANGUAGE
 from src.agent.subagents.analyst.charts import Insight, InsightChart
@@ -41,12 +42,18 @@ from src.api.services.analysis_templates.models import (
     ChartWidgetSpec,
     ImageryWidgetSpec,
     LayerWidgetSpec,
+    NaturalForestLossWidgetSpec,
     TemplateArgs,
 )
 from src.api.services.analysis_templates.text import generate_section_text
 from src.api.services.analyze import AnalyzeService
-from src.api.services.charts import DETERMINISTIC_GENERATORS
+from src.api.services.charts import DETERMINISTIC_GENERATORS, column_to_rows
 from src.api.services.charts.curated import build_curated_charts
+from src.api.services.charts.tcl_natural_forest import (
+    FIRST_YEAR,
+    TCLNaturalForestChartGenerator,
+    natural_forest_totals,
+)
 from src.api.services.widget_configs import (
     dataset_config,
     imagery_config,
@@ -221,6 +228,105 @@ async def _build_layer(
     )
 
 
+def _hectares(value: float) -> str:
+    """Whole hectares, grouped with a narrow no-break space. A comma or a
+    point would read as a decimal mark in some languages."""
+    if 0 < value < 1:
+        return "<1"
+    return f"{round(value):,}".replace(",", "\u202f")
+
+
+def _percent(part: float, whole: float) -> str:
+    """A whole percent that never rounds a small part to 0% or 100%."""
+    share = 100 * part / whole
+    if 0 < share < 1:
+        return "<1%"
+    if 99 < share < 100:
+        return ">99%"
+    return f"{round(share)}%"
+
+
+async def _build_natural_forest_loss(
+    spec: NaturalForestLossWidgetSpec, context: BuildContext
+) -> BuiltWidget:
+    """The natural forest split of tree cover loss, and its share as a fact.
+
+    The share is computed here, not by the text model. With no loss the
+    fact says so; there is no share to compute.
+    """
+    record = _dataset_record(spec.dataset_id)
+    start, end = await _period(
+        spec.dataset_id,
+        context,
+        max(context.start, date(FIRST_YEAR, 1, 1)),
+    )
+    result = await AnalyticsHandler().pull_data(
+        query="",
+        dataset={
+            "dataset_id": spec.dataset_id,
+            "forest_breakdown": "natural_forest",
+        },
+        start_date=start,
+        end_date=end,
+        change_over_time_query=False,
+        aois=[dict(context.aoi)],
+    )
+    if not result.success:
+        raise WidgetFailedError(
+            f"Could not get {record['dataset_name']} data for "
+            f"'{context.aoi['name']}': {result.message}"
+        )
+    rows = column_to_rows(result.data) if result.data else []
+    try:
+        charts = await build_curated_charts(
+            spec.dataset_id,
+            rows,
+            context.language,
+            [TCLNaturalForestChartGenerator(int(start[:4]), int(end[:4]))],
+        )
+        natural_ha, total_ha = natural_forest_totals(rows)
+    except ValueError as error:
+        raise WidgetFailedError(
+            f"Unexpected {record['dataset_name']} data for "
+            f"'{context.aoi['name']}': {error}"
+        ) from error
+
+    values = {
+        "aoi_name": context.aoi["name"],
+        "start_year": start[:4],
+        "end_year": end[:4],
+    }
+    if total_ha > 0:
+        fact = await t(
+            "analysis_template.natural_forest_loss.share",
+            context.language,
+            share=_percent(natural_ha, total_ha),
+            natural_ha=_hectares(natural_ha),
+            total_ha=_hectares(total_ha),
+            **values,
+        )
+    else:
+        fact = await t(
+            "analysis_template.natural_forest_loss.no_loss",
+            context.language,
+            **values,
+        )
+    return BuiltWidget(
+        widget=SectionWidget(
+            widget_type="insight",
+            config={},
+            insight=Insight(charts=charts),
+        ),
+        summary=(
+            f"chart: {record['dataset_name']} per year, natural forest "
+            "(SBTN Natural Lands Map 2020) and other tree cover, no canopy "
+            f"density threshold, {start} to {end}"
+        ),
+        charts=charts,
+        facts=[fact],
+    )
+
+
 _IMAGERY_PROVIDER = Sentinel2ImageryProvider()
 
 
@@ -258,6 +364,7 @@ _BUILDERS: dict[str, Callable[..., Awaitable[BuiltWidget]]] = {
     "chart": _build_chart,
     "layer": _build_layer,
     "imagery": _build_imagery,
+    "natural_forest_loss": _build_natural_forest_loss,
 }
 
 

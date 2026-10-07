@@ -12,6 +12,7 @@ from src.agent.datasets.handlers.analytics_handler import (
     TREE_COVER_LOSS_ID,
 )
 from src.agent.datasets.handlers.base import DataPullResult
+from src.agent.i18n import MESSAGES
 from src.agent.imagery.base import ImageryProviderResult
 from src.agent.models import ImageryState
 from src.api.services.analysis_templates import builder
@@ -21,8 +22,13 @@ from src.api.services.analysis_templates.builder import (
     WidgetFailedError,
     apply_template,
 )
-from src.api.services.analysis_templates.models import LayerWidgetSpec
+from src.api.services.analysis_templates.models import (
+    LayerWidgetSpec,
+    NaturalForestLossWidgetSpec,
+    TemplateArgs,
+)
 from src.api.services.analysis_templates.registry import get_template
+from tests.unit.api.services.test_chart_generators import NATURAL_FOREST_DATA
 
 NRT = get_template("nrt-monitoring")
 TODAY = date(2026, 9, 23)
@@ -79,6 +85,7 @@ def _patches(pull=None, imagery=None, written=("section-1", ["w1", "w2"])):
         pull=AsyncMock(return_value=pull or _pull()),
         imagery=AsyncMock(return_value=imagery or _imagery()),
         write=AsyncMock(return_value=written),
+        text=AsyncMock(return_value=("Alerts in Paraná", "What it shows.")),
     )
 
     class _Today(date):
@@ -99,11 +106,7 @@ def _patches(pull=None, imagery=None, written=("section-1", ["w1", "w2"])):
             builder.dashboard_writer, "add_section_with_widgets", mocks.write
         ),
         patch.object(builder, "date", _Today),
-        patch.object(
-            builder,
-            "generate_section_text",
-            AsyncMock(return_value=("Alerts in Paraná", "What it shows.")),
-        ),
+        patch.object(builder, "generate_section_text", mocks.text),
     ]
     return mocks, stack
 
@@ -289,3 +292,144 @@ async def test_dashboard_deleted_during_the_build():
 
     with pytest.raises(DashboardGoneError):
         await _apply(stack)
+
+
+class _Since2021(TemplateArgs):
+    def period(self, today):
+        return date(2021, 1, 1), today
+
+
+SPLIT = NRT.model_copy(
+    update={
+        "args_model": _Since2021,
+        "widgets": (NaturalForestLossWidgetSpec(),),
+    }
+)
+
+
+def _split_pull(classes_and_areas):
+    """A breakdown answer with one row per (class, area), all in 2022."""
+    return _pull(
+        data={
+            "tree_cover_loss_year": [2022] * len(classes_and_areas),
+            "natural_forests_class": [c for c, _ in classes_and_areas],
+            "area_ha": [a for _, a in classes_and_areas],
+        }
+    )
+
+
+@pytest.mark.asyncio
+async def test_natural_forest_loss_pulls_the_breakdown_from_2021():
+    mocks, stack = _patches(
+        pull=_pull(data=NATURAL_FOREST_DATA), written=("section-1", ["w1"])
+    )
+
+    await _apply(stack, template=SPLIT)
+
+    pull = mocks.pull.await_args.kwargs
+    assert pull["dataset"] == {
+        "dataset_id": TREE_COVER_LOSS_ID,
+        "forest_breakdown": "natural_forest",
+    }
+    # From the natural forest baseline to the last year of loss data.
+    assert (pull["start_date"], pull["end_date"]) == (
+        "2021-01-01",
+        "2025-12-31",
+    )
+    (widget,) = mocks.write.await_args.kwargs["widgets"]
+    assert (widget.widget_type, widget.config) == ("insight", {})
+    (chart,) = widget.insight.charts
+    assert chart.series_fields == ["Other tree cover", "Natural forest"]
+    assert chart.color_map == {
+        "Natural forest": "#246E24",
+        "Other tree cover": "#DC6C9A",
+    }
+
+
+@pytest.mark.asyncio
+async def test_natural_forest_share_is_a_computed_fact():
+    mocks, stack = _patches(
+        pull=_pull(data=NATURAL_FOREST_DATA), written=("section-1", ["w1"])
+    )
+
+    await _apply(stack, template=SPLIT)
+
+    # 4,422.85 ha of 5,285.86 ha is 83.7%.
+    assert mocks.text.await_args.kwargs["facts"] == [
+        "From 2021 to 2025, 84% of the tree cover loss in Paraná was in "
+        "natural forest: 4\u202f423 ha of 5\u202f286 ha."
+    ]
+
+
+@pytest.mark.asyncio
+async def test_no_loss_is_a_fact_and_a_chart_of_zeros():
+    mocks, stack = _patches(pull=_pull(data={}), written=("section-1", ["w1"]))
+
+    await _apply(stack, template=SPLIT)
+
+    assert mocks.text.await_args.kwargs["facts"] == [
+        "No tree cover loss was recorded in Paraná from 2021 to 2025."
+    ]
+    (widget,) = mocks.write.await_args.kwargs["widgets"]
+    assert len(widget.insight.charts[0].chart_data) == 5
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("natural_ha", "other_ha", "fact_end"),
+    [
+        (
+            0.4,
+            999.6,
+            "<1% of the tree cover loss in Paraná was in natural "
+            "forest: <1 ha of 1\u202f000 ha.",
+        ),
+        (
+            999.6,
+            0.4,
+            ">99% of the tree cover loss in Paraná was in natural "
+            "forest: 1\u202f000 ha of 1\u202f000 ha.",
+        ),
+    ],
+)
+async def test_a_small_part_never_rounds_to_0_or_100_percent(
+    natural_ha, other_ha, fact_end
+):
+    pull = _split_pull([("Natural Forest", natural_ha), ("Unknown", other_ha)])
+    mocks, stack = _patches(pull=pull, written=("section-1", ["w1"]))
+
+    await _apply(stack, template=SPLIT)
+
+    (fact,) = mocks.text.await_args.kwargs["facts"]
+    assert fact.endswith(fact_end)
+
+
+@pytest.mark.asyncio
+async def test_unknown_natural_forest_class_writes_nothing():
+    pull = _split_pull([("Natural Grassland", 10.0)])
+    mocks, stack = _patches(pull=pull, written=("section-1", ["w1"]))
+
+    with pytest.raises(WidgetFailedError, match="natural forest class"):
+        await _apply(stack, template=SPLIT)
+
+    mocks.write.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        "analysis_template.natural_forest_loss.share",
+        "analysis_template.natural_forest_loss.no_loss",
+    ],
+)
+def test_natural_forest_facts_take_their_placeholders_in_every_language(key):
+    values = {
+        "aoi_name": "A",
+        "start_year": "2021",
+        "end_year": "2025",
+        "share": "84%",
+        "natural_ha": "1",
+        "total_ha": "2",
+    }
+    for text in MESSAGES[key].values():
+        assert "A" in text.format(**values)

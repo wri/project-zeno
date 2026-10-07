@@ -6,9 +6,11 @@ kind is one spec class here and one builder function in ``builder``.
 """
 
 from datetime import date
-from typing import Annotated, Any, Literal, Optional
+from typing import Annotated, Any, ClassVar, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from src.agent.datasets.handlers.analytics_handler import TREE_COVER_LOSS_ID
 
 # The column span of a widget on the dashboard. None leaves the frontend
 # default, which is the full width for chart and map widgets.
@@ -72,8 +74,26 @@ class ImageryWidgetSpec(BaseModel):
     size: WidgetSize = None
 
 
+class NaturalForestLossWidgetSpec(BaseModel):
+    """A chart of tree cover loss per year, split into SBTN natural forest
+    and other tree cover, from 2021. The natural forest share is a fact for
+    the description."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    kind: Literal["natural_forest_loss"] = "natural_forest_loss"
+    # The split exists for tree cover loss only. dataset_ids() reads it for
+    # the dataset presentation rules.
+    dataset_id: ClassVar[int] = TREE_COVER_LOSS_ID
+    required: bool = True
+    size: WidgetSize = None
+
+
 WidgetSpec = Annotated[
-    ChartWidgetSpec | LayerWidgetSpec | ImageryWidgetSpec,
+    ChartWidgetSpec
+    | LayerWidgetSpec
+    | ImageryWidgetSpec
+    | NaturalForestLossWidgetSpec,
     Field(discriminator="kind"),
 ]
 

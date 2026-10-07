@@ -1245,6 +1245,42 @@ MESSAGES.update(
                 "gösterir, doğrulanmış ormansızlaşmayı değil."
             ),
         },
+        # Facts of the natural forest loss widget. The builder formats the
+        # numbers; {share} carries its own percent sign.
+        "analysis_template.natural_forest_loss.share": {
+            "en": "From {start_year} to {end_year}, {share} of the tree cover loss in {aoi_name} was in natural forest: {natural_ha} ha of {total_ha} ha.",
+            "es": "De {start_year} a {end_year}, el {share} de la pérdida de cobertura arbórea en {aoi_name} se produjo en bosque natural: {natural_ha} ha de {total_ha} ha.",
+            "fr": "De {start_year} à {end_year}, {share} de la perte de couvert arboré à {aoi_name} a eu lieu en forêt naturelle : {natural_ha} ha sur {total_ha} ha.",
+            "pt": "De {start_year} a {end_year}, {share} da perda de cobertura arbórea em {aoi_name} ocorreu em floresta natural: {natural_ha} ha de {total_ha} ha.",
+            "id": "Dari {start_year} hingga {end_year}, {share} kehilangan tutupan pohon di {aoi_name} terjadi di hutan alam: {natural_ha} ha dari {total_ha} ha.",
+            "de": "Von {start_year} bis {end_year} entfielen {share} des Baumbestandsverlusts in {aoi_name} auf Naturwald: {natural_ha} ha von {total_ha} ha.",
+            "it": "Dal {start_year} al {end_year}, il {share} della perdita di copertura arborea a {aoi_name} è avvenuto in foresta naturale: {natural_ha} ha su {total_ha} ha.",
+            "nl": "Van {start_year} tot {end_year} vond {share} van het verlies aan boomkroonbedekking in {aoi_name} plaats in natuurlijk bos: {natural_ha} ha van {total_ha} ha.",
+            "ru": "С {start_year} по {end_year} год {share} потерь древесного покрова в {aoi_name} пришлось на естественные леса: {natural_ha} га из {total_ha} га.",
+            "zh": "{start_year}年至{end_year}年，{aoi_name}的树木覆盖损失中有{share}发生在天然林：{total_ha}公顷中的{natural_ha}公顷。",
+            "ar": "من {start_year} إلى {end_year}، وقع {share} من فقدان الغطاء الشجري في {aoi_name} في الغابات الطبيعية: {natural_ha} هكتار من أصل {total_ha} هكتار.",
+            "hi": "{start_year} से {end_year} तक, {aoi_name} में वृक्ष आवरण हानि का {share} प्राकृतिक वन में हुआ: {total_ha} हेक्टेयर में से {natural_ha} हेक्टेयर।",
+            "vi": "Từ {start_year} đến {end_year}, {share} diện tích mất độ che phủ cây tại {aoi_name} nằm trong rừng tự nhiên: {natural_ha} ha trên tổng số {total_ha} ha.",
+            "sw": "Kuanzia {start_year} hadi {end_year}, {share} ya upotevu wa uoto wa miti katika {aoi_name} ulitokea katika msitu wa asili: hekta {natural_ha} kati ya hekta {total_ha}.",
+            "tr": "{start_year}-{end_year} döneminde {aoi_name} bölgesindeki ağaç örtüsü kaybının {share} kadarı doğal ormanda gerçekleşti: {total_ha} ha alanın {natural_ha} ha kadarı.",
+        },
+        "analysis_template.natural_forest_loss.no_loss": {
+            "en": "No tree cover loss was recorded in {aoi_name} from {start_year} to {end_year}.",
+            "es": "No se registró pérdida de cobertura arbórea en {aoi_name} de {start_year} a {end_year}.",
+            "fr": "Aucune perte de couvert arboré n'a été enregistrée à {aoi_name} de {start_year} à {end_year}.",
+            "pt": "Nenhuma perda de cobertura arbórea foi registrada em {aoi_name} de {start_year} a {end_year}.",
+            "id": "Tidak ada kehilangan tutupan pohon yang tercatat di {aoi_name} dari {start_year} hingga {end_year}.",
+            "de": "Von {start_year} bis {end_year} wurde in {aoi_name} kein Baumbestandsverlust verzeichnet.",
+            "it": "Dal {start_year} al {end_year} non è stata registrata alcuna perdita di copertura arborea a {aoi_name}.",
+            "nl": "Van {start_year} tot {end_year} is in {aoi_name} geen verlies aan boomkroonbedekking geregistreerd.",
+            "ru": "С {start_year} по {end_year} год потерь древесного покрова в {aoi_name} не зарегистрировано.",
+            "zh": "{start_year}年至{end_year}年，{aoi_name}未记录到树木覆盖损失。",
+            "ar": "لم يُسجَّل أي فقدان للغطاء الشجري في {aoi_name} من {start_year} إلى {end_year}.",
+            "hi": "{start_year} से {end_year} तक {aoi_name} में कोई वृक्ष आवरण हानि दर्ज नहीं की गई।",
+            "vi": "Không ghi nhận mất độ che phủ cây nào tại {aoi_name} từ {start_year} đến {end_year}.",
+            "sw": "Hakuna upotevu wa uoto wa miti uliorekodiwa katika {aoi_name} kuanzia {start_year} hadi {end_year}.",
+            "tr": "{start_year}-{end_year} döneminde {aoi_name} bölgesinde ağaç örtüsü kaybı kaydedilmedi.",
+        },
     }
 )
 
