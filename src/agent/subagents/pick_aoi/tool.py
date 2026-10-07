@@ -907,9 +907,16 @@ class Geocoder:
             )
 
         normalized = AgentSettings.aoi_normalizer_enabled
+        # With a subregion, the caller's `area_of_interest` names the kind of
+        # the children ("indigenous lands in Ecuador" comes with the landmark
+        # type), not the kind of the parent. Narrowing the parent search to it
+        # finds a weak name match in the child source (a landmark whose name
+        # ends in "ECU") instead of the country, and the selection collapses
+        # to that one area. The parent keeps the type the geocoder inferred.
+        parent_type = None if subregion else aoi_type
         resolutions = await asyncio.gather(
             *[
-                _resolve_place(place, question, aoi_type, normalized)
+                _resolve_place(place, question, parent_type, normalized)
                 for place in places
             ]
         )
