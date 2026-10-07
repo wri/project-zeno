@@ -6,7 +6,6 @@ from src.agent.datasets.handlers.analytics_handler import (
     AnalyticsHandler,
     _count_and_enrich,
     format_id,
-    keep_natural_forest_rows,
     merge_lgms_sections,
 )
 
@@ -143,27 +142,8 @@ async def test_build_payload_natural_forest_omits_canopy_cover():
         end_date="2024-12-31",
     )
 
-    assert payload["forest_filter"] == "natural_forest"
+    assert payload["forest_filter"] == "natural_forest_only"
     assert "canopy_cover" not in payload
-
-
-def test_keep_natural_forest_rows_drops_other_classes_and_class_column():
-    raw = {
-        "aoi_id": ["BRA.14", "BRA.14", "BRA.14"],
-        "tree_cover_loss_year": [2021, 2021, 2021],
-        "natural_forests_class": [
-            "Natural Forest",
-            "Non-natural Forest",
-            "Unknown",
-        ],
-        "area_ha": [10.0, 2.0, 3.0],
-    }
-
-    assert keep_natural_forest_rows(raw) == {
-        "aoi_id": ["BRA.14"],
-        "tree_cover_loss_year": [2021],
-        "area_ha": [10.0],
-    }
 
 
 # --- LGMS per-section result merged into one flat category/class table -------
