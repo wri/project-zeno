@@ -101,6 +101,9 @@ class BuiltWidget:
     # One line for the text prompt, e.g. "chart: Integrated alerts".
     summary: str
     charts: list[InsightChart] = field(default_factory=list)
+    # Sentences computed in code that the description must give, in the
+    # user's language, e.g. a share the model must not work out itself.
+    facts: list[str] = field(default_factory=list)
 
 
 def _dataset_record(dataset_id: int) -> dict:
@@ -352,6 +355,7 @@ async def apply_template(
         widget_summaries=[widget.summary for widget in built],
         charts=[chart for widget in built for chart in widget.charts],
         language=context.language,
+        facts=[fact for widget in built for fact in widget.facts],
     )
 
     written = await dashboard_writer.add_section_with_widgets(

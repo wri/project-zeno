@@ -88,8 +88,12 @@ class AnalysisTemplate(BaseModel):
     label_key: str
     # One sentence for the text model and the agent: what the section is for.
     purpose: str
+    # The text model's rules for the description, for a template that needs
+    # more than the default one to three sentences. None keeps the default.
+    description_rules: Optional[str] = None
     # i18n keys for the text used when the text model fails. Placeholders:
-    # {aoi_name}, {start_date}, {end_date}.
+    # {aoi_name}, {start_date}, {end_date}. The widget facts go before the
+    # fallback description.
     fallback_title_key: str
     fallback_description_key: str
     # Validates the arguments of a request.

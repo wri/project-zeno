@@ -2,15 +2,16 @@
 
 One small model call writes both from the data, for every template. The
 input is the area, the period, the template purpose, the widgets the section
-has, the chart data and the dataset presentation rules. The call never
-raises: when the model fails or returns empty text, the template's fixed
-i18n text is used. A build must not fail after its data is ready.
+has, the chart data and the dataset presentation rules, and the facts that
+the widgets computed. The call never raises: when the model fails or returns
+empty text, the facts and the template's fixed i18n text are used. A build
+must not fail after its data is ready.
 """
 
-from typing import Optional
+from typing import Optional, Sequence
 
 from langchain_core.prompts import ChatPromptTemplate
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, create_model
 
 from src.agent.datasets.config import DATASETS
 from src.agent.i18n import t
@@ -23,6 +24,13 @@ from src.shared.logging_config import get_logger
 logger = get_logger(__name__)
 
 TITLE_MAX_CHARS = 60
+
+DEFAULT_DESCRIPTION_RULES = (
+    "one to three short sentences. Say what the section shows, then give "
+    "the one or two figures that matter most. Take each figure from the "
+    "chart data. Do not compute new figures. Give the unit with each area. "
+    "Plain prose, no markup."
+)
 
 
 class SectionText(BaseModel):
@@ -49,10 +57,7 @@ point.
 `title`: name the area and the subject. At most {title_max_chars} characters. \
 No trailing period. No markup.
 
-`description`: one to three short sentences. Say what the section shows, then \
-give the one or two figures that matter most. Take each figure from the chart \
-data. Do not compute new figures. Give the unit with each area. Plain prose, \
-no markup.
+`description`: {description_rules}
 
 Do not add filler, advice or speculation about causes.
 
@@ -76,7 +81,16 @@ _USER = """## Area
 {presentation_instructions}
 
 ## Charts (spec and data)
-{charts}"""
+{charts}{facts}"""
+
+# Facts are figures computed in code, for example a share, so that the
+# model does not do arithmetic. The block is left out when there are none.
+_FACTS = """
+
+## Facts
+Computed from the data. Give each fact in the description. You may write \
+the numbers in the style of the language, but do not change them.
+{facts}"""
 
 _PROMPT = ChatPromptTemplate.from_messages(
     [("system", _SYSTEM), ("user", _USER)]
@@ -98,6 +112,18 @@ def rounded(chart: InsightChart) -> InsightChart:
     return copy
 
 
+def _output_model(template: AnalysisTemplate) -> type[SectionText]:
+    """``SectionText``, with the template's own description rules in the
+    output schema when it has them."""
+    if template.description_rules is None:
+        return SectionText
+    return create_model(
+        "SectionText",
+        __base__=SectionText,
+        description=(str, Field(description=template.description_rules)),
+    )
+
+
 def _presentation_instructions(template: AnalysisTemplate) -> str:
     rules = [
         f"{record['dataset_name']}: {record['presentation_instructions']}"
@@ -115,8 +141,10 @@ async def fallback_text(
     start_date: str,
     end_date: str,
     language: Optional[str],
+    facts: Sequence[str] = (),
 ) -> tuple[str, str]:
-    """The template's fixed i18n title and description."""
+    """The template's fixed i18n title, and the facts followed by its fixed
+    i18n description."""
     values = {
         "aoi_name": aoi_name,
         "start_date": start_date,
@@ -126,7 +154,7 @@ async def fallback_text(
     description = await t(
         template.fallback_description_key, language, **values
     )
-    return title[:TITLE_MAX_CHARS], description
+    return title[:TITLE_MAX_CHARS], " ".join([*facts, description])
 
 
 async def generate_section_text(
@@ -138,12 +166,16 @@ async def generate_section_text(
     widget_summaries: list[str],
     charts: list[InsightChart],
     language: Optional[str],
+    facts: Sequence[str] = (),
     model=SMALL_MODEL,
 ) -> tuple[str, str]:
     """The section's title and description. Never raises."""
     language = language or DEFAULT_LANGUAGE
     inputs = {
         "title_max_chars": TITLE_MAX_CHARS,
+        "description_rules": (
+            template.description_rules or DEFAULT_DESCRIPTION_RULES
+        ),
         "language": language_name(language),
         "aoi_name": aoi_name,
         "start_date": start_date,
@@ -156,9 +188,14 @@ async def generate_section_text(
             for chart in charts
         )
         or "(none)",
+        "facts": (
+            _FACTS.format(facts="\n".join(f"- {fact}" for fact in facts))
+            if facts
+            else ""
+        ),
     }
     try:
-        chain = _PROMPT | model.with_structured_output(SectionText)
+        chain = _PROMPT | model.with_structured_output(_output_model(template))
         result: SectionText = await chain.ainvoke(inputs)
         title = (result.title or "").strip().rstrip(".").strip()
         description = (result.description or "").strip()
@@ -180,5 +217,6 @@ async def generate_section_text(
             start_date=start_date,
             end_date=end_date,
             language=language,
+            facts=facts,
         )
     return title[:TITLE_MAX_CHARS].rstrip(), description

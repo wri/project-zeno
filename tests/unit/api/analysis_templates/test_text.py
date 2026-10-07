@@ -6,6 +6,7 @@ from langchain_core.runnables import RunnableLambda
 from src.agent.subagents.analyst.charts import InsightChart
 from src.api.services.analysis_templates.registry import get_template
 from src.api.services.analysis_templates.text import (
+    DEFAULT_DESCRIPTION_RULES,
     TITLE_MAX_CHARS,
     SectionText,
     generate_section_text,
@@ -43,8 +44,11 @@ class _FakeModel:
     def __init__(self, result):
         self._result = result
         self.inputs = None
+        self.schema = None
 
-    def with_structured_output(self, _schema):
+    def with_structured_output(self, schema):
+        self.schema = schema
+
         def _invoke(prompt_value):
             self.inputs = prompt_value.to_string()
             if isinstance(self._result, Exception):
@@ -54,17 +58,22 @@ class _FakeModel:
         return RunnableLambda(_invoke)
 
 
-async def _generate(model, language="en"):
+async def _generate(model, language="en", template=NRT, facts=()):
     return await generate_section_text(
-        NRT,
+        template,
         aoi_name="Paraná",
         start_date="2026-09-09",
         end_date="2026-09-23",
         widget_summaries=["chart: Integrated alerts", "map layer"],
         charts=CHARTS,
         language=language,
+        facts=facts,
         model=model,
     )
+
+
+RULES = "Four sentences. Start with the share given in the facts."
+FACT = "From 2021 to 2025, 84% of the loss in Paraná was in natural forest."
 
 
 @pytest.mark.asyncio
@@ -135,3 +144,47 @@ async def test_title_is_cut_to_the_limit():
     title, _ = await _generate(model)
 
     assert len(title) == TITLE_MAX_CHARS
+
+
+@pytest.mark.asyncio
+async def test_default_rules_and_no_facts_block():
+    model = _FakeModel(SectionText(title="T", description="D"))
+
+    await _generate(model)
+
+    assert DEFAULT_DESCRIPTION_RULES in model.inputs
+    assert "## Facts" not in model.inputs
+    assert model.schema is SectionText
+
+
+@pytest.mark.asyncio
+async def test_template_rules_replace_the_default_rules():
+    template = NRT.model_copy(update={"description_rules": RULES})
+    model = _FakeModel(SectionText(title="T", description="D"))
+
+    await _generate(model, template=template)
+
+    assert f"`description`: {RULES}" in model.inputs
+    assert DEFAULT_DESCRIPTION_RULES not in model.inputs
+    # The output schema says the same as the prompt.
+    schema = model.schema.model_json_schema()
+    assert schema["properties"]["description"]["description"] == RULES
+
+
+@pytest.mark.asyncio
+async def test_facts_are_in_the_prompt():
+    model = _FakeModel(SectionText(title="T", description="D"))
+
+    await _generate(model, facts=[FACT])
+
+    assert "## Facts\n" in model.inputs
+    assert f"- {FACT}" in model.inputs
+
+
+@pytest.mark.asyncio
+async def test_fallback_gives_the_facts_before_the_fixed_text():
+    _, description = await _generate(
+        _FakeModel(RuntimeError("down")), facts=[FACT]
+    )
+
+    assert description.startswith(f"{FACT} Integrated disturbance alerts")
