@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
+from langchain_core.runnables import RunnableLambda
 
 from src.agent.datasets.handlers.analytics_handler import (
     INTEGRATED_ALERTS_ID,
@@ -15,7 +16,7 @@ from src.agent.datasets.handlers.base import DataPullResult
 from src.agent.i18n import MESSAGES
 from src.agent.imagery.base import ImageryProviderResult
 from src.agent.models import ImageryState
-from src.api.services.analysis_templates import builder
+from src.api.services.analysis_templates import builder, text
 from src.api.services.analysis_templates.builder import (
     DashboardGoneError,
     NoAreaError,
@@ -27,7 +28,10 @@ from src.api.services.analysis_templates.models import (
     NaturalForestLossWidgetSpec,
     TemplateArgs,
 )
-from src.api.services.analysis_templates.registry import get_template
+from src.api.services.analysis_templates.registry import (
+    POST_2020_FOREST_LOSS_RULES,
+    get_template,
+)
 from tests.unit.api.services.test_chart_generators import NATURAL_FOREST_DATA
 
 NRT = get_template("nrt-monitoring")
@@ -431,5 +435,102 @@ def test_natural_forest_facts_take_their_placeholders_in_every_language(key):
         "natural_ha": "1",
         "total_ha": "2",
     }
-    for text in MESSAGES[key].values():
-        assert "A" in text.format(**values)
+    for message in MESSAGES[key].values():
+        assert "A" in message.format(**values)
+
+
+POST_2020 = get_template("post-2020-forest-loss")
+SHARE_FACT = (
+    "From 2021 to 2025, 84% of the tree cover loss in Paraná was in "
+    "natural forest: 4\u202f423 ha of 5\u202f286 ha."
+)
+
+
+class _FailingModel:
+    """A text model that records its prompt and schema, then fails, so the
+    section gets the fallback text."""
+
+    def __init__(self):
+        self.prompt = None
+        self.schema = None
+
+    def with_structured_output(self, schema):
+        self.schema = schema
+
+        def _invoke(prompt_value):
+            self.prompt = prompt_value.to_string()
+            raise RuntimeError("no model in unit tests")
+
+        return RunnableLambda(_invoke)
+
+
+async def _apply_post_2020():
+    model = _FailingModel()
+    mocks, stack = _patches(
+        pull=_pull(data=NATURAL_FOREST_DATA),
+        written=("section-1", ["w1", "w2", "w3"]),
+    )
+
+    async def _text(*args, **kwargs):
+        return await text.generate_section_text(*args, model=model, **kwargs)
+
+    mocks.text.side_effect = _text
+    result = await _apply(stack, template=POST_2020)
+    return result, mocks, model
+
+
+@pytest.mark.asyncio
+async def test_post_2020_forest_loss_builds_its_three_widgets():
+    _, mocks, _ = await _apply_post_2020()
+
+    kwargs = mocks.write.await_args.kwargs
+    chart, layer, imagery = kwargs["widgets"]
+    assert (chart.widget_type, chart.config) == ("insight", {})
+    # The two maps share a row; the chart takes the full width.
+    assert layer.config["size"] == imagery.config["size"] == "single"
+    dataset = layer.config["dataset"]
+    assert dataset["context_layer"] == "natural_forest"
+    assert [c["name"] for c in dataset["context_layers"]] == ["natural_forest"]
+    assert dataset["context_layers"][0]["tile_url"]
+    assert (dataset["start_date"], dataset["end_date"]) == (
+        "2001-01-01",
+        "2025-12-31",
+    )
+    (request,) = mocks.imagery.await_args.args
+    assert (request.target_date, request.window_days) == (TODAY, 30)
+    assert kwargs["template"]["name"] == "post-2020-forest-loss"
+    assert kwargs["template"]["args"] == {}
+    assert kwargs["template"]["start_date"] == "2021-01-01"
+
+
+@pytest.mark.asyncio
+async def test_post_2020_prompt_has_the_share_and_the_clamped_years():
+    _, _, model = await _apply_post_2020()
+
+    # The section period runs to today (for the imagery); the fact and the
+    # widget lines carry the years of the data.
+    assert "## Period\n2021-01-01 to 2026-09-23" in model.prompt
+    assert "## Facts\n" in model.prompt
+    assert f"- {SHARE_FACT}" in model.prompt
+    assert "2021-01-01 to 2025-12-31" in model.prompt
+    assert (
+        "map layer: Tree cover loss with the natural_forest context layer, "
+        "2001-01-01 to 2025-12-31"
+    ) in model.prompt
+    assert "Take every figure and every year from the facts" in model.prompt
+    schema = model.schema.model_json_schema()
+    assert (
+        schema["properties"]["description"]["description"]
+        == POST_2020_FOREST_LOSS_RULES
+    )
+
+
+@pytest.mark.asyncio
+async def test_post_2020_fallback_states_the_share_then_the_caveats():
+    result, _, _ = await _apply_post_2020()
+
+    assert result.title == "Post-2020 forest loss in Paraná"
+    assert result.description.startswith(
+        f"{SHARE_FACT} The SBTN Natural Lands Map is a 2020 baseline"
+    )
+    assert "30%" in result.description
