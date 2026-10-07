@@ -17,7 +17,6 @@ from src.agent.datasets.curated_only import (
 )
 from src.agent.datasets.handlers.analytics_handler import (
     LAND_GHG_INVENTORY_ID,
-    keep_natural_forest_rows,
     merge_lgms_sections,
 )
 from src.agent.datasets.palette import get_dataset_palette
@@ -74,8 +73,6 @@ async def _load_statistics_data(data: dict) -> dict | None:
         # analyst re-fetches raw data, so this must happen here too).
         if raw and data.get("dataset_id") == LAND_GHG_INVENTORY_ID:
             raw = merge_lgms_sections(raw)
-        if raw and data.get("context_layer") == "natural_forest":
-            raw = keep_natural_forest_rows(raw)
         if raw and (mapping := data.get("aoi_id_to_name")):
             raw["name"] = [mapping.get(i, i) for i in raw.get("aoi_id", [])]
         return raw
