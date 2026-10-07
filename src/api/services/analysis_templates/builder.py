@@ -110,14 +110,17 @@ def _dataset_record(dataset_id: int) -> dict:
     return record
 
 
-async def _period(dataset_id: int, context: BuildContext) -> tuple[str, str]:
-    """The requested period, clamped to the dataset's range."""
-    start, end, _ = await revise_date_range(
-        context.start.isoformat(),
+async def _period(
+    dataset_id: int, context: BuildContext, start: Optional[date] = None
+) -> tuple[str, str]:
+    """The requested period, clamped to the dataset's range. ``start``
+    replaces the period start for one widget."""
+    clamped_start, clamped_end, _ = await revise_date_range(
+        (start or context.start).isoformat(),
         context.end.isoformat(),
         dataset_id,
     )
-    return start, end
+    return clamped_start, clamped_end
 
 
 async def _build_chart(
@@ -165,13 +168,19 @@ async def _build_layer(
 ) -> BuiltWidget:
     """The same tile layer the chat path resolves: ``pick_dataset`` passes
     its selection and the catalog row to ``get_tile_services_for_dataset``.
-    Here the selection is a stub with no context layer and no parameters,
-    which gives the dataset defaults (for example a canopy threshold of 30).
+    Here the selection is a stub with the spec's context layer and no
+    parameters, which gives the dataset defaults (for example a canopy
+    threshold of 30, or 0 with natural forest).
+
+    The period is clamped to the dataset, not to the context layer, so a
+    map can show the years before the context layer's baseline.
     """
     record = _dataset_record(spec.dataset_id)
-    start, end = await _period(spec.dataset_id, context)
+    start, end = await _period(spec.dataset_id, context, spec.start)
     selection = SimpleNamespace(
-        dataset_id=spec.dataset_id, context_layer=None, parameters=None
+        dataset_id=spec.dataset_id,
+        context_layer=spec.context_layer,
+        parameters=None,
     )
     tile_url, context_layers, layers = get_tile_services_for_dataset(
         selection, pd.Series(record), start, end
@@ -182,7 +191,7 @@ async def _build_layer(
                 "dataset_id": spec.dataset_id,
                 "dataset_name": record["dataset_name"],
                 "tile_url": tile_url,
-                "context_layer": None,
+                "context_layer": spec.context_layer,
                 "selected_layer": None,
                 "context_layers": [
                     layer.model_dump() for layer in context_layers
@@ -198,11 +207,14 @@ async def _build_layer(
         raise WidgetFailedError(
             f"{record['dataset_name']} has no map layer to show."
         )
+    name = record["dataset_name"]
+    if spec.context_layer:
+        name += f" with the {spec.context_layer} context layer"
     return BuiltWidget(
         widget=SectionWidget(
             widget_type="map", config=widget_config("dataset", snapshot, None)
         ),
-        summary=f"map layer: {record['dataset_name']}, {start} to {end}",
+        summary=f"map layer: {name}, {start} to {end}",
     )
 
 
@@ -247,9 +259,10 @@ _BUILDERS: dict[str, Callable[..., Awaitable[BuiltWidget]]] = {
 
 
 async def _run_builder(spec, context: BuildContext):
-    """A built widget, or the exception that stopped it."""
+    """A built widget with the spec's size, or the exception that stopped
+    it."""
     try:
-        return await _BUILDERS[spec.kind](spec, context)
+        built = await _BUILDERS[spec.kind](spec, context)
     except Exception as error:
         logger.warning(
             "analysis_template_widget_failed",
@@ -258,6 +271,9 @@ async def _run_builder(spec, context: BuildContext):
             error=str(error),
         )
         return error
+    if spec.size is not None:
+        built.widget.config["size"] = spec.size
+    return built
 
 
 def _first_aoi(dashboard: DashboardOrm) -> Optional[dict]:

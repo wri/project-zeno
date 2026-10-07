@@ -6,9 +6,13 @@ kind is one spec class here and one builder function in ``builder``.
 """
 
 from datetime import date
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
+
+# The column span of a widget on the dashboard. None leaves the frontend
+# default, which is the full width for chart and map widgets.
+WidgetSize = Optional[Literal["single", "double"]]
 
 
 class TemplateArgs(BaseModel):
@@ -35,6 +39,7 @@ class ChartWidgetSpec(BaseModel):
     dataset_id: int
     # A failed required widget stops the build.
     required: bool = True
+    size: WidgetSize = None
 
 
 class LayerWidgetSpec(BaseModel):
@@ -44,7 +49,14 @@ class LayerWidgetSpec(BaseModel):
 
     kind: Literal["layer"] = "layer"
     dataset_id: int
+    # A context layer of the dataset, resolved as on the chat path, for
+    # example "natural_forest" for tree cover loss.
+    context_layer: Optional[str] = None
+    # Replaces the template period start for this map, for example to show
+    # the loss before the period as context.
+    start: Optional[date] = None
     required: bool = True
+    size: WidgetSize = None
 
 
 class ImageryWidgetSpec(BaseModel):
@@ -57,6 +69,7 @@ class ImageryWidgetSpec(BaseModel):
     max_cloud_cover: int = 20
     # A failed optional widget adds a warning and is left out.
     required: bool = False
+    size: WidgetSize = None
 
 
 WidgetSpec = Annotated[

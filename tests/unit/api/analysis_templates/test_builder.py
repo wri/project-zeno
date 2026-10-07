@@ -7,7 +7,10 @@ from uuid import uuid4
 
 import pytest
 
-from src.agent.datasets.handlers.analytics_handler import INTEGRATED_ALERTS_ID
+from src.agent.datasets.handlers.analytics_handler import (
+    INTEGRATED_ALERTS_ID,
+    TREE_COVER_LOSS_ID,
+)
 from src.agent.datasets.handlers.base import DataPullResult
 from src.agent.imagery.base import ImageryProviderResult
 from src.agent.models import ImageryState
@@ -18,6 +21,7 @@ from src.api.services.analysis_templates.builder import (
     WidgetFailedError,
     apply_template,
 )
+from src.api.services.analysis_templates.models import LayerWidgetSpec
 from src.api.services.analysis_templates.registry import get_template
 
 NRT = get_template("nrt-monitoring")
@@ -104,14 +108,14 @@ def _patches(pull=None, imagery=None, written=("section-1", ["w1", "w2"])):
     return mocks, stack
 
 
-async def _apply(stack, dashboard=None, args=None):
+async def _apply(stack, dashboard=None, args=None, template=NRT):
     for p in stack:
         p.start()
     try:
         return await apply_template(
             dashboard or _dashboard(),
-            NRT,
-            NRT.parse_args(args),
+            template,
+            template.parse_args(args),
             "user-1",
             "en",
         )
@@ -142,6 +146,44 @@ async def test_builds_three_widgets_in_template_order():
     assert widgets[1].config["dataset"]["end_date"] == "2026-09-23"
     assert widgets[2].config["imagery"]["mosaic_id"] == "mosaic-1"
     assert kwargs["user_id"] == "user-1"
+    # nrt-monitoring sets no size and no context layer.
+    assert not any("size" in w.config for w in widgets)
+    assert widgets[1].config["dataset"]["context_layer"] is None
+
+
+@pytest.mark.asyncio
+async def test_layer_with_a_context_layer_a_start_and_a_size():
+    template = NRT.model_copy(
+        update={
+            "widgets": (
+                LayerWidgetSpec(
+                    dataset_id=TREE_COVER_LOSS_ID,
+                    context_layer="natural_forest",
+                    start=date(2001, 1, 1),
+                    size="single",
+                ),
+            )
+        }
+    )
+    mocks, stack = _patches(written=("section-1", ["w1"]))
+
+    await _apply(stack, template=template)
+
+    (widget,) = mocks.write.await_args.kwargs["widgets"]
+    assert widget.config["size"] == "single"
+    dataset = widget.config["dataset"]
+    assert dataset["context_layer"] == "natural_forest"
+    # The frontend draws natural forest from this context tile.
+    (context,) = dataset["context_layers"]
+    assert context["name"] == "natural_forest"
+    assert context["tile_url"]
+    # The map starts before the natural forest baseline (2021), for context.
+    assert (dataset["start_date"], dataset["end_date"]) == (
+        "2001-01-01",
+        "2025-12-31",
+    )
+    assert "tree_cover_density_threshold=0" in dataset["tile_url"]
+    assert dataset["tile_url"].endswith("&start_year=2001&end_year=2025")
 
 
 @pytest.mark.asyncio
