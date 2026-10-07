@@ -201,9 +201,10 @@ async def test_apply_post_2020_forest_loss(client, auth_override):
     assert context["name"] == "natural_forest"
     assert context["tile_url"]
     assert (dataset["start_date"], dataset["end_date"]) == (
-        "2001-01-01",
+        "2021-01-01",
         "2025-12-31",
     )
+    assert dataset["tile_url"].endswith("&start_year=2021&end_year=2025")
     assert imagery_widget["config"]["size"] == "single"
 
 

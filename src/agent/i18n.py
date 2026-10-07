@@ -1319,8 +1319,7 @@ MESSAGES.update(
         "analysis_template.post_2020_forest_loss.description": {
             "en": (
                 "The SBTN Natural Lands Map is a 2020 baseline, so the "
-                "split covers loss from 2021 on; the map shows all loss "
-                "since 2001 for context. No canopy density threshold "
+                "split covers loss from 2021 on. No canopy density threshold "
                 "applies, so the totals are higher than Global Forest "
                 "Watch's default 30% figures. Other tree cover is "
                 "non-natural forest, such as plantations and tree crops, "
@@ -1332,8 +1331,7 @@ MESSAGES.update(
             "es": (
                 "El Mapa de Tierras Naturales de SBTN es una línea de base "
                 "de 2020, por lo que la división cubre la pérdida desde "
-                "2021; el mapa muestra toda la pérdida desde 2001 como "
-                "contexto. No se aplica ningún umbral de densidad del "
+                "2021. No se aplica ningún umbral de densidad del "
                 "dosel, por lo que los totales son mayores que las cifras "
                 "predeterminadas al 30 % de Global Forest Watch. Otra "
                 "cobertura arbórea es bosque no natural, como plantaciones "
@@ -1346,8 +1344,7 @@ MESSAGES.update(
             "fr": (
                 "La carte des terres naturelles du SBTN est une référence "
                 "de 2020 : la répartition couvre donc la perte à partir de "
-                "2021, et la carte montre toute la perte depuis 2001 pour "
-                "le contexte. Aucun seuil de densité du couvert ne "
+                "2021. Aucun seuil de densité du couvert ne "
                 "s'applique, si bien que les totaux dépassent les chiffres "
                 "par défaut de Global Forest Watch à 30 %. L'autre couvert "
                 "arboré correspond aux forêts non naturelles, comme les "
@@ -1360,8 +1357,8 @@ MESSAGES.update(
             ),
             "pt": (
                 "O Mapa de Terras Naturais do SBTN é uma linha de base de "
-                "2020, então a divisão cobre a perda a partir de 2021; o "
-                "mapa mostra toda a perda desde 2001 como contexto. Nenhum "
+                "2020, então a divisão cobre a perda a partir de 2021. "
+                "Nenhum "
                 "limiar de densidade de dossel se aplica, por isso os "
                 "totais são maiores que os números padrão de 30% do Global "
                 "Forest Watch. Outra cobertura arbórea é floresta não "
@@ -1374,9 +1371,8 @@ MESSAGES.update(
             ),
             "id": (
                 "Peta Lahan Alami SBTN adalah garis dasar tahun 2020, "
-                "sehingga pembagian ini mencakup kehilangan sejak 2021; "
-                "peta menampilkan semua kehilangan sejak 2001 sebagai "
-                "konteks. Tidak ada ambang kerapatan tajuk yang diterapkan, "
+                "sehingga pembagian ini mencakup kehilangan sejak 2021. "
+                "Tidak ada ambang kerapatan tajuk yang diterapkan, "
                 "sehingga totalnya lebih tinggi daripada angka bawaan 30% "
                 "Global Forest Watch. Tutupan pohon lainnya adalah hutan "
                 "non-alami, seperti perkebunan dan tanaman pohon, ditambah "
@@ -1388,8 +1384,7 @@ MESSAGES.update(
             "de": (
                 "Die SBTN-Karte natürlicher Flächen ist eine Basislinie "
                 "von 2020, daher umfasst die Aufteilung den Verlust ab "
-                "2021; die Karte zeigt zur Einordnung den gesamten Verlust "
-                "seit 2001. Es gilt keine Kronendichte-Schwelle, daher "
+                "2021. Es gilt keine Kronendichte-Schwelle, daher "
                 "liegen die Summen über den Standardwerten von Global "
                 "Forest Watch bei 30 %. Sonstiger Baumbestand ist nicht "
                 "natürlicher Wald, etwa Plantagen und Baumkulturen, sowie "
@@ -1401,8 +1396,7 @@ MESSAGES.update(
             "it": (
                 "La mappa delle terre naturali SBTN è una base di "
                 "riferimento del 2020, quindi la suddivisione copre la "
-                "perdita dal 2021; la mappa mostra tutta la perdita dal "
-                "2001 come contesto. Non si applica alcuna soglia di "
+                "perdita dal 2021. Non si applica alcuna soglia di "
                 "densità della chioma, quindi i totali sono superiori ai "
                 "valori predefiniti al 30% di Global Forest Watch. L'altra "
                 "copertura arborea è foresta non naturale, come piantagioni "
@@ -1414,8 +1408,7 @@ MESSAGES.update(
             ),
             "nl": (
                 "De SBTN-kaart van natuurlijke gebieden is een basislijn "
-                "uit 2020, dus de verdeling betreft verlies vanaf 2021; de "
-                "kaart toont ter context al het verlies sinds 2001. Er "
+                "uit 2020, dus de verdeling betreft verlies vanaf 2021. Er "
                 "geldt geen drempel voor kroondichtheid, dus de totalen "
                 "liggen hoger dan de standaardcijfers van Global Forest "
                 "Watch bij 30%. Overige boomkroonbedekking is "
@@ -1427,8 +1420,7 @@ MESSAGES.update(
             ),
             "ru": (
                 "Карта природных земель SBTN — это базовая линия 2020 "
-                "года, поэтому разбивка охватывает потери с 2021 года; "
-                "карта для контекста показывает все потери с 2001 года. "
+                "года, поэтому разбивка охватывает потери с 2021 года. "
                 "Порог сомкнутости полога не применяется, поэтому итоги "
                 "выше стандартных показателей Global Forest Watch при "
                 "пороге 30%. Прочий древесный покров — это неестественные "
@@ -1441,7 +1433,7 @@ MESSAGES.update(
             ),
             "zh": (
                 "SBTN自然土地地图以2020年为基线，因此该划分涵盖2021年起的"
-                "损失；地图显示2001年以来的全部损失作为背景。未应用冠层密度"
+                "损失。未应用冠层密度"
                 "阈值，因此总量高于Global Forest Watch默认的30%阈值数据。"
                 "其他树木覆盖指非天然林（如人工林和树木作物），以及2020年"
                 "森林类别以外的损失。天然林的范围比原始林更广：它包括再生林"
@@ -1449,8 +1441,7 @@ MESSAGES.update(
             ),
             "ar": (
                 "خريطة الأراضي الطبيعية لـ SBTN هي خط أساس لعام 2020، لذا "
-                "يغطي التقسيم الفقدان منذ عام 2021؛ وتعرض الخريطة كل "
-                "الفقدان منذ عام 2001 للسياق. لا يُطبَّق أي حد لكثافة "
+                "يغطي التقسيم الفقدان منذ عام 2021. لا يُطبَّق أي حد لكثافة "
                 "الظلة، لذا تكون المجاميع أعلى من أرقام Global Forest "
                 "Watch الافتراضية عند 30%. الغطاء الشجري الآخر هو الغابات "
                 "غير الطبيعية، مثل المزارع والمحاصيل الشجرية، إضافة إلى "
@@ -1461,8 +1452,7 @@ MESSAGES.update(
             ),
             "hi": (
                 "SBTN प्राकृतिक भूमि मानचित्र 2020 की आधार रेखा है, इसलिए "
-                "यह विभाजन 2021 से हुई हानि को कवर करता है; मानचित्र संदर्भ "
-                "के लिए 2001 से हुई सारी हानि दिखाता है। कोई वितान घनत्व "
+                "यह विभाजन 2021 से हुई हानि को कवर करता है। कोई वितान घनत्व "
                 "सीमा लागू नहीं है, इसलिए कुल आंकड़े Global Forest Watch के "
                 "डिफ़ॉल्ट 30% आंकड़ों से अधिक हैं। अन्य वृक्ष आवरण "
                 "गैर-प्राकृतिक वन है, जैसे बागान और वृक्ष फसलें, साथ ही "
@@ -1473,9 +1463,8 @@ MESSAGES.update(
             ),
             "vi": (
                 "Bản đồ Đất tự nhiên SBTN là đường cơ sở năm 2020, nên "
-                "phần phân chia bao gồm diện tích mất từ năm 2021; bản đồ "
-                "hiển thị toàn bộ diện tích mất từ năm 2001 để làm bối "
-                "cảnh. Không áp dụng ngưỡng mật độ tán, nên tổng số cao hơn "
+                "phần phân chia bao gồm diện tích mất từ năm 2021. "
+                "Không áp dụng ngưỡng mật độ tán, nên tổng số cao hơn "
                 "số liệu mặc định ở ngưỡng 30% của Global Forest Watch. Độ "
                 "che phủ cây khác là rừng không tự nhiên, như rừng trồng và "
                 "cây trồng lâu năm, cộng với diện tích mất ngoài các lớp "
@@ -1486,8 +1475,7 @@ MESSAGES.update(
             "sw": (
                 "Ramani ya Ardhi Asilia ya SBTN ni msingi wa mwaka 2020, "
                 "kwa hiyo mgawanyo huu unashughulikia upotevu kuanzia "
-                "2021; ramani inaonyesha upotevu wote tangu 2001 kwa "
-                "muktadha. Hakuna kizingiti cha msongamano wa mwavuli "
+                "2021. Hakuna kizingiti cha msongamano wa mwavuli "
                 "kinachotumika, kwa hiyo jumla ni kubwa kuliko takwimu za "
                 "kawaida za Global Forest Watch za asilimia 30. Uoto "
                 "mwingine wa miti ni msitu usio wa asili, kama mashamba ya "
@@ -1499,8 +1487,7 @@ MESSAGES.update(
             ),
             "tr": (
                 "SBTN Doğal Alanlar Haritası 2020 yılını temel alır, bu "
-                "nedenle ayrım 2021'den itibaren kaybı kapsar; harita "
-                "bağlam için 2001'den bu yana tüm kaybı gösterir. Herhangi "
+                "nedenle ayrım 2021'den itibaren kaybı kapsar. Herhangi "
                 "bir taç yoğunluğu eşiği uygulanmaz, bu nedenle toplamlar "
                 "Global Forest Watch'un varsayılan %30 değerlerinden "
                 "yüksektir. Diğer ağaç örtüsü, plantasyonlar ve ağaç "

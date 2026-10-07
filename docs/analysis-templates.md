@@ -14,7 +14,7 @@ The design and the decisions are in `analysis-templates-plan.md`.
 | Name | Widgets | Args |
 |---|---|---|
 | `nrt-monitoring` | Integrated alerts chart (daily), integrated alerts map layer, Sentinel-2 imagery | `days`: length of the period, counted back from today. Default 14, maximum 365. |
-| `post-2020-forest-loss` | Tree cover loss per year from 2021, split into natural forest and other tree cover (full width); tree cover loss map with the natural forest context layer, from 2001 (half width); Sentinel-2 imagery of the last 30 days (half width) | None. The period runs from 2021-01-01 to today; the chart and the map stop at the last year of loss data. |
+| `post-2020-forest-loss` | Tree cover loss per year from 2021, split into natural forest and other tree cover (full width); tree cover loss map with the natural forest context layer, for the same years (half width); Sentinel-2 imagery of the last 30 days (half width) | None. The period runs from 2021-01-01 to today; the chart and the map stop at the last year of loss data. |
 
 A template uses the first area of the dashboard. Each template has its own
 arguments (`args`). The arguments set the period of the widgets.
@@ -174,10 +174,9 @@ section by hand for all other requests.
 
 You do not have to write code if the template uses the widget kinds `chart`,
 `natural_forest_loss`, `layer` and `imagery`. A layer widget can set a
-`context_layer` and its own `start`; every widget can set its `size`. A
-template can set `description_rules` for a longer description. For a new
-widget kind, add a spec class to `models.py` and a builder function to
-`builder.py`.
+`context_layer`; every widget can set its `size`. A template can set
+`description_rules` for a longer description. For a new widget kind, add a
+spec class to `models.py` and a builder function to `builder.py`.
 
 ## Limits
 

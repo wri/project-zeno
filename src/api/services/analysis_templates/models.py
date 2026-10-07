@@ -54,9 +54,6 @@ class LayerWidgetSpec(BaseModel):
     # A context layer of the dataset, resolved as on the chat path, for
     # example "natural_forest" for tree cover loss.
     context_layer: Optional[str] = None
-    # Replaces the template period start for this map, for example to show
-    # the loss before the period as context.
-    start: Optional[date] = None
     required: bool = True
     size: WidgetSize = None
 

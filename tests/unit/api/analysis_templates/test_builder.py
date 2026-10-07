@@ -159,17 +159,17 @@ async def test_builds_three_widgets_in_template_order():
 
 
 @pytest.mark.asyncio
-async def test_layer_with_a_context_layer_a_start_and_a_size():
+async def test_layer_with_a_context_layer_and_a_size():
     template = NRT.model_copy(
         update={
+            "args_model": _Since2021,
             "widgets": (
                 LayerWidgetSpec(
                     dataset_id=TREE_COVER_LOSS_ID,
                     context_layer="natural_forest",
-                    start=date(2001, 1, 1),
                     size="single",
                 ),
-            )
+            ),
         }
     )
     mocks, stack = _patches(written=("section-1", ["w1"]))
@@ -184,13 +184,13 @@ async def test_layer_with_a_context_layer_a_start_and_a_size():
     (context,) = dataset["context_layers"]
     assert context["name"] == "natural_forest"
     assert context["tile_url"]
-    # The map starts before the natural forest baseline (2021), for context.
+    # The period, clamped to the end of the loss data.
     assert (dataset["start_date"], dataset["end_date"]) == (
-        "2001-01-01",
+        "2021-01-01",
         "2025-12-31",
     )
     assert "tree_cover_density_threshold=0" in dataset["tile_url"]
-    assert dataset["tile_url"].endswith("&start_year=2001&end_year=2025")
+    assert dataset["tile_url"].endswith("&start_year=2021&end_year=2025")
 
 
 @pytest.mark.asyncio
@@ -492,10 +492,12 @@ async def test_post_2020_forest_loss_builds_its_three_widgets():
     assert dataset["context_layer"] == "natural_forest"
     assert [c["name"] for c in dataset["context_layers"]] == ["natural_forest"]
     assert dataset["context_layers"][0]["tile_url"]
+    # The map covers the chart's years.
     assert (dataset["start_date"], dataset["end_date"]) == (
-        "2001-01-01",
+        "2021-01-01",
         "2025-12-31",
     )
+    assert dataset["tile_url"].endswith("&start_year=2021&end_year=2025")
     (request,) = mocks.imagery.await_args.args
     assert (request.target_date, request.window_days) == (TODAY, 30)
     assert kwargs["template"]["name"] == "post-2020-forest-loss"
@@ -515,7 +517,7 @@ async def test_post_2020_prompt_has_the_share_and_the_clamped_years():
     assert "2021-01-01 to 2025-12-31" in model.prompt
     assert (
         "map layer: Tree cover loss with the natural_forest context layer, "
-        "2001-01-01 to 2025-12-31"
+        "2021-01-01 to 2025-12-31"
     ) in model.prompt
     assert "Take every figure and every year from the facts" in model.prompt
     schema = model.schema.model_json_schema()

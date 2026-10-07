@@ -181,12 +181,9 @@ async def _build_layer(
     Here the selection is a stub with the spec's context layer and no
     parameters, which gives the dataset defaults (for example a canopy
     threshold of 30, or 0 with natural forest).
-
-    The period is clamped to the dataset, not to the context layer, so a
-    map can show the years before the context layer's baseline.
     """
     record = _dataset_record(spec.dataset_id)
-    start, end = await _period(spec.dataset_id, context, spec.start)
+    start, end = await _period(spec.dataset_id, context)
     selection = SimpleNamespace(
         dataset_id=spec.dataset_id,
         context_layer=spec.context_layer,

@@ -53,8 +53,7 @@ POST_2020_FOREST_LOSS_RULES = (
     "crops, plus loss outside the 2020 forest classes; natural forest is "
     "broader than primary forest, as it includes regenerated and secondary "
     "natural forest and excludes plantations; tree cover loss is not the "
-    "same as deforestation; the map shows all tree cover loss since 2001 "
-    "for context, while the figures cover the years in the facts."
+    "same as deforestation."
 )
 
 
@@ -92,8 +91,6 @@ TEMPLATES: tuple[AnalysisTemplate, ...] = (
             LayerWidgetSpec(
                 dataset_id=TREE_COVER_LOSS_ID,
                 context_layer="natural_forest",
-                # All the loss data, for context.
-                start=date(2001, 1, 1),
                 size="single",
             ),
             # A month, not a week: a cloud-free week is rare in the tropics.
