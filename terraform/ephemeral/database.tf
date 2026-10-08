@@ -48,6 +48,7 @@ resource "aws_db_instance" "main" {
   engine_version        = var.db_engine_version
   instance_class        = var.db_instance_class
   max_allocated_storage = var.db_max_allocated_storage
+  storage_type          = var.db_storage_type
 
   # Inherited from the snapshot; setting it would force replacement.
   password = var.db_password

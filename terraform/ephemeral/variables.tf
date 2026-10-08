@@ -71,6 +71,12 @@ variable "db_instance_class" {
   default     = "db.t4g.medium"
 }
 
+variable "db_storage_type" {
+  description = "RDS storage type"
+  type        = string
+  default     = "gp3"
+}
+
 variable "db_max_allocated_storage" {
   description = "Ceiling for storage autoscaling; billed only as used"
   type        = number
