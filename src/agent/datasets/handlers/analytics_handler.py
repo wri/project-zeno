@@ -363,6 +363,26 @@ class AnalyticsHandler(DataSourceHandler):
 
         logger.debug(f"dataset: {dataset}")
 
+        # A forest breakdown groups the loss by SBTN natural forest class,
+        # while the natural_forest context layer filters to one class. Only
+        # the analysis templates ask for it; the chat path never sets it.
+        forest_breakdown = dataset.get("forest_breakdown")
+        if forest_breakdown is not None:
+            if forest_breakdown != "natural_forest":
+                raise ValueError(
+                    f"Unknown forest breakdown: {forest_breakdown}"
+                )
+            if dataset.get("dataset_id") != TREE_COVER_LOSS_ID:
+                raise ValueError(
+                    "A natural forest breakdown is only available for tree "
+                    "cover loss."
+                )
+            if dataset.get("context_layer"):
+                raise ValueError(
+                    "A forest breakdown cannot be combined with the "
+                    f"{dataset['context_layer']} context layer."
+                )
+
         payload: dict[str, Any]
         if dataset.get("dataset_id") == INTEGRATED_ALERTS_ID:
             land_filter = None
@@ -404,6 +424,9 @@ class AnalyticsHandler(DataSourceHandler):
 
             elif dataset.get("context_layer") == "natural_forest":
                 forest_filter = "natural_forest_only"
+
+            elif forest_breakdown == "natural_forest":
+                forest_filter = "natural_forest"
             intersections = []
             if dataset.get("dataset_id") == TREE_COVER_LOSS_BY_DRIVER_ID:
                 intersections = ["driver"]
@@ -468,6 +491,7 @@ class AnalyticsHandler(DataSourceHandler):
 
         # The API rejects a canopy cover threshold with the natural forest
         # filter, since natural forest is a 2020 map independent of canopy.
+        # It rejects one with the breakdown too, which counts all loss.
         if (
             dataset.get("dataset_id")
             in [
@@ -478,6 +502,7 @@ class AnalyticsHandler(DataSourceHandler):
                 FOREST_CARBON_FLUX_ID,
             ]
             and dataset.get("context_layer") != "natural_forest"
+            and forest_breakdown is None
         ):
             canopy_cover: int = 30
             params = dataset.get("parameters")

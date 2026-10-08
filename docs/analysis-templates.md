@@ -14,9 +14,16 @@ The design and the decisions are in `analysis-templates-plan.md`.
 | Name | Widgets | Args |
 |---|---|---|
 | `nrt-monitoring` | Integrated alerts chart (daily), integrated alerts map layer, Sentinel-2 imagery | `days`: length of the period, counted back from today. Default 14, maximum 365. |
+| `post-2020-forest-loss` | Tree cover loss per year from 2021, split into natural forest and other tree cover (full width); tree cover loss map with the natural forest context layer, for the same years (half width); Sentinel-2 imagery of the last 30 days (half width) | None. The period runs from 2021-01-01 to today; the chart, the map and the section stop at the last year of loss data. |
 
 A template uses the first area of the dashboard. Each template has its own
 arguments (`args`). The arguments set the period of the widgets.
+
+`post-2020-forest-loss` pulls tree cover loss grouped by SBTN Natural Lands
+Map class, with no canopy threshold. "Other tree cover" is Non-natural
+Forest plus Unknown. The chart series are the legend names in the user's
+language, and `color_map` is keyed by them. The map config sets `size` and
+`dataset.context_layer`.
 
 ## API
 
@@ -51,7 +58,8 @@ arguments (`args`). The arguments set the period of the widgets.
 
 The `label` is in the user's language. `args_schema` is the JSON schema of
 the template arguments. Use it to make the form: it gives each argument, its
-default and its limits.
+default and its limits. `widgets` gives the widget kinds: `chart`,
+`natural_forest_loss` (a chart), `layer` or `imagery`.
 
 ### Apply a template
 
@@ -106,7 +114,10 @@ Each section in the dashboard response has a `template` field:
 }
 ```
 
-`args` has all the arguments, also the defaults. The field is `null` for a section that a user or the agent composed. It tells
+`args` has all the arguments, also the defaults. `start_date` and
+`end_date` are the dates the section's data covers: the requested period,
+clamped to its datasets (a section of annual data ends with its last year).
+The field is `null` for a section that a user or the agent composed. It tells
 how the section started, not what it contains now. An edited section keeps
 it. You can use it to show, for example, "Built from Near-real-time
 monitoring, 2026-09-09 to 2026-09-23".
@@ -114,9 +125,12 @@ monitoring, 2026-09-09 to 2026-09-23".
 ### Title and description
 
 A small model writes the title and the description from the data. The title
-has a maximum of 60 characters. The description has one to three sentences.
-If the model fails, the template's fixed text applies. The text is in the
-user's language.
+has a maximum of 60 characters. The description has one to three sentences,
+unless the template sets its own rules (`post-2020-forest-loss` asks for
+three to five). A widget can compute facts that the description must give,
+for example the natural forest share, so that the model does no
+arithmetic. If the model fails, the facts and the template's fixed text
+apply. The text is in the user's language.
 
 ### Access
 
@@ -152,15 +166,18 @@ section by hand for all other requests.
    `args_model` to the new class.
 3. Add the three i18n keys (label, fallback title, fallback description) to
    `src/agent/i18n.py`. The fallback text can use `{aoi_name}`,
-   `{start_date}` and `{end_date}`.
+   `{start_date}` and `{end_date}`. The widget facts go before the fallback
+   description.
 4. Run `tests/unit/api/analysis_templates/test_templates.py`. It checks that
    each chart dataset has a curated chart generator, that each layer dataset
    has a tile layer, that the i18n keys exist and that the default arguments
    are valid.
 
 You do not have to write code if the template uses the widget kinds `chart`,
-`layer` and `imagery`. For a new widget kind, add a spec class to
-`models.py` and a builder function to `builder.py`.
+`natural_forest_loss`, `layer` and `imagery`. A layer widget can set a
+`context_layer`; every widget can set its `size`. A template can set
+`description_rules` for a longer description. For a new widget kind, add a
+spec class to `models.py` and a builder function to `builder.py`.
 
 ## Limits
 

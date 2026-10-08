@@ -12,7 +12,8 @@ and the agent tool both call it.
    A builder returns data. It does not write to the database.
 4. A failed required widget stops the build with nothing written. A failed
    optional widget adds a warning and is left out.
-5. Write the title and the description (``text``).
+5. Write the title and the description (``text``) for the dates the data
+   covers.
 6. Write the section, its widgets and the new insights in one transaction.
 """
 
@@ -20,13 +21,15 @@ import asyncio
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from types import SimpleNamespace
-from typing import Awaitable, Callable, Optional
+from typing import Awaitable, Callable, Optional, Sequence
 
 import pandas as pd
 
 from src.agent.datasets.config import DATASETS
 from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import AnalyticsHandler
+from src.agent.datasets.handlers.base import DataPullResult
+from src.agent.i18n import t
 from src.agent.imagery import ImageryRequest, Sentinel2ImageryProvider
 from src.agent.language import DEFAULT_LANGUAGE
 from src.agent.subagents.analyst.charts import Insight, InsightChart
@@ -41,12 +44,18 @@ from src.api.services.analysis_templates.models import (
     ChartWidgetSpec,
     ImageryWidgetSpec,
     LayerWidgetSpec,
+    NaturalForestLossWidgetSpec,
     TemplateArgs,
 )
 from src.api.services.analysis_templates.text import generate_section_text
 from src.api.services.analyze import AnalyzeService
-from src.api.services.charts import DETERMINISTIC_GENERATORS
+from src.api.services.charts import DETERMINISTIC_GENERATORS, column_to_rows
+from src.api.services.charts.base import ChartGenerator
 from src.api.services.charts.curated import build_curated_charts
+from src.api.services.charts.tcl_natural_forest import (
+    TCLNaturalForestChartGenerator,
+    natural_forest_totals,
+)
 from src.api.services.widget_configs import (
     dataset_config,
     imagery_config,
@@ -101,6 +110,12 @@ class BuiltWidget:
     # One line for the text prompt, e.g. "chart: Integrated alerts".
     summary: str
     charts: list[InsightChart] = field(default_factory=list)
+    # Sentences computed in code that the description must give, in the
+    # user's language, e.g. a share the model must not work out itself.
+    facts: list[str] = field(default_factory=list)
+    # The dates the widget's data covers, clamped to its dataset. None for
+    # imagery, which is of one date.
+    period: Optional[tuple[str, str]] = None
 
 
 def _dataset_record(dataset_id: int) -> dict:
@@ -110,28 +125,41 @@ def _dataset_record(dataset_id: int) -> dict:
     return record
 
 
-async def _period(dataset_id: int, context: BuildContext) -> tuple[str, str]:
-    """The requested period, clamped to the dataset's range."""
+async def _period(
+    dataset_id: int,
+    context: BuildContext,
+    context_layer: Optional[str] = None,
+) -> tuple[str, str]:
+    """The requested period, clamped to the range of the dataset and of its
+    context layer (natural forest starts in 2021)."""
     start, end, _ = await revise_date_range(
         context.start.isoformat(),
         context.end.isoformat(),
         dataset_id,
+        context_layer,
     )
     return start, end
 
 
-async def _build_chart(
-    spec: ChartWidgetSpec, context: BuildContext
-) -> BuiltWidget:
-    record = _dataset_record(spec.dataset_id)
-    start, end = await _period(spec.dataset_id, context)
-    service = AnalyzeService(AnalyticsHandler(), DETERMINISTIC_GENERATORS)
+async def _curated_charts(
+    dataset_id: int,
+    context: BuildContext,
+    start: str,
+    end: str,
+    generators: Sequence[ChartGenerator] = DETERMINISTIC_GENERATORS,
+    **options,
+) -> tuple[list[InsightChart], DataPullResult]:
+    """The dataset's curated charts for the period, and the pull they were
+    built from. ``options`` go to ``AnalyzeService.analyze``."""
+    record = _dataset_record(dataset_id)
+    service = AnalyzeService(AnalyticsHandler(), generators)
     result = await service.analyze(
         aois=[dict(context.aoi)],
-        dataset_id=spec.dataset_id,
+        dataset_id=dataset_id,
         start_date=start,
         end_date=end,
         language=context.language,
+        **options,
     )
     if not result.data.success:
         raise WidgetFailedError(
@@ -143,12 +171,21 @@ async def _build_chart(
         # A successful pull with no rows: nothing happened in the period.
         # That is a result, so the chart is built empty.
         charts = await build_curated_charts(
-            spec.dataset_id, [], context.language
+            dataset_id, [], context.language, generators
         )
     if not charts:
         raise WidgetFailedError(
             f"No chart is available for {record['dataset_name']}."
         )
+    return charts, result.data
+
+
+async def _build_chart(
+    spec: ChartWidgetSpec, context: BuildContext
+) -> BuiltWidget:
+    record = _dataset_record(spec.dataset_id)
+    start, end = await _period(spec.dataset_id, context)
+    charts, _ = await _curated_charts(spec.dataset_id, context, start, end)
     return BuiltWidget(
         widget=SectionWidget(
             widget_type="insight",
@@ -157,6 +194,7 @@ async def _build_chart(
         ),
         summary=f"chart: {record['dataset_name']}, {start} to {end}",
         charts=charts,
+        period=(start, end),
     )
 
 
@@ -165,13 +203,16 @@ async def _build_layer(
 ) -> BuiltWidget:
     """The same tile layer the chat path resolves: ``pick_dataset`` passes
     its selection and the catalog row to ``get_tile_services_for_dataset``.
-    Here the selection is a stub with no context layer and no parameters,
-    which gives the dataset defaults (for example a canopy threshold of 30).
+    Here the selection is a stub with the spec's context layer and no
+    parameters, which gives the dataset defaults (for example a canopy
+    threshold of 30, or 0 with natural forest).
     """
     record = _dataset_record(spec.dataset_id)
-    start, end = await _period(spec.dataset_id, context)
+    start, end = await _period(spec.dataset_id, context, spec.context_layer)
     selection = SimpleNamespace(
-        dataset_id=spec.dataset_id, context_layer=None, parameters=None
+        dataset_id=spec.dataset_id,
+        context_layer=spec.context_layer,
+        parameters=None,
     )
     tile_url, context_layers, layers = get_tile_services_for_dataset(
         selection, pd.Series(record), start, end
@@ -182,7 +223,7 @@ async def _build_layer(
                 "dataset_id": spec.dataset_id,
                 "dataset_name": record["dataset_name"],
                 "tile_url": tile_url,
-                "context_layer": None,
+                "context_layer": spec.context_layer,
                 "selected_layer": None,
                 "context_layers": [
                     layer.model_dump() for layer in context_layers
@@ -198,11 +239,98 @@ async def _build_layer(
         raise WidgetFailedError(
             f"{record['dataset_name']} has no map layer to show."
         )
+    name = record["dataset_name"]
+    if spec.context_layer:
+        name += f" with the {spec.context_layer} context layer"
     return BuiltWidget(
         widget=SectionWidget(
             widget_type="map", config=widget_config("dataset", snapshot, None)
         ),
-        summary=f"map layer: {record['dataset_name']}, {start} to {end}",
+        summary=f"map layer: {name}, {start} to {end}",
+        period=(start, end),
+    )
+
+
+def _hectares(value: float) -> str:
+    """Whole hectares, grouped with a narrow no-break space. A comma or a
+    point would read as a decimal mark in some languages."""
+    if 0 < value < 1:
+        return "<1"
+    return f"{round(value):,}".replace(",", "\u202f")
+
+
+def _percent(part: float, whole: float) -> str:
+    """A whole percent that never rounds a small part to 0% or 100%."""
+    share = 100 * part / whole
+    if 0 < share < 1:
+        return "<1%"
+    if 99 < share < 100:
+        return ">99%"
+    return f"{round(share)}%"
+
+
+async def _build_natural_forest_loss(
+    spec: NaturalForestLossWidgetSpec, context: BuildContext
+) -> BuiltWidget:
+    """The natural forest split of tree cover loss, and its share as a fact.
+
+    The share is computed here, not by the text model. With no loss the
+    fact says so; there is no share to compute.
+    """
+    record = _dataset_record(spec.dataset_id)
+    start, end = await _period(spec.dataset_id, context, "natural_forest")
+    try:
+        charts, pull = await _curated_charts(
+            spec.dataset_id,
+            context,
+            start,
+            end,
+            [TCLNaturalForestChartGenerator(int(start[:4]), int(end[:4]))],
+            forest_breakdown="natural_forest",
+        )
+        natural_ha, total_ha = natural_forest_totals(
+            column_to_rows(pull.data) if pull.data else []
+        )
+    except ValueError as error:
+        raise WidgetFailedError(
+            f"Unexpected {record['dataset_name']} data for "
+            f"'{context.aoi['name']}': {error}"
+        ) from error
+
+    values = {
+        "aoi_name": context.aoi["name"],
+        "start_year": start[:4],
+        "end_year": end[:4],
+    }
+    if total_ha > 0:
+        fact = await t(
+            "analysis_template.natural_forest_loss.share",
+            context.language,
+            share=_percent(natural_ha, total_ha),
+            natural_ha=_hectares(natural_ha),
+            total_ha=_hectares(total_ha),
+            **values,
+        )
+    else:
+        fact = await t(
+            "analysis_template.natural_forest_loss.no_loss",
+            context.language,
+            **values,
+        )
+    return BuiltWidget(
+        widget=SectionWidget(
+            widget_type="insight",
+            config={},
+            insight=Insight(charts=charts),
+        ),
+        summary=(
+            f"chart: {record['dataset_name']} per year, natural forest "
+            "(SBTN Natural Lands Map 2020) and other tree cover, no canopy "
+            f"density threshold, {start} to {end}"
+        ),
+        charts=charts,
+        facts=[fact],
+        period=(start, end),
     )
 
 
@@ -243,13 +371,15 @@ _BUILDERS: dict[str, Callable[..., Awaitable[BuiltWidget]]] = {
     "chart": _build_chart,
     "layer": _build_layer,
     "imagery": _build_imagery,
+    "natural_forest_loss": _build_natural_forest_loss,
 }
 
 
 async def _run_builder(spec, context: BuildContext):
-    """A built widget, or the exception that stopped it."""
+    """A built widget with the spec's size, or the exception that stopped
+    it."""
     try:
-        return await _BUILDERS[spec.kind](spec, context)
+        built = await _BUILDERS[spec.kind](spec, context)
     except Exception as error:
         logger.warning(
             "analysis_template_widget_failed",
@@ -258,6 +388,9 @@ async def _run_builder(spec, context: BuildContext):
             error=str(error),
         )
         return error
+    if spec.size is not None:
+        built.widget.config["size"] = spec.size
+    return built
 
 
 def _first_aoi(dashboard: DashboardOrm) -> Optional[dict]:
@@ -326,8 +459,12 @@ async def apply_template(
             raise WidgetFailedError(message) from outcome
         warnings.append(message)
 
-    start_date = start.isoformat()
-    end_date = end.isoformat()
+    # The section covers the dates of its data, not the requested period:
+    # an annual dataset stops at its last year (tree cover loss at 2025)
+    # while the imagery is of today.
+    periods = [widget.period for widget in built if widget.period]
+    start_date = min((s for s, _ in periods), default=start.isoformat())
+    end_date = max((e for _, e in periods), default=end.isoformat())
     title, description = await generate_section_text(
         template,
         aoi_name=aoi["name"],
@@ -336,6 +473,7 @@ async def apply_template(
         widget_summaries=[widget.summary for widget in built],
         charts=[chart for widget in built for chart in widget.charts],
         language=context.language,
+        facts=[fact for widget in built for fact in widget.facts],
     )
 
     written = await dashboard_writer.add_section_with_widgets(

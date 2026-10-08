@@ -6,7 +6,10 @@ import pytest
 
 from src.agent.datasets.config import DATASETS
 from src.agent.i18n import MESSAGES
-from src.api.services.analysis_templates.registry import TEMPLATES
+from src.api.services.analysis_templates.registry import (
+    TEMPLATES,
+    get_template,
+)
 from src.api.services.charts import DETERMINISTIC_GENERATORS
 from src.api.user_profile_configs.languages import LANGUAGES
 
@@ -50,6 +53,21 @@ def test_chart_widget_has_a_curated_generator(template, widget):
 def test_layer_widget_dataset_has_a_tile_layer(template, widget):
     record = _CATALOG[widget.dataset_id]
     assert record.get("tile_url") or record.get("layers")
+
+
+@pytest.mark.parametrize("template, widget", _widgets("layer"))
+def test_layer_widget_context_layer_is_in_the_catalog(template, widget):
+    if widget.context_layer is None:
+        return
+    layers = _CATALOG[widget.dataset_id].get("context_layers") or []
+    assert widget.context_layer in [layer["value"] for layer in layers]
+
+
+def test_post_2020_forest_loss_starts_at_the_natural_forest_baseline():
+    template = get_template("post-2020-forest-loss")
+    today = date(2026, 10, 7)
+
+    assert template.parse_args({}).period(today) == (date(2021, 1, 1), today)
 
 
 @pytest.mark.parametrize("template", TEMPLATES, ids=lambda t: t.name)
