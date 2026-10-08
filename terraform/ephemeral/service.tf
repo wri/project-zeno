@@ -97,7 +97,7 @@ module "api" {
       # The image declares no entrypoint. Migrate, then serve.
       command = [
         "/bin/sh", "-c",
-        "/app/db/migrate.sh && exec uv run uvicorn src.api.app:app --host 0.0.0.0 --port 8000",
+        "/app/db/migrate.sh && exec uv run --no-sync uvicorn src.api.app:app --host 0.0.0.0 --port 8000",
       ]
 
       portMappings = [{
