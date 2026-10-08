@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Dict, List, Optional, Union
+from typing import Annotated, Any, Dict, List, Literal, Optional, Union
 from uuid import UUID
 
 from geojson_pydantic import Polygon
@@ -7,10 +7,13 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    StringConstraints,
     alias_generators,
+    computed_field,
     field_validator,
     model_validator,
 )
+from typing_extensions import TypedDict
 
 from src.api.data_models import UserType
 from src.api.user_profile_configs.countries import COUNTRIES
@@ -66,6 +69,21 @@ class ThreadNameOutput(BaseModel):
         return value
 
 
+def _rw_apps(extra_user_data: Any) -> Optional[List[str]]:
+    """The app names in RW's ``extraUserData.apps``, or None if unusable."""
+    apps = (
+        extra_user_data.get("apps")
+        if isinstance(extra_user_data, dict)
+        else None
+    )
+    if not isinstance(apps, list):
+        return None
+    names = dict.fromkeys(
+        app.strip() for app in apps if isinstance(app, str) and app.strip()
+    )
+    return list(names) or None
+
+
 class UserModel(BaseModel):
     """User model with relationships to threads and custom areas."""
 
@@ -102,6 +120,40 @@ class UserModel(BaseModel):
     receive_news_emails: bool = False
     help_test_features: bool = False
     has_profile: bool = False
+
+    # Set by the server; see terms_accepted below.
+    terms_accepted_at: Optional[datetime] = None
+    terms_version: Optional[str] = None
+
+    # Signup origin, written once by the first login (_get_or_create_user):
+    # when the person first entered GNW and which apps their RW account was
+    # registered with then ("gfw" for an existing GFW account).
+    first_seen_at: Optional[datetime] = None
+    rw_apps: Optional[List[str]] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def lift_rw_apps(cls, data: Any) -> Any:
+        # RW's /auth/user/me nests the account's apps under extraUserData.
+        # The live shape is unconfirmed, so anything unexpected becomes None.
+        if isinstance(data, dict) and "extraUserData" in data:
+            data = {**data, "rw_apps": _rw_apps(data["extraUserData"])}
+        return data
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def terms_accepted(self) -> bool:
+        """Whether the person has accepted the terms.
+
+        True once the consent screen has recorded an acceptance
+        (``terms_accepted_at``, stamped by the server whenever
+        PATCH /api/auth/profile carries ``terms_version``), or when the
+        person completed the legacy onboarding form (``has_profile``). That
+        form required ticking the terms box, so a completed legacy profile
+        implies acceptance and those rows are not backfilled:
+        ``terms_accepted_at`` stays null for them.
+        """
+        return self.terms_accepted_at is not None or self.has_profile
 
     @field_validator("created_at", "updated_at", mode="before")
     def parse_dates(cls, value):
@@ -174,6 +226,9 @@ class UserTypeUpdateRequest(BaseModel):
         return v
 
 
+TERMS_VERSION_MAX_LENGTH = 32
+
+
 class UserProfileUpdateRequest(BaseModel):
     """Request schema for updating user profile fields."""
 
@@ -197,6 +252,16 @@ class UserProfileUpdateRequest(BaseModel):
     receive_news_emails: Optional[bool] = None
     help_test_features: Optional[bool] = None
     has_profile: Optional[bool] = None
+
+    # Not Optional: the default is not validated, so explicit null is a 422.
+    terms_version: Annotated[
+        str,
+        StringConstraints(
+            strip_whitespace=True,
+            min_length=1,
+            max_length=TERMS_VERSION_MAX_LENGTH,
+        ),
+    ] = Field(None, description="Version of the terms being accepted")
 
     @field_validator("sector_code")
     def validate_sector_code(cls, v):
@@ -244,6 +309,37 @@ class UserProfileUpdateRequest(BaseModel):
                 if topic not in TOPICS:
                     raise ValueError(f"Invalid topic: {topic}")
         return v
+
+
+class ProfilePrefillSuggestion(TypedDict, total=False):
+    """Profile fields suggested from the person's MyGFW profile.
+
+    Keys are the ``PATCH /api/auth/profile`` field names (snake_case)
+    because the frontend sends the confirmed suggestion back as that body.
+    A field that did not map is absent, not null.
+    """
+
+    first_name: str
+    last_name: str
+    job_title: str
+    company_organization: str
+    sector_code: str
+    role_code: str
+    country_code: str
+    preferred_language_code: str
+    topics: List[str]
+
+
+class ProfilePrefillResponse(BaseModel):
+    """Response of ``GET /api/auth/profile/prefill``.
+
+    Either ``found`` with a non-empty suggestion from ``source``, or
+    ``found: false`` with ``source`` and ``suggestion`` null.
+    """
+
+    found: bool
+    source: Optional[Literal["gfw"]] = None
+    suggestion: Optional[ProfilePrefillSuggestion] = None
 
 
 class ProfileConfigResponse(BaseModel):
@@ -326,6 +422,14 @@ class AOISearchResult(BaseModel):
             "Bounding box as [west, south, east, north]. The default is the "
             "world bbox, which the search substitutes for a null bbox. `west` "
             "is greater than `east` for an AOI that crosses the antimeridian."
+        ),
+    )
+    score: Optional[float] = Field(
+        default=None,
+        description=(
+            "Rank of the match in [0, 1] when searching by name: the match "
+            "tier, whether a typed parent matched, and how prominent the "
+            "place is. Absent in browse mode."
         ),
     )
 
@@ -606,6 +710,20 @@ class AnalyzeRequest(BaseModel):
         description="Start of the date range (YYYY-MM-DD)."
     )
     end_date: date = Field(description="End of the date range (YYYY-MM-DD).")
+    context_layer: Optional[str] = Field(
+        default=None,
+        description=(
+            "Context layer of the dataset, e.g. `primary_forest`. Only the "
+            "datasets with context layers in the catalog use it."
+        ),
+    )
+    canopy_cover: Optional[int] = Field(
+        default=None,
+        description=(
+            "Minimum canopy cover in percent, for the datasets with a "
+            "`canopy_cover` parameter. The default is 30."
+        ),
+    )
     thread_id: Optional[str] = Field(
         default=None,
         description=(
@@ -776,6 +894,16 @@ class DashboardAoiResponse(BaseModel):
     position: int
 
 
+class DashboardSectionTemplate(BaseModel):
+    name: str = Field(description="Name of the analysis template.")
+    args: Dict[str, Any] = Field(
+        description="The template arguments, with the defaults filled in."
+    )
+    start_date: date
+    end_date: date
+    built_at: datetime
+
+
 class DashboardSectionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -783,6 +911,14 @@ class DashboardSectionResponse(BaseModel):
     title: str
     description: Optional[str] = None
     position: int
+    template: Optional[DashboardSectionTemplate] = Field(
+        default=None,
+        description=(
+            "How an analysis template built the section; null for a "
+            "section composed by hand or by the agent. The section stays "
+            "editable, so this tells how it started, not what it contains."
+        ),
+    )
     created_at: datetime
 
 
@@ -818,6 +954,47 @@ class DashboardResponse(BaseModel):
     # (`section_id`); ungrouped widgets render above the first section.
     sections: List[DashboardSectionResponse] = []
     widgets: List[DashboardWidgetResponse] = []
+
+
+class AnalysisTemplateResponse(BaseModel):
+    name: str = Field(description="Template name, e.g. `nrt-monitoring`.")
+    label: str = Field(description="Display name in the user's language.")
+    args_schema: Dict[str, Any] = Field(
+        description=(
+            "JSON schema of the `args` that the template takes, with the "
+            "defaults and the limits of each argument."
+        )
+    )
+    widgets: List[str] = Field(
+        description=(
+            "Widget kinds, in order: `chart`, `natural_forest_loss` (a "
+            "chart), `layer` or `imagery`."
+        )
+    )
+
+
+class SectionFromTemplateRequest(BaseModel):
+    template: str = Field(description="Name of the analysis template.")
+    args: Dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "The template arguments. They must agree with the template's "
+            "`args_schema`. A missing argument gets its default."
+        ),
+    )
+
+
+class SectionFromTemplateResponse(BaseModel):
+    section_id: UUID
+    widget_ids: List[UUID]
+    warnings: List[str] = Field(
+        default=[],
+        description=(
+            "Optional widgets that failed and were left out, for example "
+            "no cloud-free imagery."
+        ),
+    )
+    dashboard: DashboardResponse
 
 
 class DashboardPublicToggleResponse(DashboardResponse):

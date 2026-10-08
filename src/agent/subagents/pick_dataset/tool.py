@@ -14,7 +14,7 @@ from langgraph.types import Command
 from shapely import box
 
 from src.agent.datasets.config import (
-    CANDIDATE_DATASET_LLM_COLUMNS,
+    CANDIDATE_DATASET_REQUIRED_COLUMNS,
     DATASETS,
     RETIRED_DATASET_IDS,
 )
@@ -207,6 +207,30 @@ def _format_selection_hints(candidate_datasets: pd.DataFrame) -> str:
     return "\n\n".join(lines) if lines else ""
 
 
+def _format_layer(layer: dict) -> str:
+    """One layer as `name (title): description`, parts omitted when absent."""
+    line = layer["name"]
+    if layer.get("title"):
+        line += f" ({layer['title']})"
+    if layer.get("description"):
+        line += f": {layer['description']}"
+    return line
+
+
+def _format_layer_options(candidate_datasets: pd.DataFrame) -> str:
+    """The choices for `selected_layer`: each multi-layer candidate's layers
+    by name, title and description. Tile URLs are left out — they carry no
+    selection signal."""
+    blocks = []
+    for _, row in candidate_datasets.iterrows():
+        layers = row.get("layers")
+        if not isinstance(layers, list) or len(layers) <= 1:
+            continue
+        lines = "\n".join(f"- {_format_layer(layer)}" for layer in layers)
+        blocks.append(f"{row['dataset_name']}:\n{lines}")
+    return "\n\n".join(blocks) if blocks else "None"
+
+
 async def select_best_dataset(
     query: str,
     candidate_datasets: pd.DataFrame,
@@ -236,6 +260,10 @@ async def select_best_dataset(
 ## Candidate datasets
 
 {candidate_datasets}
+
+## Map layers (for selected_layer)
+
+{layer_options}
 
 ## User query
 
@@ -274,19 +302,17 @@ async def select_best_dataset(
         removed_df = removed_layers.to_csv(index=False)
 
     selection_hints = _format_selection_hints(candidate_datasets)
+    layer_options = _format_layer_options(candidate_datasets)
 
     return await dataset_selection_chain.ainvoke(
         {
-            # reindex, not a bare [...] select: `layers` is genuinely optional
-            # (only LGMS has it today), so a candidate_datasets slice where no
-            # row happens to carry it has no such column at all — a bare
-            # indexer raises KeyError in that case, reindex fills it with NaN.
-            "candidate_datasets": candidate_datasets.reindex(
-                columns=CANDIDATE_DATASET_LLM_COLUMNS
-            ).to_csv(index=False),
+            "candidate_datasets": candidate_datasets[
+                CANDIDATE_DATASET_REQUIRED_COLUMNS
+            ].to_csv(index=False),
             "user_query": query,
             "removed_layers": removed_df,
             "selection_hints": selection_hints,
+            "layer_options": layer_options,
             "rules": SELECTION_RULES,
         }
     )
@@ -479,9 +505,32 @@ class DatasetSelector:
             + (f" (context layer: {layer})" if layer else ""),
         )
 
+        # The map layer(s) this dataset renders, and which one is on the map.
+        # Without this the agent only ever sees the dataset name and its
+        # (inventory-flavoured) prose, and narrates that there is no map layer
+        # even as the frontend paints the one that was selected.
+        layers = [layer.model_dump() for layer in dataset_result.layers]
+        if layers:
+            available_layers = "".join(
+                f"\n      - {_format_layer(layer)}" for layer in layers
+            )
+            displayed = next(
+                (
+                    layer
+                    for layer in layers
+                    if layer["name"] == dataset_result.selected_layer
+                ),
+                layers[0],
+            )
+            displayed_layer = _format_layer(displayed)
+        else:
+            available_layers = displayed_layer = "none"
+
         tool_message = f"""# About the selection
     Selected dataset name: {dataset_result.dataset_name}
     Selected context layer: {dataset_result.context_layer}
+    Map layers available: {available_layers}
+    Map layer displayed: {displayed_layer}
     Reasoning for selection: {dataset_result.reason}
 
     # Additional dataset information
@@ -651,9 +700,12 @@ def get_tile_services_for_dataset(
             ),
             None,
         )
+        context_tile_url = selected_context_layer.get("tile_url")
+        if context_tile_url and not context_tile_url.startswith("http"):
+            context_tile_url = SharedSettings.eoapi_base_url + context_tile_url
         context_layer = ContextLayer(
             name=selected_context_layer.get("value"),
-            tile_url=selected_context_layer.get("tile_url"),
+            tile_url=context_tile_url,
         )
         context_layers.append(context_layer)
 
@@ -664,13 +716,14 @@ def get_tile_services_for_dataset(
         TREE_COVER_LOSS_BY_FIRES_ID,
         FOREST_CARBON_FLUX_ID,
     ]:
-        canopy_cover = 30
-        if selection_result.parameters is not None:
+        natural_forest = selection_result.context_layer == "natural_forest"
+        canopy_cover = 0 if natural_forest else 30
+        if selection_result.parameters is not None and not natural_forest:
             for param in selection_result.parameters:
                 if param.name == "canopy_cover":
                     canopy_cover = max(param.values)
 
-        if selected_row.dataset_id != TREE_COVER_ID:
+        if selected_row.dataset_id != TREE_COVER_ID and not natural_forest:
             canopy_cover_tile_url = next(
                 (
                     param["tile_url"]
@@ -713,6 +766,21 @@ def get_tile_services_for_dataset(
     return tile_url, context_layers, layers
 
 
+def to_dataset_layers(raw_layers: list[dict]) -> list[DatasetLayer]:
+    """Catalog yml `layers` entries as DatasetLayers."""
+    return [
+        DatasetLayer(
+            name=layer["name"],
+            tile_url=layer["tile_url"],
+            title=layer.get("title"),
+            description=layer.get("description"),
+            start_date=layer.get("start_date"),
+            end_date=layer.get("end_date"),
+        )
+        for layer in raw_layers
+    ]
+
+
 def get_dataset_layers(selected_row, tile_url: str) -> list[DatasetLayer]:
     """The dataset's primary layer(s): the yml's explicit `layers` list when
     present (e.g. LGMS's agriculture/lulucf), otherwise a single layer
@@ -723,15 +791,7 @@ def get_dataset_layers(selected_row, tile_url: str) -> list[DatasetLayer]:
     manufacturing."""
     raw_layers = getattr(selected_row, "layers", None)
     if isinstance(raw_layers, list) and raw_layers:
-        return [
-            DatasetLayer(
-                name=layer["name"],
-                tile_url=layer["tile_url"],
-                start_date=layer.get("start_date"),
-                end_date=layer.get("end_date"),
-            )
-            for layer in raw_layers
-        ]
+        return to_dataset_layers(raw_layers)
     if not tile_url:
         return []
     return [DatasetLayer(name=selected_row.dataset_name, tile_url=tile_url)]

@@ -22,7 +22,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
 from sqlalchemy.orm import declarative_base, relationship
 
@@ -72,6 +72,15 @@ class UserOrm(Base):
     receive_news_emails = Column(Boolean, nullable=False, default=False)
     help_test_features = Column(Boolean, nullable=False, default=False)
     has_profile = Column(Boolean, nullable=False, default=False)
+
+    # Terms acceptance; see UserModel.terms_accepted.
+    terms_accepted_at = Column(DateTime(timezone=True), nullable=True)
+    terms_version = Column(String, nullable=True)
+
+    # Signup origin, written once by the first login (see migration
+    # 9f91079f0670 and _get_or_create_user).
+    first_seen_at = Column(DateTime(timezone=True), nullable=True)
+    rw_apps = Column(ARRAY(String), nullable=True)
 
     # Machine user fields
     machine_description = Column(String, nullable=True)
@@ -196,12 +205,17 @@ class AoiOrm(Base):
     reads the column through the ORM. Every geometry read and write uses raw SQL
     (``src/shared/geocoding_helpers.py``, ``src/shared/aoi_geometry.py``).
 
-    Of the indexes in the migrations, only the partial unique index is declared
-    here. It is a correctness constraint and the target of the upsert, not an
-    optimization. The other indexes exist only for performance, so they stay in
-    the migrations. Two migrations hold them: ``ceea2a027738`` creates the
-    tables and the first set, and ``d4a1c7b93e02`` adds the browse and
-    subregion-lookup indexes.
+    Of the indexes in the migrations, this model declares only the partial
+    unique index (a correctness constraint and the upsert target). The
+    others exist for performance and stay in the migrations:
+    ``ceea2a027738`` creates the tables and the first set, ``d4a1c7b93e02``
+    adds the browse and subregion-lookup indexes, and ``5b7e2c9a1f40`` adds
+    the search indexes.
+
+    ``leaf``, ``leaf_norm``, ``designation``, ``search_tsv`` and ``name_tsv`` are the search
+    columns. ``build-aois`` and the custom-area mirror fill them with the
+    fragments in :mod:`src.shared.aoi_search_sql`; ``docs/aoi-full-text-search.md``
+    describes how search reads them.
     """
 
     __tablename__ = "aois"
@@ -215,6 +229,17 @@ class AoiOrm(Base):
     source_id = Column(String, nullable=False)
     name = Column(String, nullable=False)
     subtype = Column(String, nullable=False)
+    # Search columns. `leaf` is the place's own name, `leaf_norm` its
+    # lowercase unaccented form, `designation` the kind of site a source
+    # names it with (WDPA desig_eng, LandMark category; NULL elsewhere),
+    # `search_tsv` the weighted tsvector over names, parents and country and
+    # `name_tsv` the one over the names and designation only.
+    # Nullable: a row is written before its search columns are derived.
+    leaf = Column(String, nullable=True)
+    leaf_norm = Column(String, nullable=True)
+    designation = Column(String, nullable=True)
+    search_tsv = Column(TSVECTOR, nullable=True)
+    name_tsv = Column(TSVECTOR, nullable=True)
     # spatial_index=False: the migration creates the GiST index, so its name is
     # controlled. geoalchemy2 must not emit its own index here.
     geometry = Column(
@@ -268,6 +293,9 @@ class AoiOrm(Base):
             unique=True,
             postgresql_where=text("NOT is_deprecated"),
         ),
+        # The search indexes (leaf_norm btree, the two GIN vectors) live in
+        # the migration only: they serve production plans, and the seeded
+        # test tables are too small for the planner to use them.
     )
 
     user_links = relationship(
@@ -275,6 +303,65 @@ class AoiOrm(Base):
         back_populates="aoi",
         cascade="all, delete-orphan",
     )
+    names = relationship(
+        "AoiNameOrm",
+        back_populates="aoi",
+        cascade="all, delete-orphan",
+    )
+
+
+class AoiNameOrm(Base):
+    """An alternate name a searchable AOI is known by.
+
+    The place's own name is ``aois.leaf``; this table holds the others:
+    ``variant`` (GADM VARNAME), ``native`` (GADM NL_NAME, WDPA orig_name),
+    ``international`` (KBA IntName) or ``code`` (a country's ISO3). One row
+    per spelling per AOI, whatever its kind. ``name_norm`` is the lowercase
+    unaccented form that the exact and prefix tiers compare against;
+    non-Latin names are stored as they come. Written by raw SQL in
+    ``build-aois``; nothing reads the table through the ORM.
+    """
+
+    __tablename__ = "aoi_names"
+
+    id = Column(
+        PostgresUUID,
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    aoi_id = Column(
+        PostgresUUID,
+        ForeignKey("aois.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name = Column(String, nullable=False)
+    name_norm = Column(String, nullable=False)
+    kind = Column(String, nullable=False)
+
+    __table_args__ = (
+        # The rebuild's ON CONFLICT target; also serves the aoi_id lookup.
+        # The name_norm search index lives in the migration only.
+        UniqueConstraint("aoi_id", "name_norm", name="uq_aoi_names_aoi_norm"),
+    )
+
+    aoi = relationship("AoiOrm", back_populates="names")
+
+
+class AoiSearchTokenOrm(Base):
+    """A distinct lexeme of ``aois.name_tsv``, with the count of names that
+    carry it and the hierarchy prior of the best-known one.
+
+    Read only when a query misses: to correct a misspelled word, and to tell
+    whether a word can name a place on its own. Rebuilt at the end of
+    ``build-aois``.
+    """
+
+    __tablename__ = "aoi_search_tokens"
+
+    token = Column(String, primary_key=True)
+    ndoc = Column(Integer, nullable=False)
+    prominence = Column(Float, nullable=False)
+    # The trigram index on token lives in the migration only.
 
 
 class UserAoiOrm(Base):
@@ -555,6 +642,10 @@ class DashboardSectionOrm(Base):
     description = Column(String, nullable=True)
     # Order of the section within the dashboard.
     position = Column(Integer, nullable=False, server_default="0")
+    # Provenance of a section built by an analysis template: name, args,
+    # start_date, end_date, built_at. NULL for a hand-composed section.
+    # Informational only; an edited section keeps it.
+    template = Column(JSONB, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.now)
 
     dashboard = relationship("DashboardOrm", back_populates="sections")

@@ -1062,6 +1062,442 @@ MESSAGES.update(
             "sw": "Sababu nyingine",
             "tr": "Diğer nedenler",
         },
+        "charts.tcl_natural_forest.annual_split": {
+            "en": "Annual Tree Cover Loss in Natural Forest and Other Tree Cover",
+            "es": "Pérdida anual de cobertura arbórea en bosque natural y otra cobertura arbórea",
+            "fr": "Perte annuelle de couvert arboré en forêt naturelle et autre couvert arboré",
+            "pt": "Perda anual de cobertura arbórea em floresta natural e outra cobertura arbórea",
+            "id": "Kehilangan Tutupan Pohon Tahunan di Hutan Alam dan Tutupan Pohon Lainnya",
+            "de": "Jährlicher Baumbestandsverlust in Naturwald und sonstigem Baumbestand",
+            "it": "Perdita annuale di copertura arborea in foresta naturale e altra copertura arborea",
+            "nl": "Jaarlijks verlies aan boomkroonbedekking in natuurlijk bos en overige boomkroonbedekking",
+            "ru": "Ежегодная потеря древесного покрова в естественных лесах и прочем древесном покрове",
+            "zh": "天然林与其他树木覆盖的年度树木覆盖损失",
+            "ar": "الفقدان السنوي للغطاء الشجري في الغابات الطبيعية وغيرها من الغطاء الشجري",
+            "hi": "प्राकृतिक वन और अन्य वृक्ष आवरण में वार्षिक वृक्ष आवरण हानि",
+            "vi": "Mất độ che phủ cây hằng năm trong rừng tự nhiên và độ che phủ cây khác",
+            "sw": "Upotevu wa Mwaka wa Uoto wa Miti katika Msitu wa Asili na Uoto Mwingine wa Miti",
+            "tr": "Doğal Ormanda ve Diğer Ağaç Örtüsünde Yıllık Ağaç Örtüsü Kaybı",
+        },
+        "charts.label.natural_forest": {
+            "en": "Natural forest",
+            "es": "Bosque natural",
+            "fr": "Forêt naturelle",
+            "pt": "Floresta natural",
+            "id": "Hutan alam",
+            "de": "Naturwald",
+            "it": "Foresta naturale",
+            "nl": "Natuurlijk bos",
+            "ru": "Естественный лес",
+            "zh": "天然林",
+            "ar": "غابة طبيعية",
+            "hi": "प्राकृतिक वन",
+            "vi": "Rừng tự nhiên",
+            "sw": "Msitu wa asili",
+            "tr": "Doğal orman",
+        },
+        "charts.label.other_tree_cover": {
+            "en": "Other tree cover",
+            "es": "Otra cobertura arbórea",
+            "fr": "Autre couvert arboré",
+            "pt": "Outra cobertura arbórea",
+            "id": "Tutupan pohon lainnya",
+            "de": "Sonstiger Baumbestand",
+            "it": "Altra copertura arborea",
+            "nl": "Overige boomkroonbedekking",
+            "ru": "Прочий древесный покров",
+            "zh": "其他树木覆盖",
+            "ar": "غطاء شجري آخر",
+            "hi": "अन्य वृक्ष आवरण",
+            "vi": "Độ che phủ cây khác",
+            "sw": "Uoto mwingine wa miti",
+            "tr": "Diğer ağaç örtüsü",
+        },
+    }
+)
+
+
+# Analysis templates: the name in the template list and the section text
+# used when the text model fails (src.api.services.analysis_templates).
+MESSAGES.update(
+    {
+        "analysis_template.nrt_monitoring.label": {
+            "en": "Near-real-time monitoring",
+            "es": "Monitoreo casi en tiempo real",
+            "fr": "Suivi en temps quasi réel",
+            "pt": "Monitoramento quase em tempo real",
+            "id": "Pemantauan hampir waktu nyata",
+            "de": "Überwachung nahezu in Echtzeit",
+            "it": "Monitoraggio quasi in tempo reale",
+            "nl": "Bijna-realtime monitoring",
+            "ru": "Мониторинг почти в реальном времени",
+            "zh": "近实时监测",
+            "ar": "رصد شبه فوري",
+            "hi": "लगभग वास्तविक समय निगरानी",
+            "vi": "Giám sát gần thời gian thực",
+            "sw": "Ufuatiliaji wa karibu wakati halisi",
+            "tr": "Neredeyse gerçek zamanlı izleme",
+        },
+        "analysis_template.nrt_monitoring.title": {
+            "en": "Recent disturbance alerts in {aoi_name}",
+            "es": "Alertas de perturbación recientes en {aoi_name}",
+            "fr": "Alertes de perturbation récentes à {aoi_name}",
+            "pt": "Alertas de perturbação recentes em {aoi_name}",
+            "id": "Peringatan gangguan terbaru di {aoi_name}",
+            "de": "Aktuelle Störungswarnungen in {aoi_name}",
+            "it": "Allerte di disturbo recenti a {aoi_name}",
+            "nl": "Recente verstoringswaarschuwingen in {aoi_name}",
+            "ru": "Недавние оповещения о нарушениях: {aoi_name}",
+            "zh": "{aoi_name}近期干扰预警",
+            "ar": "تنبيهات الاضطراب الأخيرة في {aoi_name}",
+            "hi": "{aoi_name} में हाल के विक्षोभ अलर्ट",
+            "vi": "Cảnh báo xáo trộn gần đây tại {aoi_name}",
+            "sw": "Tahadhari za hivi karibuni za usumbufu katika {aoi_name}",
+            "tr": "{aoi_name} için son bozulma uyarıları",
+        },
+        "analysis_template.nrt_monitoring.description": {
+            "en": (
+                "Integrated disturbance alerts in {aoi_name} from "
+                "{start_date} to {end_date}, with the alerts layer and "
+                "satellite imagery. Alerts show possible disturbance, not "
+                "confirmed deforestation."
+            ),
+            "es": (
+                "Alertas integradas de perturbación en {aoi_name} del "
+                "{start_date} al {end_date}, con la capa de alertas y "
+                "las imágenes satelitales. Las alertas indican una posible "
+                "perturbación, no deforestación confirmada."
+            ),
+            "fr": (
+                "Alertes intégrées de perturbation à {aoi_name} du "
+                "{start_date} au {end_date}, avec la couche des alertes et "
+                "l'imagerie satellite. Les alertes indiquent une "
+                "perturbation possible, pas une déforestation confirmée."
+            ),
+            "pt": (
+                "Alertas integrados de perturbação em {aoi_name} de "
+                "{start_date} a {end_date}, com a camada de alertas e "
+                "imagens de satélite. Os alertas indicam uma possível "
+                "perturbação, não desmatamento confirmado."
+            ),
+            "id": (
+                "Peringatan gangguan terpadu di {aoi_name} dari "
+                "{start_date} hingga {end_date}, dengan lapisan peringatan "
+                "dan citra satelit. Peringatan menunjukkan kemungkinan "
+                "gangguan, bukan deforestasi yang terkonfirmasi."
+            ),
+            "de": (
+                "Integrierte Störungswarnungen in {aoi_name} vom "
+                "{start_date} bis {end_date}, mit der Warnungsebene und "
+                "Satellitenbildern. Die Warnungen zeigen mögliche "
+                "Störungen, keine bestätigte Entwaldung."
+            ),
+            "it": (
+                "Allerte integrate di disturbo a {aoi_name} dal "
+                "{start_date} al {end_date}, con il livello delle allerte e "
+                "le immagini satellitari. Le allerte indicano un possibile "
+                "disturbo, non una deforestazione confermata."
+            ),
+            "nl": (
+                "Geïntegreerde verstoringswaarschuwingen in {aoi_name} van "
+                "{start_date} tot {end_date}, met de waarschuwingslaag en "
+                "satellietbeelden. Waarschuwingen tonen mogelijke "
+                "verstoring, geen bevestigde ontbossing."
+            ),
+            "ru": (
+                "Интегрированные оповещения о нарушениях: {aoi_name}, с "
+                "{start_date} по {end_date}, со слоем оповещений и "
+                "спутниковыми снимками. Оповещения указывают на возможное "
+                "нарушение, а не на подтверждённую вырубку."
+            ),
+            "zh": (
+                "{aoi_name}从{start_date}到{end_date}的综合干扰预警，"
+                "附预警图层和卫星影像。预警表示可能的干扰，"
+                "而非已确认的毁林。"
+            ),
+            "ar": (
+                "تنبيهات الاضطراب المتكاملة في {aoi_name} من {start_date} "
+                "إلى {end_date}، مع طبقة التنبيهات وصور الأقمار الصناعية. "
+                "تشير التنبيهات إلى اضطراب محتمل، وليس إلى إزالة غابات "
+                "مؤكدة."
+            ),
+            "hi": (
+                "{aoi_name} में {start_date} से {end_date} तक के एकीकृत "
+                "विक्षोभ अलर्ट, अलर्ट परत और उपग्रह चित्रों के साथ। अलर्ट "
+                "संभावित विक्षोभ दिखाते हैं, पुष्ट वनोन्मूलन नहीं।"
+            ),
+            "vi": (
+                "Cảnh báo xáo trộn tích hợp tại {aoi_name} từ {start_date} "
+                "đến {end_date}, kèm lớp cảnh báo và ảnh vệ tinh. Cảnh báo "
+                "cho thấy xáo trộn có thể xảy ra, không phải mất rừng đã "
+                "được xác nhận."
+            ),
+            "sw": (
+                "Tahadhari jumuishi za usumbufu katika {aoi_name} kuanzia "
+                "{start_date} hadi {end_date}, pamoja na tabaka la "
+                "tahadhari na picha za setilaiti. Tahadhari zinaonyesha "
+                "usumbufu unaowezekana, si ukataji miti uliothibitishwa."
+            ),
+            "tr": (
+                "{aoi_name} için {start_date} ile {end_date} arasındaki "
+                "entegre bozulma uyarıları, uyarı katmanı ve uydu "
+                "görüntüleriyle birlikte. Uyarılar olası bozulmayı "
+                "gösterir, doğrulanmış ormansızlaşmayı değil."
+            ),
+        },
+        # Facts of the natural forest loss widget. The builder formats the
+        # numbers; {share} carries its own percent sign.
+        "analysis_template.natural_forest_loss.share": {
+            "en": "From {start_year} to {end_year}, {share} of the tree cover loss in {aoi_name} was in natural forest: {natural_ha} ha of {total_ha} ha.",
+            "es": "De {start_year} a {end_year}, el {share} de la pérdida de cobertura arbórea en {aoi_name} se produjo en bosque natural: {natural_ha} ha de {total_ha} ha.",
+            "fr": "De {start_year} à {end_year}, {share} de la perte de couvert arboré à {aoi_name} a eu lieu en forêt naturelle : {natural_ha} ha sur {total_ha} ha.",
+            "pt": "De {start_year} a {end_year}, {share} da perda de cobertura arbórea em {aoi_name} ocorreu em floresta natural: {natural_ha} ha de {total_ha} ha.",
+            "id": "Dari {start_year} hingga {end_year}, {share} kehilangan tutupan pohon di {aoi_name} terjadi di hutan alam: {natural_ha} ha dari {total_ha} ha.",
+            "de": "Von {start_year} bis {end_year} entfielen {share} des Baumbestandsverlusts in {aoi_name} auf Naturwald: {natural_ha} ha von {total_ha} ha.",
+            "it": "Dal {start_year} al {end_year}, il {share} della perdita di copertura arborea a {aoi_name} è avvenuto in foresta naturale: {natural_ha} ha su {total_ha} ha.",
+            "nl": "Van {start_year} tot {end_year} vond {share} van het verlies aan boomkroonbedekking in {aoi_name} plaats in natuurlijk bos: {natural_ha} ha van {total_ha} ha.",
+            "ru": "С {start_year} по {end_year} год {share} потерь древесного покрова в {aoi_name} пришлось на естественные леса: {natural_ha} га из {total_ha} га.",
+            "zh": "{start_year}年至{end_year}年，{aoi_name}的树木覆盖损失中有{share}发生在天然林：{total_ha}公顷中的{natural_ha}公顷。",
+            "ar": "من {start_year} إلى {end_year}، وقع {share} من فقدان الغطاء الشجري في {aoi_name} في الغابات الطبيعية: {natural_ha} هكتار من أصل {total_ha} هكتار.",
+            "hi": "{start_year} से {end_year} तक, {aoi_name} में वृक्ष आवरण हानि का {share} प्राकृतिक वन में हुआ: {total_ha} हेक्टेयर में से {natural_ha} हेक्टेयर।",
+            "vi": "Từ {start_year} đến {end_year}, {share} diện tích mất độ che phủ cây tại {aoi_name} nằm trong rừng tự nhiên: {natural_ha} ha trên tổng số {total_ha} ha.",
+            "sw": "Kuanzia {start_year} hadi {end_year}, {share} ya upotevu wa uoto wa miti katika {aoi_name} ulitokea katika msitu wa asili: hekta {natural_ha} kati ya hekta {total_ha}.",
+            "tr": "{start_year}-{end_year} döneminde {aoi_name} bölgesindeki ağaç örtüsü kaybının {share} kadarı doğal ormanda gerçekleşti: {total_ha} ha alanın {natural_ha} ha kadarı.",
+        },
+        "analysis_template.natural_forest_loss.no_loss": {
+            "en": "No tree cover loss was recorded in {aoi_name} from {start_year} to {end_year}.",
+            "es": "No se registró pérdida de cobertura arbórea en {aoi_name} de {start_year} a {end_year}.",
+            "fr": "Aucune perte de couvert arboré n'a été enregistrée à {aoi_name} de {start_year} à {end_year}.",
+            "pt": "Nenhuma perda de cobertura arbórea foi registrada em {aoi_name} de {start_year} a {end_year}.",
+            "id": "Tidak ada kehilangan tutupan pohon yang tercatat di {aoi_name} dari {start_year} hingga {end_year}.",
+            "de": "Von {start_year} bis {end_year} wurde in {aoi_name} kein Baumbestandsverlust verzeichnet.",
+            "it": "Dal {start_year} al {end_year} non è stata registrata alcuna perdita di copertura arborea a {aoi_name}.",
+            "nl": "Van {start_year} tot {end_year} is in {aoi_name} geen verlies aan boomkroonbedekking geregistreerd.",
+            "ru": "С {start_year} по {end_year} год потерь древесного покрова в {aoi_name} не зарегистрировано.",
+            "zh": "{start_year}年至{end_year}年，{aoi_name}未记录到树木覆盖损失。",
+            "ar": "لم يُسجَّل أي فقدان للغطاء الشجري في {aoi_name} من {start_year} إلى {end_year}.",
+            "hi": "{start_year} से {end_year} तक {aoi_name} में कोई वृक्ष आवरण हानि दर्ज नहीं की गई।",
+            "vi": "Không ghi nhận mất độ che phủ cây nào tại {aoi_name} từ {start_year} đến {end_year}.",
+            "sw": "Hakuna upotevu wa uoto wa miti uliorekodiwa katika {aoi_name} kuanzia {start_year} hadi {end_year}.",
+            "tr": "{start_year}-{end_year} döneminde {aoi_name} bölgesinde ağaç örtüsü kaybı kaydedilmedi.",
+        },
+        "analysis_template.post_2020_forest_loss.label": {
+            "en": "Post-2020 forest loss",
+            "es": "Pérdida forestal posterior a 2020",
+            "fr": "Perte forestière après 2020",
+            "pt": "Perda florestal pós-2020",
+            "id": "Kehilangan hutan pasca-2020",
+            "de": "Waldverlust nach 2020",
+            "it": "Perdita forestale dopo il 2020",
+            "nl": "Bosverlies na 2020",
+            "ru": "Потеря лесов после 2020 года",
+            "zh": "2020年后的森林损失",
+            "ar": "فقدان الغابات بعد عام 2020",
+            "hi": "2020 के बाद वन हानि",
+            "vi": "Mất rừng sau năm 2020",
+            "sw": "Upotevu wa misitu baada ya 2020",
+            "tr": "2020 sonrası orman kaybı",
+        },
+        "analysis_template.post_2020_forest_loss.title": {
+            "en": "Post-2020 forest loss in {aoi_name}",
+            "es": "Pérdida forestal posterior a 2020 en {aoi_name}",
+            "fr": "Perte forestière après 2020 à {aoi_name}",
+            "pt": "Perda florestal pós-2020 em {aoi_name}",
+            "id": "Kehilangan hutan pasca-2020 di {aoi_name}",
+            "de": "Waldverlust nach 2020 in {aoi_name}",
+            "it": "Perdita forestale dopo il 2020 a {aoi_name}",
+            "nl": "Bosverlies na 2020 in {aoi_name}",
+            "ru": "Потеря лесов после 2020 года: {aoi_name}",
+            "zh": "{aoi_name}2020年后的森林损失",
+            "ar": "فقدان الغابات بعد عام 2020 في {aoi_name}",
+            "hi": "{aoi_name} में 2020 के बाद वन हानि",
+            "vi": "Mất rừng sau năm 2020 tại {aoi_name}",
+            "sw": "Upotevu wa misitu baada ya 2020 katika {aoi_name}",
+            "tr": "{aoi_name} için 2020 sonrası orman kaybı",
+        },
+        # Follows the natural forest fact (the share or "no loss").
+        "analysis_template.post_2020_forest_loss.description": {
+            "en": (
+                "The SBTN Natural Lands Map is a 2020 baseline, so the "
+                "split covers loss from 2021 on. No canopy density threshold "
+                "applies, so the totals are higher than Global Forest "
+                "Watch's default 30% figures. Other tree cover is "
+                "non-natural forest, such as plantations and tree crops, "
+                "plus loss outside the 2020 forest classes. Natural forest "
+                "is broader than primary forest: it includes regenerated "
+                "and secondary natural forest and excludes plantations. "
+                "Tree cover loss is not the same as deforestation."
+            ),
+            "es": (
+                "El Mapa de Tierras Naturales de SBTN es una línea de base "
+                "de 2020, por lo que la división cubre la pérdida desde "
+                "2021. No se aplica ningún umbral de densidad del "
+                "dosel, por lo que los totales son mayores que las cifras "
+                "predeterminadas al 30 % de Global Forest Watch. Otra "
+                "cobertura arbórea es bosque no natural, como plantaciones "
+                "y cultivos arbóreos, más la pérdida fuera de las clases "
+                "forestales de 2020. El bosque natural es más amplio que "
+                "el bosque primario: incluye el bosque natural regenerado y "
+                "secundario y excluye las plantaciones. La pérdida de "
+                "cobertura arbórea no es lo mismo que la deforestación."
+            ),
+            "fr": (
+                "La carte des terres naturelles du SBTN est une référence "
+                "de 2020 : la répartition couvre donc la perte à partir de "
+                "2021. Aucun seuil de densité du couvert ne "
+                "s'applique, si bien que les totaux dépassent les chiffres "
+                "par défaut de Global Forest Watch à 30 %. L'autre couvert "
+                "arboré correspond aux forêts non naturelles, comme les "
+                "plantations et les cultures arborées, ainsi qu'à la perte "
+                "hors des classes forestières de 2020. La forêt naturelle "
+                "est plus large que la forêt primaire : elle comprend les "
+                "forêts naturelles régénérées et secondaires et exclut les "
+                "plantations. La perte de couvert arboré n'équivaut pas à "
+                "la déforestation."
+            ),
+            "pt": (
+                "O Mapa de Terras Naturais do SBTN é uma linha de base de "
+                "2020, então a divisão cobre a perda a partir de 2021. "
+                "Nenhum "
+                "limiar de densidade de dossel se aplica, por isso os "
+                "totais são maiores que os números padrão de 30% do Global "
+                "Forest Watch. Outra cobertura arbórea é floresta não "
+                "natural, como plantações e cultivos arbóreos, mais a "
+                "perda fora das classes florestais de 2020. A floresta "
+                "natural é mais ampla que a floresta primária: inclui "
+                "floresta natural regenerada e secundária e exclui "
+                "plantações. Perda de cobertura arbórea não é o mesmo que "
+                "desmatamento."
+            ),
+            "id": (
+                "Peta Lahan Alami SBTN adalah garis dasar tahun 2020, "
+                "sehingga pembagian ini mencakup kehilangan sejak 2021. "
+                "Tidak ada ambang kerapatan tajuk yang diterapkan, "
+                "sehingga totalnya lebih tinggi daripada angka bawaan 30% "
+                "Global Forest Watch. Tutupan pohon lainnya adalah hutan "
+                "non-alami, seperti perkebunan dan tanaman pohon, ditambah "
+                "kehilangan di luar kelas hutan tahun 2020. Hutan alam "
+                "lebih luas daripada hutan primer: mencakup hutan alam yang "
+                "beregenerasi dan sekunder serta tidak termasuk perkebunan. "
+                "Kehilangan tutupan pohon tidak sama dengan deforestasi."
+            ),
+            "de": (
+                "Die SBTN-Karte natürlicher Flächen ist eine Basislinie "
+                "von 2020, daher umfasst die Aufteilung den Verlust ab "
+                "2021. Es gilt keine Kronendichte-Schwelle, daher "
+                "liegen die Summen über den Standardwerten von Global "
+                "Forest Watch bei 30 %. Sonstiger Baumbestand ist nicht "
+                "natürlicher Wald, etwa Plantagen und Baumkulturen, sowie "
+                "Verlust außerhalb der Waldklassen von 2020. Naturwald ist "
+                "weiter gefasst als Primärwald: Er umfasst regenerierten "
+                "und sekundären Naturwald und schließt Plantagen aus. "
+                "Baumbestandsverlust ist nicht dasselbe wie Entwaldung."
+            ),
+            "it": (
+                "La mappa delle terre naturali SBTN è una base di "
+                "riferimento del 2020, quindi la suddivisione copre la "
+                "perdita dal 2021. Non si applica alcuna soglia di "
+                "densità della chioma, quindi i totali sono superiori ai "
+                "valori predefiniti al 30% di Global Forest Watch. L'altra "
+                "copertura arborea è foresta non naturale, come piantagioni "
+                "e colture arboree, più la perdita al di fuori delle classi "
+                "forestali del 2020. La foresta naturale è più ampia della "
+                "foresta primaria: include la foresta naturale rigenerata e "
+                "secondaria ed esclude le piantagioni. La perdita di "
+                "copertura arborea non equivale alla deforestazione."
+            ),
+            "nl": (
+                "De SBTN-kaart van natuurlijke gebieden is een basislijn "
+                "uit 2020, dus de verdeling betreft verlies vanaf 2021. Er "
+                "geldt geen drempel voor kroondichtheid, dus de totalen "
+                "liggen hoger dan de standaardcijfers van Global Forest "
+                "Watch bij 30%. Overige boomkroonbedekking is "
+                "niet-natuurlijk bos, zoals plantages en boomgewassen, plus "
+                "verlies buiten de bosklassen van 2020. Natuurlijk bos is "
+                "ruimer dan oerbos: het omvat geregenereerd en secundair "
+                "natuurlijk bos en sluit plantages uit. Verlies aan "
+                "boomkroonbedekking is niet hetzelfde als ontbossing."
+            ),
+            "ru": (
+                "Карта природных земель SBTN — это базовая линия 2020 "
+                "года, поэтому разбивка охватывает потери с 2021 года. "
+                "Порог сомкнутости полога не применяется, поэтому итоги "
+                "выше стандартных показателей Global Forest Watch при "
+                "пороге 30%. Прочий древесный покров — это неестественные "
+                "леса, например плантации и древесные культуры, а также "
+                "потери за пределами лесных классов 2020 года. "
+                "Естественный лес — более широкое понятие, чем первичный "
+                "лес: он включает восстановившиеся и вторичные "
+                "естественные леса и исключает плантации. Потеря "
+                "древесного покрова — не то же самое, что обезлесение."
+            ),
+            "zh": (
+                "SBTN自然土地地图以2020年为基线，因此该划分涵盖2021年起的"
+                "损失。未应用冠层密度"
+                "阈值，因此总量高于Global Forest Watch默认的30%阈值数据。"
+                "其他树木覆盖指非天然林（如人工林和树木作物），以及2020年"
+                "森林类别以外的损失。天然林的范围比原始林更广：它包括再生林"
+                "和次生天然林，不包括人工林。树木覆盖损失并不等同于毁林。"
+            ),
+            "ar": (
+                "خريطة الأراضي الطبيعية لـ SBTN هي خط أساس لعام 2020، لذا "
+                "يغطي التقسيم الفقدان منذ عام 2021. لا يُطبَّق أي حد لكثافة "
+                "الظلة، لذا تكون المجاميع أعلى من أرقام Global Forest "
+                "Watch الافتراضية عند 30%. الغطاء الشجري الآخر هو الغابات "
+                "غير الطبيعية، مثل المزارع والمحاصيل الشجرية، إضافة إلى "
+                "الفقدان خارج فئات الغابات لعام 2020. الغابة الطبيعية "
+                "أوسع من الغابة الأولية: فهي تشمل الغابات الطبيعية "
+                "المتجددة والثانوية وتستبعد المزارع. فقدان الغطاء الشجري "
+                "ليس هو نفسه إزالة الغابات."
+            ),
+            "hi": (
+                "SBTN प्राकृतिक भूमि मानचित्र 2020 की आधार रेखा है, इसलिए "
+                "यह विभाजन 2021 से हुई हानि को कवर करता है। कोई वितान घनत्व "
+                "सीमा लागू नहीं है, इसलिए कुल आंकड़े Global Forest Watch के "
+                "डिफ़ॉल्ट 30% आंकड़ों से अधिक हैं। अन्य वृक्ष आवरण "
+                "गैर-प्राकृतिक वन है, जैसे बागान और वृक्ष फसलें, साथ ही "
+                "2020 के वन वर्गों के बाहर की हानि। प्राकृतिक वन प्राथमिक "
+                "वन से व्यापक है: इसमें पुनर्जीवित और द्वितीयक प्राकृतिक वन "
+                "शामिल हैं और बागान शामिल नहीं हैं। वृक्ष आवरण हानि "
+                "वनोन्मूलन के समान नहीं है।"
+            ),
+            "vi": (
+                "Bản đồ Đất tự nhiên SBTN là đường cơ sở năm 2020, nên "
+                "phần phân chia bao gồm diện tích mất từ năm 2021. "
+                "Không áp dụng ngưỡng mật độ tán, nên tổng số cao hơn "
+                "số liệu mặc định ở ngưỡng 30% của Global Forest Watch. Độ "
+                "che phủ cây khác là rừng không tự nhiên, như rừng trồng và "
+                "cây trồng lâu năm, cộng với diện tích mất ngoài các lớp "
+                "rừng năm 2020. Rừng tự nhiên rộng hơn rừng nguyên sinh: "
+                "bao gồm rừng tự nhiên tái sinh và thứ sinh, không bao gồm "
+                "rừng trồng. Mất độ che phủ cây không giống với phá rừng."
+            ),
+            "sw": (
+                "Ramani ya Ardhi Asilia ya SBTN ni msingi wa mwaka 2020, "
+                "kwa hiyo mgawanyo huu unashughulikia upotevu kuanzia "
+                "2021. Hakuna kizingiti cha msongamano wa mwavuli "
+                "kinachotumika, kwa hiyo jumla ni kubwa kuliko takwimu za "
+                "kawaida za Global Forest Watch za asilimia 30. Uoto "
+                "mwingine wa miti ni msitu usio wa asili, kama mashamba ya "
+                "miti na mazao ya miti, pamoja na upotevu nje ya madaraja "
+                "ya misitu ya 2020. Msitu wa asili ni mpana kuliko msitu wa "
+                "awali: unajumuisha msitu wa asili uliozaliwa upya na wa "
+                "pili, na hauhusishi mashamba ya miti. Upotevu wa uoto wa "
+                "miti si sawa na ukataji miti."
+            ),
+            "tr": (
+                "SBTN Doğal Alanlar Haritası 2020 yılını temel alır, bu "
+                "nedenle ayrım 2021'den itibaren kaybı kapsar. Herhangi "
+                "bir taç yoğunluğu eşiği uygulanmaz, bu nedenle toplamlar "
+                "Global Forest Watch'un varsayılan %30 değerlerinden "
+                "yüksektir. Diğer ağaç örtüsü, plantasyonlar ve ağaç "
+                "ürünleri gibi doğal olmayan ormanlar ile 2020 orman "
+                "sınıfları dışındaki kayıptır. Doğal orman, birincil "
+                "ormandan daha geniştir: yenilenmiş ve ikincil doğal "
+                "ormanları kapsar, plantasyonları kapsamaz. Ağaç örtüsü "
+                "kaybı ormansızlaşma ile aynı şey değildir."
+            ),
+        },
     }
 )
 

@@ -30,10 +30,26 @@ class AnalyzeService:
         start_date: str,
         end_date: str,
         language: Optional[str] = None,
+        context_layer: Optional[str] = None,
+        canopy_cover: Optional[int] = None,
+        forest_breakdown: Optional[str] = None,
     ) -> AnalyzeResult:
+        # The same dataset fields the agent's pick_dataset sets: the handler
+        # reads the forest filter and the canopy cover threshold from them.
+        # The forest breakdown is the one field only the analysis templates
+        # set.
+        dataset: dict = {"dataset_id": dataset_id}
+        if context_layer:
+            dataset["context_layer"] = context_layer
+        if canopy_cover is not None:
+            dataset["parameters"] = [
+                {"name": "canopy_cover", "values": [canopy_cover]}
+            ]
+        if forest_breakdown:
+            dataset["forest_breakdown"] = forest_breakdown
         result = await self._handler.pull_data(
             query="",
-            dataset={"dataset_id": dataset_id},
+            dataset=dataset,
             start_date=start_date,
             end_date=end_date,
             change_over_time_query=False,

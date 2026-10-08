@@ -55,6 +55,9 @@ from src.agent.tools.add_dashboard_section import (
     SPEC as add_dashboard_section_spec,
 )
 from src.agent.tools.add_map_widget import SPEC as add_map_widget_spec
+from src.agent.tools.add_template_section import (
+    SPEC as add_template_section_spec,
+)
 from src.agent.tools.add_text_widget import SPEC as add_text_widget_spec
 from src.agent.tools.add_to_dashboard import SPEC as add_to_dashboard_spec
 from src.agent.tools.create_dashboard import SPEC as create_dashboard_spec
@@ -103,6 +106,7 @@ ALL_SPECS = (
     add_text_widget_spec,
     edit_text_widget_spec,
     add_dashboard_section_spec,
+    add_template_section_spec,
     edit_dashboard_section_spec,
     move_dashboard_widget_spec,
     send_nudge_spec,
@@ -138,15 +142,16 @@ DEFAULT_TOOLS = (update_insight_display_spec,)
 DEFAULT_EXCLUDED_DATASETS = frozenset({"Land GHG Monitoring System (LGMS)"})
 
 # Skills and tools we want internal feedback on before releasing to the
-# public. The tuple holds only the experimental *additions*; the profile
+# public. The tuples hold only the experimental *additions*; the profile
 # composes them onto the default sets below (DEFAULT_SKILLS + EXPERIMENTAL_SKILLS,
-# CORE_TOOLS + DEFAULT_TOOLS), so anything added to the default surface
-# reaches this profile too. `inspect_view_context` is not listed here — the
+# CORE_TOOLS + DEFAULT_TOOLS + EXPERIMENTAL_TOOLS), so anything added to the
+# default surface reaches this profile too. `inspect_view_context` is not listed here — the
 # `dashboard` skill took it into its `requires:` (reading a dashboard's
 # sections and widget ids is part of that workflow, not a standalone
 # debugging aid).
 EXPERIMENTAL_PROFILE = "experimental"
-EXPERIMENTAL_SKILLS = ("show-imagery-planet",)
+EXPERIMENTAL_SKILLS: tuple[str, ...] = ()
+EXPERIMENTAL_TOOLS = (add_template_section_spec,)
 
 # The default surface with LGMS revealed. The frontend sends this flag for
 # users who opt into LGMS (`?ff=net-flux`) but cannot use `experimental`.
@@ -395,7 +400,7 @@ default_registry.register(
     AgentConfig(
         EXPERIMENTAL_PROFILE,
         skills=DEFAULT_SKILLS + EXPERIMENTAL_SKILLS,
-        tools=CORE_TOOLS + DEFAULT_TOOLS,
+        tools=CORE_TOOLS + DEFAULT_TOOLS + EXPERIMENTAL_TOOLS,
         # Excludes are per-profile (not inherited), so an empty set here
         # reveals the datasets that `default` hides.
         excluded_datasets=frozenset(),

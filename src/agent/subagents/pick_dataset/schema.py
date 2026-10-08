@@ -2,7 +2,7 @@ from typing import Any, List, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from src.agent.datasets.config import DATASETS
+from src.agent.datasets.config import DATASETS, resolve_selected_layer
 from src.agent.datasets.handlers.analytics_handler import (
     TREE_COVER_LOSS_BY_DRIVER_ID,
 )
@@ -27,6 +27,10 @@ class DatasetLayer(BaseModel):
 
     name: str
     tile_url: str
+    # Human label and plain-language meaning (including what the layer
+    # measures, e.g. net flux vs gross emissions). `name` stays the machine id.
+    title: Optional[str] = None
+    description: Optional[str] = None
     start_date: Optional[str] = None
     end_date: Optional[str] = None
 
@@ -42,7 +46,16 @@ class DatasetOption(BaseModel):
     )
     selected_layer: Optional[str] = Field(
         None,
-        description="For a dataset with more than one independently-toggleable layer (see `layers`), the name of the layer that best matches the query's focus — e.g. LGMS's 'agriculture' for a cropland/livestock-emissions question, 'lulucf' for a land-use/vegetation question. Prefer picking the closest-matching layer over leaving this null — even a query that only leans toward one category should get that layer. Leave null only for single-layer datasets or a query that is explicitly about the combined/overall picture across categories, not merely one that doesn't name a category.",
+        description=(
+            "For a dataset with more than one independently-toggleable layer "
+            "(see the Map layers section), the `name` of the layer whose "
+            "description best matches the query's focus. Prefer picking the "
+            "closest-matching layer over leaving this null — even a query "
+            "that only leans toward one layer should get that layer. Leave "
+            "null only for single-layer datasets or a query that is "
+            "explicitly about the combined/overall picture across layers, "
+            "not merely one that doesn't name a layer."
+        ),
     )
     parameters: Optional[list[DatasetParameter]] = Field(
         None, description="Dataset specific parameters."
@@ -97,18 +110,9 @@ class DatasetOption(BaseModel):
         """Ensure selected_layer names a real layer of a genuinely
         multi-layer dataset — null it out for single-layer datasets (nothing
         to select between) or a hallucinated name."""
-        if self.dataset_id is None:
-            self.selected_layer = None
-            return self
-
-        selected_dataset = [
-            ds for ds in DATASETS if ds["dataset_id"] == self.dataset_id
-        ][0]
-        layers = selected_dataset.get("layers") or []
-        layer_names = [layer["name"] for layer in layers]
-        if len(layers) <= 1 or self.selected_layer not in layer_names:
-            self.selected_layer = None
-
+        self.selected_layer = resolve_selected_layer(
+            self.dataset_id, self.selected_layer
+        )
         return self
 
     @model_validator(mode="after")

@@ -33,6 +33,8 @@ ADMIN_SUBTYPES = (
     "locality",
     "neighbourhood",
 )
+# The analytics API takes GADM admin levels 0 to 2 only.
+ANALYTICS_ADMIN_SUBTYPES = ADMIN_SUBTYPES[:3]
 SLUC_GADM_LEVELS = ["country", "state-province", "district-county"]
 
 SLUC_CROPS = [
@@ -361,13 +363,37 @@ class AnalyticsHandler(DataSourceHandler):
 
         logger.debug(f"dataset: {dataset}")
 
+        # A forest breakdown groups the loss by SBTN natural forest class,
+        # while the natural_forest context layer filters to one class. Only
+        # the analysis templates ask for it; the chat path never sets it.
+        forest_breakdown = dataset.get("forest_breakdown")
+        if forest_breakdown is not None:
+            if forest_breakdown != "natural_forest":
+                raise ValueError(
+                    f"Unknown forest breakdown: {forest_breakdown}"
+                )
+            if dataset.get("dataset_id") != TREE_COVER_LOSS_ID:
+                raise ValueError(
+                    "A natural forest breakdown is only available for tree "
+                    "cover loss."
+                )
+            if dataset.get("context_layer"):
+                raise ValueError(
+                    "A forest breakdown cannot be combined with the "
+                    f"{dataset['context_layer']} context layer."
+                )
+
         payload: dict[str, Any]
         if dataset.get("dataset_id") == INTEGRATED_ALERTS_ID:
-            # Integrated Alerts has no intersections; it takes full dates only.
+            land_filter = None
+            if dataset.get("context_layer") == "natural_lands":
+                land_filter = "natural_lands"
+
             payload = {
                 **base_payload,
                 "start_date": start_date,
                 "end_date": end_date,
+                "land_filter": land_filter,
             }
 
         elif dataset.get("dataset_id") in [
@@ -395,6 +421,12 @@ class AnalyticsHandler(DataSourceHandler):
 
             elif dataset.get("context_layer") == "intact_forest":
                 forest_filter = "intact_forest"
+
+            elif dataset.get("context_layer") == "natural_forest":
+                forest_filter = "natural_forest_only"
+
+            elif forest_breakdown == "natural_forest":
+                forest_filter = "natural_forest"
             intersections = []
             if dataset.get("dataset_id") == TREE_COVER_LOSS_BY_DRIVER_ID:
                 intersections = ["driver"]
@@ -457,13 +489,21 @@ class AnalyticsHandler(DataSourceHandler):
                 f"Unknown dataset ID: {dataset.get('dataset_id')}"
             )
 
-        if dataset.get("dataset_id") in [
-            TREE_COVER_LOSS_ID,
-            TREE_COVER_ID,
-            TREE_COVER_LOSS_BY_DRIVER_ID,
-            TREE_COVER_LOSS_BY_FIRES_ID,
-            FOREST_CARBON_FLUX_ID,
-        ]:
+        # The API rejects a canopy cover threshold with the natural forest
+        # filter, since natural forest is a 2020 map independent of canopy.
+        # It rejects one with the breakdown too, which counts all loss.
+        if (
+            dataset.get("dataset_id")
+            in [
+                TREE_COVER_LOSS_ID,
+                TREE_COVER_ID,
+                TREE_COVER_LOSS_BY_DRIVER_ID,
+                TREE_COVER_LOSS_BY_FIRES_ID,
+                FOREST_CARBON_FLUX_ID,
+            ]
+            and dataset.get("context_layer") != "natural_forest"
+            and forest_breakdown is None
+        ):
             canopy_cover: int = 30
             params = dataset.get("parameters")
             if params is not None:
@@ -589,6 +629,23 @@ class AnalyticsHandler(DataSourceHandler):
             and aois[0]["subtype"] not in SLUC_GADM_LEVELS
         ):
             msg = f"Can not pull data for aoi {aois[0].get('name', '')}. Subtype {aois[0]['subtype']} not supported for SLUC emission factors data, it is only available for GADM admin areas."
+            return DataPullResult(
+                success=False,
+                data=None,
+                message=msg,
+                data_points_count=0,
+                analytics_api_url=None,
+            )
+        if (
+            aois[0]["subtype"] in ADMIN_SUBTYPES
+            and aois[0]["subtype"] not in ANALYTICS_ADMIN_SUBTYPES
+        ):
+            msg = (
+                f"Can not pull data for aoi {aois[0].get('name', '')}. "
+                f"The GFW Analytics API does not support the "
+                f"{aois[0]['subtype']} level; it takes country, "
+                "state-province and district-county areas."
+            )
             return DataPullResult(
                 success=False,
                 data=None,

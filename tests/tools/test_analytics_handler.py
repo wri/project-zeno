@@ -1,6 +1,7 @@
 import pytest
 
 from src.agent.datasets.handlers.analytics_handler import (
+    INTEGRATED_ALERTS_ID,
     TREE_COVER_LOSS_ID,
     AnalyticsHandler,
     _count_and_enrich,
@@ -100,6 +101,114 @@ async def test_build_payload_uses_no_canopy_cover_parameter():
     }
 
 
+@pytest.mark.parametrize(
+    "context_layer, land_filter",
+    [("natural_lands", "natural_lands"), (None, None)],
+)
+async def test_build_payload_integrated_alerts_land_filter(
+    context_layer, land_filter
+):
+    handler = AnalyticsHandler()
+    dataset = {
+        "dataset_id": INTEGRATED_ALERTS_ID,
+        "dataset_name": "Integrated alerts",
+        "context_layer": context_layer,
+    }
+    aois = [{"name": "Indonesia", "subtype": "country", "src_id": "IDN"}]
+
+    payload = await handler._build_payload(
+        dataset=dataset,
+        aois=aois,
+        start_date="2026-07-01",
+        end_date="2026-10-01",
+    )
+
+    assert payload.get("land_filter") == land_filter
+
+
+async def test_build_payload_natural_forest_omits_canopy_cover():
+    handler = AnalyticsHandler()
+    dataset = {
+        "dataset_id": TREE_COVER_LOSS_ID,
+        "dataset_name": "Tree cover loss",
+        "context_layer": "natural_forest",
+    }
+    aois = [{"name": "Pará", "subtype": "state-province", "src_id": "BRA.14"}]
+
+    payload = await handler._build_payload(
+        dataset=dataset,
+        aois=aois,
+        start_date="2021-01-01",
+        end_date="2024-12-31",
+    )
+
+    assert payload["forest_filter"] == "natural_forest_only"
+    assert "canopy_cover" not in payload
+
+
+async def test_build_payload_natural_forest_breakdown_groups_by_class():
+    handler = AnalyticsHandler()
+    dataset = {
+        "dataset_id": TREE_COVER_LOSS_ID,
+        "forest_breakdown": "natural_forest",
+    }
+    aois = [{"name": "Pará", "subtype": "state-province", "src_id": "BRA.14"}]
+
+    payload = await handler._build_payload(
+        dataset=dataset,
+        aois=aois,
+        start_date="2021-01-01",
+        end_date="2025-12-31",
+    )
+
+    # No canopy_cover: the API rejects a threshold with this filter.
+    assert payload == {
+        "aoi": {"type": "admin", "ids": ["BRA.14"]},
+        "start_year": "2021",
+        "end_year": "2025",
+        "forest_filter": "natural_forest",
+        "intersections": [],
+    }
+
+
+@pytest.mark.parametrize(
+    ("dataset", "problem"),
+    [
+        (
+            {
+                "dataset_id": TREE_COVER_LOSS_ID,
+                "forest_breakdown": "natural_forest",
+                "context_layer": "natural_forest",
+            },
+            "cannot be combined",
+        ),
+        (
+            {
+                "dataset_id": INTEGRATED_ALERTS_ID,
+                "forest_breakdown": "natural_forest",
+            },
+            "only available for tree cover loss",
+        ),
+        (
+            {"dataset_id": TREE_COVER_LOSS_ID, "forest_breakdown": "primary"},
+            "Unknown forest breakdown",
+        ),
+    ],
+)
+async def test_build_payload_rejects_an_invalid_forest_breakdown(
+    dataset, problem
+):
+    aois = [{"name": "Pará", "subtype": "state-province", "src_id": "BRA.14"}]
+
+    with pytest.raises(ValueError, match=problem):
+        await AnalyticsHandler()._build_payload(
+            dataset=dataset,
+            aois=aois,
+            start_date="2021-01-01",
+            end_date="2025-12-31",
+        )
+
+
 # --- LGMS per-section result merged into one flat category/class table -------
 # The Land GHG Monitoring System returns a per-section result; the handler
 # flattens it into one column-oriented table with unified category/class
@@ -192,3 +301,21 @@ async def test_flat_result_enriches_names_and_counts():
     enriched, count = _count_and_enrich(raw, aois)
     assert count == 2
     assert enriched["name"] == ["Brazil", "Argentina"]
+
+
+@pytest.mark.parametrize(
+    "subtype", ["municipality", "locality", "neighbourhood"]
+)
+async def test_pull_data_rejects_admin_levels_the_api_does_not_take(subtype):
+    result = await AnalyticsHandler().pull_data(
+        query="",
+        dataset={"dataset_id": TREE_COVER_LOSS_ID},
+        start_date="2024-01-01",
+        end_date="2024-12-31",
+        change_over_time_query=False,
+        aois=[{"name": "Loja", "subtype": subtype, "src_id": "ECU.18.4.7"}],
+    )
+
+    assert not result.success
+    assert subtype in result.message
+    assert "district-county" in result.message

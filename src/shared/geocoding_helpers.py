@@ -2,10 +2,10 @@ import json
 from typing import Any, Dict, Optional, Union
 from uuid import UUID
 
-import pandas as pd
 from sqlalchemy import select, text
 
 from src.api.data_models import CustomAreaOrm
+from src.shared.aoi_search_sql import HIERARCHY_SCORES
 from src.shared.database import (
     get_connection_from_pool,
     get_session_from_pool,
@@ -121,126 +121,10 @@ def normalize_aoi_source(source: str) -> str:
 WORLD_BBOX = [-180.0, -90.0, 180.0, 90.0]
 
 
-async def search_aois(
-    name: Optional[str],
-    sources: Optional[list[str]],
-    user_id: Optional[str],
-    limit: int = 50,
-    offset: int = 0,
-) -> pd.DataFrame:
-    """Search AOIs across sources by name and/or source type.
-
-    This is the shared search core reused by both the agent's ``pick_aoi``
-    geocoder (via :func:`query_aoi_database`) and the ``GET /api/aois``
-    endpoint.
-
-    Args:
-        name: Fuzzy name to search for. When empty/None the query runs in
-            *browse* mode: no name filter, ordered alphabetically.
-        sources: Subset of canonical source keys (gadm/kba/wdpa/landmark/custom)
-            to search; ``None`` searches every source. Aliases such as
-            ``protectedareas`` are accepted and normalized.
-        user_id: Owner used to scope custom areas. Required when ``custom`` is
-            among the searched sources.
-        limit: Maximum number of rows to return.
-        offset: Number of rows to skip (offset pagination).
-
-    Returns:
-        DataFrame with columns ``src_id, name, subtype, source, bbox`` (plus
-        ``similarity_score`` when searching by name). Disputed and deprecated
-        AOIs are excluded, and a custom area appears only for its owner.
-
-    Raises:
-        ValueError: For an invalid source, or for a missing ``user_id`` when
-            ``custom`` is searched.
-    """
-    if sources:
-        requested = {normalize_aoi_source(s) for s in sources}
-    else:
-        requested = set(VALID_AOI_SOURCES)
-
-    if "custom" in requested and not user_id:
-        raise ValueError("user_id required for custom areas")
-
-    has_name = bool(name and name.strip())
-
-    name_filter = "AND name % :name" if has_name else ""
-
-    # Custom areas stay owner-scoped. The semi-join uses user_aois, which is the
-    # permission model. It does not use aois.created_by, which records
-    # provenance and does not change. The clause is omitted when the caller does
-    # not ask for custom areas, because the source filter already excludes them.
-    custom_scope = (
-        """
-        AND (source <> 'custom' OR EXISTS (
-            SELECT 1 FROM user_aois ua
-            WHERE ua.aoi_id = aois.id
-              AND ua.user_id = :user_id
-              AND ua.relationship = 'owner'
-        ))
-        """
-        if "custom" in requested
-        else ""
-    )
-
-    similarity_select = (
-        ", similarity(LOWER(name), LOWER(:name)) AS similarity_score"
-        if has_name
-        else ""
-    )
-    similarity_order = "similarity_score DESC, " if has_name else ""
-
-    # `NOT is_disputed` replaces the per-source GADM ISO3-prefix regex. Only GADM
-    # rows carry the flag, so the row set does not change. The query names both
-    # flags so that the planner can use the partial trigram index for search and
-    # the partial btree index for browse.
-    #
-    # `bbox` is computed at build time, so the antimeridian CASE does not run per
-    # row. COALESCE replaces a null array with the world bbox, because a null
-    # fails response validation.
-    sql_query = f"""
-        SELECT
-            source_id AS src_id,
-            name,
-            subtype,
-            source,
-            COALESCE(
-                bbox, ARRAY[-180, -90, 180, 90]::double precision[]
-            ) AS bbox
-            {similarity_select}
-        FROM aois
-        WHERE NOT is_disputed
-          AND NOT is_deprecated
-          AND source = ANY(:sources)
-          {custom_scope}
-          {name_filter}
-        ORDER BY {similarity_order}name, source, source_id
-        LIMIT :limit OFFSET :offset
-    """
-
-    params: Dict[str, Any] = {
-        "sources": sorted(requested),
-        "limit": limit,
-        "offset": offset,
-    }
-    if has_name:
-        params["name"] = name
-    if "custom" in requested:
-        params["user_id"] = user_id
-
-    async with get_connection_from_pool() as conn:
-        # pg_trgm provides both `%` and similarity(). The threshold is a
-        # session setting, so it must be set on this pooled connection before
-        # the search runs. The CREATE EXTENSION is redundant: the migration
-        # creates the extension, and so does the test fixture.
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
-        await conn.execute(text("SET pg_trgm.similarity_threshold = 0.2;"))
-        await conn.commit()
-
-        def _read(sync_conn):
-            return pd.read_sql(text(sql_query), sync_conn, params=params)
-
-        return await conn.run_sync(_read)
+# A subtype missing from the hierarchy prior would rank as 0 in SQL and raise
+# in the scorer, so pin the coverage at import time. The table itself lives
+# with the shared SQL, because the token rebuild stores it.
+assert set(HIERARCHY_SCORES) == set(SUBREGION_TO_SUBTYPE_MAPPING.values())
 
 
 async def fetch_aoi_bbox(source: str, src_id: str) -> list[float]:

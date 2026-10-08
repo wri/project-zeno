@@ -39,40 +39,7 @@ skills:
   - dashboard (requires: create_dashboard, add_to_dashboard, add_map_widget, add_text_widget, edit_text_widget, add_dashboard_section, edit_dashboard_section, move_dashboard_widget, inspect_view_context, send_nudge, search_insights)
   - explore (requires: search_blogs)
   - pull-data (requires: pick_aoi, pick_dataset, pull_data)
-  - show-imagery (requires: pick_aoi, show_imagery)
-  - wri-insights (requires: search_blogs)
-subagents:
-  - pick_aoi
-  - pick_dataset
-  - generate_insights
-  - search_blogs
-  - update_insight_display
-tools:
-  - pull_data
-  - read_skill
-  - inspect_view_context
-  - show_imagery
-  - search_insights
-  - create_dashboard
-  - add_to_dashboard
-  - add_map_widget
-  - add_text_widget
-  - edit_text_widget
-  - add_dashboard_section
-  - edit_dashboard_section
-  - move_dashboard_widget
-  - send_nudge"""
-
-EXPERIMENTAL_MANIFEST = """\
-profile: experimental
-skills:
-  - analyze (requires: pick_aoi, pick_dataset, pull_data, generate_insights)
-  - capabilities
-  - dashboard (requires: create_dashboard, add_to_dashboard, add_map_widget, add_text_widget, edit_text_widget, add_dashboard_section, edit_dashboard_section, move_dashboard_widget, inspect_view_context, send_nudge, search_insights)
-  - explore (requires: search_blogs)
-  - pull-data (requires: pick_aoi, pick_dataset, pull_data)
-  - show-imagery-planet (requires: pick_aoi, show_imagery, show_planet_imagery)
-  - show-imagery (requires: pick_aoi, show_imagery)
+  - show-imagery (requires: pick_aoi, show_imagery, show_planet_imagery)
   - wri-insights (requires: search_blogs)
 subagents:
   - pick_aoi
@@ -93,6 +60,40 @@ tools:
   - add_text_widget
   - edit_text_widget
   - add_dashboard_section
+  - edit_dashboard_section
+  - move_dashboard_widget
+  - send_nudge"""
+
+EXPERIMENTAL_MANIFEST = """\
+profile: experimental
+skills:
+  - analyze (requires: pick_aoi, pick_dataset, pull_data, generate_insights)
+  - capabilities
+  - dashboard (requires: create_dashboard, add_to_dashboard, add_map_widget, add_text_widget, edit_text_widget, add_dashboard_section, edit_dashboard_section, move_dashboard_widget, inspect_view_context, send_nudge, search_insights)
+  - explore (requires: search_blogs)
+  - pull-data (requires: pick_aoi, pick_dataset, pull_data)
+  - show-imagery (requires: pick_aoi, show_imagery, show_planet_imagery)
+  - wri-insights (requires: search_blogs)
+subagents:
+  - pick_aoi
+  - pick_dataset
+  - generate_insights
+  - search_blogs
+  - update_insight_display
+tools:
+  - pull_data
+  - read_skill
+  - inspect_view_context
+  - show_imagery
+  - show_planet_imagery
+  - search_insights
+  - create_dashboard
+  - add_to_dashboard
+  - add_map_widget
+  - add_text_widget
+  - edit_text_widget
+  - add_dashboard_section
+  - add_template_section
   - edit_dashboard_section
   - move_dashboard_widget
   - send_nudge"""

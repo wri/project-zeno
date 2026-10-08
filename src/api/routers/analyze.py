@@ -89,6 +89,8 @@ async def _run_job(
         dataset_id=request.dataset_id,
         start_date=request.start_date.isoformat(),
         end_date=request.end_date.isoformat(),
+        context_layer=request.context_layer,
+        canopy_cover=request.canopy_cover,
         thread_id=request.thread_id,
         language=language,
     )
