@@ -66,9 +66,14 @@ variable "db_engine_version" {
 }
 
 variable "db_instance_class" {
-  description = "RDS instance class"
+  description = <<-EOT
+    RDS instance class.
+
+    Temporarily db.m6g.large: db.t4g.medium had no capacity in this VPC's availability
+    zones. Revert once that clears, or widen the subnet group to more zones.
+  EOT
   type        = string
-  default     = "db.t4g.medium"
+  default     = "db.m6g.large"
 }
 
 variable "db_storage_type" {
