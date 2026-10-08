@@ -145,6 +145,14 @@ LAND_GHG_INVENTORY_ID = [
     if ds["dataset_name"] == "Land GHG Monitoring System (LGMS)"
 ][0]
 
+# Canopy cover threshold used when none is selected, for both the map and
+# analytics.
+DEFAULT_CANOPY_COVER = 30
+
+# Natural forest loss is always counted at this canopy cover threshold, for
+# both the map and analytics. The API returns no emissions below 30%.
+NATURAL_FOREST_CANOPY_COVER = 10
+
 
 def _first_list_len(section: Any) -> int:
     if isinstance(section, dict):
@@ -466,22 +474,21 @@ class AnalyticsHandler(DataSourceHandler):
                 f"Unknown dataset ID: {dataset.get('dataset_id')}"
             )
 
-        # The API rejects a canopy cover threshold with the natural forest
-        # filter, since natural forest is a 2020 map independent of canopy.
-        if (
-            dataset.get("dataset_id")
-            in [
-                TREE_COVER_LOSS_ID,
-                TREE_COVER_ID,
-                TREE_COVER_LOSS_BY_DRIVER_ID,
-                TREE_COVER_LOSS_BY_FIRES_ID,
-                FOREST_CARBON_FLUX_ID,
-            ]
-            and dataset.get("context_layer") != "natural_forest"
-        ):
-            canopy_cover: int = 30
+        if dataset.get("dataset_id") in [
+            TREE_COVER_LOSS_ID,
+            TREE_COVER_ID,
+            TREE_COVER_LOSS_BY_DRIVER_ID,
+            TREE_COVER_LOSS_BY_FIRES_ID,
+            FOREST_CARBON_FLUX_ID,
+        ]:
+            natural_forest = dataset.get("context_layer") == "natural_forest"
+            canopy_cover: int = (
+                NATURAL_FOREST_CANOPY_COVER
+                if natural_forest
+                else DEFAULT_CANOPY_COVER
+            )
             params = dataset.get("parameters")
-            if params is not None:
+            if params is not None and not natural_forest:
                 for param in params:
                     if param["name"] == "canopy_cover":
                         canopy_cover = int(max(param["values"]))

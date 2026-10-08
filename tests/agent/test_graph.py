@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 
 from src.agent.datasets.config import DATASETS
+from src.agent.datasets.handlers.analytics_handler import AnalyticsHandler
 from src.agent.graph import fetch_zeno
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -420,3 +421,35 @@ async def test_agent_for_tcl_no_dates_for_brazil(structlog_context):
         "2001" in call["args"].get("query", "")
         for call in generate_insights_calls
     )
+
+
+async def test_agent_for_natural_forest_loss_uses_fixed_canopy_cover(
+    structlog_context,
+):
+    query = (
+        "How much natural forest loss was there in Para, Brazil since 2021?"
+    )
+    build_payload = AnalyticsHandler._build_payload
+    with patch.object(
+        AnalyticsHandler,
+        "_build_payload",
+        autospec=True,
+        side_effect=build_payload,
+    ) as spy:
+        steps = await run_agent(query)
+    assert len(steps) > 0
+    tool_steps = [dat["tools"] for dat in steps if "tools" in dat]
+    assert has_insights(tool_steps), "No insights found"
+
+    datasets = [s["dataset"] for s in tool_steps if s.get("dataset")]
+    assert datasets, "No dataset selected"
+    dataset = datasets[-1]
+    assert dataset["context_layer"] == "natural_forest"
+    assert "tree_cover_density_threshold=10" in dataset["tile_url"]
+
+    assert spy.await_count > 0, "Analytics API was not called"
+    payload = await build_payload(
+        *spy.await_args.args, **spy.await_args.kwargs
+    )
+    assert payload["forest_filter"] == "natural_forest_only"
+    assert payload["canopy_cover"] == 10

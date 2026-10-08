@@ -126,12 +126,13 @@ async def test_build_payload_integrated_alerts_land_filter(
     assert payload.get("land_filter") == land_filter
 
 
-async def test_build_payload_natural_forest_omits_canopy_cover():
+async def test_build_payload_natural_forest_forces_canopy_cover():
     handler = AnalyticsHandler()
     dataset = {
         "dataset_id": TREE_COVER_LOSS_ID,
         "dataset_name": "Tree cover loss",
         "context_layer": "natural_forest",
+        "parameters": [{"name": "canopy_cover", "values": [50]}],
     }
     aois = [{"name": "Pará", "subtype": "state-province", "src_id": "BRA.14"}]
 
@@ -143,7 +144,7 @@ async def test_build_payload_natural_forest_omits_canopy_cover():
     )
 
     assert payload["forest_filter"] == "natural_forest_only"
-    assert "canopy_cover" not in payload
+    assert payload["canopy_cover"] == 10
 
 
 # --- LGMS per-section result merged into one flat category/class table -------
