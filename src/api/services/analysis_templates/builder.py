@@ -20,13 +20,14 @@ import asyncio
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from types import SimpleNamespace
-from typing import Awaitable, Callable, Optional
+from typing import Awaitable, Callable, Optional, Sequence
 
 import pandas as pd
 
 from src.agent.datasets.config import DATASETS
 from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import AnalyticsHandler
+from src.agent.datasets.handlers.base import DataPullResult
 from src.agent.i18n import t
 from src.agent.imagery import ImageryRequest, Sentinel2ImageryProvider
 from src.agent.language import DEFAULT_LANGUAGE
@@ -48,9 +49,9 @@ from src.api.services.analysis_templates.models import (
 from src.api.services.analysis_templates.text import generate_section_text
 from src.api.services.analyze import AnalyzeService
 from src.api.services.charts import DETERMINISTIC_GENERATORS, column_to_rows
+from src.api.services.charts.base import ChartGenerator
 from src.api.services.charts.curated import build_curated_charts
 from src.api.services.charts.tcl_natural_forest import (
-    FIRST_YEAR,
     TCLNaturalForestChartGenerator,
     natural_forest_totals,
 )
@@ -121,30 +122,40 @@ def _dataset_record(dataset_id: int) -> dict:
 
 
 async def _period(
-    dataset_id: int, context: BuildContext, start: Optional[date] = None
+    dataset_id: int,
+    context: BuildContext,
+    context_layer: Optional[str] = None,
 ) -> tuple[str, str]:
-    """The requested period, clamped to the dataset's range. ``start``
-    replaces the period start for one widget."""
-    clamped_start, clamped_end, _ = await revise_date_range(
-        (start or context.start).isoformat(),
+    """The requested period, clamped to the range of the dataset and of its
+    context layer (natural forest starts in 2021)."""
+    start, end, _ = await revise_date_range(
+        context.start.isoformat(),
         context.end.isoformat(),
         dataset_id,
+        context_layer,
     )
-    return clamped_start, clamped_end
+    return start, end
 
 
-async def _build_chart(
-    spec: ChartWidgetSpec, context: BuildContext
-) -> BuiltWidget:
-    record = _dataset_record(spec.dataset_id)
-    start, end = await _period(spec.dataset_id, context)
-    service = AnalyzeService(AnalyticsHandler(), DETERMINISTIC_GENERATORS)
+async def _curated_charts(
+    dataset_id: int,
+    context: BuildContext,
+    start: str,
+    end: str,
+    generators: Sequence[ChartGenerator] = DETERMINISTIC_GENERATORS,
+    **options,
+) -> tuple[list[InsightChart], DataPullResult]:
+    """The dataset's curated charts for the period, and the pull they were
+    built from. ``options`` go to ``AnalyzeService.analyze``."""
+    record = _dataset_record(dataset_id)
+    service = AnalyzeService(AnalyticsHandler(), generators)
     result = await service.analyze(
         aois=[dict(context.aoi)],
-        dataset_id=spec.dataset_id,
+        dataset_id=dataset_id,
         start_date=start,
         end_date=end,
         language=context.language,
+        **options,
     )
     if not result.data.success:
         raise WidgetFailedError(
@@ -156,12 +167,21 @@ async def _build_chart(
         # A successful pull with no rows: nothing happened in the period.
         # That is a result, so the chart is built empty.
         charts = await build_curated_charts(
-            spec.dataset_id, [], context.language
+            dataset_id, [], context.language, generators
         )
     if not charts:
         raise WidgetFailedError(
             f"No chart is available for {record['dataset_name']}."
         )
+    return charts, result.data
+
+
+async def _build_chart(
+    spec: ChartWidgetSpec, context: BuildContext
+) -> BuiltWidget:
+    record = _dataset_record(spec.dataset_id)
+    start, end = await _period(spec.dataset_id, context)
+    charts, _ = await _curated_charts(spec.dataset_id, context, start, end)
     return BuiltWidget(
         widget=SectionWidget(
             widget_type="insight",
@@ -183,7 +203,7 @@ async def _build_layer(
     threshold of 30, or 0 with natural forest).
     """
     record = _dataset_record(spec.dataset_id)
-    start, end = await _period(spec.dataset_id, context)
+    start, end = await _period(spec.dataset_id, context, spec.context_layer)
     selection = SimpleNamespace(
         dataset_id=spec.dataset_id,
         context_layer=spec.context_layer,
@@ -252,36 +272,19 @@ async def _build_natural_forest_loss(
     fact says so; there is no share to compute.
     """
     record = _dataset_record(spec.dataset_id)
-    start, end = await _period(
-        spec.dataset_id,
-        context,
-        max(context.start, date(FIRST_YEAR, 1, 1)),
-    )
-    result = await AnalyticsHandler().pull_data(
-        query="",
-        dataset={
-            "dataset_id": spec.dataset_id,
-            "forest_breakdown": "natural_forest",
-        },
-        start_date=start,
-        end_date=end,
-        change_over_time_query=False,
-        aois=[dict(context.aoi)],
-    )
-    if not result.success:
-        raise WidgetFailedError(
-            f"Could not get {record['dataset_name']} data for "
-            f"'{context.aoi['name']}': {result.message}"
-        )
-    rows = column_to_rows(result.data) if result.data else []
+    start, end = await _period(spec.dataset_id, context, "natural_forest")
     try:
-        charts = await build_curated_charts(
+        charts, pull = await _curated_charts(
             spec.dataset_id,
-            rows,
-            context.language,
+            context,
+            start,
+            end,
             [TCLNaturalForestChartGenerator(int(start[:4]), int(end[:4]))],
+            forest_breakdown="natural_forest",
         )
-        natural_ha, total_ha = natural_forest_totals(rows)
+        natural_ha, total_ha = natural_forest_totals(
+            column_to_rows(pull.data) if pull.data else []
+        )
     except ValueError as error:
         raise WidgetFailedError(
             f"Unexpected {record['dataset_name']} data for "

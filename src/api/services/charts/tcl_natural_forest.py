@@ -2,7 +2,11 @@
 
 from typing import Iterable, List
 
-from src.agent.datasets.handlers.analytics_handler import TREE_COVER_LOSS_ID
+from src.agent.datasets.handlers.analytics_handler import (
+    NATURAL_LANDS_ID,
+    TREE_COVER_LOSS_ID,
+)
+from src.agent.datasets.palette import PALETTES
 from src.agent.subagents.analyst.charts import InsightChart
 from src.api.services.charts.base import ChartGenerator
 
@@ -17,9 +21,19 @@ OTHER_CLASSES = ("Non-natural Forest", "Unknown")
 
 NATURAL_SERIES = "charts.label.natural_forest"
 OTHER_SERIES = "charts.label.other_tree_cover"
-# Natural forest takes the green of the natural forest map layer, other
-# tree cover the pink of the tree cover loss layer.
-SERIES_COLORS = {NATURAL_SERIES: "#246E24", OTHER_SERIES: "#DC6C9A"}
+# Natural forest takes the colour of the natural forest map layer, other
+# tree cover the colour of the tree cover loss layer.
+_NATURAL_FOREST_COLOR = next(
+    category["color"]
+    for category in PALETTES[NATURAL_LANDS_ID]["categories"]
+    if category["slug"] == "natural_forests"
+)
+_TREE_COVER_LOSS_COLOR = PALETTES[TREE_COVER_LOSS_ID]["series_color"]
+assert _TREE_COVER_LOSS_COLOR is not None
+SERIES_COLORS = {
+    NATURAL_SERIES: _NATURAL_FOREST_COLOR,
+    OTHER_SERIES: _TREE_COVER_LOSS_COLOR,
+}
 
 
 def split_by_year(rows: Iterable[dict]) -> dict[int, tuple[float, float]]:

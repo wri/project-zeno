@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
-from langchain_core.runnables import RunnableLambda
 
 from src.agent.datasets.handlers.analytics_handler import (
     INTEGRATED_ALERTS_ID,
@@ -26,12 +25,12 @@ from src.api.services.analysis_templates.builder import (
 from src.api.services.analysis_templates.models import (
     LayerWidgetSpec,
     NaturalForestLossWidgetSpec,
-    TemplateArgs,
 )
 from src.api.services.analysis_templates.registry import (
-    POST_2020_FOREST_LOSS_RULES,
+    Post2020ForestLossArgs,
     get_template,
 )
+from tests.unit.api.analysis_templates.test_text import _FakeModel
 from tests.unit.api.services.test_chart_generators import NATURAL_FOREST_DATA
 
 NRT = get_template("nrt-monitoring")
@@ -162,7 +161,7 @@ async def test_builds_three_widgets_in_template_order():
 async def test_layer_with_a_context_layer_and_a_size():
     template = NRT.model_copy(
         update={
-            "args_model": _Since2021,
+            "args_model": Post2020ForestLossArgs,
             "widgets": (
                 LayerWidgetSpec(
                     dataset_id=TREE_COVER_LOSS_ID,
@@ -298,14 +297,13 @@ async def test_dashboard_deleted_during_the_build():
         await _apply(stack)
 
 
-class _Since2021(TemplateArgs):
-    def period(self, today):
-        return date(2021, 1, 1), today
-
-
+SHARE_FACT = (
+    "From 2021 to 2025, 84% of the tree cover loss in Paraná was in "
+    "natural forest: 4\u202f423 ha of 5\u202f286 ha."
+)
 SPLIT = NRT.model_copy(
     update={
-        "args_model": _Since2021,
+        "args_model": Post2020ForestLossArgs,
         "widgets": (NaturalForestLossWidgetSpec(),),
     }
 )
@@ -359,10 +357,7 @@ async def test_natural_forest_share_is_a_computed_fact():
     await _apply(stack, template=SPLIT)
 
     # 4,422.85 ha of 5,285.86 ha is 83.7%.
-    assert mocks.text.await_args.kwargs["facts"] == [
-        "From 2021 to 2025, 84% of the tree cover loss in Paraná was in "
-        "natural forest: 4\u202f423 ha of 5\u202f286 ha."
-    ]
+    assert mocks.text.await_args.kwargs["facts"] == [SHARE_FACT]
 
 
 @pytest.mark.asyncio
@@ -440,32 +435,12 @@ def test_natural_forest_facts_take_their_placeholders_in_every_language(key):
 
 
 POST_2020 = get_template("post-2020-forest-loss")
-SHARE_FACT = (
-    "From 2021 to 2025, 84% of the tree cover loss in Paraná was in "
-    "natural forest: 4\u202f423 ha of 5\u202f286 ha."
-)
-
-
-class _FailingModel:
-    """A text model that records its prompt and schema, then fails, so the
-    section gets the fallback text."""
-
-    def __init__(self):
-        self.prompt = None
-        self.schema = None
-
-    def with_structured_output(self, schema):
-        self.schema = schema
-
-        def _invoke(prompt_value):
-            self.prompt = prompt_value.to_string()
-            raise RuntimeError("no model in unit tests")
-
-        return RunnableLambda(_invoke)
 
 
 async def _apply_post_2020():
-    model = _FailingModel()
+    # A model that records its prompt, then fails, so the section gets the
+    # fallback text.
+    model = _FakeModel(RuntimeError("no model in unit tests"))
     mocks, stack = _patches(
         pull=_pull(data=NATURAL_FOREST_DATA),
         written=("section-1", ["w1", "w2", "w3"]),
@@ -511,20 +486,15 @@ async def test_post_2020_prompt_has_the_share_and_the_clamped_years():
 
     # The section period runs to today (for the imagery); the fact and the
     # widget lines carry the years of the data.
-    assert "## Period\n2021-01-01 to 2026-09-23" in model.prompt
-    assert "## Facts\n" in model.prompt
-    assert f"- {SHARE_FACT}" in model.prompt
-    assert "2021-01-01 to 2025-12-31" in model.prompt
+    assert "## Period\n2021-01-01 to 2026-09-23" in model.inputs
+    assert "## Facts\n" in model.inputs
+    assert f"- {SHARE_FACT}" in model.inputs
+    assert "2021-01-01 to 2025-12-31" in model.inputs
     assert (
         "map layer: Tree cover loss with the natural_forest context layer, "
         "2021-01-01 to 2025-12-31"
-    ) in model.prompt
-    assert "Take every figure and every year from the facts" in model.prompt
-    schema = model.schema.model_json_schema()
-    assert (
-        schema["properties"]["description"]["description"]
-        == POST_2020_FOREST_LOSS_RULES
-    )
+    ) in model.inputs
+    assert "Take every figure and every year from the facts" in model.inputs
 
 
 @pytest.mark.asyncio

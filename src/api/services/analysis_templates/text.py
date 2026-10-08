@@ -11,7 +11,7 @@ must not fail after its data is ready.
 from typing import Optional, Sequence
 
 from langchain_core.prompts import ChatPromptTemplate
-from pydantic import BaseModel, Field, create_model
+from pydantic import BaseModel, Field
 
 from src.agent.datasets.config import DATASETS
 from src.agent.i18n import t
@@ -42,10 +42,12 @@ class SectionText(BaseModel):
             f"{TITLE_MAX_CHARS} characters. No trailing period, no markup."
         )
     )
+    # The rules are in the system prompt only, since a template can set
+    # its own.
     description: str = Field(
         description=(
-            "One to three short sentences: what the section shows, then the "
-            "one or two figures that matter most."
+            "Section description. Follow the `description` rules in the "
+            "instructions."
         )
     )
 
@@ -110,18 +112,6 @@ def rounded(chart: InsightChart) -> InsightChart:
             if isinstance(value, float):
                 row[key] = round(value, 1 if abs(value) < 100 else None)
     return copy
-
-
-def _output_model(template: AnalysisTemplate) -> type[SectionText]:
-    """``SectionText``, with the template's own description rules in the
-    output schema when it has them."""
-    if template.description_rules is None:
-        return SectionText
-    return create_model(
-        "SectionText",
-        __base__=SectionText,
-        description=(str, Field(description=template.description_rules)),
-    )
 
 
 def _presentation_instructions(template: AnalysisTemplate) -> str:
@@ -195,7 +185,7 @@ async def generate_section_text(
         ),
     }
     try:
-        chain = _PROMPT | model.with_structured_output(_output_model(template))
+        chain = _PROMPT | model.with_structured_output(SectionText)
         result: SectionText = await chain.ainvoke(inputs)
         title = (result.title or "").strip().rstrip(".").strip()
         description = (result.description or "").strip()

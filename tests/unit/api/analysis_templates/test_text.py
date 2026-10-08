@@ -44,11 +44,8 @@ class _FakeModel:
     def __init__(self, result):
         self._result = result
         self.inputs = None
-        self.schema = None
 
-    def with_structured_output(self, schema):
-        self.schema = schema
-
+    def with_structured_output(self, _schema):
         def _invoke(prompt_value):
             self.inputs = prompt_value.to_string()
             if isinstance(self._result, Exception):
@@ -154,7 +151,6 @@ async def test_default_rules_and_no_facts_block():
 
     assert DEFAULT_DESCRIPTION_RULES in model.inputs
     assert "## Facts" not in model.inputs
-    assert model.schema is SectionText
 
 
 @pytest.mark.asyncio
@@ -166,9 +162,6 @@ async def test_template_rules_replace_the_default_rules():
 
     assert f"`description`: {RULES}" in model.inputs
     assert DEFAULT_DESCRIPTION_RULES not in model.inputs
-    # The output schema says the same as the prompt.
-    schema = model.schema.model_json_schema()
-    assert schema["properties"]["description"]["description"] == RULES
 
 
 @pytest.mark.asyncio

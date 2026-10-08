@@ -20,12 +20,10 @@ A template uses the first area of the dashboard. Each template has its own
 arguments (`args`). The arguments set the period of the widgets.
 
 `post-2020-forest-loss` pulls tree cover loss grouped by SBTN Natural Lands
-Map class (`forest_breakdown="natural_forest"` in the analytics handler,
-sent as `forest_filter="natural_forest"` with no canopy threshold). "Other
-tree cover" is Non-natural Forest plus Unknown. The chart series are the
-legend names in the user's language, and `color_map` is keyed by them
-(natural forest `#246E24`, other tree cover `#DC6C9A`). The map config
-has `"size": "single"` and `dataset.context_layer: "natural_forest"`.
+Map class, with no canopy threshold. "Other tree cover" is Non-natural
+Forest plus Unknown. The chart series are the legend names in the user's
+language, and `color_map` is keyed by them. The map config sets `size` and
+`dataset.context_layer`.
 
 ## API
 
