@@ -14,7 +14,7 @@ The design and the decisions are in `analysis-templates-plan.md`.
 | Name | Widgets | Args |
 |---|---|---|
 | `nrt-monitoring` | Integrated alerts chart (daily), integrated alerts map layer, Sentinel-2 imagery | `days`: length of the period, counted back from today. Default 14, maximum 365. |
-| `post-2020-forest-loss` | Tree cover loss per year from 2021, split into natural forest and other tree cover (full width); tree cover loss map with the natural forest context layer, for the same years (half width); Sentinel-2 imagery of the last 30 days (half width) | None. The period runs from 2021-01-01 to today; the chart and the map stop at the last year of loss data. |
+| `post-2020-forest-loss` | Tree cover loss per year from 2021, split into natural forest and other tree cover (full width); tree cover loss map with the natural forest context layer, for the same years (half width); Sentinel-2 imagery of the last 30 days (half width) | None. The period runs from 2021-01-01 to today; the chart, the map and the section stop at the last year of loss data. |
 
 A template uses the first area of the dashboard. Each template has its own
 arguments (`args`). The arguments set the period of the widgets.
@@ -114,7 +114,10 @@ Each section in the dashboard response has a `template` field:
 }
 ```
 
-`args` has all the arguments, also the defaults. The field is `null` for a section that a user or the agent composed. It tells
+`args` has all the arguments, also the defaults. `start_date` and
+`end_date` are the dates the section's data covers: the requested period,
+clamped to its datasets (a section of annual data ends with its last year).
+The field is `null` for a section that a user or the agent composed. It tells
 how the section started, not what it contains now. An edited section keeps
 it. You can use it to show, for example, "Built from Near-real-time
 monitoring, 2026-09-09 to 2026-09-23".

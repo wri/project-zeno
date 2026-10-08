@@ -173,7 +173,10 @@ async def test_apply_post_2020_forest_loss(client, auth_override):
     (section,) = body["dashboard"]["sections"]
     assert section["template"]["name"] == "post-2020-forest-loss"
     assert section["template"]["args"] == {}
-    assert section["template"]["start_date"] == "2021-01-01"
+    assert (
+        section["template"]["start_date"],
+        section["template"]["end_date"],
+    ) == ("2021-01-01", "2025-12-31")
     chart_widget, layer_widget, imagery_widget = body["dashboard"]["widgets"]
 
     # The series keys are the legend names, and the colours survive the

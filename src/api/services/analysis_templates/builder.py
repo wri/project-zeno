@@ -12,7 +12,8 @@ and the agent tool both call it.
    A builder returns data. It does not write to the database.
 4. A failed required widget stops the build with nothing written. A failed
    optional widget adds a warning and is left out.
-5. Write the title and the description (``text``).
+5. Write the title and the description (``text``) for the dates the data
+   covers.
 6. Write the section, its widgets and the new insights in one transaction.
 """
 
@@ -112,6 +113,9 @@ class BuiltWidget:
     # Sentences computed in code that the description must give, in the
     # user's language, e.g. a share the model must not work out itself.
     facts: list[str] = field(default_factory=list)
+    # The dates the widget's data covers, clamped to its dataset. None for
+    # imagery, which is of one date.
+    period: Optional[tuple[str, str]] = None
 
 
 def _dataset_record(dataset_id: int) -> dict:
@@ -190,6 +194,7 @@ async def _build_chart(
         ),
         summary=f"chart: {record['dataset_name']}, {start} to {end}",
         charts=charts,
+        period=(start, end),
     )
 
 
@@ -242,6 +247,7 @@ async def _build_layer(
             widget_type="map", config=widget_config("dataset", snapshot, None)
         ),
         summary=f"map layer: {name}, {start} to {end}",
+        period=(start, end),
     )
 
 
@@ -324,6 +330,7 @@ async def _build_natural_forest_loss(
         ),
         charts=charts,
         facts=[fact],
+        period=(start, end),
     )
 
 
@@ -452,8 +459,12 @@ async def apply_template(
             raise WidgetFailedError(message) from outcome
         warnings.append(message)
 
-    start_date = start.isoformat()
-    end_date = end.isoformat()
+    # The section covers the dates of its data, not the requested period:
+    # an annual dataset stops at its last year (tree cover loss at 2025)
+    # while the imagery is of today.
+    periods = [widget.period for widget in built if widget.period]
+    start_date = min((s for s, _ in periods), default=start.isoformat())
+    end_date = max((e for _, e in periods), default=end.isoformat())
     title, description = await generate_section_text(
         template,
         aoi_name=aoi["name"],

@@ -23,6 +23,7 @@ from src.api.services.analysis_templates.builder import (
     apply_template,
 )
 from src.api.services.analysis_templates.models import (
+    ImageryWidgetSpec,
     LayerWidgetSpec,
     NaturalForestLossWidgetSpec,
 )
@@ -204,6 +205,20 @@ async def test_template_record_and_one_today():
     assert record["start_date"] == "2026-08-24"
     assert record["end_date"] == "2026-09-23"
     assert mocks.today.calls == 1
+
+
+@pytest.mark.asyncio
+async def test_a_section_with_no_dated_data_keeps_the_requested_period():
+    template = NRT.model_copy(update={"widgets": (ImageryWidgetSpec(),)})
+    mocks, stack = _patches(written=("section-1", ["w1"]))
+
+    await _apply(stack, template=template)
+
+    record = mocks.write.await_args.kwargs["template"]
+    assert (record["start_date"], record["end_date"]) == (
+        "2026-09-09",
+        "2026-09-23",
+    )
 
 
 @pytest.mark.asyncio
@@ -477,19 +492,23 @@ async def test_post_2020_forest_loss_builds_its_three_widgets():
     assert (request.target_date, request.window_days) == (TODAY, 30)
     assert kwargs["template"]["name"] == "post-2020-forest-loss"
     assert kwargs["template"]["args"] == {}
-    assert kwargs["template"]["start_date"] == "2021-01-01"
+    # The section covers the loss data, not the imagery's today.
+    assert (
+        kwargs["template"]["start_date"],
+        kwargs["template"]["end_date"],
+    ) == ("2021-01-01", "2025-12-31")
 
 
 @pytest.mark.asyncio
 async def test_post_2020_prompt_has_the_share_and_the_clamped_years():
     _, _, model = await _apply_post_2020()
 
-    # The section period runs to today (for the imagery); the fact and the
-    # widget lines carry the years of the data.
-    assert "## Period\n2021-01-01 to 2026-09-23" in model.inputs
+    # The period, the fact and the widget lines all carry the years of the
+    # loss data; only the imagery is of today.
+    assert "## Period\n2021-01-01 to 2025-12-31" in model.inputs
+    assert "2026-09-23" not in model.inputs.split("## Purpose")[0]
     assert "## Facts\n" in model.inputs
     assert f"- {SHARE_FACT}" in model.inputs
-    assert "2021-01-01 to 2025-12-31" in model.inputs
     assert (
         "map layer: Tree cover loss with the natural_forest context layer, "
         "2021-01-01 to 2025-12-31"

@@ -34,8 +34,8 @@ class NrtMonitoringArgs(TemplateArgs):
 
 class Post2020ForestLossArgs(TemplateArgs):
     def period(self, today: date) -> tuple[date, date]:
-        # The chart is clamped to the end of the loss data. The imagery is
-        # of today.
+        # The chart and the map are clamped to the end of the loss data, and
+        # so is the section. The imagery is of today.
         return date(FIRST_YEAR, 1, 1), today
 
 
@@ -43,17 +43,16 @@ POST_2020_FOREST_LOSS_RULES = (
     "three to five sentences of plain prose, no markup. First give the fact "
     "on natural forest loss: the share with the natural forest area, the "
     "total area and their unit, or that no loss was recorded. Take every "
-    "figure and every year from the facts: the period in the input is only "
-    "the date of the imagery. Do not compute new figures. Then explain, "
-    "combining points where it reads well: the SBTN Natural Lands Map is a "
-    "2020 baseline, so the split covers loss from 2021 on; no canopy "
-    "density threshold applies, so the totals are higher than the default "
-    "30% figures of Global Forest Watch (do not state a 30% threshold); "
-    "other tree cover is non-natural forest, such as plantations and tree "
-    "crops, plus loss outside the 2020 forest classes; natural forest is "
-    "broader than primary forest, as it includes regenerated and secondary "
-    "natural forest and excludes plantations; tree cover loss is not the "
-    "same as deforestation."
+    "figure and every year from the facts. Do not compute new figures. Then "
+    "explain, combining points where it reads well: the SBTN Natural Lands "
+    "Map is a 2020 baseline, so the split covers loss from 2021 on; no "
+    "canopy density threshold applies, so the totals are higher than the "
+    "default 30% figures of Global Forest Watch (do not state a 30% "
+    "threshold); other tree cover is non-natural forest, such as plantations "
+    "and tree crops, plus loss outside the 2020 forest classes; natural "
+    "forest is broader than primary forest, as it includes regenerated and "
+    "secondary natural forest and excludes plantations; tree cover loss is "
+    "not the same as deforestation."
 )
 
 
