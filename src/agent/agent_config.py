@@ -6,7 +6,7 @@ Profiles form a chain, each one a small delta on its parent:
                    generate_insights), no skills. Ships on its own so raw
                    tool-calling can be evaluated without recipe guidance.
     default      — base + the core skills (analyze, pull-data, capabilities,
-                   show-imagery-planet, wri-insights, dashboard, explore).
+                   show-imagery, wri-insights, dashboard, explore).
     experimental — default + standalone tools not yet owned by any skill.
     lgms         — default with the LGMS dataset revealed; open to every
                    user (see PUBLIC_PROFILES).
@@ -129,7 +129,7 @@ DEFAULT_SKILLS = (
     "analyze",
     "pull-data",
     "capabilities",
-    "show-imagery-planet",
+    "show-imagery",
     "wri-insights",
     "dashboard",
     "explore",
