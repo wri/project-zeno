@@ -691,6 +691,117 @@ async def test_an_explicit_area_of_interest_beats_the_inferred_type(
     assert {call[1] for call in calls} == {searched_type}
 
 
+# A child-source row whose name ends in the parent's country code: a search
+# for "Ecuador" narrowed to the landmark source finds it, weakly.
+_ACHUAR_ROW = _row(
+    "ECU201",
+    "Achuar, Tierra Comunitaría, ECU",
+    "landmark",
+    "indigenous-and-community-land",
+)
+_ECUADOR_ROW = _row("ECU", "Ecuador", tier=EXACT_TIER)
+
+
+def _patch_subregions(monkeypatch, children):
+    """Patch the subregion expansion and record every call it receives.
+
+    Returns the list of `(subregion, parent_source, parent_src_id)` calls.
+    """
+    calls: list[tuple] = []
+
+    async def fake_query_subregion_database(subregion_name, source, src_id):
+        calls.append((subregion_name, source, src_id))
+        return pd.DataFrame(children)
+
+    monkeypatch.setattr(
+        tool_module,
+        "query_subregion_database",
+        fake_query_subregion_database,
+    )
+    return calls
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "aoi_type,subregion",
+    [
+        (AreaOfInterestType.LANDMARK, "landmark"),
+        (AreaOfInterestType.KBA, "kba"),
+        (AreaOfInterestType.WDPA, "wdpa"),
+    ],
+    ids=["landmark", "kba", "wdpa"],
+)
+async def test_a_subregion_request_does_not_narrow_the_parent_to_the_child_type(
+    monkeypatch, aoi_type, subregion
+):
+    """ "All indigenous lands in Ecuador": the caller passes the landmark type,
+    which names the children. The parent must still resolve to the country,
+    not to a landmark whose name happens to end in "ECU"."""
+
+    def by_source(place_name, searched_type):
+        return [_ACHUAR_ROW] if searched_type is not None else [_ECUADOR_ROW]
+
+    searches = _patch_search(monkeypatch, by_source)
+    expansions = _patch_subregions(
+        monkeypatch,
+        [
+            {
+                "name": f"Child {i}",
+                "subtype": "kba",
+                "source": subregion,
+                "src_id": str(i),
+            }
+            for i in range(3)
+        ],
+    )
+
+    command = await _lookup(
+        [ExtractedPlace(place="Ecuador")],
+        subregion=subregion,
+        aoi_type=aoi_type,
+    )
+
+    assert {call[1] for call in searches} == {None}
+    assert expansions == [(subregion, "gadm", "ECU")]
+    assert len(command.update["aoi_selection"]["aois"]) == 3
+
+
+@pytest.mark.asyncio
+async def test_a_subregion_parent_keeps_its_inferred_type(monkeypatch):
+    """Dropping the caller's type for the parent leaves the type the
+    geocoder inferred for the place in force."""
+    searches = _patch_search(monkeypatch, {"Ecuador": [_ECUADOR_ROW]})
+    _patch_subregions(
+        monkeypatch,
+        [{"name": "Child", "subtype": "kba", "source": "kba", "src_id": "1"}],
+    )
+
+    await _lookup(
+        [ExtractedPlace(place="Ecuador", area_type=AreaOfInterestType.GADM)],
+        subregion="kba",
+        aoi_type=AreaOfInterestType.KBA,
+    )
+
+    assert {call[1] for call in searches} == {AreaOfInterestType.GADM}
+
+
+@pytest.mark.asyncio
+async def test_without_a_subregion_the_callers_type_still_narrows(
+    monkeypatch,
+):
+    """A single landmark ("deforestation in Achuar") is still searched in
+    the source the caller named."""
+    searches = _patch_search(monkeypatch, {"Achuar, Ecuador": [_ACHUAR_ROW]})
+
+    command = await _lookup(
+        [ExtractedPlace(place="Achuar, Ecuador")],
+        aoi_type=AreaOfInterestType.LANDMARK,
+    )
+
+    assert {call[1] for call in searches} == {AreaOfInterestType.LANDMARK}
+    assert command.update["aoi_selection"]["aois"][0]["src_id"] == "ECU201"
+
+
 @pytest.mark.asyncio
 async def test_a_narrowed_search_that_finds_nothing_retries_every_source(
     monkeypatch,
