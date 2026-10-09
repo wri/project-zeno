@@ -1,5 +1,6 @@
 import asyncio
 import os
+from time import monotonic
 from typing import Any, Dict
 
 import httpx
@@ -24,6 +25,12 @@ class BooleanResponse(BaseModel):
 
     result: bool
 
+
+# How long to wait for a pending analytics job. Jobs can legitimately run for
+# minutes (the API's own timeouts are 300-600s) and this blocks a chat turn.
+POLL_TIMEOUT_SECONDS = 180
+# Wait between polls when the API sends no (usable) Retry-After.
+POLL_DEFAULT_INTERVAL_SECONDS = 1.0
 
 ADMIN_SUBTYPES = (
     "country",
@@ -232,6 +239,15 @@ def _count_and_enrich(raw_data: Any, aois: list[dict]) -> tuple[Any, int]:
         }
         raw_data["name"] = [aois_id_to_name[idx] for idx in raw_data["aoi_id"]]
     return raw_data, count
+
+
+def _parse_retry_after(response: httpx.Response, default: float) -> float:
+    """Seconds from a Retry-After header; `default` if absent or not a number
+    (e.g. the HTTP-date form), so an odd header never hides the job status."""
+    try:
+        return float(response.headers.get("Retry-After", default))
+    except ValueError:
+        return default
 
 
 def analytics_api_headers() -> dict[str, str]:
@@ -517,54 +533,64 @@ class AnalyticsHandler(DataSourceHandler):
 
     async def _poll_for_completion(
         self,
-        endpoint_url: str,
-        payload: Dict,
-        max_retries: int = 30,
-    ) -> Dict | str:
-        """Poll the API until the request is completed or max retries exceeded."""
-        result = {}
-        for attempt in range(max_retries):
-            logger.info(f"Polling attempt {attempt + 1}/{max_retries}")
+        resource_link: str,
+        timeout: float = POLL_TIMEOUT_SECONDS,
+    ) -> str | None:
+        """Poll the resource link (GET) until the job is done or `timeout` passes.
+
+        Returns None once the job has completed, otherwise an error message.
+
+        The GET response wraps the job state: the top-level ``status`` is always
+        "success", the job's own status is under ``data.status``. The API sets
+        ``Retry-After`` on this endpoint while the job is still running; we wait
+        that long between polls (1s if absent).
+        """
+        deadline = monotonic() + timeout
+        attempt = 0
+
+        while True:
+            attempt += 1
+            logger.info(f"Polling attempt {attempt}")
+            wait = POLL_DEFAULT_INTERVAL_SECONDS
 
             try:
                 async with httpx.AsyncClient() as client:
-                    response = await client.post(
-                        endpoint_url,
-                        headers=analytics_api_headers(),
-                        json=payload,
+                    response = await client.get(
+                        resource_link, headers=analytics_api_headers()
                     )
+                wait = _parse_retry_after(response, wait)
                 if response.status_code >= 400:
                     logger.warning(
-                        f"Poll attempt {attempt + 1} failed with status {response.status_code}"
+                        f"Poll attempt {attempt} failed with status {response.status_code}"
                     )
-                    continue
-
-                result = response.json()
-                status = result.get("status")
-                logger.info(
-                    f"Poll attempt {attempt + 1}, Status = {status}, Message = {result.get('message')}"
-                )
-
-                if status in ["success", "saved"]:
+                else:
+                    job = response.json().get("data") or {}
+                    status = job.get("status")
                     logger.info(
-                        f"Request completed successfully after {attempt + 1} polling attempts"
+                        f"Poll attempt {attempt}, Status = {status}, Message = {job.get('message')}"
                     )
-                    return result
-                elif status in ["failed", "error"]:
-                    msg = f"Request failed with status: {status}"
-                    logger.error(msg)
-                    return msg
 
-                retry_after = float(response.headers.get("Retry-After", 1))
-                await asyncio.sleep(retry_after)
+                    if status in ["success", "saved"]:
+                        logger.info(
+                            f"Request completed successfully after {attempt} polling attempts"
+                        )
+                        return None
+                    elif status in ["failed", "error"]:
+                        msg = f"Request failed with status: {status} ({job.get('message')}) for {resource_link}"
+                        logger.error(msg)
+                        return msg
 
             except Exception as e:
                 logger.warning(
-                    f"Poll attempt {attempt + 1} failed with error: {e}"
+                    f"Poll attempt {attempt} failed with error: {e}"
                 )
-                continue
 
-        msg = f"Max polling attempts ({max_retries}) exceeded for {result.get('data', {}).get('link', 'unknown url')}"
+            remaining = deadline - monotonic()
+            if remaining <= 0:
+                break
+            await asyncio.sleep(min(wait, remaining))
+
+        msg = f"Timed out after {timeout:.0f}s ({attempt} polling attempts) waiting for {resource_link}"
         logger.warning(msg)
         return msg
 
@@ -737,11 +763,11 @@ class AnalyticsHandler(DataSourceHandler):
                 logger.info(
                     "Analytics request is pending, will retry with polling..."
                 )
-                result = await self._poll_for_completion(
-                    endpoint_url, payload, max_retries=10
+                poll_error = await self._poll_for_completion(
+                    result["data"]["link"]
                 )
-                if isinstance(result, str):
-                    error_msg = f"Failed to get completed result after polling for {aoi_names}. Reason: {result}"
+                if poll_error:
+                    error_msg = f"Failed to get completed result after polling for {aoi_names}. Reason: {poll_error}"
                     logger.error(error_msg)
                     return DataPullResult(
                         success=False,
