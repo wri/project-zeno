@@ -199,3 +199,10 @@ nbs/
 tests/evals/results/
 
 .claude/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+tf.plan
+crash.log
