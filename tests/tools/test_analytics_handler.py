@@ -210,3 +210,133 @@ async def test_pull_data_rejects_admin_levels_the_api_does_not_take(subtype):
     assert not result.success
     assert subtype in result.message
     assert "district-county" in result.message
+
+
+class _FakeResponse:
+    def __init__(self, status, headers=None, status_code=200, message=None):
+        self.status_code = status_code
+        self.headers = headers or {}
+        self._body = {
+            "status": "success",  # the wrapper is always "success"
+            "data": {"status": status, "message": message, "result": None},
+        }
+
+    def json(self):
+        return self._body
+
+
+def _patch_get(monkeypatch, responses):
+    """Serve `responses` in order from httpx GET (the last one repeats).
+
+    Sleeping advances a fake clock, so deadline logic runs instantly.
+    Returns the (urls requested, sleeps) lists.
+    """
+    calls, sleeps, clock = [], [], [0.0]
+    queue = iter(responses)
+    last = []
+
+    class _Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        async def get(self, url, headers=None):
+            calls.append(url)
+            item = next(queue, None)
+            if item is None:
+                item = last[0]
+            last[:] = [item]
+            if isinstance(item, Exception):
+                raise item
+            return item
+
+    async def _sleep(seconds):
+        sleeps.append(seconds)
+        clock[0] += seconds
+
+    monkeypatch.setattr(
+        "src.agent.datasets.handlers.analytics_handler.httpx.AsyncClient",
+        _Client,
+    )
+    monkeypatch.setattr(
+        "src.agent.datasets.handlers.analytics_handler.asyncio.sleep", _sleep
+    )
+    monkeypatch.setattr(
+        "src.agent.datasets.handlers.analytics_handler.monotonic",
+        lambda: clock[0],
+    )
+    return calls, sleeps
+
+
+async def test_poll_gets_resource_link_and_honors_retry_after(monkeypatch):
+    calls, sleeps = _patch_get(
+        monkeypatch,
+        [
+            _FakeResponse("pending", {"Retry-After": "2"}),
+            _FakeResponse("pending"),
+            _FakeResponse("saved"),
+        ],
+    )
+
+    result = await AnalyticsHandler()._poll_for_completion("http://x/y/1")
+
+    assert result is None
+    assert calls == ["http://x/y/1"] * 3
+    assert sleeps == [2.0, 1.0]  # header when present, else the 1s default
+
+
+async def test_poll_returns_failure_message(monkeypatch):
+    _patch_get(monkeypatch, [_FakeResponse("failed", message="boom")])
+
+    result = await AnalyticsHandler()._poll_for_completion("http://x/y/1")
+
+    assert isinstance(result, str)
+    assert "failed" in result and "boom" in result
+
+
+async def test_poll_waits_after_errors(monkeypatch):
+    _, sleeps = _patch_get(
+        monkeypatch,
+        [
+            _FakeResponse("pending", status_code=503),
+            RuntimeError("conn reset"),
+            _FakeResponse("saved"),
+        ],
+    )
+
+    result = await AnalyticsHandler()._poll_for_completion("http://x/y/1")
+
+    assert result is None
+    assert sleeps == [1.0, 1.0]
+
+
+async def test_poll_times_out_at_deadline(monkeypatch):
+    _, sleeps = _patch_get(
+        monkeypatch, [_FakeResponse("pending", {"Retry-After": "4"})]
+    )
+
+    result = await AnalyticsHandler()._poll_for_completion(
+        "http://x/y/1", timeout=10
+    )
+
+    assert isinstance(result, str) and "Timed out after 10s" in result
+    assert sleeps == [4.0, 4.0, 2.0]  # last sleep trimmed to the deadline
+
+
+async def test_poll_ignores_unparseable_retry_after(monkeypatch):
+    _, sleeps = _patch_get(
+        monkeypatch,
+        [
+            _FakeResponse(
+                "pending", {"Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT"}
+            ),
+            _FakeResponse("saved"),
+        ],
+    )
+
+    result = await AnalyticsHandler()._poll_for_completion("http://x/y/1")
+
+    assert result is None
+    assert sleeps == [1.0]
