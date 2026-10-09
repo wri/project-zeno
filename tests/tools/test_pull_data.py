@@ -118,13 +118,13 @@ TEST_AOIS = [
         "query_description": "Brazil country",
     },
     {
-        "name": "Berne, Bern, Bern, Switzerland",
-        "subtype": "municipality",
+        "name": "Bern, Bern, Switzerland",
+        "subtype": "district-county",
         "source": "gadm",
         "src_id": "CHE.6.3_1",
         "gadm_id": "CHE.6.3_1",
-        "aoi_type": "municipality",
-        "query_description": "municipality of Bern, Switzerland",
+        "aoi_type": "district-county",
+        "query_description": "district of Bern, Switzerland",
     },
     {
         "name": "Marungu highlands, Marungu highlands, COD",
@@ -205,7 +205,8 @@ async def test_pull_data_queries(aoi_data, dataset):
     }
     command = await pull_data.ainvoke(tool_call)
     statistics = command.update.get("statistics", {})
-    if dataset["dataset_id"] == 9 and aoi_data["src_id"] != "BRA":
+    # sLUC only covers GADM admin areas.
+    if dataset["dataset_id"] == 9 and aoi_data["source"] != "gadm":
         assert len(statistics) == 0
     else:
         assert len(statistics) == 1
