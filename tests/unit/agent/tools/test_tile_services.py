@@ -11,6 +11,8 @@ pickDataset.ts) check `layers` themselves for a multi-layer dataset."""
 
 from types import SimpleNamespace
 
+import pytest
+
 from src.agent.datasets.handlers.analytics_handler import (
     INTEGRATED_ALERTS_ID,
     TREE_COVER_LOSS_ID,
@@ -187,12 +189,19 @@ def test_canopy_cover_threshold_substitution():
     assert context_layers[0].tile_url == "https://tiles.example.com/ctx/30.png"
 
 
-def test_natural_forest_uses_fixed_canopy_cover_without_overlay():
+@pytest.mark.parametrize(
+    "parameters, canopy_cover",
+    [
+        (None, 10),
+        ([SimpleNamespace(name="canopy_cover", values=[50])], 50),
+    ],
+)
+def test_natural_forest_canopy_cover_without_overlay(parameters, canopy_cover):
     selection = SimpleNamespace(
         dataset_id=TREE_COVER_LOSS_ID,
         context_layer="natural_forest",
         selected_layer=None,
-        parameters=None,
+        parameters=parameters,
     )
     row = SimpleNamespace(
         dataset_id=TREE_COVER_LOSS_ID,
@@ -216,7 +225,9 @@ def test_natural_forest_uses_fixed_canopy_cover_without_overlay():
         selection, row, "2021-01-01", "2024-12-31"
     )
 
-    assert tile_url.startswith("https://tiles.example.com/tcl/10/{z}.png")
+    assert tile_url.startswith(
+        f"https://tiles.example.com/tcl/{canopy_cover}/{{z}}.png"
+    )
     assert [layer.name for layer in context_layers] == ["natural_forest"]
 
 

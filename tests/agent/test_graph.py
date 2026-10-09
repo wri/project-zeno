@@ -423,12 +423,23 @@ async def test_agent_for_tcl_no_dates_for_brazil(structlog_context):
     )
 
 
-async def test_agent_for_natural_forest_loss_uses_fixed_canopy_cover(
-    structlog_context,
+@pytest.mark.parametrize(
+    "query, canopy_cover",
+    [
+        (
+            "How much natural forest loss was there in Para, Brazil since 2021?",
+            10,
+        ),
+        (
+            "How much natural forest loss was there in Para, Brazil since "
+            "2021, using a 30% canopy cover threshold?",
+            30,
+        ),
+    ],
+)
+async def test_agent_for_natural_forest_loss_canopy_cover(
+    structlog_context, query, canopy_cover
 ):
-    query = (
-        "How much natural forest loss was there in Para, Brazil since 2021?"
-    )
     build_payload = AnalyticsHandler._build_payload
     with patch.object(
         AnalyticsHandler,
@@ -445,11 +456,13 @@ async def test_agent_for_natural_forest_loss_uses_fixed_canopy_cover(
     assert datasets, "No dataset selected"
     dataset = datasets[-1]
     assert dataset["context_layer"] == "natural_forest"
-    assert "tree_cover_density_threshold=10" in dataset["tile_url"]
+    assert (
+        f"tree_cover_density_threshold={canopy_cover}" in dataset["tile_url"]
+    )
 
     assert spy.await_count > 0, "Analytics API was not called"
     payload = await build_payload(
         *spy.await_args.args, **spy.await_args.kwargs
     )
     assert payload["forest_filter"] == "natural_forest_only"
-    assert payload["canopy_cover"] == 10
+    assert payload["canopy_cover"] == canopy_cover

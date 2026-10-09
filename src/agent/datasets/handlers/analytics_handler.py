@@ -149,9 +149,9 @@ LAND_GHG_INVENTORY_ID = [
 # analytics.
 DEFAULT_CANOPY_COVER = 30
 
-# Natural forest loss is always counted at this canopy cover threshold, for
-# both the map and analytics. The API returns no emissions below 30%.
-NATURAL_FOREST_CANOPY_COVER = 10
+# Default canopy cover threshold for natural forest loss. A user-selected
+# threshold still applies. The API returns no emissions below 30%.
+NATURAL_FOREST_DEFAULT_CANOPY_COVER = 10
 
 
 def _first_list_len(section: Any) -> int:
@@ -483,12 +483,12 @@ class AnalyticsHandler(DataSourceHandler):
         ]:
             natural_forest = dataset.get("context_layer") == "natural_forest"
             canopy_cover: int = (
-                NATURAL_FOREST_CANOPY_COVER
+                NATURAL_FOREST_DEFAULT_CANOPY_COVER
                 if natural_forest
                 else DEFAULT_CANOPY_COVER
             )
             params = dataset.get("parameters")
-            if params is not None and not natural_forest:
+            if params is not None:
                 for param in params:
                     if param["name"] == "canopy_cover":
                         canopy_cover = int(max(param["values"]))
