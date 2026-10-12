@@ -62,6 +62,9 @@ HIERARCHY_SCORES: dict[str, float] = {
     "key-biodiversity-area": 0.2,
     "protected-area": 0.2,
     "indigenous-and-community-land": 0.2,
+    # Below every other source: a concession name is often a place name
+    # ("Palong 17", a district), and the place must win the tie.
+    "oil-palm-concession": 0.1,
 }
 
 

@@ -306,7 +306,9 @@ class AnalyticsHandler(DataSourceHandler):
             aoi_type = "indigenous_land"
         elif aoi["subtype"] == "protected-area":
             aoi_type = "protected_area"
-        elif aoi["subtype"] == "custom-area":
+        elif aoi["subtype"] in ("custom-area", "oil-palm-concession"):
+            # The analytics API has no concession type, so a concession is
+            # sent as its geometry, like a custom area.
             # See DistAlertsAnalyticsIn schema
             # in https://analytics.globalnaturewatch.org/docs
             aoi_type = "feature_collection"
@@ -337,15 +339,18 @@ class AnalyticsHandler(DataSourceHandler):
             if aoi["src_id"][-2:] in ["_1", "_2", "_3", "_4", "_5"]:
                 aoi["src_id"] = aoi["src_id"][:-2]
 
-        # Handle custom areas differently - they need a feature collection
+        # Custom areas and concessions are sent as a feature collection
         if aoi_type["type"] == "feature_collection":
             features = []
             for aoi in aois:
                 geometry_data = await get_geometry_data(
-                    "custom", aoi["src_id"]
+                    aoi.get("source", "custom"), aoi["src_id"]
                 )
                 if not geometry_data:
-                    raise ValueError(f"Custom area not found: {aoi['src_id']}")
+                    raise ValueError(
+                        f"{aoi.get('source', 'custom')} area not found: "
+                        f"{aoi['src_id']}"
+                    )
                 features.append(
                     {
                         "type": "Feature",

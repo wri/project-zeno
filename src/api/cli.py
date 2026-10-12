@@ -824,7 +824,7 @@ def backfill_turn_fields_command(batch_size: int, dry_run: bool):
 # ---------------------------------------------------------------------------
 
 # Reference sources first, custom last (custom depends only on custom_areas).
-_BUILD_SOURCES = ["gadm", "kba", "wdpa", "landmark", "custom"]
+_BUILD_SOURCES = ["gadm", "kba", "wdpa", "landmark", "oil_palm", "custom"]
 
 # This transform leaves `aois.properties` (JSONB) NULL. The column holds two
 # kinds of value that no code writes yet: the attributes of an uploaded custom
@@ -839,6 +839,7 @@ _ISO3_SOURCE_COLUMNS = {
     "kba": ["ISO3"],
     "wdpa": ["iso3"],
     "landmark": ["iso_code"],
+    "oil_palm": ["iso3"],
 }
 
 # The source columns that feed the search columns (leaf, context,
@@ -851,6 +852,7 @@ _SEARCH_SOURCE_COLUMNS = {
     "wdpa": ["wdpa_name", "orig_name", "desig_eng", "iso3"],
     "kba": ["NatName", "IntName", "Country"],
     "landmark": ["landmark_name", "category", "country"],
+    "oil_palm": ["conc_name", "company", "comp_group", "conc_type", "iso3"],
 }
 
 # Collapses a run of repeated segments in a GADM context string. GADM repeats
@@ -1030,11 +1032,33 @@ def _landmark_exprs(col: _StagingColumns) -> SearchExprs:
     )
 
 
+def _oil_palm_exprs(col: _StagingColumns) -> SearchExprs:
+    # The leaf is the source's own concession name; the company, then the
+    # group, stands in when it is missing. The company and the group are
+    # also searchable as variants, so a search for a company or a group
+    # finds every concession it holds.
+    company = col.clean("company")
+    group = f"NULLIF({col.clean('comp_group')}, 'No group')"
+    designation = col.clean("conc_type")
+    return SearchExprs(
+        leaf=f"COALESCE({col.clean('conc_name')}, {company}, {group})",
+        context=(
+            f"NULLIF(concat_ws(', ', {designation}, {col.clean('iso3')}), '')"
+        ),
+        designation=designation,
+        variants=[
+            ("variant", f"ARRAY[{col.differs('company', 'conc_name')}]"),
+            ("variant", f"ARRAY[{group}]"),
+        ],
+    )
+
+
 _SEARCH_EXPR_BUILDERS = {
     "gadm": _gadm_exprs,
     "wdpa": _wdpa_exprs,
     "kba": _kba_exprs,
     "landmark": _landmark_exprs,
+    "oil_palm": _oil_palm_exprs,
 }
 
 

@@ -67,6 +67,9 @@ Examples:
   canonical="Botum Sakor", alternatives=[],
   area_type="protected area, park, or reserve"
 - "Parque Nacional Botum Sakor" → the same four values
+- "PT. Batang Kamalah oil palm concession" → place="PT. Batang Kamalah",
+  canonical="PT. Batang Kamalah", alternatives=[],
+  area_type="oil palm concession or plantation"
 - "forest loss in the US" → place="United States",
   canonical="United States", alternatives=["USA"], area_type=null
 - "Ivory Coast" → place="Ivory Coast", canonical="Côte d'Ivoire",

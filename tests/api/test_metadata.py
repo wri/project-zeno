@@ -70,6 +70,7 @@ async def test_metadata_layer_id_mapping_has_known_sources(client):
     assert layer_id_mapping == {
         "kba": "sitrecid",
         "landmark": "landmark_id",
+        "oil_palm": "gfw_fid",
         "wdpa": "wdpa_pid",
         "gadm": "gadm_id",
         "custom": "id",

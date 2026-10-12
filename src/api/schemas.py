@@ -411,7 +411,9 @@ class AOISearchResult(BaseModel):
 
     source: str = Field(
         ...,
-        description="Source of the AOI (gadm, kba, wdpa, landmark, custom)",
+        description=(
+            "Source of the AOI (gadm, kba, wdpa, landmark, oil_palm, custom)"
+        ),
     )
     src_id: str = Field(..., description="Source-specific ID of the AOI")
     name: str = Field(..., description="Name of the AOI")
@@ -686,7 +688,7 @@ class AreaOfInterest(BaseModel):
     source: str = Field(
         description=(
             "Data source of the area, e.g. `gadm`, `custom`, `wdpa`, "
-            "`kba`, `landmark`."
+            "`kba`, `landmark`, `oil_palm`."
         )
     )
     src_id: str = Field(

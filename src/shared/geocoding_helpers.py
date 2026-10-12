@@ -25,6 +25,7 @@ SUBREGION_TO_SUBTYPE_MAPPING = {
     "kba": "key-biodiversity-area",
     "wdpa": "protected-area",
     "landmark": "indigenous-and-community-land",
+    "oil_palm": "oil-palm-concession",
     "custom": "custom-area",
 }
 
@@ -40,6 +41,7 @@ SUBREGION_TO_SUBTYPE_MAPPING = {
 AOI_SOURCE_ID_COLUMNS = {
     "kba": "sitrecid",
     "landmark": "landmark_id",
+    "oil_palm": "gfw_fid",
     "wdpa": "wdpa_pid",
     "gadm": "gadm_id",
     "custom": "id",
@@ -52,6 +54,7 @@ AOI_SOURCE_ID_COLUMNS = {
 SOURCE_STAGING_TABLES = {
     "kba": "geometries_kba",
     "landmark": "geometries_landmark",
+    "oil_palm": "geometries_oil_palm",
     "wdpa": "geometries_wdpa",
     "gadm": "geometries_gadm",
     "custom": "custom_areas",

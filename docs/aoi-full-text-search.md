@@ -17,20 +17,22 @@ custom-area mirror through the shared SQL fragments:
 
 | column | content |
 |---|---|
-| `leaf` | the place's own name: GADM `NAME_n`, WDPA `wdpa_name`, KBA `NatName`, LandMark `landmark_name`, the custom area's name |
+| `leaf` | the place's own name: GADM `NAME_n`, WDPA `wdpa_name`, KBA `NatName`, LandMark `landmark_name`, oil palm `conc_name` (else `company`, else `comp_group`), the custom area's name |
 | `leaf_norm` | `unaccent(lower(btrim(leaf)))`, the key for exact and prefix matching |
-| `designation` | the kind of site a source names the row with: WDPA `desig_eng`, LandMark `category`; NULL for GADM, KBA and custom areas |
+| `designation` | the kind of site a source names the row with: WDPA `desig_eng`, LandMark `category`, oil palm `conc_type`; NULL for GADM, KBA and custom areas |
 | `search_tsv` | the full weighted tsvector: leaf and every name variant at weight A, the context at weight B, the display name (minus no-data segments) at weight D, so a display name pasted back as a query still matches its row |
 | `name_tsv` | the vector a token query runs against: leaf and variants at weight A, the designation at weight B. No parents and no country: those belong to every child, and "Indonesia" would otherwise match the 85,000 rows beneath it |
 
 The *context* that goes into `search_tsv` is what follows the leaf: GADM
 parents and country (consecutive duplicate segments collapsed), WDPA
-`desig_eng` + country, KBA `Country`, LandMark `category` + `country`. It is
+`desig_eng` + country, KBA `Country`, LandMark `category` + `country`, oil palm `conc_type` +
+`iso3`. It is
 derived at build time and not stored as text; nothing reads it except the
 vector.
 
 `aoi_names` holds one row per alternate spelling of a place, one per
-`(aoi_id, name_norm)`: `kind` is `variant` (GADM VARNAME, `|`-separated),
+`(aoi_id, name_norm)`: `kind` is `variant` (GADM VARNAME, `|`-separated;
+oil palm `company` and `comp_group`, so a company finds its concessions),
 `native` (GADM NL_NAME, WDPA `orig_name` when it differs), `international`
 (KBA `IntName`) or `code` (a country's ISO3, so "USA" is the United States).
 The leaf itself is not repeated here, and a spelling equal to it is not
@@ -212,7 +214,7 @@ current ones; the source is authoritative.
 
 | constant | value | file | changes |
 |---|---|---|---|
-| `HIERARCHY_SCORES` | country 1.0, state 0.9, district 0.7, custom 0.7, municipality 0.5, locality 0.35, neighbourhood 0.25, KBA/WDPA/LandMark 0.2 | `aoi_search_sql.py` | the prior in the sort, the score, the token table's `prominence`, the geocoder's hierarchy term and nudge floor |
+| `HIERARCHY_SCORES` | country 1.0, state 0.9, district 0.7, custom 0.7, municipality 0.5, locality 0.35, neighbourhood 0.25, KBA/WDPA/LandMark 0.2, oil palm concession 0.1 | `aoi_search_sql.py` | the prior in the sort, the score, the token table's `prominence`, the geocoder's hierarchy term and nudge floor |
 | `_SCORE_TIER_WEIGHT`, `_SCORE_CONTEXT_WEIGHT`, `_SCORE_PRIOR_WEIGHT` | 0.55, 0.2, 0.25 | `aoi_search.py` | the search score only (not the order) |
 | `_AUTOCOMPLETE_TIER_WEIGHT`, `_AUTOCOMPLETE_PRIOR_WEIGHT` | 0.5, 0.5 | `aoi_search.py` | the autocomplete score only |
 | `_CORRECTED_SCORE_SCALE`, `_PARTIAL_SCORE_SCALE` | 0.8, 0.6 | `aoi_search.py` | how far a corrected / word-dropped result's score sits below an as-typed one |

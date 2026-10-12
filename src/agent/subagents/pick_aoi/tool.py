@@ -36,6 +36,7 @@ from src.agent.subagents.pick_aoi.selection_name_util import (
     build_selection_name,
 )
 from src.agent.subagents.pick_aoi.types import (
+    CONCESSION_SOURCES,
     AreaOfInterestType,
     aoi_to_table,
 )
@@ -530,7 +531,7 @@ async def check_aoi_selection(
         return await t("pick_aoi.multiple_sources", language)
 
     aoi_source = next(iter(aoi_sources))
-    if aoi_source in {"kba", "wdpa", "landmark"}:
+    if aoi_source in {"kba", "wdpa", "landmark", *CONCESSION_SOURCES}:
         subregion_limit = SUBREGION_LIMIT
     else:
         subregion_limit = SUBREGION_LIMIT_ADMIN
@@ -571,6 +572,49 @@ async def check_duplicate_aois(
             )
             return message, options, candidates
 
+    return None
+
+
+_CONCESSION_EXAMPLES = 5
+
+
+async def check_concession_matches(
+    selected_aois: list[AOIIndex],
+    all_results: list[pd.DataFrame],
+    language: str = DEFAULT_LANGUAGE,
+) -> Optional[str]:
+    """The message asking the user to narrow a concession search, or None.
+
+    A concession source splits one estate into parcels that share a name,
+    and its variants make a company or group name match every concession it
+    holds. So when a selected concession is one of several rows of its
+    source that the search matched, no pick is safe: the user picks on the
+    map or names the concession more precisely. Spelling-corrected rows do
+    not count, because they are guesses.
+    """
+    for selected_aoi, result in zip(selected_aois, all_results):
+        if selected_aoi.source not in CONCESSION_SOURCES or result.empty:
+            continue
+        matches = result[result.source == selected_aoi.source]
+        if "corrected" in matches.columns:
+            matches = matches[~matches.corrected.fillna(False).astype(bool)]
+        if len(matches) <= 1:
+            continue
+        count = (
+            f"{len(matches)}+"
+            if len(matches) >= RESULT_LIMIT
+            else str(len(matches))
+        )
+        return await t(
+            "pick_aoi.many_concessions",
+            language,
+            count=count,
+            short_name=_selected_leaf(selected_aoi, result),
+            candidate_names="\n".join(
+                f"- {name}"
+                for name in matches["name"].head(_CONCESSION_EXAMPLES)
+            ),
+        )
     return None
 
 
@@ -1012,6 +1056,25 @@ class Geocoder:
                     "messages": [
                         ToolMessage(
                             message + NUDGE_ALREADY_SET_NOTE,
+                            tool_call_id=tool_call_id,
+                            status="success",
+                            response_metadata={"msg_type": "human_feedback"},
+                        )
+                    ],
+                },
+            )
+
+        concession_check = await check_concession_matches(
+            selected_aois,
+            [resolution.merged for resolution, _ in matched],
+            language,
+        )
+        if concession_check:
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            concession_check,
                             tool_call_id=tool_call_id,
                             status="success",
                             response_metadata={"msg_type": "human_feedback"},
