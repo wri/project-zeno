@@ -59,7 +59,7 @@ searchable field. `name` itself, the display string, is unchanged.
 | `idx_aois_search_tsv` GIN, partial on live rows | the typed-parent test, and the fallback for words spread over name and context |
 | `idx_aoi_names_name_norm` btree, `text_pattern_ops` | exact and prefix over variants |
 | `idx_aoi_search_tokens_trgm` GIN trigram | typo correction |
-| `idx_aois_source` (existing) | the source filter; `idx_aois_iso3` also exists but nothing in search reads it |
+| `idx_aois_source` (existing) | not search: the custom-AOI sync, where `delete_custom_aoi` and `prune_orphan_custom_aois` filter on `source` without the live predicate. `idx_aois_iso3` and `idx_aois_admin_level` also exist, but nothing reads them |
 
 No trigram index remains on `aois`. Migration `9c4e1d7f2a60` drops the
 composite-name trigram index `idx_aois_name_trgm` and the trigram indexes of
