@@ -59,12 +59,13 @@ searchable field. `name` itself, the display string, is unchanged.
 | `idx_aois_search_tsv` GIN, partial on live rows | the typed-parent test, and the fallback for words spread over name and context |
 | `idx_aoi_names_name_norm` btree, `text_pattern_ops` | exact and prefix over variants |
 | `idx_aoi_search_tokens_trgm` GIN trigram | typo correction |
-| `idx_aois_source` (existing) | the source filter; `idx_aois_iso3` also exists but nothing in search reads it |
+| `idx_aois_source` (existing) | not search: the custom-AOI sync, where `delete_custom_aoi` and `prune_orphan_custom_aois` filter on `source` without the live predicate. `idx_aois_iso3` and `idx_aois_admin_level` also exist, but nothing reads them |
 
-Search does not read the composite-name trigram index `idx_aois_name_trgm`
-or the trigram indexes of the ingest scripts on the `geometries_*` staging
-tables. They stay until the new search is stable, so that a rollback to the
-trigram search continues to work. A later migration drops them.
+No trigram index remains on `aois`. Migration `9c4e1d7f2a60` drops the
+composite-name trigram index `idx_aois_name_trgm` and the trigram indexes of
+the ingest scripts on the `geometries_*` staging tables. It ships after the
+new search is stable, so that a rollback to the trigram search keeps its
+index until then.
 
 ### The query, in tiers
 
@@ -401,8 +402,8 @@ a later phase.
   3. The search rewrite (this code). It needs no build. A
      `build-aois --source custom` after it is cheap and optional.
 
-  After the new search is stable, a fourth deploy drops the unused trigram
-  indexes.
+  After the new search is stable, a fourth deploy runs migration
+  `9c4e1d7f2a60`, which drops the unused trigram indexes.
 - **`build-aois`** populates all search columns and tables and ends with the
   token rebuild and `VACUUM (ANALYZE)` of the four tables: the vacuum sets
   the visibility map the search's index-only scans depend on, which a plain
