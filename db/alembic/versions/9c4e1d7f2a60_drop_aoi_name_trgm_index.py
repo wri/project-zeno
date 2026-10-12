@@ -1,7 +1,7 @@
 """drop the composite-name trigram indexes
 
 Revision ID: 9c4e1d7f2a60
-Revises: 5b7e2c9a1f40
+Revises: 2c857de0e303
 Create Date: 2026-09-21 12:00:00.000000
 
 Search no longer reads ``aois.name`` with pg_trgm: it reads the leaf, the
@@ -25,7 +25,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "9c4e1d7f2a60"
-down_revision: Union[str, None] = "5b7e2c9a1f40"
+down_revision: Union[str, None] = "2c857de0e303"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
