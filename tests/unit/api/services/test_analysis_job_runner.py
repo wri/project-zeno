@@ -36,7 +36,14 @@ class FakeService:
         self._charts = charts
 
     async def analyze(
-        self, aois, dataset_id, start_date, end_date, language=None
+        self,
+        aois,
+        dataset_id,
+        start_date,
+        end_date,
+        language=None,
+        context_layer=None,
+        canopy_cover=None,
     ):
         self.language = language
         return AnalyzeResult(

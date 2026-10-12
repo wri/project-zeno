@@ -1,5 +1,6 @@
 import asyncio
 import os
+from time import monotonic
 from typing import Any, Dict
 
 import httpx
@@ -24,6 +25,12 @@ class BooleanResponse(BaseModel):
 
     result: bool
 
+
+# How long to wait for a pending analytics job. Jobs can legitimately run for
+# minutes (the API's own timeouts are 300-600s) and this blocks a chat turn.
+POLL_TIMEOUT_SECONDS = 180
+# Wait between polls when the API sends no (usable) Retry-After.
+POLL_DEFAULT_INTERVAL_SECONDS = 1.0
 
 ADMIN_SUBTYPES = (
     "country",
@@ -234,6 +241,15 @@ def _count_and_enrich(raw_data: Any, aois: list[dict]) -> tuple[Any, int]:
     return raw_data, count
 
 
+def _parse_retry_after(response: httpx.Response, default: float) -> float:
+    """Seconds from a Retry-After header; `default` if absent or not a number
+    (e.g. the HTTP-date form), so an odd header never hides the job status."""
+    try:
+        return float(response.headers.get("Retry-After", default))
+    except ValueError:
+        return default
+
+
 def analytics_api_headers() -> dict[str, str]:
     """Headers for every request to the analytics API — Bearer auth
     (WRI_BEARER_TOKEN, now required) plus the environment selector. Read at
@@ -363,13 +379,37 @@ class AnalyticsHandler(DataSourceHandler):
 
         logger.debug(f"dataset: {dataset}")
 
+        # A forest breakdown groups the loss by SBTN natural forest class,
+        # while the natural_forest context layer filters to one class. Only
+        # the analysis templates ask for it; the chat path never sets it.
+        forest_breakdown = dataset.get("forest_breakdown")
+        if forest_breakdown is not None:
+            if forest_breakdown != "natural_forest":
+                raise ValueError(
+                    f"Unknown forest breakdown: {forest_breakdown}"
+                )
+            if dataset.get("dataset_id") != TREE_COVER_LOSS_ID:
+                raise ValueError(
+                    "A natural forest breakdown is only available for tree "
+                    "cover loss."
+                )
+            if dataset.get("context_layer"):
+                raise ValueError(
+                    "A forest breakdown cannot be combined with the "
+                    f"{dataset['context_layer']} context layer."
+                )
+
         payload: dict[str, Any]
         if dataset.get("dataset_id") == INTEGRATED_ALERTS_ID:
-            # Integrated Alerts has no intersections; it takes full dates only.
+            land_filter = None
+            if dataset.get("context_layer") == "natural_lands":
+                land_filter = "natural_lands"
+
             payload = {
                 **base_payload,
                 "start_date": start_date,
                 "end_date": end_date,
+                "land_filter": land_filter,
             }
 
         elif dataset.get("dataset_id") in [
@@ -397,6 +437,12 @@ class AnalyticsHandler(DataSourceHandler):
 
             elif dataset.get("context_layer") == "intact_forest":
                 forest_filter = "intact_forest"
+
+            elif dataset.get("context_layer") == "natural_forest":
+                forest_filter = "natural_forest_only"
+
+            elif forest_breakdown == "natural_forest":
+                forest_filter = "natural_forest"
             intersections = []
             if dataset.get("dataset_id") == TREE_COVER_LOSS_BY_DRIVER_ID:
                 intersections = ["driver"]
@@ -459,13 +505,21 @@ class AnalyticsHandler(DataSourceHandler):
                 f"Unknown dataset ID: {dataset.get('dataset_id')}"
             )
 
-        if dataset.get("dataset_id") in [
-            TREE_COVER_LOSS_ID,
-            TREE_COVER_ID,
-            TREE_COVER_LOSS_BY_DRIVER_ID,
-            TREE_COVER_LOSS_BY_FIRES_ID,
-            FOREST_CARBON_FLUX_ID,
-        ]:
+        # The API rejects a canopy cover threshold with the natural forest
+        # filter, since natural forest is a 2020 map independent of canopy.
+        # It rejects one with the breakdown too, which counts all loss.
+        if (
+            dataset.get("dataset_id")
+            in [
+                TREE_COVER_LOSS_ID,
+                TREE_COVER_ID,
+                TREE_COVER_LOSS_BY_DRIVER_ID,
+                TREE_COVER_LOSS_BY_FIRES_ID,
+                FOREST_CARBON_FLUX_ID,
+            ]
+            and dataset.get("context_layer") != "natural_forest"
+            and forest_breakdown is None
+        ):
             canopy_cover: int = 30
             params = dataset.get("parameters")
             if params is not None:
@@ -479,54 +533,64 @@ class AnalyticsHandler(DataSourceHandler):
 
     async def _poll_for_completion(
         self,
-        endpoint_url: str,
-        payload: Dict,
-        max_retries: int = 30,
-    ) -> Dict | str:
-        """Poll the API until the request is completed or max retries exceeded."""
-        result = {}
-        for attempt in range(max_retries):
-            logger.info(f"Polling attempt {attempt + 1}/{max_retries}")
+        resource_link: str,
+        timeout: float = POLL_TIMEOUT_SECONDS,
+    ) -> str | None:
+        """Poll the resource link (GET) until the job is done or `timeout` passes.
+
+        Returns None once the job has completed, otherwise an error message.
+
+        The GET response wraps the job state: the top-level ``status`` is always
+        "success", the job's own status is under ``data.status``. The API sets
+        ``Retry-After`` on this endpoint while the job is still running; we wait
+        that long between polls (1s if absent).
+        """
+        deadline = monotonic() + timeout
+        attempt = 0
+
+        while True:
+            attempt += 1
+            logger.info(f"Polling attempt {attempt}")
+            wait = POLL_DEFAULT_INTERVAL_SECONDS
 
             try:
                 async with httpx.AsyncClient() as client:
-                    response = await client.post(
-                        endpoint_url,
-                        headers=analytics_api_headers(),
-                        json=payload,
+                    response = await client.get(
+                        resource_link, headers=analytics_api_headers()
                     )
+                wait = _parse_retry_after(response, wait)
                 if response.status_code >= 400:
                     logger.warning(
-                        f"Poll attempt {attempt + 1} failed with status {response.status_code}"
+                        f"Poll attempt {attempt} failed with status {response.status_code}"
                     )
-                    continue
-
-                result = response.json()
-                status = result.get("status")
-                logger.info(
-                    f"Poll attempt {attempt + 1}, Status = {status}, Message = {result.get('message')}"
-                )
-
-                if status in ["success", "saved"]:
+                else:
+                    job = response.json().get("data") or {}
+                    status = job.get("status")
                     logger.info(
-                        f"Request completed successfully after {attempt + 1} polling attempts"
+                        f"Poll attempt {attempt}, Status = {status}, Message = {job.get('message')}"
                     )
-                    return result
-                elif status in ["failed", "error"]:
-                    msg = f"Request failed with status: {status}"
-                    logger.error(msg)
-                    return msg
 
-                retry_after = float(response.headers.get("Retry-After", 1))
-                await asyncio.sleep(retry_after)
+                    if status in ["success", "saved"]:
+                        logger.info(
+                            f"Request completed successfully after {attempt} polling attempts"
+                        )
+                        return None
+                    elif status in ["failed", "error"]:
+                        msg = f"Request failed with status: {status} ({job.get('message')}) for {resource_link}"
+                        logger.error(msg)
+                        return msg
 
             except Exception as e:
                 logger.warning(
-                    f"Poll attempt {attempt + 1} failed with error: {e}"
+                    f"Poll attempt {attempt} failed with error: {e}"
                 )
-                continue
 
-        msg = f"Max polling attempts ({max_retries}) exceeded for {result.get('data', {}).get('link', 'unknown url')}"
+            remaining = deadline - monotonic()
+            if remaining <= 0:
+                break
+            await asyncio.sleep(min(wait, remaining))
+
+        msg = f"Timed out after {timeout:.0f}s ({attempt} polling attempts) waiting for {resource_link}"
         logger.warning(msg)
         return msg
 
@@ -699,11 +763,11 @@ class AnalyticsHandler(DataSourceHandler):
                 logger.info(
                     "Analytics request is pending, will retry with polling..."
                 )
-                result = await self._poll_for_completion(
-                    endpoint_url, payload, max_retries=10
+                poll_error = await self._poll_for_completion(
+                    result["data"]["link"]
                 )
-                if isinstance(result, str):
-                    error_msg = f"Failed to get completed result after polling for {aoi_names}. Reason: {result}"
+                if poll_error:
+                    error_msg = f"Failed to get completed result after polling for {aoi_names}. Reason: {poll_error}"
                     logger.error(error_msg)
                     return DataPullResult(
                         success=False,

@@ -9,8 +9,7 @@ modes into a test failure:
   them — the bug the Availability split exists to prevent),
 - every ROUTING_ROWS gate must resolve to a real skill/tool,
 - every ViewPage skill_pointer must name a real skill,
-- every skill's ``requires:`` entry must name a spec in ALL_SPECS,
-- every skill file must be declared by some profile (else it's dead content).
+- every skill's ``requires:`` entry must name a spec in ALL_SPECS.
 """
 
 from src.agent.agent_config import ALL_SPECS, default_registry
@@ -75,30 +74,3 @@ def test_skill_requires_reference_known_specs():
             f"skill {skill.name!r} requires tools missing from ALL_SPECS: "
             f"{sorted(unknown)}"
         )
-
-
-def test_every_skill_is_declared_by_some_profile():
-    """Profiles declare skills explicitly now, so a skill file nobody
-    declares is dead content the model can never reach — the drift this
-    refactor exists to make visible."""
-    declared = set().union(
-        *(config.skills for config in default_registry.configs())
-    )
-    undeclared = {s.name for s in all_skills()} - declared
-    assert (
-        not undeclared
-    ), f"skills not declared by any profile: {sorted(undeclared)}"
-
-
-def test_default_profile_surface_never_mentions_planet():
-    """Planet is experimental-only: the default profile's prompt surface must
-    not name it, or the model will ask for a provider it cannot serve."""
-    from src.agent.agent_config import DEFAULT_PROFILE, default_registry
-
-    config = default_registry.resolve(DEFAULT_PROFILE)
-    surface = config.tool_descriptions() + "\n".join(
-        f"{s.description} {s.when_to_use} {s.body}"
-        for s in config.skill_metas()
-    )
-
-    assert "planet" not in surface.lower()

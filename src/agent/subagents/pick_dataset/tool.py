@@ -700,9 +700,12 @@ def get_tile_services_for_dataset(
             ),
             None,
         )
+        context_tile_url = selected_context_layer.get("tile_url")
+        if context_tile_url and not context_tile_url.startswith("http"):
+            context_tile_url = SharedSettings.eoapi_base_url + context_tile_url
         context_layer = ContextLayer(
             name=selected_context_layer.get("value"),
-            tile_url=selected_context_layer.get("tile_url"),
+            tile_url=context_tile_url,
         )
         context_layers.append(context_layer)
 
@@ -713,13 +716,14 @@ def get_tile_services_for_dataset(
         TREE_COVER_LOSS_BY_FIRES_ID,
         FOREST_CARBON_FLUX_ID,
     ]:
-        canopy_cover = 30
-        if selection_result.parameters is not None:
+        natural_forest = selection_result.context_layer == "natural_forest"
+        canopy_cover = 0 if natural_forest else 30
+        if selection_result.parameters is not None and not natural_forest:
             for param in selection_result.parameters:
                 if param.name == "canopy_cover":
                     canopy_cover = max(param.values)
 
-        if selected_row.dataset_id != TREE_COVER_ID:
+        if selected_row.dataset_id != TREE_COVER_ID and not natural_forest:
             canopy_cover_tile_url = next(
                 (
                     param["tile_url"]

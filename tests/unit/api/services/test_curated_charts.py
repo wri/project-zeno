@@ -42,6 +42,59 @@ async def test_charts_are_localised_and_carry_dataset_id():
     assert charts[0].dataset_id == HANDLED_DATASET_ID
 
 
+class SeriesKeyedGenerator(ChartGenerator):
+    """Series named by message keys, with a colour per series."""
+
+    dataset_id = HANDLED_DATASET_ID
+    label_series = True
+
+    def generate(self, rows):
+        return [
+            InsightChart(
+                position=0,
+                title="charts.lgms.summary",
+                chart_type="stacked-bar",
+                x_axis="year",
+                series_fields=["charts.label.other", "charts.label.fires"],
+                color_map={
+                    "charts.label.fires": "#111111",
+                    "charts.label.other": "#222222",
+                },
+                chart_data=[
+                    {
+                        "year": 2021,
+                        "charts.label.other": 1.0,
+                        "charts.label.fires": 2.0,
+                    }
+                ],
+            )
+        ]
+
+
+async def test_series_keys_are_localised_with_their_columns_and_colours():
+    (chart,) = await build_curated_charts(
+        HANDLED_DATASET_ID, [], "es", [SeriesKeyedGenerator()]
+    )
+
+    other = await t("charts.label.other", "es")
+    fires = await t("charts.label.fires", "es")
+    assert chart.series_fields == [other, fires]
+    assert chart.chart_data == [{"year": 2021, other: 1.0, fires: 2.0}]
+    assert chart.color_map == {fires: "#111111", other: "#222222"}
+
+
+async def test_series_keys_stay_as_they_are_without_the_flag():
+    class RawSeriesGenerator(SeriesKeyedGenerator):
+        label_series = False
+
+    (chart,) = await build_curated_charts(
+        HANDLED_DATASET_ID, [], "es", [RawSeriesGenerator()]
+    )
+
+    assert chart.series_fields == ["charts.label.other", "charts.label.fires"]
+    assert "charts.label.fires" in chart.color_map
+
+
 async def test_default_registry_builds_the_lgms_charts():
     charts = await build_curated_charts(LAND_GHG_INVENTORY_ID, LGMS_ROWS, "en")
 

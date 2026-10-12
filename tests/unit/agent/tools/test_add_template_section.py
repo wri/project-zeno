@@ -165,7 +165,10 @@ def test_schema_lists_the_template_names():
         "template"
     ]
     # One name renders as `const`, several as `enum`.
-    assert prop.get("enum", [prop.get("const")]) == ["nrt-monitoring"]
+    assert prop.get("enum", [prop.get("const")]) == [
+        "nrt-monitoring",
+        "post-2020-forest-loss",
+    ]
 
 
 def test_prompt_fragment_lists_each_template():
@@ -174,6 +177,8 @@ def test_prompt_fragment_lists_each_template():
         "Args: days (integer, >=1, <=365, default 14): Length of the period"
         in SPEC.prompt_fragment
     )
+    assert "'post-2020-forest-loss'" in SPEC.prompt_fragment
+    assert "imagery. Args: none." in SPEC.prompt_fragment
 
 
 def test_schema_is_valid_for_gemini():

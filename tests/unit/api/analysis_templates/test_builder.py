@@ -7,18 +7,32 @@ from uuid import uuid4
 
 import pytest
 
-from src.agent.datasets.handlers.analytics_handler import INTEGRATED_ALERTS_ID
+from src.agent.datasets.handlers.analytics_handler import (
+    INTEGRATED_ALERTS_ID,
+    TREE_COVER_LOSS_ID,
+)
 from src.agent.datasets.handlers.base import DataPullResult
+from src.agent.i18n import MESSAGES
 from src.agent.imagery.base import ImageryProviderResult
 from src.agent.models import ImageryState
-from src.api.services.analysis_templates import builder
+from src.api.services.analysis_templates import builder, text
 from src.api.services.analysis_templates.builder import (
     DashboardGoneError,
     NoAreaError,
     WidgetFailedError,
     apply_template,
 )
-from src.api.services.analysis_templates.registry import get_template
+from src.api.services.analysis_templates.models import (
+    ImageryWidgetSpec,
+    LayerWidgetSpec,
+    NaturalForestLossWidgetSpec,
+)
+from src.api.services.analysis_templates.registry import (
+    Post2020ForestLossArgs,
+    get_template,
+)
+from tests.unit.api.analysis_templates.test_text import _FakeModel
+from tests.unit.api.services.test_chart_generators import NATURAL_FOREST_DATA
 
 NRT = get_template("nrt-monitoring")
 TODAY = date(2026, 9, 23)
@@ -75,6 +89,7 @@ def _patches(pull=None, imagery=None, written=("section-1", ["w1", "w2"])):
         pull=AsyncMock(return_value=pull or _pull()),
         imagery=AsyncMock(return_value=imagery or _imagery()),
         write=AsyncMock(return_value=written),
+        text=AsyncMock(return_value=("Alerts in Paraná", "What it shows.")),
     )
 
     class _Today(date):
@@ -95,23 +110,19 @@ def _patches(pull=None, imagery=None, written=("section-1", ["w1", "w2"])):
             builder.dashboard_writer, "add_section_with_widgets", mocks.write
         ),
         patch.object(builder, "date", _Today),
-        patch.object(
-            builder,
-            "generate_section_text",
-            AsyncMock(return_value=("Alerts in Paraná", "What it shows.")),
-        ),
+        patch.object(builder, "generate_section_text", mocks.text),
     ]
     return mocks, stack
 
 
-async def _apply(stack, dashboard=None, args=None):
+async def _apply(stack, dashboard=None, args=None, template=NRT):
     for p in stack:
         p.start()
     try:
         return await apply_template(
             dashboard or _dashboard(),
-            NRT,
-            NRT.parse_args(args),
+            template,
+            template.parse_args(args),
             "user-1",
             "en",
         )
@@ -142,6 +153,44 @@ async def test_builds_three_widgets_in_template_order():
     assert widgets[1].config["dataset"]["end_date"] == "2026-09-23"
     assert widgets[2].config["imagery"]["mosaic_id"] == "mosaic-1"
     assert kwargs["user_id"] == "user-1"
+    # nrt-monitoring sets no size and no context layer.
+    assert not any("size" in w.config for w in widgets)
+    assert widgets[1].config["dataset"]["context_layer"] is None
+
+
+@pytest.mark.asyncio
+async def test_layer_with_a_context_layer_and_a_size():
+    template = NRT.model_copy(
+        update={
+            "args_model": Post2020ForestLossArgs,
+            "widgets": (
+                LayerWidgetSpec(
+                    dataset_id=TREE_COVER_LOSS_ID,
+                    context_layer="natural_forest",
+                    size="single",
+                ),
+            ),
+        }
+    )
+    mocks, stack = _patches(written=("section-1", ["w1"]))
+
+    await _apply(stack, template=template)
+
+    (widget,) = mocks.write.await_args.kwargs["widgets"]
+    assert widget.config["size"] == "single"
+    dataset = widget.config["dataset"]
+    assert dataset["context_layer"] == "natural_forest"
+    # The frontend draws natural forest from this context tile.
+    (context,) = dataset["context_layers"]
+    assert context["name"] == "natural_forest"
+    assert context["tile_url"]
+    # The period, clamped to the end of the loss data.
+    assert (dataset["start_date"], dataset["end_date"]) == (
+        "2021-01-01",
+        "2025-12-31",
+    )
+    assert "tree_cover_density_threshold=0" in dataset["tile_url"]
+    assert dataset["tile_url"].endswith("&start_year=2021&end_year=2025")
 
 
 @pytest.mark.asyncio
@@ -156,6 +205,20 @@ async def test_template_record_and_one_today():
     assert record["start_date"] == "2026-08-24"
     assert record["end_date"] == "2026-09-23"
     assert mocks.today.calls == 1
+
+
+@pytest.mark.asyncio
+async def test_a_section_with_no_dated_data_keeps_the_requested_period():
+    template = NRT.model_copy(update={"widgets": (ImageryWidgetSpec(),)})
+    mocks, stack = _patches(written=("section-1", ["w1"]))
+
+    await _apply(stack, template=template)
+
+    record = mocks.write.await_args.kwargs["template"]
+    assert (record["start_date"], record["end_date"]) == (
+        "2026-09-09",
+        "2026-09-23",
+    )
 
 
 @pytest.mark.asyncio
@@ -247,3 +310,218 @@ async def test_dashboard_deleted_during_the_build():
 
     with pytest.raises(DashboardGoneError):
         await _apply(stack)
+
+
+SHARE_FACT = (
+    "From 2021 to 2025, 84% of the tree cover loss in Paraná was in "
+    "natural forest: 4\u202f423 ha of 5\u202f286 ha."
+)
+SPLIT = NRT.model_copy(
+    update={
+        "args_model": Post2020ForestLossArgs,
+        "widgets": (NaturalForestLossWidgetSpec(),),
+    }
+)
+
+
+def _split_pull(classes_and_areas):
+    """A breakdown answer with one row per (class, area), all in 2022."""
+    return _pull(
+        data={
+            "tree_cover_loss_year": [2022] * len(classes_and_areas),
+            "natural_forests_class": [c for c, _ in classes_and_areas],
+            "area_ha": [a for _, a in classes_and_areas],
+        }
+    )
+
+
+@pytest.mark.asyncio
+async def test_natural_forest_loss_pulls_the_breakdown_from_2021():
+    mocks, stack = _patches(
+        pull=_pull(data=NATURAL_FOREST_DATA), written=("section-1", ["w1"])
+    )
+
+    await _apply(stack, template=SPLIT)
+
+    pull = mocks.pull.await_args.kwargs
+    assert pull["dataset"] == {
+        "dataset_id": TREE_COVER_LOSS_ID,
+        "forest_breakdown": "natural_forest",
+    }
+    # From the natural forest baseline to the last year of loss data.
+    assert (pull["start_date"], pull["end_date"]) == (
+        "2021-01-01",
+        "2025-12-31",
+    )
+    (widget,) = mocks.write.await_args.kwargs["widgets"]
+    assert (widget.widget_type, widget.config) == ("insight", {})
+    (chart,) = widget.insight.charts
+    assert chart.series_fields == ["Other tree cover", "Natural forest"]
+    assert chart.color_map == {
+        "Natural forest": "#246E24",
+        "Other tree cover": "#DC6C9A",
+    }
+
+
+@pytest.mark.asyncio
+async def test_natural_forest_share_is_a_computed_fact():
+    mocks, stack = _patches(
+        pull=_pull(data=NATURAL_FOREST_DATA), written=("section-1", ["w1"])
+    )
+
+    await _apply(stack, template=SPLIT)
+
+    # 4,422.85 ha of 5,285.86 ha is 83.7%.
+    assert mocks.text.await_args.kwargs["facts"] == [SHARE_FACT]
+
+
+@pytest.mark.asyncio
+async def test_no_loss_is_a_fact_and_a_chart_of_zeros():
+    mocks, stack = _patches(pull=_pull(data={}), written=("section-1", ["w1"]))
+
+    await _apply(stack, template=SPLIT)
+
+    assert mocks.text.await_args.kwargs["facts"] == [
+        "No tree cover loss was recorded in Paraná from 2021 to 2025."
+    ]
+    (widget,) = mocks.write.await_args.kwargs["widgets"]
+    assert len(widget.insight.charts[0].chart_data) == 5
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("natural_ha", "other_ha", "fact_end"),
+    [
+        (
+            0.4,
+            999.6,
+            "<1% of the tree cover loss in Paraná was in natural "
+            "forest: <1 ha of 1\u202f000 ha.",
+        ),
+        (
+            999.6,
+            0.4,
+            ">99% of the tree cover loss in Paraná was in natural "
+            "forest: 1\u202f000 ha of 1\u202f000 ha.",
+        ),
+    ],
+)
+async def test_a_small_part_never_rounds_to_0_or_100_percent(
+    natural_ha, other_ha, fact_end
+):
+    pull = _split_pull([("Natural Forest", natural_ha), ("Unknown", other_ha)])
+    mocks, stack = _patches(pull=pull, written=("section-1", ["w1"]))
+
+    await _apply(stack, template=SPLIT)
+
+    (fact,) = mocks.text.await_args.kwargs["facts"]
+    assert fact.endswith(fact_end)
+
+
+@pytest.mark.asyncio
+async def test_unknown_natural_forest_class_writes_nothing():
+    pull = _split_pull([("Natural Grassland", 10.0)])
+    mocks, stack = _patches(pull=pull, written=("section-1", ["w1"]))
+
+    with pytest.raises(WidgetFailedError, match="natural forest class"):
+        await _apply(stack, template=SPLIT)
+
+    mocks.write.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        "analysis_template.natural_forest_loss.share",
+        "analysis_template.natural_forest_loss.no_loss",
+    ],
+)
+def test_natural_forest_facts_take_their_placeholders_in_every_language(key):
+    values = {
+        "aoi_name": "A",
+        "start_year": "2021",
+        "end_year": "2025",
+        "share": "84%",
+        "natural_ha": "1",
+        "total_ha": "2",
+    }
+    for message in MESSAGES[key].values():
+        assert "A" in message.format(**values)
+
+
+POST_2020 = get_template("post-2020-forest-loss")
+
+
+async def _apply_post_2020():
+    # A model that records its prompt, then fails, so the section gets the
+    # fallback text.
+    model = _FakeModel(RuntimeError("no model in unit tests"))
+    mocks, stack = _patches(
+        pull=_pull(data=NATURAL_FOREST_DATA),
+        written=("section-1", ["w1", "w2", "w3"]),
+    )
+
+    async def _text(*args, **kwargs):
+        return await text.generate_section_text(*args, model=model, **kwargs)
+
+    mocks.text.side_effect = _text
+    result = await _apply(stack, template=POST_2020)
+    return result, mocks, model
+
+
+@pytest.mark.asyncio
+async def test_post_2020_forest_loss_builds_its_three_widgets():
+    _, mocks, _ = await _apply_post_2020()
+
+    kwargs = mocks.write.await_args.kwargs
+    chart, layer, imagery = kwargs["widgets"]
+    assert (chart.widget_type, chart.config) == ("insight", {})
+    # The two maps share a row; the chart takes the full width.
+    assert layer.config["size"] == imagery.config["size"] == "single"
+    dataset = layer.config["dataset"]
+    assert dataset["context_layer"] == "natural_forest"
+    assert [c["name"] for c in dataset["context_layers"]] == ["natural_forest"]
+    assert dataset["context_layers"][0]["tile_url"]
+    # The map covers the chart's years.
+    assert (dataset["start_date"], dataset["end_date"]) == (
+        "2021-01-01",
+        "2025-12-31",
+    )
+    assert dataset["tile_url"].endswith("&start_year=2021&end_year=2025")
+    (request,) = mocks.imagery.await_args.args
+    assert (request.target_date, request.window_days) == (TODAY, 30)
+    assert kwargs["template"]["name"] == "post-2020-forest-loss"
+    assert kwargs["template"]["args"] == {}
+    # The section covers the loss data, not the imagery's today.
+    assert (
+        kwargs["template"]["start_date"],
+        kwargs["template"]["end_date"],
+    ) == ("2021-01-01", "2025-12-31")
+
+
+@pytest.mark.asyncio
+async def test_post_2020_prompt_has_the_share_and_the_clamped_years():
+    _, _, model = await _apply_post_2020()
+
+    # The period, the fact and the widget lines all carry the years of the
+    # loss data; only the imagery is of today.
+    assert "## Period\n2021-01-01 to 2025-12-31" in model.inputs
+    assert "2026-09-23" not in model.inputs.split("## Purpose")[0]
+    assert "## Facts\n" in model.inputs
+    assert f"- {SHARE_FACT}" in model.inputs
+    assert (
+        "map layer: Tree cover loss with the natural_forest context layer, "
+        "2021-01-01 to 2025-12-31"
+    ) in model.inputs
+    assert "Take every figure and every year from the facts" in model.inputs
+
+
+@pytest.mark.asyncio
+async def test_post_2020_fallback_states_the_share_then_the_caveats():
+    result, _, _ = await _apply_post_2020()
+
+    assert result.title == "Post-2020 forest loss in Paraná"
+    assert result.description.startswith(
+        f"{SHARE_FACT} The SBTN Natural Lands Map is a 2020 baseline"
+    )
+    assert "30%" in result.description

@@ -2,7 +2,7 @@ dataset_id: 4
 dataset_name: Tree cover loss
 context_layers:
 - value: primary_forest
-  description: Shows tree cover loss within humid tropical primary forests across pan-tropical regions. Default to this layer for general forest loss or deforestation requests when the AOI is within its extent, unless the user explicitly asks for all tree cover, non-primary/secondary forest, plantations, or otherwise indicates they want forest types beyond primary forest.
+  description: Shows tree cover loss within humid tropical primary forests across pan-tropical regions. Default to this layer for general forest loss or deforestation requests when the AOI is within its extent, unless the user explicitly asks for all tree cover, natural forest, non-primary/secondary forest, plantations, or otherwise indicates they want forest types beyond primary forest. Do not use for supply chain, EUDR or no-conversion questions; use natural_forest instead.
   extent:  [-180.0, -30, 180.0, 30]
   tile_url: https://tiles.globalforestwatch.org/umd_regional_primary_forest_2001/v201901/uint16/{z}/{x}/{y}.png
   start_date: '2002-01-01'
@@ -10,6 +10,10 @@ context_layers:
   description: Tree cover loss within intact forest landscapes (IFLs) — large, undisturbed natural forest expanses free of significant human activity. Use this layer when the user explicitly asks for intact forest loss, or as the default context layer for deforestation/forest loss requests when primary_forest is not available for the AOI.
   tile_url: https://tiles.globalforestwatch.org/ifl_intact_forest_landscapes/v2025/default/{z}/{x}/{y}.png
   start_date: '2000-01-01'
+- value: natural_forest
+  description: Tree cover loss within natural forests from the SBTN Natural Lands Map (2020 baseline). "Natural forest" resembles what would be present without major human impact, including regenerated and secondary natural forest; it is broader than primary or intact forest and excludes plantations. Use this layer when the user asks about natural forest, or for supply chain, EUDR, deforestation-free or no-conversion compliance questions; it takes precedence over primary_forest in those cases. Only covers loss from 2021 onward.
+  tile_url: /raster/collections/natural-lands-v-1-1/tiles/WebMercatorQuad/{z}/{x}/{y}.png?colormap=%7B%222%22%3A%20%5B36%2C%20110%2C%2036%2C%20255%5D%2C%20%223%22%3A%20%5B185%2C%20185%2C%2030%2C%20255%5D%2C%20%224%22%3A%20%5B107%2C%20174%2C%20214%2C%20255%5D%2C%20%225%22%3A%20%5B6%2C%20162%2C%20133%2C%20255%5D%2C%20%226%22%3A%20%5B254%2C%20254%2C%20204%2C%20255%5D%2C%20%227%22%3A%20%5B172%2C%20209%2C%20232%2C%20255%5D%2C%20%228%22%3A%20%5B88%2C%20149%2C%2088%2C%20255%5D%2C%20%229%22%3A%20%5B9%2C%2061%2C%209%2C%20255%5D%2C%20%2210%22%3A%20%5B219%2C%20219%2C%20123%2C%20255%5D%2C%20%2211%22%3A%20%5B153%2C%20153%2C%2026%2C%20255%5D%7D&assets=asset&expression=asset%2A%28asset%3C12%29%2A%28asset%3E1%29&asset_as_band=True
+  start_date: '2021-01-01'
 parameters:
 - name: canopy_cover
   description: Minimum percent each 30m pixel is covered by forest canopy in year 2000 to count as a forest.
@@ -34,16 +38,16 @@ prompt_instructions: 'Reports gross annual loss of tree cover ≥ 5 m height (20
   GHG emissions associated with that loss, in MgCO2e (tonnes of CO2 equivalent). If users ask for intra-year or seasonal tree
   cover loss OR emissions, refuse and remind that the data is annual only. The 2011-2025 data was produced using an updated
   methodology so comparisons between, and trends across the periods 2001-2010 and 2011-2025 should be performed with caution.
-  If neither primary nor intact forest is applied as a context layer, DO NOT use the term "deforestation"; use "tree cover
+  If no primary, intact or natural forest context layer is applied, DO NOT use the term "deforestation"; use "tree cover
   loss" instead since "tree cover" includes plantations as well as natural forest, meaning loss is not automatically
   deforestation. The product measures canopy loss only; it doesn''t
-  track regrowth or permanence. Use 30% threshold. If a user asks for net gain/loss, refuse and explain that the methodologies
+  track regrowth or permanence. Use 30% threshold, except with natural_forest where no threshold applies. If a user asks for net gain/loss, refuse and explain that the methodologies
   for the two datasets differ and thus they cannot be combined directly to calculate net change. DO NOT show emissions and
   loss in the same chart, use separate charts.
 
   '
 selection_hints: 'Best dataset for annual tree cover loss questions (2001-2025) at 30m resolution. Covers all vegetation >5m
-  height including plantations unless primary or intact forest is applied as a context layer. Annual resolution only; cannot answer intra-year or seasonal
+  height including plantations unless primary, intact or natural forest is applied as a context layer. Annual resolution only; cannot answer intra-year or seasonal
   questions. For driver attribution (WHY loss happened), use "Tree cover loss by dominant driver" instead. For net change,
   loss and gain datasets use different methodologies and cannot be combined. Includes GHG emissions (MgCO2e) associated with
   loss; for carbon emissions/removals questions on a GADM admin area (2016+), prefer Land GHG Monitoring System (LGMS), and keep Tree Cover Loss for tree-cover-loss area. Methodology changed between 2010 and 2011; cross-period trend comparisons need caution.
@@ -52,7 +56,7 @@ selection_hints: 'Best dataset for annual tree cover loss questions (2001-2025) 
 code_instructions: 'CHART TYPES: - Yearly loss → bar chart (x=year, y=area_ha) - Cumulative loss → stacked-area chart - Emissions
   → MUST be a SEPARATE chart from loss area (NEVER combine on same chart) DATA RULES: - Always include GHG emissions (MgCO2e)
   alongside loss area, but in a SEPARATE chart - Drop rows where area_ha = 0 - Use 30% canopy density threshold - If primary_forest
-  or intact_forest variable is active, filter accordingly DO/DON''T: - If neither primary_forest nor intact_forest is active,
+  or intact_forest variable is active, filter accordingly DO/DON''T: - If none of primary_forest, intact_forest or natural_forest is active,
   DO NOT use the term "deforestation"; use "tree cover loss" - If user asks for intra-year or seasonal breakdown, REFUSE
   — data is annual only - If user asks for net gain/loss,
   REFUSE — methodologies differ between loss and gain datasets - Warn about 2001-2010 vs 2011-2025 methodology difference
@@ -65,10 +69,12 @@ code_instructions: 'CHART TYPES: - Yearly loss → bar chart (x=year, y=area_ha)
   Cover Loss in Intact Forests in DRC (2001-2025)"
 
   '
-presentation_instructions: 'Use "tree cover loss" rather than "deforestation" only when neither primary nor intact forest
-  is applied as a context layer. When intact_forest is applied, "deforestation" may describe the process but never takes
+presentation_instructions: 'Use "tree cover loss" rather than "deforestation" only when no primary, intact or natural forest
+  context layer is applied. When intact_forest is applied, "deforestation" may describe the process but never takes
   intact forest as its object. This measures canopy loss only; it doesn''t track regrowth or permanence. Always state the canopy density threshold
-  used (30%). If showing emissions, clarify units are MgCO2e (tonnes of CO2 equivalent). If trend spans 2001-2025, note the
+  used (30%), except with natural_forest: then state that natural forest follows the SBTN Natural Lands Map 2020
+  baseline (broader than primary forest, excluding plantations) and results cover 2021 onward. Say "natural forest loss"
+  or "tree cover loss in natural forests". If showing emissions, clarify units are MgCO2e (tonnes of CO2 equivalent). If trend spans 2001-2025, note the
   methodology change after 2010. If the primary_forest context layer is applied, prefer the concise "primary forest loss" over "primary
   forest tree cover loss". If the intact_forest context layer is applied, do NOT use "intact forest loss" or any wording that
   reads as intact forest being lost: this dataset measures tree cover loss occurring *inside* intact forest landscapes, which

@@ -4,7 +4,7 @@ import csv
 import io
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 import pytest
@@ -739,6 +739,10 @@ EXPORT_COLUMNS = [
     "topics",
     "receive_news_emails",
     "help_test_features",
+    "terms_accepted_at",
+    "terms_version",
+    "first_seen_at",
+    "rw_apps",
 ]
 
 
@@ -852,7 +856,7 @@ async def test_export_users_response_headers(
 async def test_export_users_header_row(
     client, auth_override, superuser_factory
 ):
-    """First CSV row is the expected 22-column header in exact order."""
+    """First CSV row is the expected header in exact order."""
     su = await superuser_factory("su-export-header-row@example.test")
     auth_override(su.id)
 
@@ -875,6 +879,7 @@ async def test_export_users_renders_rows_correctly(
     - booleans serialize as 'true'/'false'
     - datetimes as ISO-8601 (round-trip via fromisoformat)
     - topics: NULL → empty cell; '[]' → '[]'; JSON array → unchanged
+    - rw_apps: NULL → empty cell; array → ';'-joined
     - rows ordered by created_at DESC, id ASC
     - quoting handles commas in values
     """
@@ -882,6 +887,8 @@ async def test_export_users_renders_rows_correctly(
     auth_override(su.id)
 
     full_created = datetime(2025, 1, 15, 10, 30, 0)
+    full_accepted = datetime(2026, 9, 30, 18, 11, 39, tzinfo=timezone.utc)
+    full_first_seen = datetime(2026, 10, 1, 8, 0, 0, tzinfo=timezone.utc)
     full_updated = datetime(2025, 6, 20, 14, 45, 30, 123456)
     minimal_created = datetime(2024, 8, 1, 9, 0, 0)
     comma_created = datetime(2026, 3, 10, 12, 0, 0)
@@ -910,6 +917,10 @@ async def test_export_users_renders_rows_correctly(
                 receive_news_emails=True,
                 help_test_features=True,
                 has_profile=True,
+                terms_accepted_at=full_accepted,
+                terms_version="2026-09-30",
+                first_seen_at=full_first_seen,
+                rw_apps=["gfw", "rw"],
             )
         )
         session.add(
@@ -1000,6 +1011,10 @@ async def test_export_users_renders_rows_correctly(
     assert datetime.fromisoformat(cell("created_at")) == full_created
     assert datetime.fromisoformat(cell("updated_at")) == full_updated
     assert json.loads(cell("topics")) == ["topic_alpha", "topic_beta"]
+    assert datetime.fromisoformat(cell("terms_accepted_at")) == full_accepted
+    assert cell("terms_version") == "2026-09-30"
+    assert datetime.fromisoformat(cell("first_seen_at")) == full_first_seen
+    assert cell("rw_apps") == "gfw;rw"
 
     minimal_row = by_id["export-minimal"]
 
@@ -1014,6 +1029,10 @@ async def test_export_users_renders_rows_correctly(
     assert m("has_profile") == "false"
     assert m("receive_news_emails") == "false"
     assert m("help_test_features") == "false"
+    assert m("terms_accepted_at") == ""
+    assert m("terms_version") == ""
+    assert m("first_seen_at") == ""
+    assert m("rw_apps") == ""
 
     comma_row = by_id["export-comma"]
     assert comma_row[header.index("name")] == "Lastname, Firstname"

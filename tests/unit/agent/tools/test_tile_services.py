@@ -187,6 +187,39 @@ def test_canopy_cover_threshold_substitution():
     assert context_layers[0].tile_url == "https://tiles.example.com/ctx/30.png"
 
 
+def test_natural_forest_uses_zero_canopy_cover_without_overlay():
+    selection = SimpleNamespace(
+        dataset_id=TREE_COVER_LOSS_ID,
+        context_layer="natural_forest",
+        selected_layer=None,
+        parameters=None,
+    )
+    row = SimpleNamespace(
+        dataset_id=TREE_COVER_LOSS_ID,
+        dataset_name="Tree cover loss",
+        tile_url="https://tiles.example.com/tcl/{threshold}/{z}.png",
+        context_layers=[
+            {
+                "value": "natural_forest",
+                "tile_url": "https://tiles.example.com/natural.png",
+            }
+        ],
+        parameters=[
+            {
+                "name": "canopy_cover",
+                "tile_url": "https://tiles.example.com/ctx/{threshold}.png",
+            }
+        ],
+    )
+
+    tile_url, context_layers, _ = get_tile_services_for_dataset(
+        selection, row, "2021-01-01", "2024-12-31"
+    )
+
+    assert tile_url.startswith("https://tiles.example.com/tcl/0/{z}.png")
+    assert [layer.name for layer in context_layers] == ["natural_forest"]
+
+
 def test_get_dataset_layers_carries_title_and_description():
     row = SimpleNamespace(
         dataset_name="LGMS",

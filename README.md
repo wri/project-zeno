@@ -54,19 +54,6 @@ For adding eval cases and running evals locally, see [tests/evals/README.md](tes
 We have a set of scripts to ingest STAC data into the eoAPI deployment. The ingestion code
 for STAC can be found in the [gnw-stac](https://github.com/wri/gnw-stac) repository.
 
-## Versioning
-
-This project uses [Calendar Versioning (CalVer)](https://calver.org/) with the format `YYYY.M.D`.
-
-Version bumps happen automatically via the `bump-calver` pre-commit hook. When you commit on a branch
-that is at the same version as `main`, the hook updates `pyproject.toml` to today's CalVer date and
-stages the change (causing the commit to fail once so you re-run it with the bumped version included).
-If two commits land on the same day, a build suffix is appended (`YYYY.M.D.1`, `YYYY.M.D.2`, …).
-
-The CI workflow (`calver-bump.yml`) runs on pull requests and verifies that the version was already
-bumped by the hook — it does **not** commit to `main`. No manual version changes are needed.
-The current version is always readable at the `/api/v1/version` endpoint.
-
 ## Dependencies
 
 - [uv](https://docs.astral.sh/uv/getting-started/installation/)
