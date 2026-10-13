@@ -28,12 +28,7 @@ from sqlalchemy.orm import selectinload
 from src.agent.datasets.handlers.analytics_handler import AnalyticsHandler
 from src.agent.i18n import t
 from src.api.auth.dependencies import optional_auth, require_auth
-from src.api.data_models import (
-    DashboardOrm,
-    InsightChartOrm,
-    InsightOrm,
-    UserType,
-)
+from src.api.data_models import DashboardOrm, InsightOrm, UserType
 from src.api.repositories import dashboard_writer
 from src.api.repositories.dashboard_access import (
     is_visible_to_user as dashboard_is_visible_to_user,
@@ -280,7 +275,6 @@ def get_dashboard_alerts_service(
 async def summarize_dashboard_alerts(
     body: DashboardAlertsSummaryRequest,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_session_from_pool_dependency),
     service: DashboardAlertsService = Depends(get_dashboard_alerts_service),
 ):
     """Integrated alerts area for each dashboard's AOI in the latest full
@@ -290,7 +284,9 @@ async def summarize_dashboard_alerts(
         for row in await dashboard_writer.get_dashboards(body.dashboard_ids)
         if _is_readable(row, user)
     ]
-    dataset_ids = await _chart_dataset_ids_by_insight(rows, session)
+    dataset_ids = await dashboard_writer.get_chart_dataset_ids(
+        [w.insight_id for row in rows for w in row.widgets if w.insight_id]
+    )
     report = await service.summarize(
         [
             DashboardAlertsInput(
@@ -316,25 +312,6 @@ async def summarize_dashboard_alerts(
             for dashboard_id, alerts in report.dashboards.items()
         },
     )
-
-
-async def _chart_dataset_ids_by_insight(
-    rows: list[DashboardOrm], session: AsyncSession
-) -> dict[UUID, list[int]]:
-    insight_ids = [
-        w.insight_id for row in rows for w in row.widgets if w.insight_id
-    ]
-    if not insight_ids:
-        return {}
-    result = await session.execute(
-        select(InsightChartOrm.insight_id, InsightChartOrm.dataset_id).where(
-            InsightChartOrm.insight_id.in_(insight_ids)
-        )
-    )
-    dataset_ids: dict[UUID, list[int]] = {}
-    for insight_id, dataset_id in result.all():
-        dataset_ids.setdefault(insight_id, []).append(dataset_id)
-    return dataset_ids
 
 
 @router.patch(

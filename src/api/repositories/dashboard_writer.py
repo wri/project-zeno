@@ -21,6 +21,7 @@ from src.api.data_models import (
     DashboardOrm,
     DashboardSectionOrm,
     DashboardWidgetOrm,
+    InsightChartOrm,
     InsightOrm,
 )
 from src.api.repositories.insight_writer import add_insight_rows
@@ -158,6 +159,25 @@ async def get_dashboards(dashboard_ids: list[UUID]) -> list[DashboardOrm]:
             .where(DashboardOrm.id.in_(dashboard_ids))
         )
         return list(result.scalars().all())
+
+
+async def get_chart_dataset_ids(
+    insight_ids: list[UUID],
+) -> dict[UUID, list[int]]:
+    """The dataset ids of each insight's charts."""
+    if not insight_ids:
+        return {}
+    async with get_session_from_pool() as session:
+        result = await session.execute(
+            select(
+                InsightChartOrm.insight_id, InsightChartOrm.dataset_id
+            ).where(InsightChartOrm.insight_id.in_(insight_ids))
+        )
+        rows = result.all()
+    dataset_ids: dict[UUID, list[int]] = {}
+    for insight_id, dataset_id in rows:
+        dataset_ids.setdefault(insight_id, []).append(dataset_id)
+    return dataset_ids
 
 
 async def get_widget(widget_id) -> Optional[DashboardWidgetOrm]:
