@@ -6,9 +6,9 @@ import pytest
 from src.agent.datasets.handlers.analytics_handler import INTEGRATED_ALERTS_ID
 from src.agent.datasets.handlers.base import DataPullResult, DataSourceHandler
 from src.api.services.dashboard_alerts import (
-    AlertAreaUnavailableError,
     AlertsReport,
-    AnalyticsAlertAreaSource,
+    AlertsUnavailableError,
+    AnalyticsAlertsSource,
     DashboardAlerts,
     DashboardAlertsInput,
     DashboardAlertsService,
@@ -21,20 +21,33 @@ PARANA = {
     "subtype": "state-province",
     "name": "Paraná",
 }
+PARA = {
+    "source": "gadm",
+    "src_id": "BRA.14_1",
+    "subtype": "state-province",
+    "name": "Pará",
+}
 MONDAY = date(2026, 10, 12)
+WEEK = (date(2026, 10, 4), date(2026, 10, 10))
 
 
-class FakeAlertAreaSource:
-    def __init__(self, area_ha=0.0, failing=()):
-        self.area_ha_value = area_ha
-        self.failing = failing
+class FakeAlertsSource:
+    def __init__(self, area_ha_by_src_id=None, fail=False):
+        self.area_ha_by_src_id = area_ha_by_src_id or {}
+        self.fail = fail
         self.calls = []
 
-    async def area_ha(self, aoi, start, end):
-        self.calls.append((aoi, start, end))
-        if aoi["src_id"] in self.failing:
-            raise AlertAreaUnavailableError("timed out")
-        return self.area_ha_value
+    async def area_ha_by_aoi(self, aois, start, end):
+        self.calls.append((aois, start, end))
+        if self.fail:
+            raise AlertsUnavailableError("timed out")
+        return {
+            (aoi["source"], aoi["src_id"]): self.area_ha_by_src_id[
+                aoi["src_id"]
+            ]
+            for aoi in aois
+            if aoi["src_id"] in self.area_ha_by_src_id
+        }
 
 
 class FakeHandler(DataSourceHandler):
@@ -63,11 +76,21 @@ class FakeHandler(DataSourceHandler):
         return self._result
 
 
+def _dashboard(aoi=PARANA, dataset_ids=(INTEGRATED_ALERTS_ID,)):
+    return DashboardAlertsInput(
+        dashboard_id=uuid4(), aoi=aoi, chart_dataset_ids=list(dataset_ids)
+    )
+
+
+def _service(source):
+    return DashboardAlertsService(source, today=lambda: MONDAY)
+
+
 @pytest.mark.parametrize(
     "today, expected",
     [
-        (MONDAY, (date(2026, 10, 4), date(2026, 10, 10))),
-        (date(2026, 10, 11), (date(2026, 10, 4), date(2026, 10, 10))),
+        (MONDAY, WEEK),
+        (date(2026, 10, 11), WEEK),
         (date(2026, 10, 10), (date(2026, 9, 27), date(2026, 10, 3))),
     ],
     ids=["monday", "sunday", "saturday-week-not-over"],
@@ -76,58 +99,62 @@ def test_latest_alert_week_ends_on_last_full_saturday(today, expected):
     assert latest_alert_week(today) == expected
 
 
-def _dashboard(aoi=PARANA, dataset_ids=(INTEGRATED_ALERTS_ID,)):
-    return DashboardAlertsInput(
-        dashboard_id=uuid4(), aoi=aoi, chart_dataset_ids=list(dataset_ids)
-    )
-
-
 @pytest.mark.asyncio
-async def test_summarize_reports_area_for_latest_week():
-    source = FakeAlertAreaSource(area_ha=12.5)
-    service = DashboardAlertsService(source, today=lambda: MONDAY)
-    dashboard = _dashboard()
+async def test_summarize_reports_each_aoi_from_one_request():
+    source = FakeAlertsSource({"BRA.16_1": 12.5, "BRA.14_1": 3.0})
+    parana, para = _dashboard(PARANA), _dashboard(PARA)
 
-    report = await service.summarize([dashboard])
+    report = await _service(source).summarize([parana, para])
 
     assert report == AlertsReport(
-        week_start=date(2026, 10, 4),
-        week_end=date(2026, 10, 10),
+        week_start=WEEK[0],
+        week_end=WEEK[1],
         dashboards={
-            dashboard.dashboard_id: DashboardAlerts(integrated_alerts=12.5)
+            parana.dashboard_id: DashboardAlerts(integrated_alerts=12.5),
+            para.dashboard_id: DashboardAlerts(integrated_alerts=3.0),
         },
     )
-    assert source.calls == [(PARANA, date(2026, 10, 4), date(2026, 10, 10))]
+    assert source.calls == [([PARANA, PARA], *WEEK)]
 
 
 @pytest.mark.asyncio
-async def test_summarize_fetches_a_shared_area_once():
-    source = FakeAlertAreaSource(area_ha=3.0)
-    service = DashboardAlertsService(source, today=lambda: MONDAY)
+async def test_summarize_requests_a_shared_aoi_once():
+    source = FakeAlertsSource({"BRA.16_1": 3.0})
     first, second = _dashboard(), _dashboard()
 
-    report = await service.summarize([first, second])
+    report = await _service(source).summarize([first, second])
 
-    assert len(source.calls) == 1
+    assert source.calls == [([PARANA], *WEEK)]
     assert set(report.dashboards) == {first.dashboard_id, second.dashboard_id}
 
 
 @pytest.mark.asyncio
-async def test_summarize_reports_a_failed_area_only_on_its_dashboard():
-    brazil = {**PARANA, "src_id": "BRA", "subtype": "country"}
-    source = FakeAlertAreaSource(area_ha=3.0, failing={"BRA"})
-    service = DashboardAlertsService(source, today=lambda: MONDAY)
-    ok, failed = _dashboard(), _dashboard(aoi=brazil)
+async def test_summarize_reports_zero_for_an_aoi_without_alerts():
+    dashboard = _dashboard()
 
-    report = await service.summarize([ok, failed])
+    report = await _service(FakeAlertsSource()).summarize([dashboard])
 
-    assert report.dashboards[ok.dashboard_id] == DashboardAlerts(
-        integrated_alerts=3.0
+    assert report.dashboards[dashboard.dashboard_id] == DashboardAlerts(
+        integrated_alerts=0.0
     )
-    assert report.dashboards[failed.dashboard_id] == DashboardAlerts(
+
+
+@pytest.mark.asyncio
+async def test_summarize_reports_a_failed_request_on_every_dashboard_in_it():
+    parana, para = _dashboard(PARANA), _dashboard(PARA)
+
+    report = await _service(FakeAlertsSource(fail=True)).summarize(
+        [parana, para]
+    )
+
+    failed = DashboardAlerts(
         integrated_alerts=None,
         errors={"integrated_alerts": "Integrated alerts data is unavailable"},
     )
+    assert report.dashboards == {
+        parana.dashboard_id: failed,
+        para.dashboard_id: failed,
+    }
 
 
 @pytest.mark.asyncio
@@ -142,52 +169,52 @@ async def test_summarize_reports_a_failed_area_only_on_its_dashboard():
         ),
         ({**PARANA, "subtype": "municipality"}, [INTEGRATED_ALERTS_ID]),
     ],
-    ids=["no-alerts-chart", "no-area", "custom-area", "unsupported-level"],
+    ids=["no-alerts-chart", "no-aoi", "custom-aoi", "unsupported-level"],
 )
 async def test_summarize_leaves_out_ineligible_dashboards(aoi, dataset_ids):
-    source = FakeAlertAreaSource()
-    service = DashboardAlertsService(source, today=lambda: MONDAY)
+    source = FakeAlertsSource()
 
-    report = await service.summarize([_dashboard(aoi, dataset_ids)])
+    report = await _service(source).summarize([_dashboard(aoi, dataset_ids)])
 
     assert report.dashboards == {}
     assert source.calls == []
 
 
 @pytest.mark.asyncio
-async def test_analytics_source_sums_area_for_the_week():
+async def test_analytics_source_sums_area_per_aoi_in_one_request():
     handler = FakeHandler(
         DataPullResult(
             success=True,
             data={
-                "alert_date": ["2026-10-04", "2026-10-09"],
-                "area_ha": [1.25, 2.5],
+                "aoi_id": ["BRA.16", "BRA.14", "BRA.14"],
+                "area_ha": [1.25, 2.5, 0.5],
             },
             message="",
         )
     )
-    source = AnalyticsAlertAreaSource(handler)
 
-    area = await source.area_ha(PARANA, date(2026, 10, 4), date(2026, 10, 10))
+    area_ha = await AnalyticsAlertsSource(handler).area_ha_by_aoi(
+        [PARANA, PARA], *WEEK
+    )
 
-    assert area == 3.75
+    assert area_ha == {("gadm", "BRA.16_1"): 1.25, ("gadm", "BRA.14_1"): 3.0}
     assert handler.last_call == {
         "dataset": {"dataset_id": INTEGRATED_ALERTS_ID},
         "start_date": "2026-10-04",
         "end_date": "2026-10-10",
-        "aois": [PARANA],
+        "aois": [PARANA, PARA],
     }
 
 
 @pytest.mark.asyncio
-async def test_analytics_source_with_no_alerts_is_zero():
+async def test_analytics_source_with_no_alerts_is_empty():
     handler = FakeHandler(DataPullResult(success=True, data={}, message=""))
 
-    area = await AnalyticsAlertAreaSource(handler).area_ha(
-        PARANA, date(2026, 10, 4), date(2026, 10, 10)
+    area_ha = await AnalyticsAlertsSource(handler).area_ha_by_aoi(
+        [PARANA], *WEEK
     )
 
-    assert area == 0.0
+    assert area_ha == {}
 
 
 @pytest.mark.asyncio
@@ -196,26 +223,28 @@ async def test_analytics_source_raises_when_pull_fails():
         DataPullResult(success=False, data=None, message="timed out")
     )
 
-    with pytest.raises(AlertAreaUnavailableError, match="timed out"):
-        await AnalyticsAlertAreaSource(handler).area_ha(
-            PARANA, date(2026, 10, 4), date(2026, 10, 10)
-        )
+    with pytest.raises(AlertsUnavailableError, match="timed out"):
+        await AnalyticsAlertsSource(handler).area_ha_by_aoi([PARANA], *WEEK)
 
 
 @pytest.mark.asyncio
-async def test_analytics_source_leaves_the_area_unchanged():
+async def test_analytics_source_leaves_the_aois_unchanged():
     class SuffixStrippingHandler(FakeHandler):
         async def pull_data(self, *args, aois, **kwargs):
-            aois[0]["src_id"] = aois[0]["src_id"][:-2]
+            for aoi in aois:
+                aoi["src_id"] = aoi["src_id"][:-2]
             return await super().pull_data(*args, aois=aois, **kwargs)
 
     handler = SuffixStrippingHandler(
-        DataPullResult(success=True, data={}, message="")
+        DataPullResult(
+            success=True,
+            data={"aoi_id": ["BRA.16"], "area_ha": [1.0]},
+            message="",
+        )
     )
     aoi = dict(PARANA)
 
-    await AnalyticsAlertAreaSource(handler).area_ha(
-        aoi, date(2026, 10, 4), date(2026, 10, 10)
-    )
+    area_ha = await AnalyticsAlertsSource(handler).area_ha_by_aoi([aoi], *WEEK)
 
     assert aoi == PARANA
+    assert area_ha == {("gadm", "BRA.16_1"): 1.0}

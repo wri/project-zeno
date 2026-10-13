@@ -56,7 +56,7 @@ from src.api.services.charts.tcl_natural_forest import (
     TCLNaturalForestChartGenerator,
     natural_forest_totals,
 )
-from src.api.services.dashboard_area import dashboard_aoi
+from src.api.services.dashboard_aoi import dashboard_aoi
 from src.api.services.widget_configs import (
     dataset_config,
     imagery_config,

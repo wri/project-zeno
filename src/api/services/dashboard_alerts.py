@@ -1,4 +1,4 @@
-"""Integrated alerts area in a dashboard's area for the latest full alert
+"""Integrated alerts area in a dashboard's AOI for the latest full alert
 week, which runs Sunday to Saturday."""
 
 import asyncio
@@ -12,6 +12,7 @@ from src.agent.datasets.handlers.analytics_handler import (
     INTEGRATED_ALERTS_ID,
 )
 from src.agent.datasets.handlers.base import DataSourceHandler
+from src.shared.geocoding_helpers import format_id
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -19,8 +20,11 @@ logger = get_logger(__name__)
 SATURDAY = 5
 
 
-class AlertAreaUnavailableError(Exception):
+class AlertsUnavailableError(Exception):
     pass
+
+
+AoiKey = tuple[str, str]
 
 
 @dataclass(frozen=True)
@@ -43,8 +47,12 @@ class AlertsReport:
     dashboards: dict[UUID, DashboardAlerts]
 
 
-class AlertAreaSource(Protocol):
-    async def area_ha(self, aoi: dict, start: date, end: date) -> float: ...
+class AlertsSource(Protocol):
+    async def area_ha_by_aoi(
+        self, aois: list[dict], start: date, end: date
+    ) -> dict[AoiKey, float]:
+        """Alert area for each AOI; AOIs without alerts may be absent."""
+        ...
 
 
 def latest_alert_week(today: date) -> tuple[date, date]:
@@ -68,26 +76,20 @@ def is_eligible(dashboard: DashboardAlertsInput) -> bool:
     )
 
 
-def area_key(aoi: dict) -> tuple[str, str]:
+def aoi_key(aoi: dict) -> AoiKey:
     return aoi["source"], aoi["src_id"]
 
 
-def alerts_from(result: float | BaseException) -> DashboardAlerts:
-    if isinstance(result, BaseException):
-        logger.warning("dashboard_alerts_unavailable", error=repr(result))
-        return DashboardAlerts(
-            integrated_alerts=None,
-            errors={
-                "integrated_alerts": "Integrated alerts data is unavailable"
-            },
-        )
-    return DashboardAlerts(integrated_alerts=result)
+UNAVAILABLE = DashboardAlerts(
+    integrated_alerts=None,
+    errors={"integrated_alerts": "Integrated alerts data is unavailable"},
+)
 
 
 class DashboardAlertsService:
     def __init__(
         self,
-        source: AlertAreaSource,
+        source: AlertsSource,
         today: Callable[[], date] = date.today,
     ):
         self._source = source
@@ -97,39 +99,72 @@ class DashboardAlertsService:
         self, dashboards: list[DashboardAlertsInput]
     ) -> AlertsReport:
         start, end = latest_alert_week(self._today())
-        eligible = [d for d in dashboards if is_eligible(d)]
-        areas = {area_key(d.aoi): d.aoi for d in eligible if d.aoi}
-        results = await asyncio.gather(
-            *(self._source.area_ha(aoi, start, end) for aoi in areas.values()),
-            return_exceptions=True,
-        )
-        alerts_by_area = {
-            key: alerts_from(result) for key, result in zip(areas, results)
-        }
+        eligible = [
+            (d.dashboard_id, d.aoi)
+            for d in dashboards
+            if is_eligible(d) and d.aoi
+        ]
+        aois_by_source: dict[str, dict[AoiKey, dict]] = {}
+        for _, aoi in eligible:
+            aois_by_source.setdefault(aoi["source"], {})[aoi_key(aoi)] = aoi
+        alerts_by_aoi: dict[AoiKey, DashboardAlerts] = {}
+        for aois in await asyncio.gather(
+            *(
+                self._alerts(list(aois.values()), start, end)
+                for aois in aois_by_source.values()
+            )
+        ):
+            alerts_by_aoi.update(aois)
         return AlertsReport(
             week_start=start,
             week_end=end,
             dashboards={
-                d.dashboard_id: alerts_by_area[area_key(d.aoi)]
-                for d in eligible
-                if d.aoi
+                dashboard_id: alerts_by_aoi[aoi_key(aoi)]
+                for dashboard_id, aoi in eligible
             },
         )
 
+    async def _alerts(
+        self, aois: list[dict], start: date, end: date
+    ) -> dict[AoiKey, DashboardAlerts]:
+        try:
+            area_ha = await self._source.area_ha_by_aoi(aois, start, end)
+        except Exception as error:
+            logger.warning("dashboard_alerts_unavailable", error=repr(error))
+            return {aoi_key(aoi): UNAVAILABLE for aoi in aois}
+        return {
+            aoi_key(aoi): DashboardAlerts(
+                integrated_alerts=area_ha.get(aoi_key(aoi), 0.0)
+            )
+            for aoi in aois
+        }
 
-class AnalyticsAlertAreaSource:
+
+class AnalyticsAlertsSource:
     def __init__(self, handler: DataSourceHandler):
         self._handler = handler
 
-    async def area_ha(self, aoi: dict, start: date, end: date) -> float:
+    async def area_ha_by_aoi(
+        self, aois: list[dict], start: date, end: date
+    ) -> dict[AoiKey, float]:
         result = await self._handler.pull_data(
             query="",
             dataset={"dataset_id": INTEGRATED_ALERTS_ID},
             start_date=start.isoformat(),
             end_date=end.isoformat(),
             change_over_time_query=False,
-            aois=[dict(aoi)],
+            aois=[dict(aoi) for aoi in aois],
         )
         if not result.success:
-            raise AlertAreaUnavailableError(result.message)
-        return float(sum((result.data or {}).get("area_ha", [])))
+            raise AlertsUnavailableError(result.message)
+        data = result.data or {}
+        area_ha_by_id: dict[str, float] = {}
+        for aoi_id, area_ha in zip(
+            data.get("aoi_id", []), data.get("area_ha", [])
+        ):
+            area_ha_by_id[aoi_id] = area_ha_by_id.get(aoi_id, 0.0) + area_ha
+        return {
+            aoi_key(aoi): area_ha_by_id[format_id(aoi["src_id"])]
+            for aoi in aois
+            if format_id(aoi["src_id"]) in area_ha_by_id
+        }

@@ -1013,7 +1013,7 @@ class DashboardAlertsSummaryRequest(BaseModel):
 class DashboardAlertsResponse(BaseModel):
     integrated_alerts: Optional[float] = Field(
         description=(
-            "Integrated alerts area in hectares in the dashboard's area that "
+            "Integrated alerts area in hectares in the dashboard's AOI that "
             "week; null when it could not be fetched."
         )
     )
@@ -1029,7 +1029,7 @@ class DashboardAlertsSummaryResponse(BaseModel):
         description=(
             "Alerts per dashboard. Dashboards without an integrated alerts "
             "chart, without a GADM country, state-province or district-county "
-            "area, or not visible to the user are left out."
+            "AOI, or not visible to the user are left out."
         )
     )
 

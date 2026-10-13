@@ -76,12 +76,12 @@ from src.api.services.analysis_templates.registry import (
     get_template,
 )
 from src.api.services.dashboard_alerts import (
-    AlertAreaSource,
-    AnalyticsAlertAreaSource,
+    AlertsSource,
+    AnalyticsAlertsSource,
     DashboardAlertsInput,
     DashboardAlertsService,
 )
-from src.api.services.dashboard_area import dashboard_aoi
+from src.api.services.dashboard_aoi import dashboard_aoi
 from src.shared.database import get_session_from_pool_dependency
 from src.shared.logging_config import get_logger
 from src.shared.tile_urls import absolutize_widget_config
@@ -263,12 +263,12 @@ async def get_dashboard(
     return await _expanded_response(row, user, session)
 
 
-def get_alert_area_source() -> AlertAreaSource:
-    return AnalyticsAlertAreaSource(AnalyticsHandler())
+def get_alerts_source() -> AlertsSource:
+    return AnalyticsAlertsSource(AnalyticsHandler())
 
 
 def get_dashboard_alerts_service(
-    source: AlertAreaSource = Depends(get_alert_area_source),
+    source: AlertsSource = Depends(get_alerts_source),
 ) -> DashboardAlertsService:
     return DashboardAlertsService(source)
 
@@ -279,11 +279,11 @@ def get_dashboard_alerts_service(
 )
 async def summarize_dashboard_alerts(
     body: DashboardAlertsSummaryRequest,
-    user: Optional[UserModel] = Depends(optional_auth),
+    user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
     service: DashboardAlertsService = Depends(get_dashboard_alerts_service),
 ):
-    """Integrated alerts area for each dashboard's area in the latest full
+    """Integrated alerts area for each dashboard's AOI in the latest full
     alert week (Sunday to Saturday)."""
     rows = [
         row

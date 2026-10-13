@@ -8,8 +8,8 @@ import pytest
 from src.agent.datasets.handlers.analytics_handler import INTEGRATED_ALERTS_ID
 from src.api.app import app
 from src.api.data_models import InsightChartOrm, InsightOrm, UserOrm
-from src.api.routers.dashboards import get_alert_area_source
-from src.api.services.dashboard_alerts import AlertAreaUnavailableError
+from src.api.routers.dashboards import get_alerts_source
+from src.api.services.dashboard_alerts import AlertsUnavailableError
 from src.shared.config import SharedSettings
 from tests.conftest import async_session_maker
 
@@ -1273,18 +1273,18 @@ async def test_section_with_widgets_unknown_dashboard(client):
 # ---------------------------------------------------------------------------
 # POST /api/dashboards/alerts-summary
 # ---------------------------------------------------------------------------
-class FakeAlertAreaSource:
-    async def area_ha(self, aoi, start, end):
-        if aoi["src_id"] == "BRA":
-            raise AlertAreaUnavailableError("timed out")
-        return 42.0
+class FakeAlertsSource:
+    async def area_ha_by_aoi(self, aois, start, end):
+        if any(aoi["src_id"] == "BRA" for aoi in aois):
+            raise AlertsUnavailableError("timed out")
+        return {(aoi["source"], aoi["src_id"]): 42.0 for aoi in aois}
 
 
 @pytest.fixture
-def fake_alert_area_source():
-    app.dependency_overrides[get_alert_area_source] = FakeAlertAreaSource
+def fake_alerts_source():
+    app.dependency_overrides[get_alerts_source] = FakeAlertsSource
     yield
-    app.dependency_overrides.pop(get_alert_area_source, None)
+    app.dependency_overrides.pop(get_alerts_source, None)
 
 
 async def _add_alerts_chart_widget(client, dashboard_id, user_id):
@@ -1318,7 +1318,7 @@ async def _alerts_summary(client, dashboard_ids):
 
 @pytest.mark.asyncio
 async def test_alerts_summary_reports_eligible_dashboards(
-    client, auth_override, fake_alert_area_source
+    client, auth_override, fake_alerts_source
 ):
     user = await _create_user("alerts-owner")
     auth_override(user.id)
@@ -1340,7 +1340,7 @@ async def test_alerts_summary_reports_eligible_dashboards(
 
 @pytest.mark.asyncio
 async def test_alerts_summary_reports_a_failed_dashboard(
-    client, auth_override, fake_alert_area_source
+    client, auth_override, fake_alerts_source
 ):
     user = await _create_user("alerts-failed")
     auth_override(user.id)
@@ -1362,7 +1362,7 @@ async def test_alerts_summary_reports_a_failed_dashboard(
 
 @pytest.mark.asyncio
 async def test_alerts_summary_leaves_out_other_users_private_dashboards(
-    client, auth_override, fake_alert_area_source
+    client, auth_override, fake_alerts_source
 ):
     owner = await _create_user("alerts-victim")
     other = await _create_user("alerts-snoop")
@@ -1375,3 +1375,13 @@ async def test_alerts_summary_leaves_out_other_users_private_dashboards(
 
     assert response.status_code == 200
     assert response.json()["dashboards"] == {}
+
+
+@pytest.mark.asyncio
+async def test_alerts_summary_requires_auth(client, fake_alerts_source):
+    response = await client.post(
+        "/api/dashboards/alerts-summary",
+        json={"dashboard_ids": [str(uuid.uuid4())]},
+    )
+
+    assert response.status_code == 401

@@ -4,7 +4,7 @@ from src.api.data_models import DashboardOrm
 
 
 def dashboard_aoi(dashboard: DashboardOrm) -> Optional[dict]:
-    """The area a dashboard covers: its first AOI. Portfolios are not in
+    """The AOI a dashboard covers: its first one. Portfolios are not in
     v1."""
     if not dashboard.aois:
         return None
