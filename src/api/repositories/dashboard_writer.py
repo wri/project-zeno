@@ -147,37 +147,35 @@ async def get_dashboard(dashboard_id) -> Optional[DashboardOrm]:
 
 
 async def get_dashboards(dashboard_ids: list[UUID]) -> list[DashboardOrm]:
-    """Load dashboards with their AOIs and widgets; caller applies the
-    access check. Missing ids are skipped."""
+    """Load dashboards with their AOIs; caller applies the access check.
+    Missing ids are skipped."""
     async with get_session_from_pool() as session:
         result = await session.execute(
             select(DashboardOrm)
-            .options(
-                selectinload(DashboardOrm.aois),
-                selectinload(DashboardOrm.widgets),
-            )
+            .options(selectinload(DashboardOrm.aois))
             .where(DashboardOrm.id.in_(dashboard_ids))
         )
         return list(result.scalars().all())
 
 
-async def get_chart_dataset_ids(
-    insight_ids: list[UUID],
-) -> dict[UUID, list[int]]:
-    """The dataset ids of each insight's charts."""
-    if not insight_ids:
-        return {}
+async def get_dashboard_ids_with_dataset(
+    dashboard_ids: list[UUID], dataset_id: int
+) -> set[UUID]:
+    """The dashboards with an insight chart of the dataset."""
     async with get_session_from_pool() as session:
         result = await session.execute(
-            select(
-                InsightChartOrm.insight_id, InsightChartOrm.dataset_id
-            ).where(InsightChartOrm.insight_id.in_(insight_ids))
+            select(DashboardWidgetOrm.dashboard_id)
+            .join(
+                InsightChartOrm,
+                InsightChartOrm.insight_id == DashboardWidgetOrm.insight_id,
+            )
+            .where(
+                DashboardWidgetOrm.dashboard_id.in_(dashboard_ids),
+                InsightChartOrm.dataset_id == dataset_id,
+            )
+            .distinct()
         )
-        rows = result.all()
-    dataset_ids: dict[UUID, list[int]] = {}
-    for insight_id, dataset_id in rows:
-        dataset_ids.setdefault(insight_id, []).append(dataset_id)
-    return dataset_ids
+        return set(result.scalars().all())
 
 
 async def get_widget(widget_id) -> Optional[DashboardWidgetOrm]:

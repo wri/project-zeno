@@ -76,9 +76,9 @@ class FakeHandler(DataSourceHandler):
         return self._result
 
 
-def _dashboard(aoi=PARANA, dataset_ids=(INTEGRATED_ALERTS_ID,)):
+def _dashboard(aoi=PARANA, has_alerts_chart=True):
     return DashboardAlertsInput(
-        dashboard_id=uuid4(), aoi=aoi, chart_dataset_ids=list(dataset_ids)
+        dashboard_id=uuid4(), aoi=aoi, has_alerts_chart=has_alerts_chart
     )
 
 
@@ -159,22 +159,23 @@ async def test_summarize_reports_a_failed_request_on_every_dashboard_in_it():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "aoi, dataset_ids",
+    "aoi, has_alerts_chart",
     [
-        (PARANA, [4]),
-        (None, [INTEGRATED_ALERTS_ID]),
-        (
-            {**PARANA, "source": "custom", "subtype": "custom-area"},
-            [INTEGRATED_ALERTS_ID],
-        ),
-        ({**PARANA, "subtype": "municipality"}, [INTEGRATED_ALERTS_ID]),
+        (PARANA, False),
+        (None, True),
+        ({**PARANA, "source": "custom", "subtype": "custom-area"}, True),
+        ({**PARANA, "subtype": "municipality"}, True),
     ],
     ids=["no-alerts-chart", "no-aoi", "custom-aoi", "unsupported-level"],
 )
-async def test_summarize_leaves_out_ineligible_dashboards(aoi, dataset_ids):
+async def test_summarize_leaves_out_ineligible_dashboards(
+    aoi, has_alerts_chart
+):
     source = FakeAlertsSource()
 
-    report = await _service(source).summarize([_dashboard(aoi, dataset_ids)])
+    report = await _service(source).summarize(
+        [_dashboard(aoi, has_alerts_chart)]
+    )
 
     assert report.dashboards == {}
     assert source.calls == []

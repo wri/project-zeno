@@ -25,7 +25,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.agent.datasets.handlers.analytics_handler import AnalyticsHandler
+from src.agent.datasets.handlers.analytics_handler import (
+    INTEGRATED_ALERTS_ID,
+    AnalyticsHandler,
+)
 from src.agent.i18n import t
 from src.api.auth.dependencies import optional_auth, require_auth
 from src.api.data_models import DashboardOrm, InsightOrm, UserType
@@ -279,38 +282,29 @@ async def summarize_dashboard_alerts(
 ):
     """Integrated alerts area for each dashboard's AOI in the latest full
     alert week (Sunday to Saturday)."""
-    rows = [
-        row
-        for row in await dashboard_writer.get_dashboards(body.dashboard_ids)
-        if _is_readable(row, user)
+    loaded = await dashboard_writer.get_dashboards(body.dashboard_ids)
+    rows = [row for row in loaded if _is_readable(row, user)]
+    with_alerts_chart = await dashboard_writer.get_dashboard_ids_with_dataset(
+        [row.id for row in rows], INTEGRATED_ALERTS_ID
+    )
+    dashboards = [
+        DashboardAlertsInput(
+            dashboard_id=row.id,
+            aoi=dashboard_aoi(row),
+            has_alerts_chart=row.id in with_alerts_chart,
+        )
+        for row in rows
     ]
-    dataset_ids = await dashboard_writer.get_chart_dataset_ids(
-        [w.insight_id for row in rows for w in row.widgets if w.insight_id]
-    )
-    report = await service.summarize(
-        [
-            DashboardAlertsInput(
-                dashboard_id=row.id,
-                aoi=dashboard_aoi(row),
-                chart_dataset_ids=[
-                    dataset_id
-                    for widget in row.widgets
-                    for dataset_id in dataset_ids.get(widget.insight_id, [])
-                ],
-            )
-            for row in rows
-        ]
-    )
+    report = await service.summarize(dashboards)
+    alerts_by_dashboard = {}
+    for dashboard_id, alerts in report.dashboards.items():
+        alerts_by_dashboard[dashboard_id] = DashboardAlertsResponse(
+            integrated_alerts=alerts.integrated_alerts, errors=alerts.errors
+        )
     return DashboardAlertsSummaryResponse(
         week_start=report.week_start,
         week_end=report.week_end,
-        dashboards={
-            dashboard_id: DashboardAlertsResponse(
-                integrated_alerts=alerts.integrated_alerts,
-                errors=alerts.errors,
-            )
-            for dashboard_id, alerts in report.dashboards.items()
-        },
+        dashboards=alerts_by_dashboard,
     )
 
 
