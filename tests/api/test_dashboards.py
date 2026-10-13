@@ -1,10 +1,15 @@
 """Tests for dashboard endpoints: CRUD, widgets, publish cascade, auth."""
 
 import uuid
+from datetime import date
 
 import pytest
 
-from src.api.data_models import InsightOrm, UserOrm
+from src.agent.datasets.handlers.analytics_handler import INTEGRATED_ALERTS_ID
+from src.api.app import app
+from src.api.data_models import InsightChartOrm, InsightOrm, UserOrm
+from src.api.routers.dashboards import get_alert_area_source
+from src.api.services.dashboard_alerts import AlertAreaUnavailableError
 from src.shared.config import SharedSettings
 from tests.conftest import async_session_maker
 
@@ -1263,3 +1268,110 @@ async def test_section_with_widgets_unknown_dashboard(client):
         )
         is None
     )
+
+
+# ---------------------------------------------------------------------------
+# POST /api/dashboards/alerts-summary
+# ---------------------------------------------------------------------------
+class FakeAlertAreaSource:
+    async def area_ha(self, aoi, start, end):
+        if aoi["src_id"] == "BRA":
+            raise AlertAreaUnavailableError("timed out")
+        return 42.0
+
+
+@pytest.fixture
+def fake_alert_area_source():
+    app.dependency_overrides[get_alert_area_source] = FakeAlertAreaSource
+    yield
+    app.dependency_overrides.pop(get_alert_area_source, None)
+
+
+async def _add_alerts_chart_widget(client, dashboard_id, user_id):
+    insight = await _create_insight(user_id=user_id)
+    async with async_session_maker() as session:
+        session.add(
+            InsightChartOrm(
+                insight_id=insight.id,
+                title="Integrated alerts",
+                chart_type="line",
+                chart_data=[],
+                dataset_id=INTEGRATED_ALERTS_ID,
+            )
+        )
+        await session.commit()
+    response = await client.post(
+        f"/api/dashboards/{dashboard_id}/widgets",
+        headers=AUTH,
+        json={"widget_type": "insight", "insight_id": str(insight.id)},
+    )
+    assert response.status_code == 201
+
+
+async def _alerts_summary(client, dashboard_ids):
+    return await client.post(
+        "/api/dashboards/alerts-summary",
+        headers=AUTH,
+        json={"dashboard_ids": [str(i) for i in dashboard_ids]},
+    )
+
+
+@pytest.mark.asyncio
+async def test_alerts_summary_reports_eligible_dashboards(
+    client, auth_override, fake_alert_area_source
+):
+    user = await _create_user("alerts-owner")
+    auth_override(user.id)
+    with_alerts = await _create_dashboard(client)
+    await _add_alerts_chart_widget(client, with_alerts["id"], user.id)
+    without_alerts = await _create_dashboard(client)
+
+    response = await _alerts_summary(
+        client, [with_alerts["id"], without_alerts["id"]]
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert date.fromisoformat(body["week_end"]).weekday() == 5
+    assert body["dashboards"] == {
+        with_alerts["id"]: {"integrated_alerts": 42.0, "errors": {}}
+    }
+
+
+@pytest.mark.asyncio
+async def test_alerts_summary_reports_a_failed_dashboard(
+    client, auth_override, fake_alert_area_source
+):
+    user = await _create_user("alerts-failed")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client, aois=[BRAZIL])
+    await _add_alerts_chart_widget(client, dashboard["id"], user.id)
+
+    response = await _alerts_summary(client, [dashboard["id"]])
+
+    assert response.status_code == 200
+    assert response.json()["dashboards"] == {
+        dashboard["id"]: {
+            "integrated_alerts": None,
+            "errors": {
+                "integrated_alerts": "Integrated alerts data is unavailable"
+            },
+        }
+    }
+
+
+@pytest.mark.asyncio
+async def test_alerts_summary_leaves_out_other_users_private_dashboards(
+    client, auth_override, fake_alert_area_source
+):
+    owner = await _create_user("alerts-victim")
+    other = await _create_user("alerts-snoop")
+    auth_override(owner.id)
+    dashboard = await _create_dashboard(client)
+    await _add_alerts_chart_widget(client, dashboard["id"], owner.id)
+
+    auth_override(other.id)
+    response = await _alerts_summary(client, [dashboard["id"]])
+
+    assert response.status_code == 200
+    assert response.json()["dashboards"] == {}

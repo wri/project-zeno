@@ -25,10 +25,19 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from src.agent.datasets.handlers.analytics_handler import AnalyticsHandler
 from src.agent.i18n import t
 from src.api.auth.dependencies import optional_auth, require_auth
-from src.api.data_models import DashboardOrm, InsightOrm, UserType
+from src.api.data_models import (
+    DashboardOrm,
+    InsightChartOrm,
+    InsightOrm,
+    UserType,
+)
 from src.api.repositories import dashboard_writer
+from src.api.repositories.dashboard_access import (
+    is_visible_to_user as dashboard_is_visible_to_user,
+)
 from src.api.repositories.insight_access import (
     is_visible_to_user as insight_is_visible_to_user,
 )
@@ -37,6 +46,9 @@ from src.api.routers.insights import (
 )
 from src.api.schemas import (
     AnalysisTemplateResponse,
+    DashboardAlertsResponse,
+    DashboardAlertsSummaryRequest,
+    DashboardAlertsSummaryResponse,
     DashboardAoiResponse,
     DashboardCreateRequest,
     DashboardPublicToggleRequest,
@@ -63,6 +75,13 @@ from src.api.services.analysis_templates.registry import (
     TEMPLATES,
     get_template,
 )
+from src.api.services.dashboard_alerts import (
+    AlertAreaSource,
+    AnalyticsAlertAreaSource,
+    DashboardAlertsInput,
+    DashboardAlertsService,
+)
+from src.api.services.dashboard_area import dashboard_aoi
 from src.shared.database import get_session_from_pool_dependency
 from src.shared.logging_config import get_logger
 from src.shared.tile_urls import absolutize_widget_config
@@ -133,6 +152,12 @@ async def _get_owned_dashboard(
     if row is None or (row.user_id != user.id and not _is_privileged(user)):
         raise HTTPException(status_code=404, detail="Dashboard not found")
     return row
+
+
+def _is_readable(row: DashboardOrm, user: Optional[UserModel]) -> bool:
+    return dashboard_is_visible_to_user(
+        row, user.id if user else None
+    ) or _is_privileged(user)
 
 
 async def _refetch_dashboard(dashboard_id) -> DashboardOrm:
@@ -236,6 +261,80 @@ async def get_dashboard(
             raise HTTPException(status_code=404, detail="Dashboard not found")
 
     return await _expanded_response(row, user, session)
+
+
+def get_alert_area_source() -> AlertAreaSource:
+    return AnalyticsAlertAreaSource(AnalyticsHandler())
+
+
+def get_dashboard_alerts_service(
+    source: AlertAreaSource = Depends(get_alert_area_source),
+) -> DashboardAlertsService:
+    return DashboardAlertsService(source)
+
+
+@router.post(
+    "/api/dashboards/alerts-summary",
+    response_model=DashboardAlertsSummaryResponse,
+)
+async def summarize_dashboard_alerts(
+    body: DashboardAlertsSummaryRequest,
+    user: Optional[UserModel] = Depends(optional_auth),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
+    service: DashboardAlertsService = Depends(get_dashboard_alerts_service),
+):
+    """Integrated alerts area for each dashboard's area in the latest full
+    alert week (Sunday to Saturday)."""
+    rows = [
+        row
+        for row in await dashboard_writer.get_dashboards(body.dashboard_ids)
+        if _is_readable(row, user)
+    ]
+    dataset_ids = await _chart_dataset_ids_by_insight(rows, session)
+    report = await service.summarize(
+        [
+            DashboardAlertsInput(
+                dashboard_id=row.id,
+                aoi=dashboard_aoi(row),
+                chart_dataset_ids=[
+                    dataset_id
+                    for widget in row.widgets
+                    for dataset_id in dataset_ids.get(widget.insight_id, [])
+                ],
+            )
+            for row in rows
+        ]
+    )
+    return DashboardAlertsSummaryResponse(
+        week_start=report.week_start,
+        week_end=report.week_end,
+        dashboards={
+            dashboard_id: DashboardAlertsResponse(
+                integrated_alerts=alerts.integrated_alerts,
+                errors=alerts.errors,
+            )
+            for dashboard_id, alerts in report.dashboards.items()
+        },
+    )
+
+
+async def _chart_dataset_ids_by_insight(
+    rows: list[DashboardOrm], session: AsyncSession
+) -> dict[UUID, list[int]]:
+    insight_ids = [
+        w.insight_id for row in rows for w in row.widgets if w.insight_id
+    ]
+    if not insight_ids:
+        return {}
+    result = await session.execute(
+        select(InsightChartOrm.insight_id, InsightChartOrm.dataset_id).where(
+            InsightChartOrm.insight_id.in_(insight_ids)
+        )
+    )
+    dataset_ids: dict[UUID, list[int]] = {}
+    for insight_id, dataset_id in result.all():
+        dataset_ids.setdefault(insight_id, []).append(dataset_id)
+    return dataset_ids
 
 
 @router.patch(

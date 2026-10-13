@@ -1006,6 +1006,34 @@ class DashboardPublicToggleResponse(DashboardResponse):
     )
 
 
+class DashboardAlertsSummaryRequest(BaseModel):
+    dashboard_ids: List[UUID] = Field(min_length=1, max_length=50)
+
+
+class DashboardAlertsResponse(BaseModel):
+    integrated_alerts: Optional[float] = Field(
+        description=(
+            "Integrated alerts area in hectares in the dashboard's area that "
+            "week; null when it could not be fetched."
+        )
+    )
+    errors: Dict[str, str] = Field(
+        default={}, description="Why an alert type could not be fetched."
+    )
+
+
+class DashboardAlertsSummaryResponse(BaseModel):
+    week_start: date
+    week_end: date
+    dashboards: Dict[UUID, DashboardAlertsResponse] = Field(
+        description=(
+            "Alerts per dashboard. Dashboards without an integrated alerts "
+            "chart, without a GADM country, state-province or district-county "
+            "area, or not visible to the user are left out."
+        )
+    )
+
+
 class DatasetPaletteCategoryResponse(BaseModel):
     slug: str
     label_en: str

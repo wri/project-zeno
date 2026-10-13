@@ -47,7 +47,7 @@ dependencies = [
     "asyncpg==0.32.0",
     "greenlet==3.5.6",
     "simsimd==6.5.0",
-    "psycopg2==2.9.13",
+    "psycopg2==2.9.10",
     "bcrypt==4.2.1",
     "click==8.5.0",
     "google-genai==1.68.0",

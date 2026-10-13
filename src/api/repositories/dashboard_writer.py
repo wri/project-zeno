@@ -145,6 +145,21 @@ async def get_dashboard(dashboard_id) -> Optional[DashboardOrm]:
         return result.scalar_one_or_none()
 
 
+async def get_dashboards(dashboard_ids: list[UUID]) -> list[DashboardOrm]:
+    """Load dashboards with their AOIs and widgets; caller applies the
+    access check. Missing ids are skipped."""
+    async with get_session_from_pool() as session:
+        result = await session.execute(
+            select(DashboardOrm)
+            .options(
+                selectinload(DashboardOrm.aois),
+                selectinload(DashboardOrm.widgets),
+            )
+            .where(DashboardOrm.id.in_(dashboard_ids))
+        )
+        return list(result.scalars().all())
+
+
 async def get_widget(widget_id) -> Optional[DashboardWidgetOrm]:
     """Load a single widget by id; the caller applies access checks via the
     owning dashboard. Malformed ids are not-found (None), never an error."""
