@@ -1,9 +1,10 @@
-"""Integrated alerts area in a dashboard's AOI for the latest full alert
+"""Integrated alerts area in each dashboard's AOI for the latest full alert
 week, which runs Sunday to Saturday."""
 
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date, timedelta
-from typing import Callable, Optional, Protocol
+from typing import Callable, Iterable, Optional, Protocol
 from uuid import UUID
 
 from src.agent.datasets.handlers.analytics_handler import (
@@ -23,16 +24,6 @@ class AlertsUnavailableError(Exception):
     pass
 
 
-AoiKey = tuple[str, str]
-
-
-@dataclass(frozen=True)
-class DashboardAlertsInput:
-    dashboard_id: UUID
-    aoi: Optional[dict]
-    has_alerts_chart: bool
-
-
 @dataclass(frozen=True)
 class DashboardAlerts:
     integrated_alerts: Optional[float]
@@ -47,10 +38,10 @@ class AlertsReport:
 
 
 class AlertsSource(Protocol):
-    async def area_ha_by_aoi(
+    async def area_ha_by_src_id(
         self, aois: list[dict], start: date, end: date
-    ) -> dict[AoiKey, float]:
-        """Alert area for each AOI; AOIs without alerts may be absent."""
+    ) -> dict[str, float]:
+        """Alert area of each AOI that has alerts."""
         ...
 
 
@@ -67,35 +58,15 @@ def supports_alerts(aoi: dict) -> bool:
     )
 
 
-def is_eligible(dashboard: DashboardAlertsInput) -> bool:
-    return (
-        dashboard.has_alerts_chart
-        and dashboard.aoi is not None
-        and supports_alerts(dashboard.aoi)
+def distinct_aois(aois: Iterable[dict]) -> list[dict]:
+    return list({aoi["src_id"]: aoi for aoi in aois}.values())
+
+
+def unavailable() -> DashboardAlerts:
+    return DashboardAlerts(
+        integrated_alerts=None,
+        errors={"integrated_alerts": "Integrated alerts data is unavailable"},
     )
-
-
-def aoi_key(aoi: dict) -> AoiKey:
-    return aoi["source"], aoi["src_id"]
-
-
-UNAVAILABLE = DashboardAlerts(
-    integrated_alerts=None,
-    errors={"integrated_alerts": "Integrated alerts data is unavailable"},
-)
-
-
-def aois_by_source(
-    dashboards: list[DashboardAlertsInput],
-) -> dict[str, list[dict]]:
-    """Each source's distinct AOIs."""
-    grouped: dict[str, dict[AoiKey, dict]] = {}
-    for dashboard in dashboards:
-        if dashboard.aoi is None:
-            continue
-        source_aois = grouped.setdefault(dashboard.aoi["source"], {})
-        source_aois[aoi_key(dashboard.aoi)] = dashboard.aoi
-    return {source: list(aois.values()) for source, aois in grouped.items()}
 
 
 class DashboardAlertsService:
@@ -108,52 +79,60 @@ class DashboardAlertsService:
         self.today = today
 
     async def summarize(
-        self, dashboards: list[DashboardAlertsInput]
+        self, aoi_by_dashboard: dict[UUID, Optional[dict]]
     ) -> AlertsReport:
         start, end = latest_alert_week(self.today())
-        eligible = [d for d in dashboards if is_eligible(d)]
-
-        alerts_by_aoi: dict[AoiKey, DashboardAlerts] = {}
-        for aois in aois_by_source(eligible).values():
-            alerts_by_aoi.update(await self._alerts(aois, start, end))
-
-        alerts_by_dashboard: dict[UUID, DashboardAlerts] = {}
-        for dashboard in eligible:
-            if dashboard.aoi is not None:
-                key = aoi_key(dashboard.aoi)
-                alerts_by_dashboard[dashboard.dashboard_id] = alerts_by_aoi[
-                    key
-                ]
-
+        supported = {
+            dashboard_id: aoi
+            for dashboard_id, aoi in aoi_by_dashboard.items()
+            if aoi is not None and supports_alerts(aoi)
+        }
+        alerts_by_src_id = await self._alerts_by_src_id(
+            distinct_aois(supported.values()), start, end
+        )
         return AlertsReport(
-            week_start=start, week_end=end, dashboards=alerts_by_dashboard
+            week_start=start,
+            week_end=end,
+            dashboards={
+                dashboard_id: alerts_by_src_id[aoi["src_id"]]
+                for dashboard_id, aoi in supported.items()
+            },
         )
 
-    async def _alerts(
+    async def _alerts_by_src_id(
         self, aois: list[dict], start: date, end: date
-    ) -> dict[AoiKey, DashboardAlerts]:
+    ) -> dict[str, DashboardAlerts]:
+        if not aois:
+            return {}
         try:
-            area_ha = await self.source.area_ha_by_aoi(aois, start, end)
-        except Exception as error:
-            logger.warning("dashboard_alerts_unavailable", error=repr(error))
-            return {aoi_key(aoi): UNAVAILABLE for aoi in aois}
-
-        alerts: dict[AoiKey, DashboardAlerts] = {}
-        for aoi in aois:
-            key = aoi_key(aoi)
-            alerts[key] = DashboardAlerts(
-                integrated_alerts=area_ha.get(key, 0.0)
+            area_ha = await self.source.area_ha_by_src_id(aois, start, end)
+        except AlertsUnavailableError as error:
+            logger.warning("dashboard_alerts_unavailable", error=str(error))
+            return {aoi["src_id"]: unavailable() for aoi in aois}
+        return {
+            aoi["src_id"]: DashboardAlerts(
+                integrated_alerts=area_ha.get(aoi["src_id"], 0.0)
             )
-        return alerts
+            for aoi in aois
+        }
+
+
+def total_area_ha_by_aoi_id(data: dict) -> dict[str, float]:
+    totals: dict[str, float] = defaultdict(float)
+    for aoi_id, area_ha in zip(
+        data.get("aoi_id", []), data.get("area_ha", [])
+    ):
+        totals[aoi_id] += area_ha
+    return dict(totals)
 
 
 class AnalyticsAlertsSource:
     def __init__(self, handler: DataSourceHandler):
         self.handler = handler
 
-    async def area_ha_by_aoi(
+    async def area_ha_by_src_id(
         self, aois: list[dict], start: date, end: date
-    ) -> dict[AoiKey, float]:
+    ) -> dict[str, float]:
         result = await self.handler.pull_data(
             query="",
             dataset={"dataset_id": INTEGRATED_ALERTS_ID},
@@ -164,17 +143,12 @@ class AnalyticsAlertsSource:
         )
         if not result.success:
             raise AlertsUnavailableError(result.message)
-
-        data = result.data or {}
-        area_ha_by_id: dict[str, float] = {}
-        for aoi_id, area_ha in zip(
-            data.get("aoi_id", []), data.get("area_ha", [])
-        ):
-            area_ha_by_id[aoi_id] = area_ha_by_id.get(aoi_id, 0.0) + area_ha
-
-        area_ha_by_aoi: dict[AoiKey, float] = {}
-        for aoi in aois:
-            aoi_id = format_id(aoi["src_id"])
-            if aoi_id in area_ha_by_id:
-                area_ha_by_aoi[aoi_key(aoi)] = area_ha_by_id[aoi_id]
-        return area_ha_by_aoi
+        src_id_by_aoi_id = {
+            format_id(aoi["src_id"]): aoi["src_id"] for aoi in aois
+        }
+        return {
+            src_id_by_aoi_id[aoi_id]: area_ha
+            for aoi_id, area_ha in total_area_ha_by_aoi_id(
+                result.data or {}
+            ).items()
+        }

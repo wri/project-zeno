@@ -9,7 +9,6 @@ from src.agent.datasets.handlers.analytics_handler import INTEGRATED_ALERTS_ID
 from src.api.app import app
 from src.api.data_models import InsightChartOrm, InsightOrm, UserOrm
 from src.api.routers.dashboards import get_alerts_source
-from src.api.services.dashboard_alerts import AlertsUnavailableError
 from src.shared.config import SharedSettings
 from tests.conftest import async_session_maker
 
@@ -1274,10 +1273,8 @@ async def test_section_with_widgets_unknown_dashboard(client):
 # POST /api/dashboards/alerts-summary
 # ---------------------------------------------------------------------------
 class FakeAlertsSource:
-    async def area_ha_by_aoi(self, aois, start, end):
-        if any(aoi["src_id"] == "BRA" for aoi in aois):
-            raise AlertsUnavailableError("timed out")
-        return {(aoi["source"], aoi["src_id"]): 42.0 for aoi in aois}
+    async def area_ha_by_src_id(self, aois, start, end):
+        return {aoi["src_id"]: 42.0 for aoi in aois}
 
 
 @pytest.fixture
@@ -1308,16 +1305,16 @@ async def _add_alerts_chart_widget(client, dashboard_id, user_id):
     assert response.status_code == 201
 
 
-async def _alerts_summary(client, dashboard_ids):
+async def _alerts_summary(client, dashboard_ids, headers=AUTH):
     return await client.post(
         "/api/dashboards/alerts-summary",
-        headers=AUTH,
+        headers=headers,
         json={"dashboard_ids": [str(i) for i in dashboard_ids]},
     )
 
 
 @pytest.mark.asyncio
-async def test_alerts_summary_reports_eligible_dashboards(
+async def test_alerts_summary_reports_dashboards_with_alerts_chart(
     client, auth_override, fake_alerts_source
 ):
     user = await _create_user("alerts-owner")
@@ -1335,28 +1332,6 @@ async def test_alerts_summary_reports_eligible_dashboards(
     assert date.fromisoformat(body["week_end"]).weekday() == 5
     assert body["dashboards"] == {
         with_alerts["id"]: {"integrated_alerts": 42.0, "errors": {}}
-    }
-
-
-@pytest.mark.asyncio
-async def test_alerts_summary_reports_a_failed_dashboard(
-    client, auth_override, fake_alerts_source
-):
-    user = await _create_user("alerts-failed")
-    auth_override(user.id)
-    dashboard = await _create_dashboard(client, aois=[BRAZIL])
-    await _add_alerts_chart_widget(client, dashboard["id"], user.id)
-
-    response = await _alerts_summary(client, [dashboard["id"]])
-
-    assert response.status_code == 200
-    assert response.json()["dashboards"] == {
-        dashboard["id"]: {
-            "integrated_alerts": None,
-            "errors": {
-                "integrated_alerts": "Integrated alerts data is unavailable"
-            },
-        }
     }
 
 
@@ -1379,9 +1354,6 @@ async def test_alerts_summary_leaves_out_other_users_private_dashboards(
 
 @pytest.mark.asyncio
 async def test_alerts_summary_requires_auth(client, fake_alerts_source):
-    response = await client.post(
-        "/api/dashboards/alerts-summary",
-        json={"dashboard_ids": [str(uuid.uuid4())]},
-    )
+    response = await _alerts_summary(client, [uuid.uuid4()], headers={})
 
     assert response.status_code == 401

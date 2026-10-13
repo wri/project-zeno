@@ -33,9 +33,6 @@ from src.agent.i18n import t
 from src.api.auth.dependencies import optional_auth, require_auth
 from src.api.data_models import DashboardOrm, InsightOrm, UserType
 from src.api.repositories import dashboard_writer
-from src.api.repositories.dashboard_access import (
-    is_visible_to_user as dashboard_is_visible_to_user,
-)
 from src.api.repositories.insight_access import (
     is_visible_to_user as insight_is_visible_to_user,
 )
@@ -44,7 +41,6 @@ from src.api.routers.insights import (
 )
 from src.api.schemas import (
     AnalysisTemplateResponse,
-    DashboardAlertsResponse,
     DashboardAlertsSummaryRequest,
     DashboardAlertsSummaryResponse,
     DashboardAoiResponse,
@@ -76,7 +72,6 @@ from src.api.services.analysis_templates.registry import (
 from src.api.services.dashboard_alerts import (
     AlertsSource,
     AnalyticsAlertsSource,
-    DashboardAlertsInput,
     DashboardAlertsService,
 )
 from src.api.services.dashboard_aoi import dashboard_aoi
@@ -150,12 +145,6 @@ async def _get_owned_dashboard(
     if row is None or (row.user_id != user.id and not _is_privileged(user)):
         raise HTTPException(status_code=404, detail="Dashboard not found")
     return row
-
-
-def _is_readable(row: DashboardOrm, user: Optional[UserModel]) -> bool:
-    return dashboard_is_visible_to_user(
-        row, user.id if user else None
-    ) or _is_privileged(user)
 
 
 async def _refetch_dashboard(dashboard_id) -> DashboardOrm:
@@ -280,31 +269,16 @@ async def summarize_dashboard_alerts(
     user: UserModel = Depends(require_auth),
     service: DashboardAlertsService = Depends(get_dashboard_alerts_service),
 ):
-    """Integrated alerts area for each dashboard's AOI in the latest full
+    """Integrated alerts area in each dashboard's AOI for the latest full
     alert week (Sunday to Saturday)."""
-    loaded = await dashboard_writer.get_dashboards(body.dashboard_ids)
-    rows = [row for row in loaded if _is_readable(row, user)]
-    with_alerts_chart = await dashboard_writer.get_dashboard_ids_with_dataset(
-        [row.id for row in rows], INTEGRATED_ALERTS_ID
+    rows = await dashboard_writer.get_visible_dashboards_with_dataset(
+        body.dashboard_ids, user.id, INTEGRATED_ALERTS_ID
     )
-    dashboards = [
-        DashboardAlertsInput(
-            dashboard_id=row.id,
-            aoi=dashboard_aoi(row),
-            has_alerts_chart=row.id in with_alerts_chart,
-        )
-        for row in rows
-    ]
-    report = await service.summarize(dashboards)
-    alerts_by_dashboard = {}
-    for dashboard_id, alerts in report.dashboards.items():
-        alerts_by_dashboard[dashboard_id] = DashboardAlertsResponse(
-            integrated_alerts=alerts.integrated_alerts, errors=alerts.errors
-        )
-    return DashboardAlertsSummaryResponse(
-        week_start=report.week_start,
-        week_end=report.week_end,
-        dashboards=alerts_by_dashboard,
+    report = await service.summarize(
+        {row.id: dashboard_aoi(row) for row in rows}
+    )
+    return DashboardAlertsSummaryResponse.model_validate(
+        report, from_attributes=True
     )
 
 
