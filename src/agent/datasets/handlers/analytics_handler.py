@@ -513,13 +513,19 @@ class AnalyticsHandler(DataSourceHandler):
                 f"Unknown dataset ID: {dataset.get('dataset_id')}"
             )
 
-        if dataset.get("dataset_id") in [
-            TREE_COVER_LOSS_ID,
-            TREE_COVER_ID,
-            TREE_COVER_LOSS_BY_DRIVER_ID,
-            TREE_COVER_LOSS_BY_FIRES_ID,
-            FOREST_CARBON_FLUX_ID,
-        ]:
+        # The API rejects a canopy cover threshold with the forest breakdown, which
+        # counts all loss.
+        if (
+            dataset.get("dataset_id")
+            in [
+                TREE_COVER_LOSS_ID,
+                TREE_COVER_ID,
+                TREE_COVER_LOSS_BY_DRIVER_ID,
+                TREE_COVER_LOSS_BY_FIRES_ID,
+                FOREST_CARBON_FLUX_ID,
+            ]
+            and forest_breakdown is None
+        ):
             natural_forest = dataset.get("context_layer") == "natural_forest"
             canopy_cover: int = (
                 NATURAL_FOREST_DEFAULT_CANOPY_COVER
