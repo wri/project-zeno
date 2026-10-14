@@ -43,7 +43,6 @@ from src.ingest.utils import (
     cached_ndjson_path,
     create_geometry_index_if_not_exists,
     create_id_index_if_not_exists,
-    create_text_search_index_if_not_exists,
 )
 from src.shared.geocoding_helpers import (
     AOI_SOURCE_ID_COLUMNS,
@@ -213,9 +212,6 @@ def ingest_concessions(dataset: ConcessionDataset) -> None:
 
     create_geometry_index_if_not_exists(
         table_name=table, index_name=f"idx_{table}_geom", column="geometry"
-    )
-    create_text_search_index_if_not_exists(
-        table_name=table, index_name=f"idx_{table}_name_gin", column="name"
     )
     create_id_index_if_not_exists(
         table_name=table,
