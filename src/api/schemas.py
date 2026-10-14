@@ -966,7 +966,10 @@ class AnalysisTemplateResponse(BaseModel):
         )
     )
     widgets: List[str] = Field(
-        description="Widget kinds, in order: `chart`, `layer` or `imagery`."
+        description=(
+            "Widget kinds, in order: `chart`, `natural_forest_loss` (a "
+            "chart), `layer` or `imagery`."
+        )
     )
 
 

@@ -6,9 +6,11 @@ kind is one spec class here and one builder function in ``builder``.
 """
 
 from datetime import date
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, ClassVar, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from src.agent.datasets.handlers.analytics_handler import TREE_COVER_LOSS_ID
 
 
 class TemplateArgs(BaseModel):
@@ -26,41 +28,61 @@ class TemplateArgs(BaseModel):
         raise NotImplementedError
 
 
-class ChartWidgetSpec(BaseModel):
-    """A curated chart of one dataset, from the analytics pull."""
+class _WidgetSpec(BaseModel):
+    """What every widget spec has."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
+
+    # A failed required widget stops the build. A failed optional widget
+    # adds a warning and is left out.
+    required: bool = True
+    # The column span of the widget on the dashboard. None leaves the
+    # frontend default, which is the full width for chart and map widgets.
+    size: Optional[Literal["single", "double"]] = None
+
+
+class ChartWidgetSpec(_WidgetSpec):
+    """A curated chart of one dataset, from the analytics pull."""
 
     kind: Literal["chart"] = "chart"
     dataset_id: int
-    # A failed required widget stops the build.
-    required: bool = True
 
 
-class LayerWidgetSpec(BaseModel):
+class LayerWidgetSpec(_WidgetSpec):
     """A map widget with the tile layer of one dataset."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
 
     kind: Literal["layer"] = "layer"
     dataset_id: int
-    required: bool = True
+    # A context layer of the dataset, resolved as on the chat path, for
+    # example "natural_forest" for tree cover loss.
+    context_layer: Optional[str] = None
 
 
-class ImageryWidgetSpec(BaseModel):
+class ImageryWidgetSpec(_WidgetSpec):
     """A map widget with a Sentinel-2 mosaic of the area at the period end."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
 
     kind: Literal["imagery"] = "imagery"
     window_days: int = 7
     max_cloud_cover: int = 20
-    # A failed optional widget adds a warning and is left out.
     required: bool = False
 
 
+class NaturalForestLossWidgetSpec(_WidgetSpec):
+    """A chart of tree cover loss per year, split into SBTN natural forest
+    and other tree cover, from 2021. The natural forest share is a fact for
+    the description."""
+
+    kind: Literal["natural_forest_loss"] = "natural_forest_loss"
+    # The split exists for tree cover loss only. dataset_ids() reads it for
+    # the dataset presentation rules.
+    dataset_id: ClassVar[int] = TREE_COVER_LOSS_ID
+
+
 WidgetSpec = Annotated[
-    ChartWidgetSpec | LayerWidgetSpec | ImageryWidgetSpec,
+    ChartWidgetSpec
+    | LayerWidgetSpec
+    | ImageryWidgetSpec
+    | NaturalForestLossWidgetSpec,
     Field(discriminator="kind"),
 ]
 
@@ -75,8 +97,12 @@ class AnalysisTemplate(BaseModel):
     label_key: str
     # One sentence for the text model and the agent: what the section is for.
     purpose: str
+    # The text model's rules for the description, for a template that needs
+    # more than the default one to three sentences. None keeps the default.
+    description_rules: Optional[str] = None
     # i18n keys for the text used when the text model fails. Placeholders:
-    # {aoi_name}, {start_date}, {end_date}.
+    # {aoi_name}, {start_date}, {end_date}. The widget facts go before the
+    # fallback description.
     fallback_title_key: str
     fallback_description_key: str
     # Validates the arguments of a request.

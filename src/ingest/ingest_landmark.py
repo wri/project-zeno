@@ -1,7 +1,6 @@
 from src.ingest.utils import (
     create_geometry_index_if_not_exists,
     create_id_index_if_not_exists,
-    create_text_search_index_if_not_exists,
     gdf_from_ndjson_chunked,
     ingest_to_postgis,
 )
@@ -51,11 +50,6 @@ def ingest_landmark() -> None:
         table_name="geometries_landmark",
         index_name="idx_geometries_landmark_geom",
         column="geometry",
-    )
-    create_text_search_index_if_not_exists(
-        table_name="geometries_landmark",
-        index_name="idx_geometries_landmark_name_gin",
-        column="name",
     )
     id_column = AOI_SOURCE_ID_COLUMNS["landmark"]
     create_id_index_if_not_exists(

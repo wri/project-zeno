@@ -150,7 +150,7 @@ DEFAULT_EXCLUDED_DATASETS = frozenset({"Land GHG Monitoring System (LGMS)"})
 # sections and widget ids is part of that workflow, not a standalone
 # debugging aid).
 EXPERIMENTAL_PROFILE = "experimental"
-EXPERIMENTAL_SKILLS = ("show-imagery-planet",)
+EXPERIMENTAL_SKILLS: tuple[str, ...] = ()
 EXPERIMENTAL_TOOLS = (add_template_section_spec,)
 
 # The default surface with LGMS revealed. The frontend sends this flag for
