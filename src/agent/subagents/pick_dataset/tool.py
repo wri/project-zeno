@@ -20,10 +20,12 @@ from src.agent.datasets.config import (
 )
 from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import (
+    DEFAULT_CANOPY_COVER,
     FOREST_CARBON_FLUX_ID,
     GRASSLANDS_ID,
     INTEGRATED_ALERTS_ID,
     LAND_COVER_CHANGE_ID,
+    NATURAL_FOREST_DEFAULT_CANOPY_COVER,
     TREE_COVER_ID,
     TREE_COVER_LOSS_BY_DRIVER_ID,
     TREE_COVER_LOSS_BY_FIRES_ID,
@@ -717,8 +719,12 @@ def get_tile_services_for_dataset(
         FOREST_CARBON_FLUX_ID,
     ]:
         natural_forest = selection_result.context_layer == "natural_forest"
-        canopy_cover = 0 if natural_forest else 30
-        if selection_result.parameters is not None and not natural_forest:
+        canopy_cover = (
+            NATURAL_FOREST_DEFAULT_CANOPY_COVER
+            if natural_forest
+            else DEFAULT_CANOPY_COVER
+        )
+        if selection_result.parameters is not None:
             for param in selection_result.parameters:
                 if param.name == "canopy_cover":
                     canopy_cover = max(param.values)
