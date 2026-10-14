@@ -15,6 +15,10 @@ from src.shared.request_context import current_user_id
 
 logger = get_logger(__name__)
 
+# The GFW concession sources, one per concession type. Their areas are
+# concession parcels: a name or a company matches many of them.
+CONCESSION_SOURCES = ("oil_palm", "logging", "mining")
+
 SUBREGION_TO_SUBTYPE_MAPPING = {
     "country": "country",
     "state": "state-province",
@@ -26,8 +30,14 @@ SUBREGION_TO_SUBTYPE_MAPPING = {
     "wdpa": "protected-area",
     "landmark": "indigenous-and-community-land",
     "oil_palm": "oil-palm-concession",
+    "logging": "logging-concession",
+    "mining": "mining-concession",
     "custom": "custom-area",
 }
+
+CONCESSION_SUBTYPES = frozenset(
+    SUBREGION_TO_SUBTYPE_MAPPING[source] for source in CONCESSION_SOURCES
+)
 
 
 # The id column that each source used before the AOI tables were unified.
@@ -42,6 +52,8 @@ AOI_SOURCE_ID_COLUMNS = {
     "kba": "sitrecid",
     "landmark": "landmark_id",
     "oil_palm": "gfw_fid",
+    "logging": "gfw_fid",
+    "mining": "gfw_fid",
     "wdpa": "wdpa_pid",
     "gadm": "gadm_id",
     "custom": "id",
@@ -55,6 +67,8 @@ SOURCE_STAGING_TABLES = {
     "kba": "geometries_kba",
     "landmark": "geometries_landmark",
     "oil_palm": "geometries_oil_palm",
+    "logging": "geometries_logging",
+    "mining": "geometries_mining",
     "wdpa": "geometries_wdpa",
     "gadm": "geometries_gadm",
     "custom": "custom_areas",

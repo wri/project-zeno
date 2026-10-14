@@ -160,6 +160,7 @@ for running the system locally.
    uv run python src/ingest/ingest_kba.py
    uv run python src/ingest/ingest_landmark.py
    uv run python src/ingest/ingest_wdpa.py
+   uv run python src/ingest/ingest_concessions.py  # oil_palm, logging, mining (~1.6 GB)
    ```
 
    See `src/ingest/` directory for details on each ingestion script.
@@ -258,6 +259,7 @@ Runs all services — API, PostgreSQL, Langfuse, and ClickHouse — in container
    uv python src/ingest/ingest_kba.py
    uv python src/ingest/ingest_landmark.py
    uv python src/ingest/ingest_wdpa.py
+   uv python src/ingest/ingest_concessions.py
    exit
    ```
 

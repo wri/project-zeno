@@ -610,6 +610,66 @@ async def test_kba_uses_national_name_with_international_variant():
 
 
 @pytest.mark.asyncio
+async def test_concessions_get_no_search_columns():
+    """Concessions are subregions only: the build writes the row, with its
+    display name and id, but nothing a name search or the token table reads."""
+    columns = (
+        "gfw_fid",
+        "conc_name",
+        "company",
+        "comp_group",
+        "conc_type",
+        "cont_id",
+        "iso3",
+        "name",
+        "subtype",
+    )
+    rows = [
+        {
+            "gfw_fid": "1234",
+            "conc_name": "Palong 17",
+            "company": "FELDA",
+            "comp_group": "FELDA Global Ventures Holdings Berhad",
+            "conc_type": "Oil palm concession",
+            "cont_id": "P17",
+            "iso3": "MYS",
+            "name": "Palong 17 (P17), FELDA, Oil palm concession, MYS",
+            "subtype": "oil-palm-concession",
+        }
+    ]
+    async with _staging_table("oil_palm", columns, rows):
+        assert await _build("oil_palm") == 1
+        await _build_names("oil_palm")
+        async with async_session_maker() as session:
+            await _rebuild_search_tokens(session)
+            await session.commit()
+            tokens = {
+                row[0]
+                for row in await session.execute(
+                    text("SELECT token FROM aoi_search_tokens")
+                )
+            }
+            iso3 = await session.scalar(
+                text("SELECT iso3 FROM aois WHERE source = 'oil_palm'")
+            )
+
+    cols = await _search_columns("oil_palm")
+    assert cols == {
+        "1234": {
+            "source_id": "1234",
+            "leaf": None,
+            "leaf_norm": None,
+            "designation": None,
+            "tsv": None,
+            "ntsv": None,
+        }
+    }
+    assert await _names("oil_palm") == {}
+    assert not {"palong", "felda"} & tokens
+    assert iso3 == ["MYS"]
+
+
+@pytest.mark.asyncio
 async def test_token_table_holds_the_distinct_lexemes(gadm_staging):
     await _build("gadm")
     await _build_names("gadm")

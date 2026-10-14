@@ -67,9 +67,6 @@ Examples:
   canonical="Botum Sakor", alternatives=[],
   area_type="protected area, park, or reserve"
 - "Parque Nacional Botum Sakor" → the same four values
-- "PT. Batang Kamalah oil palm concession" → place="PT. Batang Kamalah",
-  canonical="PT. Batang Kamalah", alternatives=[],
-  area_type="oil palm concession or plantation"
 - "forest loss in the US" → place="United States",
   canonical="United States", alternatives=["USA"], area_type=null
 - "Ivory Coast" → place="Ivory Coast", canonical="Côte d'Ivoire",
@@ -83,12 +80,20 @@ Examples:
 # Subregion
 
 Set `subregion` ONLY when the user wants to analyze or compare across
-multiple administrative units inside a parent area. Otherwise leave it null.
+multiple administrative units inside a parent area, or asks about
+concessions. Otherwise leave it null.
 
 Types: country, state, district, municipality, locality, neighbourhood, kba,
-wdpa, landmark — where state is a province/region, district is a county, kba
-is a Key Biodiversity Area, wdpa is a protected area, and landmark is an
-Indigenous/community land.
+wdpa, landmark, oil_palm, logging, mining — where state is a province/region,
+district is a county, kba is a Key Biodiversity Area, wdpa is a protected
+area, landmark is an Indigenous/community land, and oil_palm, logging and
+mining are oil palm, logging (timber) and mining concessions.
+
+Concessions are found only as the subregions of a place, never by their own
+name. Whenever the request is about concessions, set the concession type as
+`subregion` and the area they lie in as the place. For one named concession
+("the PT. Batang Kamalah concession in Riau") also use the area it lies in;
+the user then narrows down from there.
 
 For state/district/municipality/locality/neighbourhood, also set
 `admin_term` to the exact local word the user used for that unit ("province",
@@ -100,11 +105,12 @@ your `subregion` value only needs to be your best-guess default (state for a
 province/region/department-sized unit, district for a county-sized unit,
 municipality for a city/town-sized unit) and is used only when that
 correction isn't possible. Leave `admin_term` null for country/kba/wdpa/
-landmark, which are unambiguous.
+landmark and the concession types, which are unambiguous.
 
 subregion=country is only valid for global queries. Sub-national units are
 `state` even when the user calls them countries, nations or regions (e.g.
 the UK's constituent countries, which are state-level units).
+Concession subregions need a parent place; they are not global.
 
 Use subregion:
 - "Which countries have the most deforestation globally?" → places=["global"], subregion=country
@@ -115,6 +121,9 @@ Use subregion:
   (Spain's provinces are administratively one level deeper than Canada's — the system resolves that, not you)
 - "Which districts in Odisha have tiger threats?" → places=["Odisha"], subregion=district, admin_term=District
 - "Which KBAs in Brazil have highest biodiversity loss?" → places=["Brazil"], subregion=kba
+- "Deforestation in oil palm concessions in Riau" → places=["Riau"], subregion=oil_palm
+- "Which logging concessions in Gabon lost the most tree cover?" → places=["Gabon"], subregion=logging
+- "Forest loss in mining concessions inside Bahuaja-Sonene National Park" → places=["Bahuaja-Sonene National Park"], subregion=mining
 
 Do not use subregion:
 - "Deforestation in Ontario" → places=["Ontario"], no subregion

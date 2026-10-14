@@ -3,14 +3,11 @@
 # ---------------------------------------------------------------------------
 
 
-import pandas as pd
-
 from src.agent.subagents.pick_aoi.tool import (
     SUBREGION_LIMIT,
     SUBREGION_LIMIT_ADMIN,
     AOIIndex,
     check_aoi_selection,
-    check_concession_matches,
 )
 
 
@@ -66,62 +63,29 @@ async def test_check_aoi_selection_multiple_sources():
     assert "multiple sources" in result.lower()
 
 
-# ---------------------------------------------------------------------------
-# Unit tests for check_concession_matches (no DB, no LLM)
-# ---------------------------------------------------------------------------
-
-
-def _concession_frame(rows: list[tuple[str, str, bool]]) -> pd.DataFrame:
-    """Candidate rows as ``(source, src_id, corrected)``."""
-    return pd.DataFrame(
-        [
-            {
-                "source": source,
-                "src_id": src_id,
-                "name": f"Palong 17, {src_id}, Oil palm concession, MYS",
-                "leaf": "Palong 17",
-                "subtype": "oil-palm-concession",
-                "corrected": corrected,
-            }
-            for source, src_id, corrected in rows
-        ]
+async def test_check_aoi_selection_concessions_use_the_small_limit():
+    assert (
+        await check_aoi_selection(_make_aois("mining", SUBREGION_LIMIT))
+        is None
     )
-
-
-def _concession(src_id: str, source: str = "oil_palm") -> AOIIndex:
-    return AOIIndex(
-        source=source,
-        src_id=src_id,
-        name=f"Palong 17, {src_id}, Oil palm concession, MYS",
-        subtype="oil-palm-concession",
+    result = await check_aoi_selection(
+        _make_aois("mining", SUBREGION_LIMIT + 1)
     )
-
-
-async def test_check_concession_matches_nudges_on_several_parcels():
-    frame = _concession_frame(
-        [("oil_palm", "1", False), ("oil_palm", "2", False)]
-    )
-    result = await check_concession_matches([_concession("1")], [frame])
     assert result is not None
-    assert "Palong 17" in result
-    assert "map" in result
+    # The concession query stops one row past the limit, so the message
+    # gives no exact count.
+    assert f"{SUBREGION_LIMIT}+" in result
 
 
-async def test_check_concession_matches_none_for_a_single_match():
-    frame = _concession_frame(
-        [("oil_palm", "1", False), ("gadm", "MYS.1_1", False)]
+def test_build_selection_name_labels_concession_subregions():
+    from src.agent.subagents.pick_aoi.selection_name_util import (
+        build_selection_name,
     )
-    assert await check_concession_matches([_concession("1")], [frame]) is None
+    from src.agent.subagents.pick_aoi.tool import SUBREGION_DISPLAY_TERMS
 
-
-async def test_check_concession_matches_ignores_corrected_rows():
-    frame = _concession_frame(
-        [("oil_palm", "1", False), ("oil_palm", "2", True)]
+    assert (
+        build_selection_name(
+            ["Riau"], "oil_palm", 12, SUBREGION_DISPLAY_TERMS["oil_palm"]
+        )
+        == "12 Oil Palm Concessions in Riau"
     )
-    assert await check_concession_matches([_concession("1")], [frame]) is None
-
-
-async def test_check_concession_matches_skips_other_sources():
-    frame = _concession_frame([("wdpa", "1", False), ("wdpa", "2", False)])
-    selected = _concession("1", source="wdpa")
-    assert await check_concession_matches([selected], [frame]) is None

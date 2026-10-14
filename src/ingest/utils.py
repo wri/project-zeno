@@ -20,8 +20,11 @@ def cached_ndjson_path(url: str, cache_dir: Path = Path("/tmp")) -> Path:
     Return a local path for *url*, downloading once into *cache_dir*
     (skips if the file already exists).
     Works for plain HTTP/HTTPS as well as requester-pays S3 URLs.
+
+    The cache name is the whole URL path, not the file name: the data lake
+    names every dataset's export ``default.ndjson``.
     """
-    dest = cache_dir / Path(url).name
+    dest = cache_dir / url.split("://", 1)[-1].replace("/", "__")
     if dest.exists():
         print(f"✓ Using cached NDJSON → {dest}")
         return dest

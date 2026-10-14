@@ -36,7 +36,6 @@ from src.agent.subagents.pick_aoi.selection_name_util import (
     build_selection_name,
 )
 from src.agent.subagents.pick_aoi.types import (
-    CONCESSION_SOURCES,
     AreaOfInterestType,
     aoi_to_table,
 )
@@ -53,6 +52,7 @@ from src.shared.database import get_connection_from_pool
 from src.shared.gadm_admin_types import GadmAdminTerm, resolve_gadm_admin_level
 from src.shared.geocoding_helpers import (
     AOI_SOURCE_ID_COLUMNS,
+    CONCESSION_SOURCES,
     SUBREGION_TO_SUBTYPE_MAPPING,
 )
 from src.shared.logging_config import get_logger
@@ -210,6 +210,15 @@ SUBREGION_SOURCE_MAPPING = {
     "kba": "kba",
     "wdpa": "wdpa",
     "landmark": "landmark",
+    **{source: source for source in CONCESSION_SOURCES},
+}
+
+# The label of a concession subregion in the selection name ("12 Oil Palm
+# Concessions in Riau"); the other scopes read well as they are.
+SUBREGION_DISPLAY_TERMS = {
+    "oil_palm": "Oil Palm Concession",
+    "logging": "Logging Concession",
+    "mining": "Mining Concession",
 }
 
 
@@ -234,6 +243,10 @@ async def query_subregion_database(
     subregion gets no containment filter at all, so the result holds every
     admin unit of that subtype worldwide. ``check_aoi_selection`` then rejects
     it as too many subregions. This is a known defect.
+
+    A concession scope returns at most ``SUBREGION_LIMIT + 1`` rows: a large
+    parent overlaps hundreds of thousands of mining claims (Canada), and one
+    row past the limit is all ``check_aoi_selection`` needs to reject it.
     """
     if subregion_name not in SUBREGION_SOURCE_MAPPING:
         logger.error(f"Invalid subregion: {subregion_name}")
@@ -279,10 +292,32 @@ async def query_subregion_database(
         # Accept an overlap, but reject a shared border alone. The parent
         # geometry is a normalized MultiPolygon, so a repaired boundary can give
         # a slightly different result than the raw source geometry.
-        spatial_filter = (
-            "AND ST_Intersects(t.geometry, parent.geom) "
-            "AND NOT ST_Touches(t.geometry, parent.geom)"
-        )
+        #
+        # ST_Touches is the exact test, but GEOS does not prepare it: against
+        # a large parent (Canada has 3.9M vertices) it costs seconds per
+        # child. A child whose interior point lies in the parent cannot touch
+        # it only, and that test reuses the prepared parent, so ST_Touches
+        # runs only for the children that straddle the border.
+        #
+        # The build repairs each part on its own, so a few stored shapes stay
+        # invalid where two parts overlap, and ST_Touches raises a GEOS
+        # TopologyException on those: an invalid straddler is kept rather than
+        # failing the whole expansion. The parent's check is an uncorrelated
+        # subquery, which Postgres evaluates once and only when reached.
+        spatial_filter = """
+      AND ST_Intersects(t.geometry, parent.geom)
+      AND CASE
+          WHEN ST_Intersects(parent.geom, ST_PointOnSurface(t.geometry))
+              THEN true
+          WHEN (SELECT ST_IsValid(geom) FROM parent) AND ST_IsValid(t.geometry)
+              THEN NOT ST_Touches(t.geometry, parent.geom)
+          ELSE true
+      END"""
+
+    row_limit = ""
+    if subregion_source in CONCESSION_SOURCES:
+        row_limit = "LIMIT :row_limit"
+        params["row_limit"] = SUBREGION_LIMIT + 1
 
     # `bbox` is computed at build time. COALESCE replaces a null array with the
     # world bbox, which is the default of AOIIndex.
@@ -310,6 +345,7 @@ async def query_subregion_database(
       AND NOT t.is_deprecated
       {gadm_filter}
       {spatial_filter}
+    {row_limit}
     """
     logger.debug(f"Executing subregion query: {sql_query}")
 
@@ -537,10 +573,13 @@ async def check_aoi_selection(
         subregion_limit = SUBREGION_LIMIT_ADMIN
 
     if len(aois) > subregion_limit:
+        # A concession expansion stops one row past the limit, so its true
+        # count is unknown.
+        capped = aoi_source in CONCESSION_SOURCES
         return await t(
             "pick_aoi.too_many_subregions",
             language,
-            count=len(aois),
+            count=f"{subregion_limit}+" if capped else len(aois),
             subregion_limit=SUBREGION_LIMIT,
             subregion_limit_admin=SUBREGION_LIMIT_ADMIN,
         )
@@ -575,49 +614,6 @@ async def check_duplicate_aois(
     return None
 
 
-_CONCESSION_EXAMPLES = 5
-
-
-async def check_concession_matches(
-    selected_aois: list[AOIIndex],
-    all_results: list[pd.DataFrame],
-    language: str = DEFAULT_LANGUAGE,
-) -> Optional[str]:
-    """The message asking the user to narrow a concession search, or None.
-
-    A concession source splits one estate into parcels that share a name,
-    and its variants make a company or group name match every concession it
-    holds. So when a selected concession is one of several rows of its
-    source that the search matched, no pick is safe: the user picks on the
-    map or names the concession more precisely. Spelling-corrected rows do
-    not count, because they are guesses.
-    """
-    for selected_aoi, result in zip(selected_aois, all_results):
-        if selected_aoi.source not in CONCESSION_SOURCES or result.empty:
-            continue
-        matches = result[result.source == selected_aoi.source]
-        if "corrected" in matches.columns:
-            matches = matches[~matches.corrected.fillna(False).astype(bool)]
-        if len(matches) <= 1:
-            continue
-        count = (
-            f"{len(matches)}+"
-            if len(matches) >= RESULT_LIMIT
-            else str(len(matches))
-        )
-        return await t(
-            "pick_aoi.many_concessions",
-            language,
-            count=count,
-            short_name=_selected_leaf(selected_aoi, result),
-            candidate_names="\n".join(
-                f"- {name}"
-                for name in matches["name"].head(_CONCESSION_EXAMPLES)
-            ),
-        )
-    return None
-
-
 SubregionType = Literal[
     "country",
     "state",
@@ -628,6 +624,9 @@ SubregionType = Literal[
     "kba",
     "wdpa",
     "landmark",
+    "oil_palm",
+    "logging",
+    "mining",
 ]
 
 
@@ -724,7 +723,8 @@ class PlaceQuery(BaseModel):
         default=None,
         description=(
             "Set only to compare or analyze across many administrative units "
-            "inside the place(s); otherwise leave null."
+            "inside the place(s), or to reach the concessions inside them "
+            "(oil_palm/logging/mining); otherwise leave null."
         ),
     )
     admin_term: Optional[GadmAdminTerm] = Field(
@@ -738,7 +738,8 @@ class PlaceQuery(BaseModel):
             "different countries (Spain's provinces are one level deeper "
             "than Canada's), so this resolves the correct depth per country "
             "instead of guessing one depth globally. Leave null for "
-            "subregion=country/kba/wdpa/landmark, which are unambiguous."
+            "subregion=country/kba/wdpa/landmark and the concession types "
+            "(oil_palm/logging/mining), which are unambiguous."
         ),
     )
 
@@ -1064,25 +1065,6 @@ class Geocoder:
                 },
             )
 
-        concession_check = await check_concession_matches(
-            selected_aois,
-            [resolution.merged for resolution, _ in matched],
-            language,
-        )
-        if concession_check:
-            return Command(
-                update={
-                    "messages": [
-                        ToolMessage(
-                            concession_check,
-                            tool_call_id=tool_call_id,
-                            status="success",
-                            response_metadata={"msg_type": "human_feedback"},
-                        )
-                    ],
-                },
-            )
-
         match_names = [selected_aoi.name for selected_aoi in selected_aois]
         emit_progress(
             "pick_aoi", "matched", f"Picked: {', '.join(match_names)}"
@@ -1158,7 +1140,11 @@ class Geocoder:
             match_names,
             subregion,
             len(final_aois),
-            display_term=admin_term if admin_term_resolved else None,
+            display_term=(
+                admin_term
+                if admin_term and admin_term_resolved
+                else SUBREGION_DISPLAY_TERMS.get(subregion or "")
+            ),
         )
 
         logger.info(f"AOI selection name: {selection_name}")

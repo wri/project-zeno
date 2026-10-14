@@ -12,6 +12,7 @@ from src.agent.datasets.handlers.base import (
     DataSourceHandler,
 )
 from src.shared.geocoding_helpers import (
+    CONCESSION_SUBTYPES,
     format_id,
     get_geometry_data,
 )
@@ -306,7 +307,7 @@ class AnalyticsHandler(DataSourceHandler):
             aoi_type = "indigenous_land"
         elif aoi["subtype"] == "protected-area":
             aoi_type = "protected_area"
-        elif aoi["subtype"] in ("custom-area", "oil-palm-concession"):
+        elif aoi["subtype"] in ("custom-area", *CONCESSION_SUBTYPES):
             # The analytics API has no concession type, so a concession is
             # sent as its geometry, like a custom area.
             # See DistAlertsAnalyticsIn schema

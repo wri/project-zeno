@@ -56,6 +56,7 @@ from src.shared.aoi_search_sql import (
 from src.shared.config import SharedSettings
 from src.shared.geocoding_helpers import (
     AOI_SOURCE_ID_COLUMNS,
+    CONCESSION_SOURCES,
     GADM_LEVELS,
     GADM_STANDARD_ID_RE,
     SOURCE_STAGING_TABLES,
@@ -824,7 +825,14 @@ def backfill_turn_fields_command(batch_size: int, dry_run: bool):
 # ---------------------------------------------------------------------------
 
 # Reference sources first, custom last (custom depends only on custom_areas).
-_BUILD_SOURCES = ["gadm", "kba", "wdpa", "landmark", "oil_palm", "custom"]
+_BUILD_SOURCES = [
+    "gadm",
+    "kba",
+    "wdpa",
+    "landmark",
+    *CONCESSION_SOURCES,
+    "custom",
+]
 
 # This transform leaves `aois.properties` (JSONB) NULL. The column holds two
 # kinds of value that no code writes yet: the attributes of an uploaded custom
@@ -839,7 +847,7 @@ _ISO3_SOURCE_COLUMNS = {
     "kba": ["ISO3"],
     "wdpa": ["iso3"],
     "landmark": ["iso_code"],
-    "oil_palm": ["iso3"],
+    **{source: ["iso3"] for source in CONCESSION_SOURCES},
 }
 
 # The source columns that feed the search columns (leaf, context,
@@ -852,7 +860,8 @@ _SEARCH_SOURCE_COLUMNS = {
     "wdpa": ["wdpa_name", "orig_name", "desig_eng", "iso3"],
     "kba": ["NatName", "IntName", "Country"],
     "landmark": ["landmark_name", "category", "country"],
-    "oil_palm": ["conc_name", "company", "comp_group", "conc_type", "iso3"],
+    # Concessions are not searchable by name (see _unsearchable_exprs).
+    **{source: [] for source in CONCESSION_SOURCES},
 }
 
 # Collapses a run of repeated segments in a GADM context string. GADM repeats
@@ -1032,24 +1041,18 @@ def _landmark_exprs(col: _StagingColumns) -> SearchExprs:
     )
 
 
-def _oil_palm_exprs(col: _StagingColumns) -> SearchExprs:
-    # The leaf is the source's own concession name; the company, then the
-    # group, stands in when it is missing. The company and the group are
-    # also searchable as variants, so a search for a company or a group
-    # finds every concession it holds.
-    company = col.clean("company")
-    group = f"NULLIF({col.clean('comp_group')}, 'No group')"
-    designation = col.clean("conc_type")
+def _unsearchable_exprs(col: _StagingColumns) -> SearchExprs:
+    # Concessions are reached only as the subregions of a place ("oil palm
+    # concessions in Riau"), never by name. Most rows have no name, and the
+    # named ones repeat a company over thousands of parcels, so in the name
+    # search they would bury the places people look for. With no leaf, no
+    # variants and no vectors (see _build_reference_aois), no search stage
+    # and no token of aoi_search_tokens can reach them.
     return SearchExprs(
-        leaf=f"COALESCE({col.clean('conc_name')}, {company}, {group})",
-        context=(
-            f"NULLIF(concat_ws(', ', {designation}, {col.clean('iso3')}), '')"
-        ),
-        designation=designation,
-        variants=[
-            ("variant", f"ARRAY[{col.differs('company', 'conc_name')}]"),
-            ("variant", f"ARRAY[{group}]"),
-        ],
+        leaf="NULL::text",
+        context="NULL::text",
+        designation="NULL::text",
+        variants=[],
     )
 
 
@@ -1058,7 +1061,7 @@ _SEARCH_EXPR_BUILDERS = {
     "wdpa": _wdpa_exprs,
     "kba": _kba_exprs,
     "landmark": _landmark_exprs,
-    "oil_palm": _oil_palm_exprs,
+    **{source: _unsearchable_exprs for source in CONCESSION_SOURCES},
 }
 
 
@@ -1445,6 +1448,14 @@ async def _build_reference_aois(
         admin_expr = "NULL::smallint"
         disputed_expr = "false"
 
+    # The full vector also carries the display name, so an unsearchable
+    # source must not get one either.
+    if source in CONCESSION_SOURCES:
+        search_tsv = name_tsv = "NULL::tsvector"
+    else:
+        search_tsv = tsv_sql("leaf", "variants", "context", "name")
+        name_tsv = name_tsv_sql("leaf", "variants", "designation")
+
     # Normalize source geometry to a valid MultiPolygon once, then derive
     # geometry / bbox / area_km2 from the same shape.
     norm_geom = multipolygon_sql("geometry")
@@ -1503,8 +1514,8 @@ async def _build_reference_aois(
             leaf,
             {norm_sql("leaf")},
             designation,
-            {tsv_sql("leaf", "variants", "context", "name")},
-            {name_tsv_sql("leaf", "variants", "designation")}
+            {search_tsv},
+            {name_tsv}
         FROM normalized
         WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom)
         ON CONFLICT (source, source_id) WHERE NOT is_deprecated

@@ -62,9 +62,12 @@ HIERARCHY_SCORES: dict[str, float] = {
     "key-biodiversity-area": 0.2,
     "protected-area": 0.2,
     "indigenous-and-community-land": 0.2,
-    # Below every other source: a concession name is often a place name
-    # ("Palong 17", a district), and the place must win the tie.
+    # A name search never reaches a concession (the build gives it no
+    # search columns); every subtype needs a prior all the same. The lowest
+    # one, should that ever change.
     "oil-palm-concession": 0.1,
+    "logging-concession": 0.1,
+    "mining-concession": 0.1,
 }
 
 

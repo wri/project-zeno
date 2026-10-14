@@ -14,7 +14,6 @@ class AreaOfInterestType(StrEnum):
     WDPA = ("protected area, park, or reserve",)
     LANDMARK = ("indigenous region or territory",)
     KBA = "key biodiversity area"
-    OIL_PALM = "oil palm concession or plantation"
 
 
 aoi_to_table = {
@@ -22,9 +21,4 @@ aoi_to_table = {
     AreaOfInterestType.WDPA: "wdpa",
     AreaOfInterestType.LANDMARK: "landmark",
     AreaOfInterestType.KBA: "kba",
-    AreaOfInterestType.OIL_PALM: "oil_palm",
 }
-
-# Sources whose areas are concession parcels. A name or a company matches
-# many of them, so the geocoder asks the user to pick one rather than pick.
-CONCESSION_SOURCES = {"oil_palm"}

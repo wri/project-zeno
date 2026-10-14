@@ -17,7 +17,10 @@ These tests use one geometry layout, inside a 0..40 box of longitude and latitud
 import pytest
 from sqlalchemy import text
 
-from src.agent.subagents.pick_aoi.tool import query_subregion_database
+from src.agent.subagents.pick_aoi.tool import (
+    SUBREGION_LIMIT,
+    query_subregion_database,
+)
 from tests.conftest import async_session_maker, seed_reference_aoi
 
 
@@ -287,6 +290,79 @@ async def test_kba_src_ids_come_back_as_text():
 
     assert list(df["src_id"]) == ["16595"]
     assert list(df["sitrecid"]) == ["16595"]
+
+
+@pytest.mark.asyncio
+async def test_spatial_expansion_survives_an_invalid_child():
+    """The build repairs each part alone, so a stored shape can stay invalid.
+    ST_Touches raises on it; the expansion must not."""
+    await seed_reference_aoi(
+        "gadm", "BRA", "Brazil", "country", geometry_wkt=_box(0, 0, 20, 20)
+    )
+    # A bow-tie: self-intersecting, so invalid, and straddling x=20.
+    await seed_reference_aoi(
+        "landmark",
+        "L2",
+        "Bow-tie Territory",
+        "indigenous-and-community-land",
+        geometry_wkt="POLYGON((15 0, 25 10, 25 0, 15 10, 15 0))",
+    )
+
+    df = await query_subregion_database("landmark", "gadm", "BRA")
+
+    assert list(df["src_id"]) == ["L2"]
+
+
+# ---------------------------------------------------------------------------
+# Concessions: reached only as subregions
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_concession_expansion_returns_gfw_fid_as_text():
+    """The map sends the tile's gfw_fid; the expansion returns the same id."""
+    await seed_reference_aoi(
+        "gadm", "IDN", "Indonesia", "country", geometry_wkt=_box(0, 0, 20, 20)
+    )
+    await seed_reference_aoi(
+        "oil_palm",
+        "1234",
+        "Palong 17, FELDA, Oil palm concession, MYS",
+        "oil-palm-concession",
+        geometry_wkt=_box(0, 0, 10, 10),
+    )
+    await seed_reference_aoi(
+        "oil_palm",
+        "1235",
+        "Far away, Oil palm concession, MYS",
+        "oil-palm-concession",
+        geometry_wkt=_box(30, 0, 40, 10),
+    )
+
+    df = await query_subregion_database("oil_palm", "gadm", "IDN")
+
+    assert list(df["src_id"]) == ["1234"]
+    assert list(df["gfw_fid"]) == ["1234"]
+    assert set(df["subtype"]) == {"oil-palm-concession"}
+
+
+@pytest.mark.asyncio
+async def test_concession_expansion_stops_one_row_past_the_limit():
+    await seed_reference_aoi(
+        "gadm", "CAN", "Canada", "country", geometry_wkt=_box(0, 0, 20, 20)
+    )
+    for i in range(SUBREGION_LIMIT + 5):
+        await seed_reference_aoi(
+            "mining",
+            str(i),
+            f"Claim {i}, Mining concession, CAN",
+            "mining-concession",
+            geometry_wkt=_box(1, 1, 2, 2),
+        )
+
+    df = await query_subregion_database("mining", "gadm", "CAN")
+
+    assert len(df) == SUBREGION_LIMIT + 1
 
 
 # ---------------------------------------------------------------------------
