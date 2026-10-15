@@ -189,7 +189,7 @@ async def test_layer_with_a_context_layer_and_a_size():
         "2021-01-01",
         "2025-12-31",
     )
-    assert "tree_cover_density_threshold=0" in dataset["tile_url"]
+    assert "tree_cover_density_threshold=10" in dataset["tile_url"]
     assert dataset["tile_url"].endswith("&start_year=2021&end_year=2025")
 
 
