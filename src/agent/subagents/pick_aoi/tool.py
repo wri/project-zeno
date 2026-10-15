@@ -1096,11 +1096,18 @@ class Geocoder:
                 )
             ]
             subregion_dfs = await asyncio.gather(*subregion_tasks)
+            # A child that crosses the border between two parents comes back
+            # once per parent. Keep it once: the analytics API rejects a
+            # request whose feature ids are not unique.
             final_aois = []
+            seen = set()
             for df in subregion_dfs:
-                final_aois.extend(
-                    [AOIIndex(**row) for row in df.to_dict(orient="records")]
-                )
+                for row in df.to_dict(orient="records"):
+                    key = (row["source"], row["src_id"])
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    final_aois.append(AOIIndex(**row))
             emit_progress(
                 "pick_aoi",
                 "subregion",
