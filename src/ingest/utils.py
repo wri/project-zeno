@@ -5,6 +5,7 @@ from pathlib import Path
 import geopandas as gpd
 import requests
 import s3fs
+import shapely
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 
@@ -168,3 +169,99 @@ def create_id_index_if_not_exists(
         )
         conn.commit()
         print(f"✓ Created ID index {index_name} on {table_name}.{column}")
+
+
+# Why the ingests repair shapes as a whole
+# ----------------------------------------
+# Some sources draw one area as overlapping parts. `build-aois` repairs each
+# part on its own (repairing a huge multi-part shape whole can exhaust the
+# backend), and that cannot remove an overlap between parts. Such a shape
+# stays invalid in `aois`, and GEOS predicates (ST_Touches in the subregion
+# query) raise on it. The ingests therefore repair invalid shapes whole, in
+# Python: the GEOS "structure" repair unions overlapping parts, and it needs
+# GEOS 3.10, newer than the database's. The largest invalid WDPA shape (4.85M
+# points, 19,429 parts) takes about 20 s and 1.5 GB.
+
+
+def _as_multipolygon(geom):
+    """A repaired Polygon as a MultiPolygon: some staging columns are typed."""
+    if geom is not None and geom.geom_type == "Polygon":
+        return shapely.MultiPolygon([geom])
+    return geom
+
+
+def make_valid_polygons(geometry: gpd.GeoSeries) -> gpd.GeoSeries:
+    """*geometry* with each invalid shape repaired as a whole.
+
+    The "structure" repair unions overlapping parts and drops collapsed
+    (line or point) leftovers. A repaired shape is a MultiPolygon. Valid
+    shapes are left as they are.
+    """
+    invalid = ~geometry.is_valid
+    if not invalid.any():
+        return geometry
+    repaired = geometry.copy()
+    fixed = shapely.make_valid(
+        geometry[invalid].values, method="structure", keep_collapsed=False
+    )
+    repaired[invalid] = [_as_multipolygon(g) for g in fixed]
+    return repaired
+
+
+def repair_invalid_geometries(
+    table_name: str, column: str = "geometry"
+) -> int:
+    """Repair, in place, every invalid shape of a staging table.
+
+    For a table loaded before its ingest repaired shapes: no download and no
+    re-ingest. One row at a time, each its own transaction, so memory stays
+    bounded and an interrupted run resumes where it stopped. Run
+    `build-aois --source <source>` afterwards to carry the shapes into `aois`.
+    Returns the number of shapes repaired.
+    """
+    engine = create_engine(DB_URL)
+    with engine.connect() as conn:
+        rows = (
+            conn.execute(
+                text(
+                    f"SELECT ctid::text FROM {table_name} "
+                    f"WHERE {column} IS NOT NULL AND NOT ST_IsValid({column})"
+                )
+            )
+            .scalars()
+            .all()
+        )
+    print(f"Repairing {len(rows)} invalid shape(s) in {table_name}...")
+
+    repaired = 0
+    for i, ctid in enumerate(rows, start=1):
+        with engine.begin() as conn:
+            wkb = conn.execute(
+                text(
+                    f"SELECT ST_AsBinary({column}) FROM {table_name} "
+                    "WHERE ctid = CAST(:ctid AS tid)"
+                ),
+                {"ctid": ctid},
+            ).scalar()
+            if wkb is None:
+                continue
+            geom = _as_multipolygon(
+                shapely.make_valid(
+                    shapely.from_wkb(bytes(wkb)),
+                    method="structure",
+                    keep_collapsed=False,
+                )
+            )
+            conn.execute(
+                text(
+                    f"UPDATE {table_name} SET {column} = "
+                    "ST_SetSRID(ST_GeomFromWKB(:wkb), 4326) "
+                    "WHERE ctid = CAST(:ctid AS tid)"
+                ),
+                {"wkb": shapely.to_wkb(geom), "ctid": ctid},
+            )
+        repaired += 1
+        if i % 50 == 0 or i == len(rows):
+            print(f"  {i}/{len(rows)}")
+    print(f"✓ Repaired {repaired} shape(s) in {table_name}")
+    return repaired

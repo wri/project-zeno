@@ -27,16 +27,15 @@ Usage::
 
     uv run python src/ingest/ingest_concessions.py            # all types
     uv run python src/ingest/ingest_concessions.py oil_palm mining
+    uv run python src/ingest/ingest_concessions.py --repair-only
 """
 
 import re
-import sys
 from dataclasses import dataclass, field
 
 import geopandas as gpd
 import pandas as pd
 import pyogrio
-import shapely
 from sqlalchemy import create_engine, text
 
 from src.ingest.utils import (
@@ -44,6 +43,8 @@ from src.ingest.utils import (
     cached_ndjson_path,
     create_geometry_index_if_not_exists,
     create_id_index_if_not_exists,
+    make_valid_polygons,
+    repair_invalid_geometries,
 )
 from src.shared.geocoding_helpers import (
     AOI_SOURCE_ID_COLUMNS,
@@ -173,26 +174,6 @@ def concession_name(row: pd.Series, cont_id_in_name: bool = True) -> str:
     return ", ".join(part for part in parts if part)
 
 
-def make_valid_polygons(geometry: gpd.GeoSeries) -> gpd.GeoSeries:
-    """*geometry* with each invalid shape repaired as a whole.
-
-    A few sources draw one concession as overlapping parts (8 rows over the
-    five datasets). The build repairs each part on its own, which cannot
-    remove an overlap between parts, so the stored shape stayed invalid and
-    GEOS predicates such as ST_Touches raised on it. The "structure" repair
-    unions the overlapping parts; a concession is small enough to repair
-    whole. Valid shapes are left as they are.
-    """
-    invalid = ~geometry.is_valid
-    if not invalid.any():
-        return geometry
-    repaired = geometry.copy()
-    repaired[invalid] = shapely.make_valid(
-        geometry[invalid].values, method="structure", keep_collapsed=False
-    )
-    return repaired
-
-
 def prepare(chunk: pd.DataFrame, dataset: ConcessionDataset) -> pd.DataFrame:
     """Clean one chunk of a dataset and add its ``name`` and ``subtype``."""
     for column in _TEXT_COLUMNS:
@@ -259,9 +240,29 @@ def ingest_concessions(dataset: ConcessionDataset) -> None:
 
 
 if __name__ == "__main__":
-    names = sys.argv[1:] or list(CONCESSION_DATASETS)
-    unknown = set(names) - set(CONCESSION_DATASETS)
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument(
+        "types",
+        nargs="*",
+        metavar="type",
+        help=f"Concession types; default all ({', '.join(CONCESSION_DATASETS)}).",
+    )
+    parser.add_argument(
+        "--repair-only",
+        action="store_true",
+        help="Only repair the invalid shapes already in the staging tables.",
+    )
+    args = parser.parse_args()
+    unknown = set(args.types) - set(CONCESSION_DATASETS)
     if unknown:
-        sys.exit(f"Unknown concession type(s): {', '.join(sorted(unknown))}")
-    for name in names:
-        ingest_concessions(CONCESSION_DATASETS[name])
+        parser.error(
+            f"unknown concession type(s): {', '.join(sorted(unknown))}"
+        )
+    for name in args.types or list(CONCESSION_DATASETS):
+        dataset = CONCESSION_DATASETS[name]
+        if args.repair_only:
+            repair_invalid_geometries(SOURCE_STAGING_TABLES[dataset.source])
+        else:
+            ingest_concessions(dataset)

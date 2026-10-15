@@ -12,10 +12,10 @@ from src.ingest.ingest_concessions import (
     CONCESSION_DATASETS,
     clean_text,
     concession_name,
-    make_valid_polygons,
     prepare,
     strip_shares,
 )
+from src.ingest.utils import make_valid_polygons
 
 
 @pytest.mark.parametrize(
@@ -163,6 +163,7 @@ def test_make_valid_polygons_unions_overlapping_parts():
 
     assert out.is_valid.all()
     assert out.iloc[0].area == pytest.approx(7)
-    assert out.iloc[0].geom_type == "Polygon"
+    # Some staging columns are typed MULTIPOLYGON.
+    assert out.iloc[0].geom_type == "MultiPolygon"
     # A valid shape is not touched.
     assert out.iloc[1] is valid
