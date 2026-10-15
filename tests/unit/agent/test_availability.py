@@ -26,7 +26,7 @@ def _all_registered_tool_names() -> frozenset[str]:
 
 def test_skill_names_never_collide_with_tool_names():
     """A tool named like a skill would satisfy the wrong gate; keep the
-    namespaces disjoint so has_skill/has_tool stay unambiguous."""
+    namespaces disjoint so skill and tool gates stay unambiguous."""
     skill_names = {s.name for s in all_skills()}
     collisions = skill_names & _all_registered_tool_names()
     assert (

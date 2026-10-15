@@ -72,11 +72,6 @@ class DatabaseManager:
             self.engine, class_=AsyncSession, expire_on_commit=False
         )
 
-    async def get_session(self) -> AsyncSession:
-        """Get database session"""
-        async with self.async_session() as session:
-            yield session
-
     async def close(self):
         """Close database connection"""
         await self.engine.dispose()

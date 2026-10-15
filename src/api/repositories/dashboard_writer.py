@@ -474,16 +474,6 @@ async def add_section_with_widgets(
     return section_id, widget_ids
 
 
-async def get_section(section_id) -> Optional[DashboardSectionOrm]:
-    """Load a single section by id; the caller applies access checks via the
-    owning dashboard. Malformed ids are not-found (None), never an error."""
-    target = _parse_uuid(section_id)
-    if target is None:
-        return None
-    async with get_session_from_pool() as session:
-        return await session.get(DashboardSectionOrm, target)
-
-
 async def update_section(
     section_id,
     *,

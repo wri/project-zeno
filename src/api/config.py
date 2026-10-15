@@ -16,7 +16,6 @@ class _APISettings(BaseSettings):
     jev_timeout_seconds: float = 20.0
 
     # Quota settings
-    daily_quota_warning_threshold: int = 5
     admin_user_daily_quota: int = 100
     regular_user_daily_quota: int = 25
     pro_user_daily_quota: int = 50

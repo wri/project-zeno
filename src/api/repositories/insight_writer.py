@@ -66,7 +66,7 @@ async def persist_insight(
     """Persist an insight and its charts; return the new insight id (str).
 
     `codeact_parts` are the base64-encoded code/output blocks (as produced by
-    `ExecutionResult.get_encoded_parts`); empty for deterministic charts.
+    `_encode_parts` in the analyst tool); empty for deterministic charts.
     """
     async with get_session_from_pool() as session:
         insight_orm = add_insight_rows(

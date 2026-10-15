@@ -47,9 +47,6 @@ class Availability:
     def has_skill(self, name: str) -> bool:
         return name in self.skills
 
-    def has_tool(self, name: str) -> bool:
-        return name in self.tools
-
     def allows(self, gate: Gate) -> bool:
         """Whether prompt text behind ``gate`` may be shown to this profile."""
         if gate is None:

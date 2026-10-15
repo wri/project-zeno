@@ -226,11 +226,3 @@ def require_scope(scope: str):
         )
 
     return _dep
-
-
-async def fetch_user(
-    user_info: UserModel = Depends(fetch_user_from_rw_api),
-    session: AsyncSession = Depends(get_session_from_pool_dependency),
-):
-    """Deprecated: Use require_auth() or optional_auth() instead."""
-    return await optional_auth(user_info, session)

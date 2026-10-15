@@ -25,7 +25,6 @@ _ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_DATA_DIR = _ROOT / "data" / "insights"
 DEFAULT_INDEX_DIR = _ROOT / "data" / "insights_index"
 LEGACY_DEFAULT_DATA_DIR = _ROOT / "data" / "wri_insights"
-LEGACY_DEFAULT_INDEX_DIR = _ROOT / "data" / "wri_insights_index"
 MODEL_NAME = "minishlab/potion-retrieval-32M"
 
 # Citation-tagged paragraph: [§N] or [§N | Section: "..."], optionally

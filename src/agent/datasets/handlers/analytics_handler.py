@@ -4,7 +4,6 @@ from time import monotonic
 from typing import Any, Dict
 
 import httpx
-from pydantic import BaseModel
 
 from src.agent.datasets.config import DATASETS
 from src.agent.datasets.handlers.base import (
@@ -19,12 +18,6 @@ from src.shared.geocoding_helpers import (
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
-
-
-class BooleanResponse(BaseModel):
-    """Response model for boolean queries"""
-
-    result: bool
 
 
 # How long to wait for a pending analytics job. Jobs can legitimately run for
