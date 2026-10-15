@@ -153,6 +153,18 @@ LAND_GHG_INVENTORY_ID = [
     if ds["dataset_name"] == "Land GHG Monitoring System (LGMS)"
 ][0]
 
+# AOI subtypes that the handler sends as their geometry (a feature collection).
+GEOMETRY_SUBTYPES = ("custom-area", *CONCESSION_SUBTYPES)
+# The analytics API has no feature_collection AOI type for these endpoints.
+GEOMETRY_UNSUPPORTED_IDS = {
+    TREE_COVER_GAIN_ID,
+    TREE_COVER_ID,
+    LAND_GHG_INVENTORY_ID,
+}
+# The API accepts a feature collection with this context layer, but the
+# analysis then fails.
+GEOMETRY_UNSUPPORTED_CONTEXT_LAYERS = {"intact_forest"}
+
 
 def _first_list_len(section: Any) -> int:
     if isinstance(section, dict):
@@ -307,7 +319,7 @@ class AnalyticsHandler(DataSourceHandler):
             aoi_type = "indigenous_land"
         elif aoi["subtype"] == "protected-area":
             aoi_type = "protected_area"
-        elif aoi["subtype"] in ("custom-area", *CONCESSION_SUBTYPES):
+        elif aoi["subtype"] in GEOMETRY_SUBTYPES:
             # The analytics API has no concession type, so a concession is
             # sent as its geometry, like a custom area.
             # See DistAlertsAnalyticsIn schema
@@ -677,6 +689,33 @@ class AnalyticsHandler(DataSourceHandler):
                 f"The GFW Analytics API does not support the "
                 f"{aois[0]['subtype']} level; it takes country, "
                 "state-province and district-county areas."
+            )
+            return DataPullResult(
+                success=False,
+                data=None,
+                message=msg,
+                data_points_count=0,
+                analytics_api_url=None,
+            )
+        # Custom areas and concessions go to the API as geometries, which
+        # some datasets and context layers do not support.
+        if any(aoi["subtype"] in GEOMETRY_SUBTYPES for aoi in aois) and (
+            dataset.get("dataset_id") in GEOMETRY_UNSUPPORTED_IDS
+            or dataset.get("context_layer")
+            in GEOMETRY_UNSUPPORTED_CONTEXT_LAYERS
+        ):
+            layer = dataset.get("context_layer")
+            msg = (
+                "This dataset"
+                + (
+                    f" with the {layer} context layer"
+                    if layer in GEOMETRY_UNSUPPORTED_CONTEXT_LAYERS
+                    else ""
+                )
+                + " is not available for custom areas or concessions. "
+                "Choose a different dataset or context layer, or an admin "
+                "area, protected area, key biodiversity area or indigenous "
+                "land."
             )
             return DataPullResult(
                 success=False,

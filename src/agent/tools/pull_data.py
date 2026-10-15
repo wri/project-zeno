@@ -231,12 +231,16 @@ async def pull_data(
     logger.debug(f"Pull data tool message: {result.message}")
 
     if not result.success:
+        # Keep the handler's reason, so the agent can explain the failure.
+        # The reason can hold a full API response with the AOI geometry, so
+        # it is cut short.
         return _human_feedback(
             await t(
                 "pull_data.no_data",
                 language,
                 dataset_name=dataset["dataset_name"],
-            ),
+            )
+            + f"\n\n{(result.message or '')[:500]}",
             tool_call_id,
         )
 
