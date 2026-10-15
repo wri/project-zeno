@@ -301,9 +301,11 @@ async def query_subregion_database(
         # it only, and that test reuses the prepared parent, so ST_Touches
         # runs only for the children that straddle the border.
         #
-        # The build repairs each part on its own, so a few stored shapes stay
-        # invalid where two parts overlap, and ST_Touches raises a GEOS
-        # TopologyException on those: an invalid straddler is kept rather than
+        # The build repairs each part on its own, so a shape whose parts
+        # overlap stays invalid, and ST_Touches raises a GEOS
+        # TopologyException on it. GADM, KBA and the concessions (repaired
+        # whole at ingest) have none; WDPA (125) and LandMark (12) do, as a
+        # parent or as a child. An invalid straddler is kept rather than
         # failing the whole expansion. The parent's check is an uncorrelated
         # subquery, which Postgres evaluates once and only when reached.
         spatial_filter = """

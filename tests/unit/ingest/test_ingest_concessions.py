@@ -3,13 +3,16 @@
 The values are rows of the GFW v2025 concession files.
 """
 
+import geopandas as gpd
 import pandas as pd
 import pytest
+from shapely.geometry import MultiPolygon, box
 
 from src.ingest.ingest_concessions import (
     CONCESSION_DATASETS,
     clean_text,
     concession_name,
+    make_valid_polygons,
     prepare,
     strip_shares,
 )
@@ -148,3 +151,18 @@ def test_rspo_names_leave_out_the_membership_number():
 
 def test_other_unknown_is_no_data():
     assert clean_text("Other / Unknown") is None
+
+
+def test_make_valid_polygons_unions_overlapping_parts():
+    # Two overlapping parts: an invalid MultiPolygon, as 8 source rows are.
+    overlapping = MultiPolygon([box(0, 0, 2, 2), box(1, 1, 3, 3)])
+    valid = box(10, 10, 11, 11)
+    assert not overlapping.is_valid
+
+    out = make_valid_polygons(gpd.GeoSeries([overlapping, valid]))
+
+    assert out.is_valid.all()
+    assert out.iloc[0].area == pytest.approx(7)
+    assert out.iloc[0].geom_type == "Polygon"
+    # A valid shape is not touched.
+    assert out.iloc[1] is valid

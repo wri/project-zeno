@@ -36,6 +36,7 @@ from dataclasses import dataclass, field
 import geopandas as gpd
 import pandas as pd
 import pyogrio
+import shapely
 from sqlalchemy import create_engine, text
 
 from src.ingest.utils import (
@@ -172,6 +173,26 @@ def concession_name(row: pd.Series, cont_id_in_name: bool = True) -> str:
     return ", ".join(part for part in parts if part)
 
 
+def make_valid_polygons(geometry: gpd.GeoSeries) -> gpd.GeoSeries:
+    """*geometry* with each invalid shape repaired as a whole.
+
+    A few sources draw one concession as overlapping parts (8 rows over the
+    five datasets). The build repairs each part on its own, which cannot
+    remove an overlap between parts, so the stored shape stayed invalid and
+    GEOS predicates such as ST_Touches raised on it. The "structure" repair
+    unions the overlapping parts; a concession is small enough to repair
+    whole. Valid shapes are left as they are.
+    """
+    invalid = ~geometry.is_valid
+    if not invalid.any():
+        return geometry
+    repaired = geometry.copy()
+    repaired[invalid] = shapely.make_valid(
+        geometry[invalid].values, method="structure", keep_collapsed=False
+    )
+    return repaired
+
+
 def prepare(chunk: pd.DataFrame, dataset: ConcessionDataset) -> pd.DataFrame:
     """Clean one chunk of a dataset and add its ``name`` and ``subtype``."""
     for column in _TEXT_COLUMNS:
@@ -215,6 +236,7 @@ def ingest_concessions(dataset: ConcessionDataset) -> None:
             # the build reads "geometry".
             if chunk.geometry.name != "geometry":
                 chunk = chunk.rename_geometry("geometry")
+            chunk["geometry"] = make_valid_polygons(chunk.geometry)
             prepare(chunk, dataset).to_postgis(
                 table,
                 engine,
