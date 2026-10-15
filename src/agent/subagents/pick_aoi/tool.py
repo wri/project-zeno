@@ -219,6 +219,8 @@ SUBREGION_DISPLAY_TERMS = {
     "oil_palm": "Oil Palm Concession",
     "logging": "Logging Concession",
     "mining": "Mining Concession",
+    "rspo_oil_palm": "RSPO Oil Palm Concession",
+    "wood_fiber": "Wood Fiber Concession",
 }
 
 
@@ -625,8 +627,10 @@ SubregionType = Literal[
     "wdpa",
     "landmark",
     "oil_palm",
+    "rspo_oil_palm",
     "logging",
     "mining",
+    "wood_fiber",
 ]
 
 
@@ -724,7 +728,8 @@ class PlaceQuery(BaseModel):
         description=(
             "Set only to compare or analyze across many administrative units "
             "inside the place(s), or to reach the concessions inside them "
-            "(oil_palm/logging/mining); otherwise leave null."
+            "(oil_palm/rspo_oil_palm/logging/mining/wood_fiber); otherwise "
+            "leave null."
         ),
     )
     admin_term: Optional[GadmAdminTerm] = Field(
@@ -739,7 +744,8 @@ class PlaceQuery(BaseModel):
             "than Canada's), so this resolves the correct depth per country "
             "instead of guessing one depth globally. Leave null for "
             "subregion=country/kba/wdpa/landmark and the concession types "
-            "(oil_palm/logging/mining), which are unambiguous."
+            "(oil_palm/rspo_oil_palm/logging/mining/wood_fiber), which are "
+            "unambiguous."
         ),
     )
 

@@ -123,3 +123,28 @@ def test_prepare_cleans_before_naming():
     assert row.company == "IDM Mining Ltd"
     assert row["name"] == ("IDM Mining Ltd (P 42344), Mining concession, CAN")
     assert row.subtype == "mining-concession"
+
+
+def test_rspo_names_leave_out_the_membership_number():
+    chunk = pd.DataFrame(
+        [
+            {
+                "gfw_fid": 4477,
+                "iso3": "MYS",
+                "conc_type": "Oil palm concession (RSPO)",
+                "conc_name": None,
+                "company": "TDM Plantation Sdn Bhd",
+                "comp_group": "TDM Plantation Sdn Bhd",
+                "cont_id": "1-0095-11-000-00",
+            }
+        ]
+    )
+    out = prepare(chunk, CONCESSION_DATASETS["rspo_oil_palm"])
+    assert out.iloc[0]["name"] == (
+        "TDM Plantation Sdn Bhd, Oil palm concession (RSPO), MYS"
+    )
+    assert out.iloc[0].subtype == "rspo-oil-palm-concession"
+
+
+def test_other_unknown_is_no_data():
+    assert clean_text("Other / Unknown") is None

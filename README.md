@@ -160,7 +160,7 @@ for running the system locally.
    uv run python src/ingest/ingest_kba.py
    uv run python src/ingest/ingest_landmark.py
    uv run python src/ingest/ingest_wdpa.py
-   uv run python src/ingest/ingest_concessions.py  # oil_palm, logging, mining (~1.6 GB)
+   uv run python src/ingest/ingest_concessions.py  # GFW concessions, five types (~1.8 GB)
    ```
 
    See `src/ingest/` directory for details on each ingestion script.

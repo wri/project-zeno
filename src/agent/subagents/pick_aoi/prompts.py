@@ -84,10 +84,13 @@ multiple administrative units inside a parent area, or asks about
 concessions. Otherwise leave it null.
 
 Types: country, state, district, municipality, locality, neighbourhood, kba,
-wdpa, landmark, oil_palm, logging, mining — where state is a province/region,
-district is a county, kba is a Key Biodiversity Area, wdpa is a protected
-area, landmark is an Indigenous/community land, and oil_palm, logging and
-mining are oil palm, logging (timber) and mining concessions.
+wdpa, landmark, oil_palm, rspo_oil_palm, logging, mining, wood_fiber — where
+state is a province/region, district is a county, kba is a Key Biodiversity
+Area, wdpa is a protected area, landmark is an Indigenous/community land, and
+the rest are concession types: oil palm, RSPO-certified oil palm, logging
+(timber), mining, and wood fiber (pulpwood/timber plantation) concessions.
+Use rspo_oil_palm only when the user says RSPO; plain "oil palm" is
+oil_palm.
 
 Concessions are found only as the subregions of a place, never by their own
 name. Whenever the request is about concessions, set the concession type as
@@ -124,6 +127,8 @@ Use subregion:
 - "Deforestation in oil palm concessions in Riau" → places=["Riau"], subregion=oil_palm
 - "Which logging concessions in Gabon lost the most tree cover?" → places=["Gabon"], subregion=logging
 - "Forest loss in mining concessions inside Bahuaja-Sonene National Park" → places=["Bahuaja-Sonene National Park"], subregion=mining
+- "Tree cover loss in RSPO concessions in Sabah" → places=["Sabah"], subregion=rspo_oil_palm
+- "Pulpwood plantations in Jambi" → places=["Jambi"], subregion=wood_fiber
 
 Do not use subregion:
 - "Deforestation in Ontario" → places=["Ontario"], no subregion

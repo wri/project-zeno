@@ -29,7 +29,8 @@ parents and country (consecutive duplicate segments collapsed), WDPA
 derived at build time and not stored as text; nothing reads it except the
 vector.
 
-The concession sources (`oil_palm`, `logging`, `mining`) are not searchable
+The concession sources (`oil_palm`, `rspo_oil_palm`, `logging`, `mining`,
+`wood_fiber`) are not searchable
 by name. Most of their rows have no name, and the named ones repeat one
 company over thousands of parcels, so in the name search they would bury
 the places people look for. The build writes their rows with a display name
@@ -222,7 +223,7 @@ current ones; the source is authoritative.
 
 | constant | value | file | changes |
 |---|---|---|---|
-| `HIERARCHY_SCORES` | country 1.0, state 0.9, district 0.7, custom 0.7, municipality 0.5, locality 0.35, neighbourhood 0.25, KBA/WDPA/LandMark 0.2, oil palm/logging/mining concession 0.1 | `aoi_search_sql.py` | the prior in the sort, the score, the token table's `prominence`, the geocoder's hierarchy term and nudge floor |
+| `HIERARCHY_SCORES` | country 1.0, state 0.9, district 0.7, custom 0.7, municipality 0.5, locality 0.35, neighbourhood 0.25, KBA/WDPA/LandMark 0.2, every concession type 0.1 | `aoi_search_sql.py` | the prior in the sort, the score, the token table's `prominence`, the geocoder's hierarchy term and nudge floor |
 | `_SCORE_TIER_WEIGHT`, `_SCORE_CONTEXT_WEIGHT`, `_SCORE_PRIOR_WEIGHT` | 0.55, 0.2, 0.25 | `aoi_search.py` | the search score only (not the order) |
 | `_AUTOCOMPLETE_TIER_WEIGHT`, `_AUTOCOMPLETE_PRIOR_WEIGHT` | 0.5, 0.5 | `aoi_search.py` | the autocomplete score only |
 | `_CORRECTED_SCORE_SCALE`, `_PARTIAL_SCORE_SCALE` | 0.8, 0.6 | `aoi_search.py` | how far a corrected / word-dropped result's score sits below an as-typed one |

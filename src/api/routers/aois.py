@@ -37,9 +37,11 @@ async def search_aois_endpoint(
         default=[],
         description=(
             "Source(s) to filter by: gadm, kba, wdpa (protectedareas), "
-            "landmark, oil_palm, logging, mining, custom. Repeatable; omit "
+            "landmark, oil_palm, rspo_oil_palm, logging, mining, wood_fiber, "
+            "custom. Repeatable; omit "
             "to search all sources except the concessions (oil_palm, "
-            "logging, mining), which a name never matches."
+            "rspo_oil_palm, logging, mining, wood_fiber), which a name never "
+            "matches."
         ),
     ),
     limit: int = Query(default=50, ge=1, le=100),

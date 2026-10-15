@@ -6,7 +6,7 @@ same row count, same attributes) plus ``gfw_fid`` and ``gfw_geostore_id``.
 ``gfw_fid`` is the id the GFW tile cache carries, so an area picked on the
 GFW concession layer resolves to the same AOI that search finds.
 
-The three datasets share one schema (``iso3``, ``conc_type``, ``conc_name``,
+The five datasets share one schema (``iso3``, ``conc_type``, ``conc_name``,
 ``cont_type``, ``cont_id``, ``company``, ``comp_group``, ...). Mining has
 ``mineral`` in place of ``comp_group``.
 
@@ -61,12 +61,20 @@ class ConcessionDataset:
     # conc_name values that name no concession: a territory or a pointer to
     # another table, repeated over thousands of rows.
     name_markers: frozenset[str] = field(default_factory=frozenset)
+    # Whether cont_id tells this dataset's parcels apart. RSPO's is the
+    # member's certification number, shared by thousands of parcels.
+    cont_id_in_name: bool = True
 
 
 CONCESSION_DATASETS = {
     "oil_palm": ConcessionDataset(
         source="oil_palm",
         url=f"{_DATA_LAKE}/gfw_oil_palm/v2025/{_NDJSON}",
+    ),
+    "rspo_oil_palm": ConcessionDataset(
+        source="rspo_oil_palm",
+        url=f"{_DATA_LAKE}/rspo_oil_palm/v2025/{_NDJSON}",
+        cont_id_in_name=False,
     ),
     "logging": ConcessionDataset(
         source="logging",
@@ -79,6 +87,10 @@ CONCESSION_DATASETS = {
         name_markers=frozenset(
             {"Yukon Territory", "REFER TO LOT TABLE", "Not found"}
         ),
+    ),
+    "wood_fiber": ConcessionDataset(
+        source="wood_fiber",
+        url=f"{_DATA_LAKE}/gfw_wood_fiber/v2025/{_NDJSON}",
     ),
 }
 
@@ -103,6 +115,7 @@ _NO_DATA = frozenset(
         "No Data",
         "No group",
         "Unknown",
+        "Other / Unknown",
         "DADO NÃO CADASTRADO",  # SIGMINE (Brazil): "data not registered"
     }
 )
@@ -135,7 +148,7 @@ def strip_shares(company: str | None) -> str | None:
     return stripped or None
 
 
-def concession_name(row: pd.Series) -> str:
+def concession_name(row: pd.Series, cont_id_in_name: bool = True) -> str:
     """The display name: ``leaf (cont_id), company, type, ISO3``.
 
     The leaf is the source's own ``conc_name``; when that is missing, the
@@ -147,7 +160,7 @@ def concession_name(row: pd.Series) -> str:
     conc_type = row.get("conc_type")
     leaf = name or company or row.get("comp_group")
     head = leaf or conc_type
-    cont_id = row.get("cont_id")
+    cont_id = row.get("cont_id") if cont_id_in_name else None
     if cont_id:
         head = f"{head} ({cont_id})"
     parts = [
@@ -171,7 +184,9 @@ def prepare(chunk: pd.DataFrame, dataset: ConcessionDataset) -> pd.DataFrame:
             )
     if "company" in chunk.columns:
         chunk["company"] = chunk["company"].map(strip_shares)
-    chunk["name"] = chunk.apply(concession_name, axis=1)
+    chunk["name"] = chunk.apply(
+        concession_name, axis=1, cont_id_in_name=dataset.cont_id_in_name
+    )
     chunk["subtype"] = SUBREGION_TO_SUBTYPE_MAPPING[dataset.source]
     return chunk
 

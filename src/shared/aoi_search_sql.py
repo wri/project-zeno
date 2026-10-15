@@ -68,6 +68,8 @@ HIERARCHY_SCORES: dict[str, float] = {
     "oil-palm-concession": 0.1,
     "logging-concession": 0.1,
     "mining-concession": 0.1,
+    "rspo-oil-palm-concession": 0.1,
+    "wood-fiber-concession": 0.1,
 }
 
 
