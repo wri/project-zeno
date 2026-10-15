@@ -25,6 +25,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from src.agent.datasets.handlers.analytics_handler import (
+    INTEGRATED_ALERTS_ID,
+    AnalyticsHandler,
+)
 from src.agent.i18n import t
 from src.api.auth.dependencies import optional_auth, require_auth
 from src.api.data_models import DashboardOrm, InsightOrm, UserType
@@ -37,6 +41,8 @@ from src.api.routers.insights import (
 )
 from src.api.schemas import (
     AnalysisTemplateResponse,
+    DashboardAlertsSummaryRequest,
+    DashboardAlertsSummaryResponse,
     DashboardAoiResponse,
     DashboardCreateRequest,
     DashboardPublicToggleRequest,
@@ -63,6 +69,13 @@ from src.api.services.analysis_templates.registry import (
     TEMPLATES,
     get_template,
 )
+from src.api.services.dashboard_alerts import (
+    AlertsSource,
+    AnalyticsAlertsSource,
+    DashboardAlertsService,
+    InvalidPeriodError,
+)
+from src.api.services.dashboard_aoi import dashboard_aoi
 from src.shared.database import get_session_from_pool_dependency
 from src.shared.logging_config import get_logger
 from src.shared.tile_urls import absolutize_widget_config
@@ -236,6 +249,46 @@ async def get_dashboard(
             raise HTTPException(status_code=404, detail="Dashboard not found")
 
     return await _expanded_response(row, user, session)
+
+
+def get_alerts_source() -> AlertsSource:
+    return AnalyticsAlertsSource(AnalyticsHandler())
+
+
+def get_dashboard_alerts_service(
+    source: AlertsSource = Depends(get_alerts_source),
+) -> DashboardAlertsService:
+    return DashboardAlertsService(source)
+
+
+@router.post(
+    "/api/dashboards/alerts-summary",
+    response_model=DashboardAlertsSummaryResponse,
+)
+async def summarize_dashboard_alerts(
+    body: DashboardAlertsSummaryRequest,
+    user: UserModel = Depends(require_auth),
+    service: DashboardAlertsService = Depends(get_dashboard_alerts_service),
+):
+    """Integrated alerts area in each dashboard's AOI over the requested
+    period, by default the latest full alert week (Sunday to Saturday)."""
+    rows = await dashboard_writer.get_visible_dashboards_with_dataset(
+        body.dashboard_ids, user.id, INTEGRATED_ALERTS_ID
+    )
+    try:
+        report = await service.summarize(
+            {row.id: dashboard_aoi(row) for row in rows},
+            body.start_date,
+            body.end_date,
+        )
+    except InvalidPeriodError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(error),
+        )
+    return DashboardAlertsSummaryResponse.model_validate(
+        report, from_attributes=True
+    )
 
 
 @router.patch(

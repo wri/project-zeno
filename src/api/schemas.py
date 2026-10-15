@@ -1009,6 +1009,38 @@ class DashboardPublicToggleResponse(DashboardResponse):
     )
 
 
+class DashboardAlertsSummaryRequest(BaseModel):
+    dashboard_ids: List[UUID] = Field(min_length=1, max_length=50)
+    start_date: Optional[date] = Field(
+        default=None,
+        description="Defaults to the start of the latest full alert week.",
+    )
+    end_date: Optional[date] = Field(
+        default=None,
+        description="Defaults to the end of the latest full alert week.",
+    )
+
+
+class DashboardAlertsResponse(BaseModel):
+    integrated_alerts: Optional[float] = Field(
+        description="Alert area in hectares; null when it could not be fetched."
+    )
+    errors: Dict[str, str] = Field(
+        default={}, description="Why an alert type could not be fetched."
+    )
+
+
+class DashboardAlertsSummaryResponse(BaseModel):
+    start_date: date
+    end_date: date
+    dashboards: Dict[UUID, DashboardAlertsResponse] = Field(
+        description=(
+            "Dashboards the user may see that have an integrated alerts chart "
+            "and a GADM country, state-province or district-county AOI."
+        )
+    )
+
+
 class DatasetPaletteCategoryResponse(BaseModel):
     slug: str
     label_en: str

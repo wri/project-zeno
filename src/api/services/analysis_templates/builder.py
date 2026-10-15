@@ -56,6 +56,7 @@ from src.api.services.charts.tcl_natural_forest import (
     TCLNaturalForestChartGenerator,
     natural_forest_totals,
 )
+from src.api.services.dashboard_aoi import dashboard_aoi
 from src.api.services.widget_configs import (
     dataset_config,
     imagery_config,
@@ -393,19 +394,6 @@ async def _run_builder(spec, context: BuildContext):
     return built
 
 
-def _first_aoi(dashboard: DashboardOrm) -> Optional[dict]:
-    """The AOI a template covers. Portfolios are not in v1."""
-    if not dashboard.aois:
-        return None
-    aoi = min(dashboard.aois, key=lambda a: a.position)
-    return {
-        "source": aoi.source,
-        "src_id": aoi.src_id,
-        "subtype": aoi.subtype,
-        "name": aoi.name,
-    }
-
-
 async def apply_template(
     dashboard: DashboardOrm,
     template: AnalysisTemplate,
@@ -420,7 +408,7 @@ async def apply_template(
     ``args`` with ``template.parse_args``. Raises a ``TemplateError`` subclass when
     the build cannot finish; nothing is written then.
     """
-    aoi = _first_aoi(dashboard)
+    aoi = dashboard_aoi(dashboard)
     if aoi is None:
         raise NoAreaError(
             f"Dashboard '{dashboard.name}' has no area. Add an area first."

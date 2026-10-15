@@ -21,8 +21,10 @@ from src.api.data_models import (
     DashboardOrm,
     DashboardSectionOrm,
     DashboardWidgetOrm,
+    InsightChartOrm,
     InsightOrm,
 )
+from src.api.repositories.dashboard_access import visible_dashboards_clause
 from src.api.repositories.insight_writer import add_insight_rows
 from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger
@@ -143,6 +145,32 @@ async def get_dashboard(dashboard_id) -> Optional[DashboardOrm]:
             .where(DashboardOrm.id == target)
         )
         return result.scalar_one_or_none()
+
+
+async def get_visible_dashboards_with_dataset(
+    dashboard_ids: list[UUID], user_id: str, dataset_id: int
+) -> list[DashboardOrm]:
+    """The dashboards the user may see that have a chart of the dataset,
+    with their AOIs."""
+    with_dataset = (
+        select(DashboardWidgetOrm.dashboard_id)
+        .join(
+            InsightChartOrm,
+            InsightChartOrm.insight_id == DashboardWidgetOrm.insight_id,
+        )
+        .where(InsightChartOrm.dataset_id == dataset_id)
+    )
+    async with get_session_from_pool() as session:
+        result = await session.execute(
+            select(DashboardOrm)
+            .options(selectinload(DashboardOrm.aois))
+            .where(
+                DashboardOrm.id.in_(dashboard_ids),
+                DashboardOrm.id.in_(with_dataset),
+                visible_dashboards_clause(user_id),
+            )
+        )
+        return list(result.scalars().all())
 
 
 async def get_widget(widget_id) -> Optional[DashboardWidgetOrm]:

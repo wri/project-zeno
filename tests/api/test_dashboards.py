@@ -1,10 +1,14 @@
 """Tests for dashboard endpoints: CRUD, widgets, publish cascade, auth."""
 
 import uuid
+from datetime import date
 
 import pytest
 
-from src.api.data_models import InsightOrm, UserOrm
+from src.agent.datasets.handlers.analytics_handler import INTEGRATED_ALERTS_ID
+from src.api.app import app
+from src.api.data_models import InsightChartOrm, InsightOrm, UserOrm
+from src.api.routers.dashboards import get_alerts_source
 from src.shared.config import SharedSettings
 from tests.conftest import async_session_maker
 
@@ -1263,3 +1267,110 @@ async def test_section_with_widgets_unknown_dashboard(client):
         )
         is None
     )
+
+
+# ---------------------------------------------------------------------------
+# POST /api/dashboards/alerts-summary
+# ---------------------------------------------------------------------------
+class FakeAlertsSource:
+    async def area_ha_by_src_id(self, aois, start, end):
+        return {aoi["src_id"]: 42.0 for aoi in aois}
+
+
+@pytest.fixture
+def fake_alerts_source():
+    app.dependency_overrides[get_alerts_source] = FakeAlertsSource
+    yield
+    app.dependency_overrides.pop(get_alerts_source, None)
+
+
+async def _add_alerts_chart_widget(client, dashboard_id, user_id):
+    insight = await _create_insight(user_id=user_id)
+    async with async_session_maker() as session:
+        session.add(
+            InsightChartOrm(
+                insight_id=insight.id,
+                title="Integrated alerts",
+                chart_type="line",
+                chart_data=[],
+                dataset_id=INTEGRATED_ALERTS_ID,
+            )
+        )
+        await session.commit()
+    response = await client.post(
+        f"/api/dashboards/{dashboard_id}/widgets",
+        headers=AUTH,
+        json={"widget_type": "insight", "insight_id": str(insight.id)},
+    )
+    assert response.status_code == 201
+
+
+async def _alerts_summary(client, dashboard_ids, headers=AUTH, **dates):
+    return await client.post(
+        "/api/dashboards/alerts-summary",
+        headers=headers,
+        json={"dashboard_ids": [str(i) for i in dashboard_ids], **dates},
+    )
+
+
+@pytest.mark.asyncio
+async def test_alerts_summary_reports_dashboards_with_alerts_chart(
+    client, auth_override, fake_alerts_source
+):
+    user = await _create_user("alerts-owner")
+    auth_override(user.id)
+    with_alerts = await _create_dashboard(client)
+    await _add_alerts_chart_widget(client, with_alerts["id"], user.id)
+    without_alerts = await _create_dashboard(client)
+
+    response = await _alerts_summary(
+        client, [with_alerts["id"], without_alerts["id"]]
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert date.fromisoformat(body["end_date"]).weekday() == 5
+    assert body["dashboards"] == {
+        with_alerts["id"]: {"integrated_alerts": 42.0, "errors": {}}
+    }
+
+
+@pytest.mark.asyncio
+async def test_alerts_summary_leaves_out_other_users_private_dashboards(
+    client, auth_override, fake_alerts_source
+):
+    owner = await _create_user("alerts-victim")
+    other = await _create_user("alerts-snoop")
+    auth_override(owner.id)
+    dashboard = await _create_dashboard(client)
+    await _add_alerts_chart_widget(client, dashboard["id"], owner.id)
+
+    auth_override(other.id)
+    response = await _alerts_summary(client, [dashboard["id"]])
+
+    assert response.status_code == 200
+    assert response.json()["dashboards"] == {}
+
+
+@pytest.mark.asyncio
+async def test_alerts_summary_requires_auth(client, fake_alerts_source):
+    response = await _alerts_summary(client, [uuid.uuid4()], headers={})
+
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_alerts_summary_rejects_a_start_after_the_end(
+    client, auth_override, fake_alerts_source
+):
+    user = await _create_user("alerts-dates")
+    auth_override(user.id)
+
+    response = await _alerts_summary(
+        client,
+        [uuid.uuid4()],
+        start_date="2026-10-10",
+        end_date="2026-10-04",
+    )
+
+    assert response.status_code == 422
