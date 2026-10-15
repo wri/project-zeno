@@ -160,9 +160,20 @@ for running the system locally.
    uv run python src/ingest/ingest_kba.py
    uv run python src/ingest/ingest_landmark.py
    uv run python src/ingest/ingest_wdpa.py
+   uv run python src/ingest/ingest_concessions.py  # GFW concessions, five types (~1.8 GB)
    ```
 
    See `src/ingest/` directory for details on each ingestion script.
+
+   The WDPA, LandMark and concessions ingests repair invalid shapes as they
+   load them. To repair a table that was loaded before this repair existed,
+   without a new download, run the ingest with `--repair-only`, then rebuild
+   that source:
+
+   ```bash
+   uv run python src/ingest/ingest_wdpa.py --repair-only
+   uv run python src/api/cli.py build-aois --source wdpa
+   ```
 
 7. **Start application services:**
 
@@ -258,6 +269,7 @@ Runs all services — API, PostgreSQL, Langfuse, and ClickHouse — in container
    uv python src/ingest/ingest_kba.py
    uv python src/ingest/ingest_landmark.py
    uv python src/ingest/ingest_wdpa.py
+   uv python src/ingest/ingest_concessions.py
    exit
    ```
 

@@ -767,6 +767,42 @@ async def test_a_subregion_request_does_not_narrow_the_parent_to_the_child_type(
 
 
 @pytest.mark.asyncio
+async def test_a_child_shared_by_two_parents_is_selected_once(monkeypatch):
+    """A concession that crosses the Ecuador-Peru border overlaps both
+    parents. The analytics API rejects duplicate feature ids, so the child
+    must be in the selection once only."""
+    _patch_search(
+        monkeypatch,
+        {
+            "Ecuador": [_ECUADOR_ROW],
+            "Peru": [_row("PER", "Peru", tier=EXACT_TIER)],
+        },
+    )
+    expansions = _patch_subregions(
+        monkeypatch,
+        [
+            {
+                "name": "Border concession",
+                "subtype": "oil-palm-concession",
+                "source": "oil_palm",
+                "src_id": "42",
+            }
+        ],
+    )
+
+    command = await _lookup(
+        [ExtractedPlace(place="Ecuador"), ExtractedPlace(place="Peru")],
+        subregion="oil_palm",
+    )
+
+    assert len(expansions) == 2
+    aois = command.update["aoi_selection"]["aois"]
+    assert [(aoi["source"], aoi["src_id"]) for aoi in aois] == [
+        ("oil_palm", "42")
+    ]
+
+
+@pytest.mark.asyncio
 async def test_a_subregion_parent_keeps_its_inferred_type(monkeypatch):
     """Dropping the caller's type for the parent leaves the type the
     geocoder inferred for the place in force."""

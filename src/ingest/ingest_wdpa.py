@@ -3,6 +3,8 @@ from src.ingest.utils import (
     create_id_index_if_not_exists,
     gdf_from_ndjson_chunked,
     ingest_to_postgis,
+    make_valid_polygons,
+    repair_invalid_geometries,
 )
 from src.shared.geocoding_helpers import AOI_SOURCE_ID_COLUMNS
 
@@ -66,6 +68,9 @@ def ingest_wdpa() -> None:
         # Add subtype column
         gdf_chunk["subtype"] = "protected-area"
 
+        # Repair invalid shapes whole; see src/ingest/utils.py.
+        gdf_chunk["geometry"] = make_valid_polygons(gdf_chunk.geometry)
+
         if_exists_param = "replace" if i == 0 else "append"
         ingest_to_postgis(
             table_name="geometries_wdpa",
@@ -88,4 +93,15 @@ def ingest_wdpa() -> None:
 
 
 if __name__ == "__main__":
-    ingest_wdpa()
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--repair-only",
+        action="store_true",
+        help="Only repair the invalid shapes already in geometries_wdpa.",
+    )
+    if parser.parse_args().repair_only:
+        repair_invalid_geometries("geometries_wdpa")
+    else:
+        ingest_wdpa()

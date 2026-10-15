@@ -17,7 +17,7 @@ custom-area mirror through the shared SQL fragments:
 
 | column | content |
 |---|---|
-| `leaf` | the place's own name: GADM `NAME_n`, WDPA `wdpa_name`, KBA `NatName`, LandMark `landmark_name`, the custom area's name |
+| `leaf` | the place's own name: GADM `NAME_n`, WDPA `wdpa_name`, KBA `NatName`, LandMark `landmark_name`, the custom area's name; NULL for the concessions (see below) |
 | `leaf_norm` | `unaccent(lower(btrim(leaf)))`, the key for exact and prefix matching |
 | `designation` | the kind of site a source names the row with: WDPA `desig_eng`, LandMark `category`; NULL for GADM, KBA and custom areas |
 | `search_tsv` | the full weighted tsvector: leaf and every name variant at weight A, the context at weight B, the display name (minus no-data segments) at weight D, so a display name pasted back as a query still matches its row |
@@ -28,6 +28,17 @@ parents and country (consecutive duplicate segments collapsed), WDPA
 `desig_eng` + country, KBA `Country`, LandMark `category` + `country`. It is
 derived at build time and not stored as text; nothing reads it except the
 vector.
+
+The concession sources (`oil_palm`, `rspo_oil_palm`, `logging`, `mining`,
+`wood_fiber`) are not searchable
+by name. Most of their rows have no name, and the named ones repeat one
+company over thousands of parcels, so in the name search they would bury
+the places people look for. The build writes their rows with a display name
+but leaves `leaf`, `designation` and both vectors NULL and writes no
+`aoi_names` rows, so no search stage and no token reaches them. A search or
+browse with no `source` filter leaves them out. The agent reaches them as
+the subregions of a place ("oil palm concessions in Riau", see
+`pick_aoi`'s `subregion`), and the map reaches them by id.
 
 `aoi_names` holds one row per alternate spelling of a place, one per
 `(aoi_id, name_norm)`: `kind` is `variant` (GADM VARNAME, `|`-separated),
@@ -212,7 +223,7 @@ current ones; the source is authoritative.
 
 | constant | value | file | changes |
 |---|---|---|---|
-| `HIERARCHY_SCORES` | country 1.0, state 0.9, district 0.7, custom 0.7, municipality 0.5, locality 0.35, neighbourhood 0.25, KBA/WDPA/LandMark 0.2 | `aoi_search_sql.py` | the prior in the sort, the score, the token table's `prominence`, the geocoder's hierarchy term and nudge floor |
+| `HIERARCHY_SCORES` | country 1.0, state 0.9, district 0.7, custom 0.7, municipality 0.5, locality 0.35, neighbourhood 0.25, KBA/WDPA/LandMark 0.2, every concession type 0.1 | `aoi_search_sql.py` | the prior in the sort, the score, the token table's `prominence`, the geocoder's hierarchy term and nudge floor |
 | `_SCORE_TIER_WEIGHT`, `_SCORE_CONTEXT_WEIGHT`, `_SCORE_PRIOR_WEIGHT` | 0.55, 0.2, 0.25 | `aoi_search.py` | the search score only (not the order) |
 | `_AUTOCOMPLETE_TIER_WEIGHT`, `_AUTOCOMPLETE_PRIOR_WEIGHT` | 0.5, 0.5 | `aoi_search.py` | the autocomplete score only |
 | `_CORRECTED_SCORE_SCALE`, `_PARTIAL_SCORE_SCALE` | 0.8, 0.6 | `aoi_search.py` | how far a corrected / word-dropped result's score sits below an as-typed one |

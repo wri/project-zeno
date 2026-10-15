@@ -62,6 +62,14 @@ HIERARCHY_SCORES: dict[str, float] = {
     "key-biodiversity-area": 0.2,
     "protected-area": 0.2,
     "indigenous-and-community-land": 0.2,
+    # A name search never reaches a concession (the build gives it no
+    # search columns); every subtype needs a prior all the same. The lowest
+    # one, should that ever change.
+    "oil-palm-concession": 0.1,
+    "logging-concession": 0.1,
+    "mining-concession": 0.1,
+    "rspo-oil-palm-concession": 0.1,
+    "wood-fiber-concession": 0.1,
 }
 
 

@@ -1,8 +1,8 @@
 """Unified AOI search endpoint.
 
 Searches Areas of Interest across all sources (gadm / kba / wdpa / landmark /
-custom) by name and/or source type, reusing the same search core as the
-agent's ``pick_aoi`` geocoder (see docs/aoi-full-text-search.md).
+oil_palm / logging / mining / custom) by name and/or source type, reusing the
+same search core as the agent's ``pick_aoi`` geocoder (see docs/aoi-full-text-search.md).
 """
 
 from typing import List, Literal, Optional
@@ -37,7 +37,11 @@ async def search_aois_endpoint(
         default=[],
         description=(
             "Source(s) to filter by: gadm, kba, wdpa (protectedareas), "
-            "landmark, custom. Repeatable; omit to search all sources."
+            "landmark, oil_palm, rspo_oil_palm, logging, mining, wood_fiber, "
+            "custom. Repeatable; omit "
+            "to search all sources except the concessions (oil_palm, "
+            "rspo_oil_palm, logging, mining, wood_fiber), which a name never "
+            "matches."
         ),
     ),
     limit: int = Query(default=50, ge=1, le=100),

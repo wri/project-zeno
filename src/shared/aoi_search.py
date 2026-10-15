@@ -17,6 +17,7 @@ from sqlalchemy import text
 from src.shared.aoi_search_sql import TS_CONFIG, hierarchy_prior_sql, norm_sql
 from src.shared.database import get_connection_from_pool
 from src.shared.geocoding_helpers import (
+    CONCESSION_SOURCES,
     VALID_AOI_SOURCES,
     normalize_aoi_source,
 )
@@ -748,7 +749,9 @@ async def search_aois(
     if sources:
         requested = {normalize_aoi_source(s) for s in sources}
     else:
-        requested = set(VALID_AOI_SOURCES)
+        # Concessions are subregions only: the build gives them no search
+        # columns, and a browse of every source leaves them out too.
+        requested = set(VALID_AOI_SOURCES) - set(CONCESSION_SOURCES)
 
     if "custom" in requested and not user_id:
         raise ValueError("user_id required for custom areas")
