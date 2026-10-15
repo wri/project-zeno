@@ -1305,11 +1305,11 @@ async def _add_alerts_chart_widget(client, dashboard_id, user_id):
     assert response.status_code == 201
 
 
-async def _alerts_summary(client, dashboard_ids, headers=AUTH):
+async def _alerts_summary(client, dashboard_ids, headers=AUTH, **dates):
     return await client.post(
         "/api/dashboards/alerts-summary",
         headers=headers,
-        json={"dashboard_ids": [str(i) for i in dashboard_ids]},
+        json={"dashboard_ids": [str(i) for i in dashboard_ids], **dates},
     )
 
 
@@ -1329,7 +1329,7 @@ async def test_alerts_summary_reports_dashboards_with_alerts_chart(
 
     assert response.status_code == 200
     body = response.json()
-    assert date.fromisoformat(body["week_end"]).weekday() == 5
+    assert date.fromisoformat(body["end_date"]).weekday() == 5
     assert body["dashboards"] == {
         with_alerts["id"]: {"integrated_alerts": 42.0, "errors": {}}
     }
@@ -1357,3 +1357,20 @@ async def test_alerts_summary_requires_auth(client, fake_alerts_source):
     response = await _alerts_summary(client, [uuid.uuid4()], headers={})
 
     assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_alerts_summary_rejects_a_start_after_the_end(
+    client, auth_override, fake_alerts_source
+):
+    user = await _create_user("alerts-dates")
+    auth_override(user.id)
+
+    response = await _alerts_summary(
+        client,
+        [uuid.uuid4()],
+        start_date="2026-10-10",
+        end_date="2026-10-04",
+    )
+
+    assert response.status_code == 422

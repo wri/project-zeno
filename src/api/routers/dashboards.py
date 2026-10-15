@@ -73,6 +73,7 @@ from src.api.services.dashboard_alerts import (
     AlertsSource,
     AnalyticsAlertsSource,
     DashboardAlertsService,
+    InvalidPeriodError,
 )
 from src.api.services.dashboard_aoi import dashboard_aoi
 from src.shared.database import get_session_from_pool_dependency
@@ -269,14 +270,22 @@ async def summarize_dashboard_alerts(
     user: UserModel = Depends(require_auth),
     service: DashboardAlertsService = Depends(get_dashboard_alerts_service),
 ):
-    """Integrated alerts area in each dashboard's AOI for the latest full
-    alert week (Sunday to Saturday)."""
+    """Integrated alerts area in each dashboard's AOI over the requested
+    period, by default the latest full alert week (Sunday to Saturday)."""
     rows = await dashboard_writer.get_visible_dashboards_with_dataset(
         body.dashboard_ids, user.id, INTEGRATED_ALERTS_ID
     )
-    report = await service.summarize(
-        {row.id: dashboard_aoi(row) for row in rows}
-    )
+    try:
+        report = await service.summarize(
+            {row.id: dashboard_aoi(row) for row in rows},
+            body.start_date,
+            body.end_date,
+        )
+    except InvalidPeriodError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(error),
+        )
     return DashboardAlertsSummaryResponse.model_validate(
         report, from_attributes=True
     )

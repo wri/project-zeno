@@ -10,6 +10,7 @@ from src.api.services.dashboard_alerts import (
     AnalyticsAlertsSource,
     DashboardAlerts,
     DashboardAlertsService,
+    InvalidPeriodError,
     latest_alert_week,
 )
 
@@ -96,12 +97,42 @@ async def test_summarize_reports_every_dashboard_from_one_request():
     )
 
     assert source.calls == [([PARANA, PARA], *WEEK)]
-    assert (report.week_start, report.week_end) == WEEK
+    assert (report.start_date, report.end_date) == WEEK
     assert report.dashboards == {
         parana: DashboardAlerts(integrated_alerts=12.5),
         also_parana: DashboardAlerts(integrated_alerts=12.5),
         para: DashboardAlerts(integrated_alerts=0.0),
     }
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "start, end, expected",
+    [
+        (
+            date(2026, 9, 1),
+            date(2026, 9, 30),
+            (date(2026, 9, 1), date(2026, 9, 30)),
+        ),
+        (date(2026, 9, 1), None, (date(2026, 9, 1), WEEK[1])),
+    ],
+    ids=["both-dates", "missing-end-uses-default"],
+)
+async def test_summarize_uses_the_requested_period(start, end, expected):
+    source = FakeAlertsSource()
+
+    report = await _service(source).summarize({uuid4(): PARANA}, start, end)
+
+    assert source.calls == [([PARANA], *expected)]
+    assert (report.start_date, report.end_date) == expected
+
+
+@pytest.mark.asyncio
+async def test_summarize_rejects_a_start_after_the_end():
+    with pytest.raises(InvalidPeriodError):
+        await _service(FakeAlertsSource()).summarize(
+            {uuid4(): PARANA}, date(2026, 10, 10), date(2026, 10, 4)
+        )
 
 
 @pytest.mark.asyncio

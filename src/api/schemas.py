@@ -1008,6 +1008,14 @@ class DashboardPublicToggleResponse(DashboardResponse):
 
 class DashboardAlertsSummaryRequest(BaseModel):
     dashboard_ids: List[UUID] = Field(min_length=1, max_length=50)
+    start_date: Optional[date] = Field(
+        default=None,
+        description="Defaults to the start of the latest full alert week.",
+    )
+    end_date: Optional[date] = Field(
+        default=None,
+        description="Defaults to the end of the latest full alert week.",
+    )
 
 
 class DashboardAlertsResponse(BaseModel):
@@ -1020,8 +1028,8 @@ class DashboardAlertsResponse(BaseModel):
 
 
 class DashboardAlertsSummaryResponse(BaseModel):
-    week_start: date
-    week_end: date
+    start_date: date
+    end_date: date
     dashboards: Dict[UUID, DashboardAlertsResponse] = Field(
         description=(
             "Dashboards the user may see that have an integrated alerts chart "

@@ -1,5 +1,5 @@
-"""Integrated alerts area in each dashboard's AOI for the latest full alert
-week, which runs Sunday to Saturday."""
+"""Integrated alerts area in each dashboard's AOI over a period, by default
+the latest full alert week, which runs Sunday to Saturday."""
 
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -24,6 +24,10 @@ class AlertsUnavailableError(Exception):
     pass
 
 
+class InvalidPeriodError(ValueError):
+    pass
+
+
 @dataclass(frozen=True)
 class DashboardAlerts:
     integrated_alerts: Optional[float]
@@ -32,8 +36,8 @@ class DashboardAlerts:
 
 @dataclass(frozen=True)
 class AlertsReport:
-    week_start: date
-    week_end: date
+    start_date: date
+    end_date: date
     dashboards: dict[UUID, DashboardAlerts]
 
 
@@ -79,9 +83,17 @@ class DashboardAlertsService:
         self.today = today
 
     async def summarize(
-        self, aoi_by_dashboard: dict[UUID, Optional[dict]]
+        self,
+        aoi_by_dashboard: dict[UUID, Optional[dict]],
+        start: Optional[date] = None,
+        end: Optional[date] = None,
     ) -> AlertsReport:
-        start, end = latest_alert_week(self.today())
+        """Alerts between start and end, which default to the latest full
+        alert week."""
+        default_start, default_end = latest_alert_week(self.today())
+        start, end = start or default_start, end or default_end
+        if start > end:
+            raise InvalidPeriodError(f"{start} is after {end}.")
         supported = {
             dashboard_id: aoi
             for dashboard_id, aoi in aoi_by_dashboard.items()
@@ -91,8 +103,8 @@ class DashboardAlertsService:
             distinct_aois(supported.values()), start, end
         )
         return AlertsReport(
-            week_start=start,
-            week_end=end,
+            start_date=start,
+            end_date=end,
             dashboards={
                 dashboard_id: alerts_by_src_id[aoi["src_id"]]
                 for dashboard_id, aoi in supported.items()
