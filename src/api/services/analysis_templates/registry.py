@@ -9,6 +9,7 @@ from src.agent.datasets.handlers.analytics_handler import (
     INTEGRATED_ALERTS_ID,
     TREE_COVER_LOSS_ID,
 )
+from src.api.schemas import ALERTS_MAX_DAYS
 from src.api.services.analysis_templates.models import (
     AlertsWidgetSpec,
     AnalysisTemplate,
@@ -25,7 +26,8 @@ class NrtMonitoringArgs(TemplateArgs):
     days: int = Field(
         default=30,
         ge=1,
-        le=365,
+        # The template's days become the alerts widget's, which this bounds.
+        le=ALERTS_MAX_DAYS,
         description="Length of the period in days, counted back from today.",
     )
 
