@@ -8,6 +8,7 @@ from uuid import uuid4
 
 import pytest
 
+from src.agent.datasets.config import DATASETS
 from src.agent.datasets.handlers.analytics_handler import (
     INTEGRATED_ALERTS_ID,
     TREE_COVER_LOSS_ID,
@@ -16,6 +17,7 @@ from src.agent.datasets.handlers.base import DataPullResult
 from src.agent.i18n import MESSAGES
 from src.agent.imagery.base import ImageryProviderResult
 from src.agent.models import ImageryState
+from src.api.services.alerts_list import ALERTS_LAND_FILTERS
 from src.api.services.analysis_templates import builder, text
 from src.api.services.analysis_templates.builder import (
     DashboardGoneError,
@@ -481,10 +483,18 @@ async def test_alerts_widget_stores_the_area_the_period_and_the_layer():
     dataset = widget.config["dataset"]
     assert dataset["dataset_id"] == INTEGRATED_ALERTS_ID
     assert dataset["context_layer"] is None
-    # The natural lands overlay rides along, inactive, for the land filter.
-    (overlay,) = dataset["context_layers"]
-    assert overlay["name"] == "natural_lands"
-    assert "natural-lands" in overlay["tile_url"]
+    # One inactive land overlay per land filter of the list, named after it:
+    # natural lands from integrated alerts, natural forests from tree cover
+    # loss's natural_forest layer.
+    overlays = {o["name"]: o["tile_url"] for o in dataset["context_layers"]}
+    assert set(overlays) == {"natural_lands", "natural_forests"}
+    assert overlays["natural_lands"].endswith(
+        _catalog_tile(INTEGRATED_ALERTS_ID, "natural_lands")
+    )
+    assert overlays["natural_forests"].endswith(
+        _catalog_tile(TREE_COVER_LOSS_ID, "natural_forest")
+    )
+
     assert (dataset["start_date"], dataset["end_date"]) == (
         "2026-08-24",
         "2026-09-23",
@@ -493,6 +503,18 @@ async def test_alerts_widget_stores_the_area_the_period_and_the_layer():
         "&start_date=2026-08-24&end_date=2026-09-23"
     )
     assert set(widget.config) == {"alerts", "dataset"}
+
+
+def _catalog_tile(dataset_id, context_layer):
+    (record,) = [d for d in DATASETS if d["dataset_id"] == dataset_id]
+    (layer,) = [
+        c for c in record["context_layers"] if c["value"] == context_layer
+    ]
+    return layer["tile_url"]
+
+
+def test_every_land_filter_of_the_list_has_an_overlay():
+    assert set(builder.ALERTS_LAND_OVERLAYS) == set(ALERTS_LAND_FILTERS)
 
 
 @pytest.mark.asyncio

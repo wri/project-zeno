@@ -30,7 +30,11 @@ import pandas as pd
 
 from src.agent.datasets.config import DATASETS
 from src.agent.datasets.dates import revise_date_range
-from src.agent.datasets.handlers.analytics_handler import AnalyticsHandler
+from src.agent.datasets.handlers.analytics_handler import (
+    INTEGRATED_ALERTS_ID,
+    TREE_COVER_LOSS_ID,
+    AnalyticsHandler,
+)
 from src.agent.datasets.handlers.base import (
     DataPullResult,
     DataSourceHandler,
@@ -415,9 +419,29 @@ async def _build_natural_forest_loss(
     )
 
 
-# The catalog context layer of integrated alerts that the alerts widget
-# carries for its map.
-ALERTS_OVERLAY_CONTEXT_LAYER = "natural_lands"
+# The land overlays the alerts widget carries for its map, one per land
+# filter of the alerts list and named after it, so the frontend overlays the
+# one the list is filtered to. Each is a catalog context layer: (dataset,
+# context layer). Natural forests reuses tree cover loss's natural_forest
+# tile, the same SBTN collection with only the forest classes coloured.
+ALERTS_LAND_OVERLAYS = {
+    "natural_lands": (INTEGRATED_ALERTS_ID, "natural_lands"),
+    "natural_forests": (TREE_COVER_LOSS_ID, "natural_forest"),
+}
+
+
+def _land_overlays(start: str, end: str) -> list[dict]:
+    """The alerts widget's land overlays as snapshot context layers."""
+    overlays = []
+    for name, (dataset_id, context_layer) in ALERTS_LAND_OVERLAYS.items():
+        layers = _layer_snapshot(dataset_id, context_layer, start, end)[
+            "context_layers"
+        ]
+        (layer,) = [
+            entry for entry in layers if entry["name"] == context_layer
+        ]
+        overlays.append({**layer, "name": name})
+    return overlays
 
 
 async def _alerts_fact(
@@ -477,13 +501,9 @@ async def _build_alerts(
         ) from error
     fact = await _alerts_fact(alerts, context)
     snapshot = _layer_snapshot(spec.dataset_id, None, start, end)
-    # The land overlay the frontend shows when the list is filtered to
-    # natural lands. The snapshot's own context_layer stays None, so the map
-    # shows alerts on all land by default. Natural forests has no tile
-    # layer in the catalog.
-    snapshot["context_layers"] = _layer_snapshot(
-        spec.dataset_id, ALERTS_OVERLAY_CONTEXT_LAYER, start, end
-    )["context_layers"]
+    # The snapshot's own context_layer stays None, so the map shows alerts
+    # on all land until the list is filtered.
+    snapshot["context_layers"] = _land_overlays(start, end)
     return BuiltWidget(
         widget=SectionWidget(
             widget_type="alerts",
