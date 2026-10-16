@@ -815,6 +815,164 @@ def backfill_turn_fields_command(batch_size: int, dry_run: bool):
     asyncio.run(_run())
 
 
+@cli.command("langfuse-model-prices")
+@click.option("--hours", type=int, default=24, help="Look-back window.")
+@click.option("--environment", default=None, help="Filter to one environment.")
+def langfuse_model_prices_command(hours: int, environment: Optional[str]):
+    """Report which models Langfuse is failing to price.
+
+    Langfuse computes cost by matching an observation's model name against its
+    model-definition table. A model it does not recognise — a preview name, or a
+    newly configured one — is recorded with usage but **zero cost**, so
+    cost-per-query silently understates by that model's whole share, with
+    nothing in the data to say so.
+
+    For every model flagged UNPRICED or PARTIAL here, add a model definition
+    with its prices in Langfuse (Settings → Models, or ``POST
+    /api/public/models``). Give it a price for every usage key the calls
+    report, including ``input_cache_read`` and ``output_reasoning``.
+
+    Langfuse prices a call when it receives it. A new definition does not
+    re-price earlier calls, so re-ingesting does not recover their cost.
+    """
+    from src.api.services.langfuse.fetch import LangfuseClient
+    from src.api.services.langfuse.parse import observation_cost
+
+    until = datetime.now(timezone.utc)
+    since = until - timedelta(hours=hours)
+    client = LangfuseClient.from_env()
+    # Every type, then filter on "has a model and reported usage": embeddings
+    # are billable too, and an unpriced embedding model is just as invisible as
+    # an unpriced chat one.
+    observations = client.fetch_observations_window(
+        since, until, environment, obs_type=None
+    )
+
+    # model -> [calls, tokens, cost, priced_calls]
+    stats: dict = {}
+    for o in observations:
+        model = o.get("model")
+        usage = o.get("usageDetails") or {}
+        if not model or not usage:
+            continue
+        cost = observation_cost(o)
+        row = stats.setdefault(model, [0, 0, 0.0, 0])
+        row[0] += 1
+        row[1] += int(usage.get("total") or 0)
+        row[2] += float(cost)
+        if cost:
+            row[3] += 1
+
+    if not stats:
+        click.echo(f"No billable LLM calls in the last {hours}h.")
+        return
+
+    click.echo(
+        f"{'model':38} {'calls':>7} {'tokens':>10} {'cost':>11}  status"
+    )
+    unpriced = []
+    partial = []
+    for model, (calls, tokens, cost, priced) in sorted(
+        stats.items(), key=lambda kv: -kv[1][1]
+    ):
+        if priced == 0:
+            status = "UNPRICED"
+            unpriced.append(model)
+        elif priced < calls:
+            status = f"PARTIAL ({priced}/{calls} priced)"
+            partial.append(model)
+        else:
+            status = "ok"
+        click.echo(
+            f"{model[:38]:38} {calls:>7} {tokens:>10,} {cost:>11.6f}  {status}"
+        )
+
+    if unpriced:
+        click.echo(
+            "\n⚠️  Unpriced models contribute tokens but no cost: "
+            + ", ".join(unpriced)
+        )
+    if partial:
+        click.echo(
+            "\n⚠️  Some calls were not priced (a definition added or changed "
+            "inside the window, or a usage key without a price): "
+            + ", ".join(partial)
+        )
+    if unpriced or partial:
+        click.echo(
+            "   Add a model definition for each in Langfuse. It prices new "
+            "calls only."
+        )
+    else:
+        click.echo("\n✅ Every model in this window is priced.")
+
+
+@cli.command("langfuse-sync-model-prices")
+@click.option(
+    "--apply",
+    is_flag=True,
+    help="Make the changes. Without it, only print the plan.",
+)
+@click.option(
+    "--replace",
+    is_flag=True,
+    help="Replace custom definitions that differ from ours.",
+)
+def langfuse_sync_model_prices_command(apply: bool, replace: bool):
+    """Create Zeno's custom Gemini model definitions in Langfuse.
+
+    Adds a definition for each model in
+    ``src.api.services.langfuse.model_prices.DEFINITIONS`` that has no custom
+    definition yet. A model whose custom definition differs is skipped, and
+    the differences are printed; ``--replace`` deletes the old one and
+    creates ours. Nothing changes without ``--apply``. Run
+    ``langfuse-model-prices`` afterwards to confirm.
+    """
+    from src.api.services.langfuse.fetch import LangfuseClient
+    from src.api.services.langfuse.model_prices import (
+        DEFINITIONS,
+        create_model,
+        flat,
+        list_models,
+        plan,
+        replace_model,
+        supports_pricing_tiers,
+    )
+
+    client = LangfuseClient.from_env()
+    click.echo(f"Langfuse: {client.host}")
+    models = list_models(client)
+    definitions = DEFINITIONS
+    if not supports_pricing_tiers(models):
+        definitions = [flat(d) for d in DEFINITIONS]
+        click.echo(
+            "⚠️  This Langfuse has no pricing tiers, so only the input and "
+            "output prices can be set here. Cached tokens (input_cache_read) "
+            "and thinking tokens (output_reasoning) stay at $0: add them in "
+            "the Langfuse UI (Settings → Models), or upgrade Langfuse."
+        )
+    changes = plan(models, replace=replace, definitions=definitions)
+    specs = {d["modelName"]: d for d in definitions}
+    for change in changes:
+        click.echo(
+            f"{change.model_name:34} {change.action:8} ({change.reason})"
+        )
+        for line in change.diff:
+            click.echo(f"    {line}")
+        if not apply or change.action == "skip":
+            continue
+        spec = specs[change.model_name]
+        if change.replaces:
+            model_id = replace_model(client, change.replaces, spec)
+            for model in change.replaces:
+                click.echo(f"    deleted {model['id']}")
+        else:
+            model_id = create_model(client, spec)
+        click.echo(f"    created {model_id}")
+    if not apply and any(c.action != "skip" for c in changes):
+        click.echo("\nDry run. Re-run with --apply to make these changes.")
+
+
 # ---------------------------------------------------------------------------
 # build-aois: populate the unified `aois` / `user_aois` tables
 # ---------------------------------------------------------------------------

@@ -20,7 +20,7 @@ call is slower (~0.5s with a minimal-thinking Gemini Flash-Lite call) but
 actually understands the sentence instead of scoring character frequencies.
 """
 
-from typing import Optional
+from typing import Any, Optional
 
 from src.agent.llms import GEMINI_FLASH_LITE_MINIMAL
 from src.api.user_profile_configs.languages import LANGUAGES
@@ -70,14 +70,23 @@ def _extract_text(content) -> str:
     return "".join(parts)
 
 
-async def detect_language(text: Optional[str]) -> Optional[str]:
-    """Best-effort ISO 639-1 code for `text`, or None if undetectable."""
+async def detect_language(
+    text: Optional[str], config: Optional[dict[str, Any]] = None
+) -> Optional[str]:
+    """Best-effort ISO 639-1 code for `text`, or None if undetectable.
+
+    `config` is a LangChain RunnableConfig. Callers running outside a traced
+    graph invocation should pass one carrying the Langfuse callback handler,
+    otherwise this call is billed but never appears in any trace.
+    """
     if not text or len(text.strip()) < _MIN_DETECTION_CHARS:
         return None
 
     prompt = _DETECTION_PROMPT.format(text=text.strip())
     try:
-        response = await GEMINI_FLASH_LITE_MINIMAL.ainvoke(prompt)
+        response = await GEMINI_FLASH_LITE_MINIMAL.ainvoke(
+            prompt, config={"run_name": "detect_language", **(config or {})}
+        )
     except Exception:
         logger.exception("language_detection_failed")
         return None
@@ -91,6 +100,7 @@ async def resolve_language(
     preferred_language_code: Optional[str] = None,
     query: Optional[str] = None,
     already_resolved: bool = False,
+    config: Optional[dict[str, Any]] = None,
 ) -> Optional[str]:
     """Resolve the language to write into AgentState for this turn.
 
@@ -104,7 +114,7 @@ async def resolve_language(
         return preferred_language_code
     if already_resolved:
         return None
-    return await detect_language(query)
+    return await detect_language(query, config=config)
 
 
 def language_name(code: Optional[str]) -> str:

@@ -16,6 +16,7 @@ from src.agent.subagents.analyst.code_executors.base import (
     MultiChartInsight,
     PartType,
 )
+from src.shared.langfuse_tracing import gemini_usage_details, generation_span
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -91,36 +92,55 @@ class GeminiCodeExecutor:
         return inline_data_parts
 
     async def _call_model(self, model: str, content_parts: List[Dict]):
-        """Call a model with retry logic. Returns the raw response."""
+        """Call a model with retry logic. Returns the raw response.
+
+        Wrapped in a Langfuse generation span because this call goes straight to
+        the ``google.genai`` SDK: no LangChain runnable means no callback, so
+        without the span the turn's largest LLM call is absent from the trace in
+        both tokens and cost. The span covers the retry loop, so its latency is
+        the wall-clock time the caller actually waited, and it reports the usage
+        of whichever attempt succeeded.
+        """
         last_error = None
         loop = asyncio.get_running_loop()
-        for attempt in range(self.MAX_RETRIES + 1):
-            try:
-                response = await loop.run_in_executor(
-                    None,
-                    partial(
-                        self.client.models.generate_content,
-                        model=model,
-                        contents=[{"role": "user", "parts": content_parts}],
-                        config=types.GenerateContentConfig(
-                            tools=[
-                                types.Tool(
-                                    code_execution=types.ToolCodeExecution()
-                                )
+        with generation_span(
+            "analyst_code_executor",
+            model=model,
+            metadata={"max_retries": self.MAX_RETRIES},
+        ) as gen:
+            for attempt in range(self.MAX_RETRIES + 1):
+                try:
+                    response = await loop.run_in_executor(
+                        None,
+                        partial(
+                            self.client.models.generate_content,
+                            model=model,
+                            contents=[
+                                {"role": "user", "parts": content_parts}
                             ],
+                            config=types.GenerateContentConfig(
+                                tools=[
+                                    types.Tool(
+                                        code_execution=types.ToolCodeExecution()
+                                    )
+                                ],
+                            ),
                         ),
-                    ),
-                )
-                return response
-            except Exception as e:
-                last_error = e
-                if attempt < self.MAX_RETRIES:
-                    delay = self.INITIAL_DELAY * (self.BACKOFF_FACTOR**attempt)
-                    logger.warning(
-                        f"Model {model} attempt {attempt + 1} failed: {e}, "
-                        f"retrying in {delay:.1f}s"
                     )
-                    await asyncio.sleep(delay)
+                    gen.record(usage=gemini_usage_details(response))
+                    return response
+                except Exception as e:
+                    last_error = e
+                    if attempt < self.MAX_RETRIES:
+                        delay = self.INITIAL_DELAY * (
+                            self.BACKOFF_FACTOR**attempt
+                        )
+                        logger.warning(
+                            f"Model {model} attempt {attempt + 1} failed: {e}, "
+                            f"retrying in {delay:.1f}s"
+                        )
+                        await asyncio.sleep(delay)
+            gen.record(level="ERROR", status_message=str(last_error))
         raise cast(Exception, last_error)
 
     def _log_code_and_outputs(self, parts: List[CodeActPart]) -> None:

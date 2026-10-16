@@ -5,7 +5,7 @@ final ``AgentState`` snapshot (src/agent/state.py) — carrying ``aoi_selection`
 ``dataset``, ``statistics``, ``insight_id`` etc. alongside ``messages`` — so the
 structured domain fields are read directly from that contract (no regex).
 
-Two important correctness points, validated against real staging traces:
+Three important correctness points, validated against real production traces:
 
 * ``output`` (and ``output.messages``) is **thread-cumulative** (state uses
   ``operator.add``). So per-turn metrics (tokens, tool calls) are computed over
@@ -15,6 +15,15 @@ Two important correctness points, validated against real staging traces:
   agent usually recovers, so it must NOT by itself mark the turn a failure. We
   record ``tool_error_count`` as a separate signal and classify the outcome from
   the final active-turn AI message.
+* The message stream only carries the usage of the calls the **agent itself**
+  made: a tool that calls an LLM of its own returns a ToolMessage, never an
+  AIMessage, so its tokens are absent from ``output.messages`` entirely. Token
+  columns therefore come from the trace's **generation observations** when they
+  are supplied, and fall back to the message stream when they are not
+  (``derived.usage_source`` records which). On one measured production trace the
+  message stream accounted for 35,466 of 44,491 tokens and 67% of the cost —
+  the missing third was ``pick_aoi``, ``pick_dataset`` and the insight
+  text generator, which Langfuse had traced correctly all along.
 
 These functions are pure (no IO). ``parse_trace`` returns derived column values
 plus a ``derived`` JSONB bundle; ``ingest`` adds identity/raw fields.
@@ -22,11 +31,17 @@ plus a ``derived`` JSONB bundle; ``ingest`` adds identity/raw fields.
 
 from __future__ import annotations
 
+import json
 from typing import Any, Optional
 
 # Bump on any change to derivation logic; to apply it to existing rows, re-run
 # ingestion for the affected window (`ingest-langfuse-traces --backfill --since`).
-PARSER_VERSION = 2
+# v3: token columns are sourced from generation observations (all LLM calls in
+# the turn) instead of the AIMessage stream (the agent's own calls only), and
+# ``total_cost`` falls back to the observation sum when ``trace.totalCost`` is
+# null. ``turn_tokens`` steps UP for any turn whose tools call an LLM; the
+# agent-only figure it used to hold is kept as ``agent_tokens``.
+PARSER_VERSION = 3
 
 # Top-level keys we expect on ``trace.output`` (the AgentState snapshot).
 # Used for drift detection: unknown keys => additive drift (benign, logged);
@@ -436,6 +451,206 @@ def _detect_language(
         return None, None
 
 
+# The number of JSON-decode passes ``_as_state_dict`` will try. The LangChain
+# callback serialises the graph output to a JSON string before handing it to
+# Langfuse, and an export of the same trace can add a second layer, so two is
+# the observed maximum; the cap just stops a pathological value from looping.
+_MAX_JSON_DECODE_PASSES = 4
+
+
+def _as_state_dict(output: Any) -> Any:
+    """Return ``trace.output`` as a dict when it is one, decoding JSON strings.
+
+    A trace whose ``output`` arrives as a JSON *string* rather than an object
+    used to zero every metric on the row, silently: the message walk needs a
+    dict, and ``parse_state`` classifies a non-dict output as "not applicable"
+    rather than as a contract violation, so the drift monitor stayed quiet too.
+    Decoding here means the shape of the transport cannot cost us the data.
+
+    Anything that does not decode to a dict is returned unchanged, so the
+    existing "output absent" handling still applies.
+    """
+    value = output
+    for _ in range(_MAX_JSON_DECODE_PASSES):
+        if isinstance(value, dict):
+            return value
+        if not isinstance(value, str):
+            return output
+        try:
+            value = json.loads(value)
+        except (ValueError, TypeError):
+            return output
+    return value if isinstance(value, dict) else output
+
+
+def has_agent_state(output: Any) -> bool:
+    """True when ``trace.output`` is an AgentState snapshot (has ``messages``)."""
+    state = _as_state_dict(output)
+    return isinstance(state, dict) and "messages" in state
+
+
+# --------------------------------------------------------------------------- #
+# Observations (the usage source)
+# --------------------------------------------------------------------------- #
+# The LangGraph model node. A generation under this chain and under no TOOL
+# observation is a call the agent made itself; anything under a TOOL
+# observation was made by that tool.
+_AGENT_NODE_NAME = "model"
+AGENT_COMPONENT = "agent"
+OTHER_COMPONENT = "other"
+
+
+def _obs_usage(obs: dict[str, Any]) -> tuple[int, int, int, int]:
+    """Return (input, output, total, cache_read) tokens for one observation.
+
+    The Langfuse LangChain handler splits every ``input_token_details`` and
+    ``output_token_details`` entry out of ``input`` / ``output`` into its own
+    ``input_<key>`` / ``output_<key>`` usage key (``input_cache_read``,
+    ``output_reasoning``), whereas LangChain's ``input_tokens`` and
+    ``output_tokens`` include them. Summing each side back up keeps the token
+    columns on the meaning they had when they were derived from the message
+    stream, and keeps ``input + output == total``. Without it the series drops
+    by the cache-hit rate (~45% on measured traces) and loses thinking tokens.
+    """
+    u = obs.get("usageDetails") or {}
+    inp = out = 0
+    for key, value in u.items():
+        if key == "input" or key.startswith("input_"):
+            inp += _int(value)
+        elif key == "output" or key.startswith("output_"):
+            out += _int(value)
+    cache = _int(u.get("input_cache_read"))
+    total = _int(u.get("total")) or (inp + out)
+    return inp, out, total, cache
+
+
+def _int(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def observation_cost(obs: dict[str, Any]) -> float:
+    """Cost of one observation in USD.
+
+    The observations list endpoint has no ``totalCost`` (that field exists only
+    on traces). It carries ``costDetails`` and the deprecated
+    ``calculatedTotalCost``, which hold the same total; read the current field
+    first and fall back to the deprecated one.
+    """
+    details = obs.get("costDetails") or {}
+    for value in (details.get("total"), obs.get("calculatedTotalCost")):
+        if value is None:
+            continue
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            continue
+    return 0.0
+
+
+def _component(obs: dict[str, Any], by_id: dict[str, dict[str, Any]]) -> str:
+    """Who made this call: ``agent``, the owning tool's name, or ``other``.
+
+    Walks the whole ``parentObservationId`` chain. The nearest TOOL ancestor
+    owns the call, wherever it is: a tool that runs its own agent (e.g.
+    ``search_blogs``) has a LangGraph ``model`` node of its own *below* the TOOL
+    span, so stopping at the first ``model`` would credit the tool's spend to
+    the outer agent. Only a call with a ``model`` ancestor and no TOOL ancestor
+    is the agent's own. Anything else (e.g. a generation emitted by a manually
+    instrumented span outside any turn) lands in ``other``.
+    """
+    seen: set[str] = set()
+    under_model = False
+    cur = by_id.get(obs.get("parentObservationId") or "")
+    while cur is not None:
+        cid = cur.get("id") or ""
+        if cid in seen:  # defensive: a cycle would otherwise hang ingestion
+            break
+        seen.add(cid)
+        if str(cur.get("type") or "").upper() == "TOOL":
+            return cur.get("name") or "unknown_tool"
+        if cur.get("name") == _AGENT_NODE_NAME:
+            under_model = True
+        cur = by_id.get(cur.get("parentObservationId") or "")
+    return AGENT_COMPONENT if under_model else OTHER_COMPONENT
+
+
+def parse_observations(
+    observations: Optional[list[dict[str, Any]]],
+) -> Optional[dict[str, Any]]:
+    """Aggregate a trace's generation observations into usage + cost.
+
+    Returns None when there is nothing to aggregate, which tells ``parse_trace``
+    to fall back to the message stream. ``tool_*`` is defined as "everything the
+    agent did not spend itself" (total minus agent), so the two always add up to
+    the total no matter how the components are labelled.
+    """
+    if not observations:
+        return None
+    by_id = {o.get("id") or "": o for o in observations if isinstance(o, dict)}
+    gens = [
+        o
+        for o in observations
+        if isinstance(o, dict)
+        and str(o.get("type") or "").upper() in ("GENERATION", "EMBEDDING")
+    ]
+    if not gens:
+        return None
+
+    t_in = t_out = t_total = t_cache = 0
+    a_in = a_out = a_total = a_cache = 0
+    cost = a_cost = 0.0
+    tokens_by_component: dict[str, int] = {}
+    cost_by_component: dict[str, float] = {}
+
+    for o in gens:
+        i, out, total, cache = _obs_usage(o)
+        c = observation_cost(o)
+        t_in += i
+        t_out += out
+        t_total += total
+        t_cache += cache
+        cost += c
+
+        component = _component(o, by_id)
+        tokens_by_component[component] = (
+            tokens_by_component.get(component, 0) + total
+        )
+        cost_by_component[component] = (
+            cost_by_component.get(component, 0.0) + c
+        )
+        if component == AGENT_COMPONENT:
+            a_in += i
+            a_out += out
+            a_total += total
+            a_cache += cache
+            a_cost += c
+
+    return {
+        # columns
+        "turn_input_tokens": t_in,
+        "turn_output_tokens": t_out,
+        "turn_tokens": t_total,
+        "agent_tokens": a_total,
+        "tool_tokens": t_total - a_total,
+        "agent_cost": round(a_cost, 10),
+        "tool_cost": round(cost - a_cost, 10),
+        "generation_count": len(gens),
+        # derived
+        "cache_read_tokens": t_cache,
+        "agent_input_tokens": a_in,
+        "agent_output_tokens": a_out,
+        "agent_cache_read_tokens": a_cache,
+        "tokens_by_component": tokens_by_component,
+        "cost_by_component": {
+            k: round(v, 10) for k, v in cost_by_component.items()
+        },
+        "observation_cost": round(cost, 10),
+    }
+
+
 # --------------------------------------------------------------------------- #
 # Top-level
 # --------------------------------------------------------------------------- #
@@ -460,24 +675,70 @@ COLUMN_KEYS = frozenset(
         "has_insight",
         "is_global",
         "insight_id",
+        "total_cost",
+        "agent_tokens",
+        "tool_tokens",
+        "agent_cost",
+        "tool_cost",
+        "generation_count",
     }
 )
 
 
-def parse_trace(trace: dict[str, Any]) -> dict[str, Any]:
+def parse_trace(
+    trace: dict[str, Any],
+    observations: Optional[list[dict[str, Any]]] = None,
+) -> dict[str, Any]:
     """Parse one trace into ``{<column>: value, ..., "derived": {...},
     "recognized_contract": bool, "parser_version": int}``.
 
+    ``observations`` is the trace's observation list (see
+    ``LangfuseClient.fetch_observations_window``). When supplied, its
+    generations are the source of the token columns and of the agent/tool
+    split; when omitted, the token columns fall back to the message stream and
+    the split is left null. ``derived.usage_source`` records which happened.
+
     Identity/raw/timestamp fields are added by the ingest layer, not here.
     """
-    output = trace.get("output")
+    output = _as_state_dict(trace.get("output"))
     state = parse_state(output)
     msgs = output.get("messages") if isinstance(output, dict) else None
-    inp = trace.get("input") or {}
+    inp = _as_state_dict(trace.get("input")) or {}
     in_msgs = inp.get("messages") if isinstance(inp, dict) else None
     msg = parse_messages(msgs or [], in_msgs or [])
 
     combined = {**state, **msg}
+
+    usage = parse_observations(observations)
+    if usage is None:
+        combined["usage_source"] = "messages"
+        # No observations: the message-derived counts stand, but they only
+        # cover the agent's own calls, so the split would be a lie.
+        combined["total_cost"] = trace.get("totalCost")
+    else:
+        # The message-derived agent figure is kept alongside: the two are
+        # independent measurements of the same calls, so a divergence is a
+        # drift signal (they matched to the token on the validation trace).
+        from_messages = combined.get("turn_tokens")
+        combined["agent_tokens_from_messages"] = from_messages
+        combined["usage_source"] = "observations"
+        combined.update(usage)
+        # The agent/tool split hinges on the LangGraph model node still being
+        # named ``model`` (see _component). Rename it upstream and every call
+        # silently becomes "other" — which a fill-rate check cannot catch,
+        # because zero is not null. This flag can: it goes False.
+        combined["usage_split_agrees"] = (
+            usage["agent_tokens"] == from_messages
+            if from_messages is not None
+            else None
+        )
+        # ``trace.totalCost`` is frequently null even when the observations
+        # underneath it are priced, so the observation sum is the fallback.
+        trace_cost = trace.get("totalCost")
+        combined["total_cost"] = (
+            trace_cost if trace_cost is not None else usage["observation_cost"]
+        )
+
     row = {k: combined[k] for k in COLUMN_KEYS if k in combined}
     derived = {k: v for k, v in combined.items() if k not in COLUMN_KEYS}
     derived.pop("recognized_contract", None)

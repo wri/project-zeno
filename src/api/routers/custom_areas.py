@@ -43,6 +43,7 @@ from src.api.services.area_upload import (
     parse_shapefile_zip,
 )
 from src.shared.database import get_session_from_pool_dependency
+from src.shared.langfuse_tracing import auxiliary_config
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -74,7 +75,12 @@ async def custom_area_name(
         """
         response = await SMALL_MODEL.with_structured_output(
             CustomAreaNameResponse
-        ).ainvoke(prompt.format(features=request.features[0]))
+        ).ainvoke(
+            prompt.format(features=request.features[0]),
+            # Its own endpoint, so no ambient handler: without this config the
+            # call is billed and appears in no trace at all.
+            config=auxiliary_config("name_custom_area", user_id=user.id),
+        )
         return {"name": response.name}
     except Exception as e:
         logger.exception("Error generating area name: %s", e)

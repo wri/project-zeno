@@ -437,10 +437,13 @@ async def select_best_aoi(
         ]
     )
 
-    # Chain for selecting the best location match and returning the src_id
+    # Chain for selecting the best location match and returning the src_id.
+    # run_name labels the call in the Langfuse UI. Cost attribution does not
+    # use it: derived.cost_by_component credits the spend to the enclosing
+    # pick_aoi TOOL span.
     AOI_SELECTION_CHAIN = (
         AOI_SELECTION_PROMPT | SMALL_MODEL.with_structured_output(AOIId)
-    )
+    ).with_config(run_name="select_aoi")
 
     selected_aoi_index = await AOI_SELECTION_CHAIN.ainvoke(
         {
@@ -930,7 +933,7 @@ class Geocoder:
         chain = (
             GEOCODER_EXTRACTION_PROMPT
             | SMALL_MODEL.with_structured_output(PlaceQuery)
-        )
+        ).with_config(run_name="extract_place_query")
         return await chain.ainvoke({"question": question})
 
     async def lookup(

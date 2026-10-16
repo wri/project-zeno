@@ -109,6 +109,23 @@ kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' 
 - Requires `LANGFUSE_HOST`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, and `DATABASE_URL` in the pod environment.
 - Each run prints a summary line: `fetched=… upserted=… chunks=… failed=… status=… watermark=…`.
 - The watermark only advances on fully-completed chunks, so an interrupted run is safe to re-run.
+- Token counts come from each trace's generation observations, fetched once per window
+  alongside the traces. That is what makes `turn_tokens` cover the LLM calls made inside
+  tools, and it is what splits spend into `agent_*` and `tool_*`. If that fetch fails the
+  window still ingests, on agent-level usage only — watch the `agent_tokens` fill rate in
+  `langfuse_ingestion_runs` for that.
+- Traces tagged `auxiliary` are skipped. Those are single LLM calls made outside a turn
+  (thread naming, area naming, language detection); they carry no `AgentState`, so
+  ingesting them would add zero-token `EMPTY` rows and drag every per-turn average down.
+  Their cost stays visible in Langfuse under the thread's session id.
+- **Parser v3 changed what `turn_tokens` means**: it now covers every LLM call in the
+  turn, not just the agent's own. Re-run with `--backfill --since` over the window you
+  analyse to put existing rows on the new basis, or the series has a step in it where
+  the parser version changes.
+- Each chunk also fetches all observations of every type, with a 30-minute pad past
+  the chunk end. A trace has approximately 30 or more observations, so a long backfill
+  sends many more requests than before. If the Langfuse instance returns 5xx errors under
+  this load, use a smaller `--chunk-hours` (for example, 4) for the backfill.
 
 ### backfill-turn-fields
 
@@ -139,6 +156,92 @@ kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' 
 - Requires `DATABASE_URL` in the pod environment.
 - Until it runs, pre-existing rows report NULL turn fields — the API tolerates this
   (analytics is just incomplete for those rows), so there's no rush within a deploy.
+
+### langfuse-model-prices
+
+Reports which models Langfuse fails to price. Langfuse works out cost by matching an
+observation's model name against its model-definition table. A model it does not
+recognise — a preview name, or one newly configured in `MODEL` / `SMALL_MODEL` /
+`CODING_MODEL` — is stored with usage but **zero cost**, so cost-per-query understates
+by that model's entire share with nothing in the data to show it. Run this after any
+model change.
+
+**Usage:**
+```bash
+# Which models did the last 24h use, and are they all priced?
+kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' | head -1) -- \
+  uv run python src/api/cli.py langfuse-model-prices
+
+# One environment, longer look-back
+kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' | head -1) -- \
+  uv run python src/api/cli.py langfuse-model-prices --hours 168 --environment production
+```
+
+**Parameters:**
+- `--hours` (default 24): look-back window.
+- `--environment`: filter to one environment. Default: all.
+
+**Notes:**
+- Requires `LANGFUSE_HOST`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`. It reads
+  Langfuse only — no database, no writes.
+- `UNPRICED` means the model produced tokens and no cost. `PARTIAL` means only some
+  calls were priced, which usually means the definition was added part-way through the
+  window.
+- To fix an `UNPRICED` or `PARTIAL` model, add a model definition with its prices in
+  Langfuse (Settings → Models, or `POST /api/public/models`). Give a price for each
+  usage key that the calls report, including `input_cache_read` and `output_reasoning`.
+  A built-in definition can be correct for a model and still have no price for a key.
+  For example, the built-in Gemini definitions do not price `input_cache_read`, so
+  Langfuse costs cached tokens at $0. A custom definition with the same model name
+  overrides the built-in one.
+- Langfuse calculates cost when it receives a call. A new definition does not change the
+  cost of earlier calls, so a re-run of `ingest-langfuse-traces` does not recover it.
+
+### langfuse-sync-model-prices
+
+Creates custom Langfuse model definitions for the Gemini models that Zeno calls. The
+definitions and their prices are in `src/api/services/langfuse/model_prices.py`.
+
+Each Langfuse instance keeps its own model-definition table. On Langfuse 3.152.0, the
+Gemini 3.1 preview models have no definition, so their calls cost $0. The built-in
+Gemini definitions also have no price for `input_cache_read`, so cached prompt tokens
+cost $0. A custom definition with the same model name overrides the built-in one.
+
+```bash
+# Show the plan. This changes nothing.
+kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' | head -1) -- \
+  uv run python src/api/cli.py langfuse-sync-model-prices
+
+# Create the definitions, and replace custom ones that differ
+kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' | head -1) -- \
+  uv run python src/api/cli.py langfuse-sync-model-prices --replace --apply
+```
+
+**Parameters:**
+- `--apply`: make the changes. Without it, the command prints the plan only.
+- `--replace`: replace a custom definition that differs from ours. Without it, the
+  command skips that model and prints the differences.
+
+**Notes:**
+- Requires `LANGFUSE_HOST`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`.
+- Run it on each instance (local, staging, production).
+- Langfuse has no update call, and it rejects a second custom definition with the same
+  name. So `--replace` deletes the old definition, then creates ours. For approximately
+  one second between the two calls, the model uses its built-in definition or has no
+  price. If the create fails, the command recreates the old definition and stops.
+- A custom definition made by hand in the Langfuse UI often prices `input` and `output`
+  only. Then thinking tokens (`output_reasoning`) and cached tokens (`input_cache_read`)
+  cost $0. The dry run shows each key that has no price.
+- To change a price, change it in `model_prices.py` and run the command with `--replace`.
+- Langfuse versions without pricing tiers (for example 3.100.0) drop per-key prices
+  without an error and store a definition with no price. On such an instance the
+  command sets only the flat input and output prices, and it prints a warning. Then
+  cached tokens (`input_cache_read`) and thinking tokens (`output_reasoning`) cost $0.
+  Add their prices in the Langfuse UI (Settings → Models), or upgrade Langfuse.
+- After each create, the command reads the stored prices. If the instance stored no
+  price, the command deletes that definition and stops with an error.
+- The new prices apply to new calls only. Earlier calls keep their cost.
+- After you apply it, run `langfuse-model-prices` to make sure that each model is priced.
 
 ### build-aois
 
