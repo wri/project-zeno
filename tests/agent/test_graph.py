@@ -453,3 +453,70 @@ async def test_agent_for_natural_forest_loss_uses_fixed_canopy_cover(
     )
     assert payload["forest_filter"] == "natural_forest_only"
     assert payload["canopy_cover"] == 10
+
+
+def collect_tool_messages(steps, name: str) -> list[str]:
+    return [
+        msg.content
+        for step in steps
+        for value in step.values()
+        for msg in value.get("messages", [])
+        if getattr(msg, "type", None) == "tool" and msg.name == name
+    ]
+
+
+def selected_aois(steps) -> list[dict]:
+    return [
+        value["aoi_selection"]
+        for step in steps
+        for value in step.values()
+        if value.get("aoi_selection")
+    ]
+
+
+async def test_agent_does_not_search_a_named_concession(structlog_context):
+    query = "Analyse the PT Example oil palm concession"
+    search = AsyncMock(return_value=MOCK_AOI_QUERY_RESULTS_PARA_BRAZIL)
+    with patch("src.agent.subagents.pick_aoi.tool.query_aoi_database", search):
+        steps = await run_agent(query)
+
+    called = {c["name"] for c in collect_tool_calls(steps)}
+    assert not called & {"pull_data", "generate_insights"}
+    search.assert_not_awaited()
+    assert not selected_aois(steps)
+    assert any(
+        "click the concession" in message
+        for message in collect_tool_messages(steps, "pick_aoi")
+    )
+
+
+async def test_agent_gives_no_figure_when_an_area_has_too_many_concessions(
+    structlog_context,
+):
+    query = "How much tree cover loss is in oil palm concessions in Indonesia?"
+    # A concession expansion returns one row past the limit when the area
+    # holds more concessions than the agent can process.
+    concessions = pd.DataFrame(
+        [
+            {
+                "name": f"Concession {i}",
+                "subtype": "oil-palm-concession",
+                "src_id": str(i),
+                "source": "oil_palm",
+            }
+            for i in range(51)
+        ]
+    )
+    with patch(
+        "src.agent.subagents.pick_aoi.tool.query_subregion_database",
+        AsyncMock(return_value=concessions),
+    ):
+        steps = await run_agent(query)
+
+    called = {c["name"] for c in collect_tool_calls(steps)}
+    assert not called & {"pull_data", "generate_insights"}
+    assert not selected_aois(steps)
+    assert any(
+        "cannot give a figure or a count" in message
+        for message in collect_tool_messages(steps, "pick_aoi")
+    )

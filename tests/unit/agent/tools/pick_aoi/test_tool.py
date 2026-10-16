@@ -225,6 +225,39 @@ async def test_pick_aoi_tool_asks_for_clarification_when_no_place(
 
 
 @pytest.mark.asyncio
+async def test_pick_aoi_does_not_search_a_named_concession(monkeypatch):
+    async def fake_extract(self, question, aoi_type):
+        return PlaceQuery(
+            places=[ExtractedPlace(place="Riau")],
+            subregion="oil_palm",
+            named_concession=True,
+        )
+
+    async def fail_lookup(self, *args, **kwargs):
+        raise AssertionError("a named concession must not be looked up")
+
+    monkeypatch.setattr(Geocoder, "extract", fake_extract)
+    monkeypatch.setattr(Geocoder, "lookup", fail_lookup)
+
+    command = await pick_aoi.ainvoke(
+        {
+            "args": {
+                "question": "Analyse the PT Example concession in Riau",
+                "area_of_interest": None,
+                "state": {},
+            },
+            "id": "tc-named",
+            "type": "tool_call",
+        }
+    )
+
+    assert "aoi_selection" not in command.update
+    message = command.update["messages"][0]
+    assert message.response_metadata["msg_type"] == "human_feedback"
+    assert "click the concession" in message.content
+
+
+@pytest.mark.asyncio
 async def test_pick_aoi_logs_geocoding_miss_when_no_place_extracted(
     monkeypatch,
 ):

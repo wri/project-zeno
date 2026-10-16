@@ -93,10 +93,15 @@ Use rspo_oil_palm only when the user says RSPO; plain "oil palm" is
 oil_palm.
 
 Concessions are found only as the subregions of a place, never by their own
-name. Whenever the request is about concessions, set the concession type as
-`subregion` and the area they lie in as the place. For one named concession
-("the PT. Batang Kamalah concession in Riau") also use the area it lies in;
-the user then narrows down from there.
+name. Whenever the request is about the concessions of a type in an area,
+set the concession type as `subregion` and the area they lie in as the
+place.
+
+When the user names one specific concession, by its own name or by its
+company ("Analyse the PT Example concession", "the PT. Batang Kamalah
+concession in Riau"), set `named_concession` to true. The user selects it on
+the map instead. Leave `named_concession` false for concessions of a type in
+an area ("oil palm concessions in Riau").
 
 For state/district/municipality/locality/neighbourhood, also set
 `admin_term` to the exact local word the user used for that unit ("province",
@@ -129,6 +134,7 @@ Use subregion:
 - "Forest loss in mining concessions inside Bahuaja-Sonene National Park" → places=["Bahuaja-Sonene National Park"], subregion=mining
 - "Tree cover loss in RSPO concessions in Sabah" → places=["Sabah"], subregion=rspo_oil_palm
 - "Pulpwood plantations in Jambi" → places=["Jambi"], subregion=wood_fiber
+- "Analyse the PT Example oil palm concession" → named_concession=true
 
 Do not use subregion:
 - "Deforestation in Ontario" → places=["Ontario"], no subregion

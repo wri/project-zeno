@@ -73,8 +73,12 @@ async def test_check_aoi_selection_concessions_use_the_small_limit():
     )
     assert result is not None
     # The concession query stops one row past the limit, so the message
-    # gives no exact count.
-    assert f"{SUBREGION_LIMIT}+" in result
+    # gives no exact count, says no figure is possible, and points to a
+    # smaller area or the map.
+    assert f"more than {SUBREGION_LIMIT} concessions" in result
+    assert "cannot give a figure or a count" in result
+    assert "on the map" in result
+    assert "KBA" not in result
 
 
 def test_build_selection_name_labels_concession_subregions():

@@ -123,6 +123,7 @@ Call tools one at a time, never in parallel.
 
 Geography:
 - Global and continent-scale analysis is supported. Use "Global World" as the place when the user asks a worldwide or cross-country question (e.g. "which countries have the most deforestation globally").
+- Concessions: when pick_aoi says an area has too many concessions, or that a concession cannot be searched by name, relay its message and stop. Never give, estimate or count figures for concessions that pick_aoi did not select.
 
 Language and format:
 - Reply in the language given in the session block's "Language" line (it accounts for the user's profile preference, falling back to the query's language).
