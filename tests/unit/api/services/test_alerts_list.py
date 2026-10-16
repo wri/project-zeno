@@ -1,3 +1,4 @@
+import asyncio
 import copy
 from datetime import date
 from typing import get_args
@@ -184,10 +185,16 @@ def test_a_result_it_cannot_read_raises(data, problem):
 
 
 class FakeHandler(DataSourceHandler):
-    def __init__(self, result=None):
-        self.result = result or DataPullResult(
-            success=True, data={}, message=""
+    """An analytics handler that returns ``data`` (or fails), records each
+    pull and, like the real one, strips the GADM suffix of its input in
+    place. Shared by the alerts list, endpoint and template builder tests.
+    """
+
+    def __init__(self, data=None, success=True, message="", error=None):
+        self.result = DataPullResult(
+            success=success, data=data if success else None, message=message
         )
+        self.error = error
         self.calls = []
 
     def can_handle(self, dataset) -> bool:
@@ -211,9 +218,12 @@ class FakeHandler(DataSourceHandler):
                 "aois": [dict(aoi) for aoi in aois],
             }
         )
-        # The analytics handler strips the GADM suffix in place.
+        # Yield, as a real request does, so concurrent callers interleave.
+        await asyncio.sleep(0)
         for aoi in aois:
             aoi["src_id"] = aoi["src_id"].removesuffix("_1")
+        if self.error:
+            raise self.error
         return self.result
 
 
@@ -263,7 +273,7 @@ async def test_a_land_filter_restricts_the_pull_to_that_land(land_filter):
         ("2026-10-09", "high", 2.0),
         ("2026-10-09", "low", 7.0),
     )
-    handler = FakeHandler(DataPullResult(success=True, data=data, message=""))
+    handler = FakeHandler(data)
 
     alerts = await _list(handler, land_filter=land_filter)
 
@@ -294,9 +304,7 @@ async def test_an_unknown_land_filter_never_reaches_the_api():
 
 
 async def _list_data(*rows):
-    data = _rows(*rows) if rows else {}
-    handler = FakeHandler(DataPullResult(success=True, data=data, message=""))
-    return await _list(handler)
+    return await _list(FakeHandler(_rows(*rows) if rows else {}))
 
 
 @pytest.mark.asyncio
@@ -345,15 +353,12 @@ async def test_no_rows_give_no_data_date():
 
 @pytest.mark.asyncio
 async def test_rows_and_total():
-    data = _rows(
+    alerts = await _list_data(
         ("2026-10-09", "high", 12.5),
         ("2026-10-09", "highest", 3.0),
         ("2026-09-20", "high", 0.1),
         ("2026-09-20", "low", 7.0),
     )
-    handler = FakeHandler(DataPullResult(success=True, data=data, message=""))
-
-    alerts = await _list(handler)
 
     assert alerts.rows == [
         AlertDay(date(2026, 10, 9), 12.5, 3.0, new=True),
@@ -470,9 +475,7 @@ async def test_other_area_types_are_supported(aoi):
 
 @pytest.mark.asyncio
 async def test_a_failed_pull_raises_with_the_upstream_message():
-    handler = FakeHandler(
-        DataPullResult(success=False, data=None, message="timed out")
-    )
+    handler = FakeHandler(success=False, message="timed out")
 
     with pytest.raises(AlertsUnavailableError, match="timed out"):
         await _list(handler)
@@ -480,8 +483,5 @@ async def test_a_failed_pull_raises_with_the_upstream_message():
 
 @pytest.mark.asyncio
 async def test_a_result_it_cannot_read_is_unavailable():
-    data = _rows(("2026-10-09", "nominal", 1.0))
-    handler = FakeHandler(DataPullResult(success=True, data=data, message=""))
-
     with pytest.raises(AlertsUnavailableError, match="confidence"):
-        await _list(handler)
+        await _list_data(("2026-10-09", "nominal", 1.0))
