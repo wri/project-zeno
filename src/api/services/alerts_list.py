@@ -9,10 +9,19 @@ payload.
 import math
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from typing import Any, Optional
 
-from src.api.services.dashboard_alerts import AlertsUnavailableError
+from src.agent.datasets.dates import revise_date_range
+from src.agent.datasets.handlers.analytics_handler import (
+    ANALYTICS_AOI_SUBTYPES,
+    INTEGRATED_ALERTS_ID,
+)
+from src.agent.datasets.handlers.base import DataSourceHandler
+from src.api.services.dashboard_alerts import (
+    AlertsUnavailableError,
+    latest_alert_week,
+)
 
 # The confidence tiers the list shows, each as a column. Low confidence
 # alerts are left out: they are single detections by one system.
@@ -22,10 +31,23 @@ EXCLUDED_CONFIDENCES = ("low",)
 # AOI name, and the API the AOI id and type; one pull is one AOI, so they
 # carry nothing.
 ALERT_COLUMNS = ("alert_date", "alert_confidence", "area_ha")
+# The period when the caller gives no start date, counted back from the end.
+ALERTS_LIST_DEFAULT_DAYS = 30
+# The longest period one request may pull, as for the nrt-monitoring
+# template.
+ALERTS_LIST_MAX_DAYS = 365
 
 
 class UnexpectedAlertsDataError(AlertsUnavailableError):
     """The analytics API answered with rows this module cannot read."""
+
+
+class UnsupportedAreaError(ValueError):
+    """The analytics API takes no integrated alerts request for this area."""
+
+
+class InvalidWindowError(ValueError):
+    """The requested period is empty or too long."""
 
 
 @dataclass(frozen=True)
@@ -36,6 +58,27 @@ class AlertDay:
     total_ha: float
     # The day is in the latest full alert week.
     new: bool
+
+
+@dataclass(frozen=True)
+class AlertsWeek:
+    start_date: date
+    end_date: date
+
+
+@dataclass(frozen=True)
+class AlertsList:
+    # The period pulled, clamped to the data and to today.
+    start_date: date
+    end_date: date
+    new_week: AlertsWeek
+    total_area_ha: float
+    rows: list[AlertDay]
+
+    @property
+    def data_to(self) -> date:
+        """The last day the list covers, shown as "DATA TO"."""
+        return self.end_date
 
 
 def _parse_date(value: Any) -> date:
@@ -117,3 +160,89 @@ def alert_days(
             )
         )
     return days
+
+
+def supports_alerts_list(aoi: dict) -> bool:
+    return aoi.get("subtype") in ANALYTICS_AOI_SUBTYPES
+
+
+class AlertsListService:
+    """One area's alert days over a period, from one analytics pull."""
+
+    def __init__(self, handler: DataSourceHandler):
+        self.handler = handler
+
+    async def window(
+        self, start: Optional[date], end: Optional[date], today: date
+    ) -> tuple[date, date]:
+        """The period to pull. The end defaults to today and is capped at
+        today; the start defaults to 30 days before the end. Both are then
+        clamped to the integrated alerts data. Raises ``InvalidWindowError``
+        for an empty period or one longer than 365 days."""
+        end = min(end or today, today)
+        start = start or end - timedelta(days=ALERTS_LIST_DEFAULT_DAYS)
+        clamped_start, clamped_end, _ = await revise_date_range(
+            start.isoformat(), end.isoformat(), INTEGRATED_ALERTS_ID
+        )
+        start = date.fromisoformat(clamped_start)
+        end = date.fromisoformat(clamped_end)
+        if start > end:
+            raise InvalidWindowError(
+                f"The start date {start} is after the end date {end}, once "
+                "both are limited to the dates the integrated alerts data "
+                "covers (up to today)."
+            )
+        if (end - start).days > ALERTS_LIST_MAX_DAYS:
+            raise InvalidWindowError(
+                f"The period from {start} to {end} is longer than "
+                f"{ALERTS_LIST_MAX_DAYS} days."
+            )
+        return start, end
+
+    async def list(
+        self,
+        aoi: dict,
+        start: Optional[date] = None,
+        end: Optional[date] = None,
+        *,
+        today: date,
+    ) -> AlertsList:
+        """The alert days in ``aoi`` (``source``, ``src_id``, ``subtype``).
+
+        ``today`` sets the default period, caps its end and picks the
+        latest alert week, so one request uses one date throughout. Raises
+        ``UnsupportedAreaError`` or ``InvalidWindowError`` before any pull,
+        and ``AlertsUnavailableError`` when the pull fails or its result
+        cannot be read.
+        """
+        if not supports_alerts_list(aoi):
+            raise UnsupportedAreaError(
+                f"The integrated alerts list is not available for "
+                f"{aoi.get('subtype')!r} areas. It is available for "
+                "countries, states or provinces, districts or counties, "
+                "protected areas, key biodiversity areas, indigenous lands, "
+                "custom areas and concessions."
+            )
+        start, end = await self.window(start, end, today)
+        # A copy: the handler strips the GADM suffix of its input in place.
+        # The dataset is exactly what AnalyzeService sends, so a template
+        # build makes one pull for its chart and its list.
+        result = await self.handler.pull_data(
+            query="",
+            dataset={"dataset_id": INTEGRATED_ALERTS_ID},
+            start_date=start.isoformat(),
+            end_date=end.isoformat(),
+            change_over_time_query=False,
+            aois=[dict(aoi)],
+        )
+        if not result.success:
+            raise AlertsUnavailableError(result.message)
+        week = latest_alert_week(today)
+        rows = alert_days(result.data, week)
+        return AlertsList(
+            start_date=start,
+            end_date=end,
+            new_week=AlertsWeek(*week),
+            total_area_ha=math.fsum(row.total_ha for row in rows),
+            rows=rows,
+        )
