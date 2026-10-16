@@ -581,12 +581,18 @@ async def check_aoi_selection(
 
     if len(aois) > subregion_limit:
         # A concession expansion stops one row past the limit, so its true
-        # count is unknown.
-        capped = aoi_source in CONCESSION_SOURCES
+        # count is unknown. The message says so, and that no figure across
+        # the area is possible, so the agent does not offer one.
+        if aoi_source in CONCESSION_SOURCES:
+            return await t(
+                "pick_aoi.too_many_concessions",
+                language,
+                limit=subregion_limit,
+            )
         return await t(
             "pick_aoi.too_many_subregions",
             language,
-            count=f"{subregion_limit}+" if capped else len(aois),
+            count=len(aois),
             subregion_limit=SUBREGION_LIMIT,
             subregion_limit_admin=SUBREGION_LIMIT_ADMIN,
         )
@@ -753,6 +759,15 @@ class PlaceQuery(BaseModel):
             "unambiguous."
         ),
     )
+    named_concession: bool = Field(
+        default=False,
+        description=(
+            "True when the user names one specific concession, by its own "
+            "name or its company ('the PT Example concession'). False for "
+            "concessions of a type inside a place ('oil palm concessions in "
+            "Riau')."
+        ),
+    )
 
 
 class _PlaceResolution(NamedTuple):
@@ -898,6 +913,23 @@ class Geocoder:
             [place.model_dump() for place in query.places],
             query.subregion,
         )
+        if query.named_concession:
+            # Concessions are not searchable by name, and expanding the
+            # place around one would select every concession there instead
+            # of the one the user named. The map is the way to select it.
+            logger.info("GEOCODER: named concession, not searched")
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            await t("pick_aoi.named_concession", language),
+                            tool_call_id=tool_call_id,
+                            status="success",
+                            response_metadata={"msg_type": "human_feedback"},
+                        )
+                    ],
+                },
+            )
         if not query.places:
             logger.warning(
                 "geocoding_miss",
