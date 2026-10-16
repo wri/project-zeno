@@ -34,10 +34,9 @@ ALERTS = AlertsList(
     start_date=date(2026, 9, 16),
     end_date=TODAY,
     new_week=AlertsWeek(date(2026, 10, 4), date(2026, 10, 10)),
-    total_area_ha=17.0,
     rows=[
-        AlertDay(date(2026, 10, 9), 12.5, 3.0, 15.5, new=True),
-        AlertDay(date(2026, 9, 20), 1.5, 0.0, 1.5, new=False),
+        AlertDay(date(2026, 10, 9), 12.5, 3.0, new=True),
+        AlertDay(date(2026, 9, 20), 1.5, 0.0, new=False),
     ],
 )
 UPSTREAM = "Failed to pull ... payload: {'aoi': ...}, response: secret"
@@ -119,7 +118,6 @@ def test_no_data_in_the_period_is_a_null_data_date():
         start_date=date(2026, 9, 16),
         end_date=TODAY,
         new_week=AlertsWeek(date(2026, 10, 4), date(2026, 10, 10)),
-        total_area_ha=0.0,
         rows=[],
     )
 
