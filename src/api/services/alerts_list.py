@@ -10,15 +10,16 @@ import math
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Any, Optional, get_args
+from typing import Any, Optional
 
 from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import (
     ANALYTICS_AOI_SUBTYPES,
     INTEGRATED_ALERTS_ID,
+    INTEGRATED_ALERTS_LAND_FILTERS,
 )
 from src.agent.datasets.handlers.base import DataSourceHandler
-from src.api.schemas import ALERTS_MAX_DAYS, AlertsLandFilter
+from src.api.schemas import ALERTS_MAX_DAYS
 from src.api.services.dashboard_alerts import (
     AlertsUnavailableError,
     latest_alert_week,
@@ -34,9 +35,6 @@ EXCLUDED_CONFIDENCES = ("low",)
 ALERT_COLUMNS = ("alert_date", "alert_confidence", "area_ha")
 # The period when the caller gives no start date, counted back from the end.
 ALERTS_LIST_DEFAULT_DAYS = 30
-# The land classes the list can be restricted to. The handler sends each,
-# given as the dataset's context layer, as the analytics API's land_filter.
-ALERTS_LAND_FILTERS: tuple[str, ...] = get_args(AlertsLandFilter)
 
 
 class UnexpectedAlertsDataError(AlertsUnavailableError):
@@ -227,7 +225,10 @@ class AlertsListService:
         """
         # The handler sends no filter for a context layer it does not know,
         # which would silently list alerts on all land.
-        if land_filter is not None and land_filter not in ALERTS_LAND_FILTERS:
+        if (
+            land_filter is not None
+            and land_filter not in INTEGRATED_ALERTS_LAND_FILTERS
+        ):
             raise ValueError(f"Unknown land filter: {land_filter!r}")
         if aoi.get("subtype") not in ANALYTICS_AOI_SUBTYPES:
             raise UnsupportedAreaError(

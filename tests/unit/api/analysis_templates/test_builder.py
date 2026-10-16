@@ -11,13 +11,13 @@ import pytest
 from src.agent.datasets.config import DATASETS
 from src.agent.datasets.handlers.analytics_handler import (
     INTEGRATED_ALERTS_ID,
+    INTEGRATED_ALERTS_LAND_FILTERS,
     TREE_COVER_LOSS_ID,
 )
 from src.agent.datasets.handlers.base import DataPullResult
 from src.agent.i18n import MESSAGES
 from src.agent.imagery.base import ImageryProviderResult
 from src.agent.models import ImageryState
-from src.api.services.alerts_list import ALERTS_LAND_FILTERS
 from src.api.services.analysis_templates import builder, text
 from src.api.services.analysis_templates.builder import (
     DashboardGoneError,
@@ -514,7 +514,9 @@ def _catalog_tile(dataset_id, context_layer):
 
 
 def test_every_land_filter_of_the_list_has_an_overlay():
-    assert set(builder.ALERTS_LAND_OVERLAYS) == set(ALERTS_LAND_FILTERS)
+    assert set(builder.ALERTS_LAND_OVERLAYS) == set(
+        INTEGRATED_ALERTS_LAND_FILTERS
+    )
 
 
 @pytest.mark.asyncio

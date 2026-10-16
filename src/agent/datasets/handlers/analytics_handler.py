@@ -152,6 +152,12 @@ LAND_GHG_INVENTORY_ID = [
     if ds["dataset_name"] == "Land GHG Monitoring System (LGMS)"
 ][0]
 
+# The land classes the integrated alerts endpoint can restrict alerts to,
+# sent as its land_filter when the dataset's context layer names one.
+# natural_lands is a catalog context layer; natural_forests (the SBTN natural
+# forest classes) is asked for by the alerts list only.
+INTEGRATED_ALERTS_LAND_FILTERS = ("natural_lands", "natural_forests")
+
 # AOI subtypes that the handler sends as their geometry (a feature collection).
 GEOMETRY_SUBTYPES = ("custom-area", *CONCESSION_SUBTYPES)
 # Every AOI subtype the analytics API takes: admin levels 0 to 2, the named
@@ -429,13 +435,12 @@ class AnalyticsHandler(DataSourceHandler):
 
         payload: dict[str, Any]
         if dataset.get("dataset_id") == INTEGRATED_ALERTS_ID:
-            land_filter = None
-            if dataset.get("context_layer") == "natural_lands":
-                land_filter = "natural_lands"
-            elif dataset.get("context_layer") == "natural_forests":
-                # SBTN natural forest classes only. Not a catalog context
-                # layer: the alerts list asks for it directly.
-                land_filter = "natural_forests"
+            context_layer = dataset.get("context_layer")
+            land_filter = (
+                context_layer
+                if context_layer in INTEGRATED_ALERTS_LAND_FILTERS
+                else None
+            )
 
             payload = {
                 **base_payload,
