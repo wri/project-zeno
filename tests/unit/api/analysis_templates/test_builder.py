@@ -481,6 +481,10 @@ async def test_alerts_widget_stores_the_area_the_period_and_the_layer():
     dataset = widget.config["dataset"]
     assert dataset["dataset_id"] == INTEGRATED_ALERTS_ID
     assert dataset["context_layer"] is None
+    # The natural lands overlay rides along, inactive, for the land filter.
+    (overlay,) = dataset["context_layers"]
+    assert overlay["name"] == "natural_lands"
+    assert "natural-lands" in overlay["tile_url"]
     assert (dataset["start_date"], dataset["end_date"]) == (
         "2026-08-24",
         "2026-09-23",

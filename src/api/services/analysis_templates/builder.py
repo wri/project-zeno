@@ -415,6 +415,11 @@ async def _build_natural_forest_loss(
     )
 
 
+# The catalog context layer of integrated alerts that the alerts widget
+# carries for its map.
+ALERTS_OVERLAY_CONTEXT_LAYER = "natural_lands"
+
+
 async def _alerts_fact(
     alerts: AlertsList, context: BuildContext
 ) -> Optional[str]:
@@ -471,6 +476,14 @@ async def _build_alerts(
             f"'{context.aoi['name']}': {error}"
         ) from error
     fact = await _alerts_fact(alerts, context)
+    snapshot = _layer_snapshot(spec.dataset_id, None, start, end)
+    # The land overlay the frontend shows when the list is filtered to
+    # natural lands. The snapshot's own context_layer stays None, so the map
+    # shows alerts on all land by default. Natural forests has no tile
+    # layer in the catalog.
+    snapshot["context_layers"] = _layer_snapshot(
+        spec.dataset_id, ALERTS_OVERLAY_CONTEXT_LAYER, start, end
+    )["context_layers"]
     return BuiltWidget(
         widget=SectionWidget(
             widget_type="alerts",
@@ -483,7 +496,7 @@ async def _build_alerts(
                     # The template's period, which the chart shares.
                     "days": (context.end - context.start).days,
                 },
-                "dataset": _layer_snapshot(spec.dataset_id, None, start, end),
+                "dataset": snapshot,
             },
         ),
         summary=(
