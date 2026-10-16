@@ -18,6 +18,7 @@ from src.agent.datasets.handlers.analytics_handler import (
     INTEGRATED_ALERTS_ID,
 )
 from src.agent.datasets.handlers.base import DataSourceHandler
+from src.api.schemas import ALERTS_MAX_DAYS
 from src.api.services.dashboard_alerts import (
     AlertsUnavailableError,
     latest_alert_week,
@@ -33,9 +34,8 @@ EXCLUDED_CONFIDENCES = ("low",)
 ALERT_COLUMNS = ("alert_date", "alert_confidence", "area_ha")
 # The period when the caller gives no start date, counted back from the end.
 ALERTS_LIST_DEFAULT_DAYS = 30
-# The longest period one request may pull, as for the nrt-monitoring
-# template.
-ALERTS_LIST_MAX_DAYS = 365
+# The longest period one request may pull, the same as an alerts widget's.
+ALERTS_LIST_MAX_DAYS = ALERTS_MAX_DAYS
 
 
 class UnexpectedAlertsDataError(AlertsUnavailableError):
