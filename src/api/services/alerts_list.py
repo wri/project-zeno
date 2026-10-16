@@ -10,7 +10,7 @@ import math
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Any, Optional
+from typing import Any, Optional, get_args
 
 from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import (
@@ -18,7 +18,7 @@ from src.agent.datasets.handlers.analytics_handler import (
     INTEGRATED_ALERTS_ID,
 )
 from src.agent.datasets.handlers.base import DataSourceHandler
-from src.api.schemas import ALERTS_MAX_DAYS
+from src.api.schemas import ALERTS_MAX_DAYS, AlertsLandFilter
 from src.api.services.dashboard_alerts import (
     AlertsUnavailableError,
     latest_alert_week,
@@ -36,6 +36,9 @@ ALERT_COLUMNS = ("alert_date", "alert_confidence", "area_ha")
 ALERTS_LIST_DEFAULT_DAYS = 30
 # The longest period one request may pull, the same as an alerts widget's.
 ALERTS_LIST_MAX_DAYS = ALERTS_MAX_DAYS
+# The land classes the list can be restricted to. The handler sends each,
+# given as the dataset's context layer, as the analytics API's land_filter.
+ALERTS_LAND_FILTERS: tuple[str, ...] = get_args(AlertsLandFilter)
 
 
 class UnexpectedAlertsDataError(AlertsUnavailableError):
@@ -206,15 +209,21 @@ class AlertsListService:
         end: Optional[date] = None,
         *,
         today: date,
+        land_filter: Optional[str] = None,
     ) -> AlertsList:
         """The alert days in ``aoi`` (``source``, ``src_id``, ``subtype``).
 
         ``today`` sets the default period, caps its end and picks the
-        latest alert week, so one request uses one date throughout. Raises
-        ``UnsupportedAreaError`` or ``InvalidWindowError`` before any pull,
-        and ``AlertsUnavailableError`` when the pull fails or its result
-        cannot be read.
+        latest alert week, so one request uses one date throughout.
+        ``land_filter`` restricts the alerts to one land class; None is all
+        land. Raises ``UnsupportedAreaError`` or ``InvalidWindowError``
+        before any pull, and ``AlertsUnavailableError`` when the pull fails
+        or its result cannot be read.
         """
+        # The handler sends no filter for a context layer it does not know,
+        # which would silently list alerts on all land.
+        if land_filter is not None and land_filter not in ALERTS_LAND_FILTERS:
+            raise ValueError(f"Unknown land filter: {land_filter!r}")
         if not supports_alerts_list(aoi):
             raise UnsupportedAreaError(
                 f"The integrated alerts list is not available for "
@@ -224,12 +233,15 @@ class AlertsListService:
                 "custom areas and concessions."
             )
         start, end = await self.window(start, end, today)
+        # Without a land filter the dataset is exactly what AnalyzeService
+        # sends, so a template build makes one pull for its chart and list.
+        dataset: dict[str, Any] = {"dataset_id": INTEGRATED_ALERTS_ID}
+        if land_filter is not None:
+            dataset["context_layer"] = land_filter
         # A copy: the handler strips the GADM suffix of its input in place.
-        # The dataset is exactly what AnalyzeService sends, so a template
-        # build makes one pull for its chart and its list.
         result = await self.handler.pull_data(
             query="",
-            dataset={"dataset_id": INTEGRATED_ALERTS_ID},
+            dataset=dataset,
             start_date=start.isoformat(),
             end_date=end.isoformat(),
             change_over_time_query=False,

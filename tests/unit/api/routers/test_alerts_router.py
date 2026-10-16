@@ -48,9 +48,13 @@ class FakeService:
         self.error = error
         self.delay = delay
         self.calls = []
+        self.land_filters = []
 
-    async def list(self, aoi, start=None, end=None, *, today):
+    async def list(
+        self, aoi, start=None, end=None, *, today, land_filter=None
+    ):
         self.calls.append((aoi, start, end, today))
+        self.land_filters.append(land_filter)
         if self.delay:
             await asyncio.sleep(self.delay)
         if self.error:
@@ -136,6 +140,40 @@ def test_the_dates_are_optional():
     assert response.status_code == 200
     ((_, start, end, _),) = service.calls
     assert (start, end) == (None, None)
+
+
+@pytest.mark.parametrize("land_filter", ["natural_lands", "natural_forests"])
+def test_passes_the_land_filter(land_filter):
+    service = FakeService()
+
+    response = _post(service, {**BODY, "land_filter": land_filter})
+
+    assert response.status_code == 200
+    assert service.land_filters == [land_filter]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [BODY, {**BODY, "land_filter": None}],
+    ids=["absent", "null"],
+)
+def test_no_land_filter_is_all_land(body):
+    service = FakeService()
+
+    response = _post(service, body)
+
+    assert response.status_code == 200
+    assert service.land_filters == [None]
+
+
+@pytest.mark.parametrize("land_filter", ["intact_forest", "Natural_lands", ""])
+def test_an_unknown_land_filter_is_422(land_filter):
+    service = FakeService()
+
+    response = _post(service, {**BODY, "land_filter": land_filter})
+
+    assert response.status_code == 422
+    assert service.calls == []
 
 
 @pytest.mark.parametrize(
