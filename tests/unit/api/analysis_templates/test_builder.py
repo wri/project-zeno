@@ -1,5 +1,6 @@
 """Tests for the analysis template builder, with the data sources mocked."""
 
+import asyncio
 from datetime import date
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -23,6 +24,7 @@ from src.api.services.analysis_templates.builder import (
     apply_template,
 )
 from src.api.services.analysis_templates.models import (
+    ChartWidgetSpec,
     ImageryWidgetSpec,
     LayerWidgetSpec,
     NaturalForestLossWidgetSpec,
@@ -310,6 +312,115 @@ async def test_dashboard_deleted_during_the_build():
 
     with pytest.raises(DashboardGoneError):
         await _apply(stack)
+
+
+class _CountingHandler:
+    """An analytics handler that counts its pulls and, like the real one,
+    strips the GADM suffix of its input in place."""
+
+    def __init__(self, error=None):
+        self.calls = 0
+        self.error = error
+
+    def can_handle(self, dataset):
+        return True
+
+    async def pull_data(self, **kwargs):
+        self.calls += 1
+        await asyncio.sleep(0)
+        for aoi in kwargs["aois"]:
+            aoi["src_id"] = aoi["src_id"][:-2]
+        if self.error:
+            raise self.error
+        return _pull()
+
+
+def _pull_args(**change):
+    return {
+        "query": "",
+        "dataset": {"dataset_id": INTEGRATED_ALERTS_ID},
+        "start_date": "2026-08-24",
+        "end_date": "2026-09-23",
+        "change_over_time_query": False,
+        "aois": [
+            {
+                "source": "gadm",
+                "src_id": "BRA.16_1",
+                "subtype": "state-province",
+            }
+        ],
+        **change,
+    }
+
+
+@pytest.mark.asyncio
+async def test_concurrent_identical_pulls_share_one_request():
+    inner = _CountingHandler()
+    shared = builder._SharedPulls(inner)
+    args = _pull_args()
+
+    first, second = await asyncio.gather(
+        shared.pull_data(**args), shared.pull_data(**args)
+    )
+
+    assert inner.calls == 1
+    assert first is second
+    # The caller's area is left alone; the handler got a copy.
+    assert args["aois"][0]["src_id"] == "BRA.16_1"
+
+
+@pytest.mark.asyncio
+async def test_different_pulls_are_separate_requests():
+    inner = _CountingHandler()
+    shared = builder._SharedPulls(inner)
+
+    await shared.pull_data(**_pull_args())
+    await shared.pull_data(**_pull_args(start_date="2026-09-09"))
+    await shared.pull_data(
+        **_pull_args(
+            dataset={
+                "dataset_id": TREE_COVER_LOSS_ID,
+                "forest_breakdown": "natural_forest",
+            }
+        )
+    )
+
+    assert inner.calls == 3
+
+
+@pytest.mark.asyncio
+async def test_a_failed_shared_pull_fails_every_caller():
+    inner = _CountingHandler(error=RuntimeError("boom"))
+    shared = builder._SharedPulls(inner)
+    args = _pull_args()
+
+    results = await asyncio.gather(
+        shared.pull_data(**args),
+        shared.pull_data(**args),
+        return_exceptions=True,
+    )
+
+    assert inner.calls == 1
+    assert all(isinstance(r, RuntimeError) for r in results)
+
+
+@pytest.mark.asyncio
+async def test_widgets_of_one_build_share_a_pull():
+    template = NRT.model_copy(
+        update={
+            "widgets": (
+                ChartWidgetSpec(dataset_id=INTEGRATED_ALERTS_ID),
+                ChartWidgetSpec(dataset_id=INTEGRATED_ALERTS_ID),
+            )
+        }
+    )
+    mocks, stack = _patches(written=("section-1", ["w1", "w2"]))
+
+    await _apply(stack, template=template)
+
+    assert mocks.pull.await_count == 1
+    widgets = mocks.write.await_args.kwargs["widgets"]
+    assert [w.widget_type for w in widgets] == ["insight", "insight"]
 
 
 SHARE_FACT = (
