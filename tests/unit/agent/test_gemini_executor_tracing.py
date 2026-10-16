@@ -140,9 +140,16 @@ def test_one_span_covers_the_whole_retry_loop(executor, spans):
     ]
 
 
-def test_call_succeeds_with_langfuse_unconfigured(executor):
-    """Uses the real generation_span, which is what production falls back to
-    whenever Langfuse is unreachable or unconfigured (as it is here)."""
+def test_call_succeeds_with_langfuse_unavailable(executor, monkeypatch):
+    """Uses the real generation_span with a client that cannot be built, which
+    is what production falls back to whenever Langfuse is unavailable. The
+    client is patched so the test never exports to a configured host."""
+    import langfuse
+
+    def _unavailable():
+        raise RuntimeError("langfuse unavailable")
+
+    monkeypatch.setattr(langfuse, "get_client", _unavailable)
 
     class _Models:
         def generate_content(self, **kwargs):

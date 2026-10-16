@@ -833,6 +833,7 @@ def langfuse_model_prices_command(hours: int, environment: Optional[str]):
     recompute the stored costs.
     """
     from src.api.services.langfuse.fetch import LangfuseClient
+    from src.api.services.langfuse.parse import observation_cost
 
     until = datetime.now(timezone.utc)
     since = until - timedelta(hours=hours)
@@ -851,7 +852,7 @@ def langfuse_model_prices_command(hours: int, environment: Optional[str]):
         usage = o.get("usageDetails") or {}
         if not model or not usage:
             continue
-        cost = o.get("totalCost") or 0
+        cost = observation_cost(o)
         row = stats.setdefault(model, [0, 0, 0.0, 0])
         row[0] += 1
         row[1] += int(usage.get("total") or 0)

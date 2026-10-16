@@ -180,9 +180,7 @@ async def update_insight_display(
         return error_command(CURATED_ONLY_RESTYLE_REFUSED, tool_call_id)
 
     current = Insight.from_orm_row(row)
-    revised = await InsightDisplayReviser().revise(
-        current, instruction, config={"run_name": "revise_insight_display"}
-    )
+    revised = await InsightDisplayReviser().revise(current, instruction)
 
     try:
         updated = _apply_revision(current.charts, revised)

@@ -5,6 +5,9 @@ user text committed). The contract tests at the bottom bind to the live
 src/agent contract so a drift there fails CI loudly.
 """
 
+import json
+from pathlib import Path
+
 from src.api.services.langfuse import parse as P
 
 
@@ -333,7 +336,10 @@ def gen(oid, parent=None, inp=0, out=0, cache=0, cost=0.0, name="ChatModel"):
             "total": total,
             "input_cache_read": cache,
         },
-        "totalCost": cost,
+        # The observations list endpoint carries ``costDetails`` (and the
+        # deprecated ``calculatedTotalCost``); ``totalCost`` is trace-only.
+        "costDetails": {"total": cost} if cost else {},
+        "calculatedTotalCost": cost,
     }
 
 
@@ -498,6 +504,91 @@ def test_trace_total_cost_wins_when_langfuse_provides_it():
     t["totalCost"] = 0.5
     r = P.parse_trace(t, agent_turn_observations())
     assert r["total_cost"] == 0.5
+
+
+def test_reasoning_tokens_count_as_output():
+    """The handler splits ``output_token_details`` out of ``output`` into
+    ``output_<key>``; thinking tokens are billed as output, so they are added
+    back, and input + output reconstructs the total."""
+    g = gen("g", parent="m", inp=100, out=20)
+    g["usageDetails"] = {
+        "input": 100,
+        "input_cache_read": 50,
+        "output": 20,
+        "output_reasoning": 30,
+        "total": 200,
+    }
+    u = P.parse_observations([span("m", "model"), g])
+    assert u["turn_input_tokens"] == 150
+    assert u["turn_output_tokens"] == 50
+    assert u["turn_input_tokens"] + u["turn_output_tokens"] == u["turn_tokens"]
+
+
+def test_nested_agent_inside_a_tool_is_credited_to_the_tool():
+    """``search_blogs`` runs its own agent, whose LLM node is also ``model``.
+    The nearest TOOL ancestor owns the call, not the first ``model`` node."""
+    obs = [
+        span("root", "LangGraph"),
+        span("m1", "model", parent="root"),
+        gen("g1", parent="m1", inp=1000, out=10),
+        span("t1", "tools", parent="root"),
+        span("tool1", "search_blogs", otype="TOOL", parent="t1"),
+        span("inner", "LangGraph", parent="tool1"),
+        span("m2", "model", parent="inner"),
+        gen("g2", parent="m2", inp=300, out=5),
+    ]
+    u = P.parse_observations(obs)
+    assert u["tokens_by_component"] == {"agent": 1010, "search_blogs": 305}
+    assert u["agent_tokens"] == 1010
+
+
+def test_split_drift_flag_goes_false_when_messages_report_zero():
+    """A message-derived 0 against non-zero observation agent tokens is drift,
+    not "not applicable"."""
+    out = {
+        "messages": [
+            human("Q"),
+            ai("A", finish="end_turn", usage=usage(0, 0)),
+        ]
+    }
+    r = P.parse_trace(trace(out), agent_turn_observations())
+    assert r["derived"]["agent_tokens_from_messages"] == 0
+    assert r["derived"]["usage_split_agrees"] is False
+
+
+def test_observation_cost_reads_the_list_endpoint_fields():
+    assert P.observation_cost({"costDetails": {"total": 0.25}}) == 0.25
+    # The deprecated field is the fallback.
+    assert P.observation_cost({"calculatedTotalCost": 0.5}) == 0.5
+    # ``totalCost`` exists only on traces, never on observations.
+    assert P.observation_cost({"totalCost": 0.75}) == 0.0
+    assert P.observation_cost({}) == 0.0
+
+
+def test_real_observations_list_response():
+    """A trace captured from a real ``/api/public/observations`` response
+    (inputs and outputs stripped). Pins the field names the parser reads: the
+    hand-built fixtures above once used ``totalCost``, which this endpoint does
+    not return, and every cost read as zero."""
+    path = (
+        Path(__file__).parent / "fixtures" / "langfuse_observations_list.json"
+    )
+    observations = json.loads(path.read_text())["data"]
+    u = P.parse_observations(observations)
+    assert u["generation_count"] == 9
+    assert u["turn_tokens"] == 66427
+    assert u["turn_input_tokens"] + u["turn_output_tokens"] == 66427
+    assert u["agent_tokens"] == 57006
+    assert u["tokens_by_component"] == {
+        "agent": 57006,
+        "generate_insights": 2785,
+        "pick_dataset": 5129,
+        "pick_aoi": 1507,
+    }
+    # Matches the trace's own ``totalCost`` (0.0057355). The agent model was
+    # unpriced on that instance, hence its zero.
+    assert u["observation_cost"] == 0.0057355
+    assert u["agent_cost"] == 0.0
 
 
 def test_observation_parsing_tolerates_junk():

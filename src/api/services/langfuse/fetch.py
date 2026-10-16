@@ -12,7 +12,8 @@ ClickHouse memory limits under load):
 * On persistent 5xx, **halve the page size (floor 1) and restart the window**;
   id-dedup makes the refetch safe. If it still fails at size 1, raise loudly
   (``LangfuseFetchError``) so the caller records a failed chunk rather than
-  silently dropping data.
+  silently dropping data. A non-retriable 4xx or an undecodable body raises
+  the same error.
 
 Both endpoints share that machinery via ``_fetch_windowed``; they differ only in
 the path and the names of the two timestamp bounds.
@@ -163,8 +164,7 @@ class LangfuseClient:
                     time.sleep(_retry_after(resp) or _backoff(attempt))
                     continue
 
-                resp.raise_for_status()
-                return resp.json()
+                return _json_or_raise(resp, trace_id)
 
     # -- internals --------------------------------------------------------- #
     def _fetch_windowed(
@@ -309,8 +309,26 @@ class LangfuseClient:
                 time.sleep(_backoff(server_errors))
                 continue
 
-            resp.raise_for_status()
-            return resp.json()
+            return _json_or_raise(resp, path)
+
+
+def _json_or_raise(resp: httpx.Response, what: str) -> dict[str, Any]:
+    """Return the decoded body, or raise ``LangfuseFetchError``.
+
+    A non-retriable 4xx (a key without read scope for the endpoint, or an
+    instance that rejects a parameter) and a body that does not decode are
+    both raised as ``LangfuseFetchError``, so callers that catch it degrade
+    or record a failed chunk instead of aborting the run.
+    """
+    try:
+        resp.raise_for_status()
+        return resp.json()
+    except httpx.HTTPStatusError as e:
+        raise LangfuseFetchError(
+            f"{resp.status_code} fetching {what}: {resp.text[:200]}"
+        ) from e
+    except ValueError as e:
+        raise LangfuseFetchError(f"invalid JSON fetching {what}: {e}") from e
 
 
 def _retry_after(resp: httpx.Response) -> Optional[float]:

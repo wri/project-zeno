@@ -148,11 +148,18 @@ def generation_span(
 def gemini_usage_details(response: Any) -> Optional[Dict[str, int]]:
     """Map a ``google.genai`` response's usage onto Langfuse's usage keys.
 
-    Langfuse keys prompt tokens as ``input`` *excluding* the cached ones, which
-    it wants separately as ``input_cache_read`` — the same split the parser
-    relies on (see ``src.api.services.langfuse.parse._obs_usage``). Gemini's
-    ``prompt_token_count`` includes the cached ones, so they are subtracted out
-    here. Thinking tokens are billed as output, so they are folded into it.
+    Follows the convention the Langfuse LangChain handler uses for every other
+    call, so one parser reads the whole table (see
+    ``src.api.services.langfuse.parse._obs_usage``): ``input`` and ``output``
+    are net of their breakdowns, which are reported as ``input_cache_read`` and
+    ``output_reasoning``.
+
+    * ``prompt_token_count`` includes cached tokens, so they are subtracted.
+    * ``tool_use_prompt_token_count`` is not in ``prompt_token_count`` but is
+      billed as input. For code execution it is the code and execution results
+      the model reads back, so it is added to ``input``.
+    * ``thoughts_token_count`` is not in ``candidates_token_count`` and is
+      billed as output. Langfuse prices ``output_reasoning`` for Gemini models.
     """
     usage = getattr(response, "usage_metadata", None)
     if usage is None:
@@ -166,18 +173,20 @@ def gemini_usage_details(response: Any) -> Optional[Dict[str, int]]:
 
     cached = _int(getattr(usage, "cached_content_token_count", None))
     prompt = _int(getattr(usage, "prompt_token_count", None))
-    output = _int(getattr(usage, "candidates_token_count", None)) + _int(
-        getattr(usage, "thoughts_token_count", None)
-    )
+    tool_use = _int(getattr(usage, "tool_use_prompt_token_count", None))
+    output = _int(getattr(usage, "candidates_token_count", None))
+    thoughts = _int(getattr(usage, "thoughts_token_count", None))
     total = _int(getattr(usage, "total_token_count", None))
 
     details = {
-        "input": max(prompt - cached, 0),
+        "input": max(prompt - cached, 0) + tool_use,
         "output": output,
-        "total": total or prompt + output,
+        "total": total or prompt + tool_use + output + thoughts,
     }
     if cached:
         details["input_cache_read"] = cached
+    if thoughts:
+        details["output_reasoning"] = thoughts
     return details
 
 

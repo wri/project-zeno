@@ -486,9 +486,9 @@ def _as_state_dict(output: Any) -> Any:
 # --------------------------------------------------------------------------- #
 # Observations (the usage source)
 # --------------------------------------------------------------------------- #
-# The LangGraph model node. A generation whose nearest named ancestor is this
-# chain is a call the agent made itself; anything under a TOOL observation was
-# made by that tool.
+# The LangGraph model node. A generation under this chain and under no TOOL
+# observation is a call the agent made itself; anything under a TOOL
+# observation was made by that tool.
 _AGENT_NODE_NAME = "model"
 AGENT_COMPONENT = "agent"
 OTHER_COMPONENT = "other"
@@ -497,16 +497,23 @@ OTHER_COMPONENT = "other"
 def _obs_usage(obs: dict[str, Any]) -> tuple[int, int, int, int]:
     """Return (input, output, total, cache_read) tokens for one observation.
 
-    Langfuse splits cached prompt tokens out of ``input`` and reports them as
-    ``input_cache_read``, whereas LangChain's ``usage_metadata.input_tokens``
-    includes them. We add them back so the token columns keep the same meaning
-    they had when they were derived from the message stream — otherwise the
-    series silently drops by the cache-hit rate (~45% on measured traces).
+    The Langfuse LangChain handler splits every ``input_token_details`` and
+    ``output_token_details`` entry out of ``input`` / ``output`` into its own
+    ``input_<key>`` / ``output_<key>`` usage key (``input_cache_read``,
+    ``output_reasoning``), whereas LangChain's ``input_tokens`` and
+    ``output_tokens`` include them. Summing each side back up keeps the token
+    columns on the meaning they had when they were derived from the message
+    stream, and keeps ``input + output == total``. Without it the series drops
+    by the cache-hit rate (~45% on measured traces) and loses thinking tokens.
     """
     u = obs.get("usageDetails") or {}
+    inp = out = 0
+    for key, value in u.items():
+        if key == "input" or key.startswith("input_"):
+            inp += _int(value)
+        elif key == "output" or key.startswith("output_"):
+            out += _int(value)
     cache = _int(u.get("input_cache_read"))
-    inp = _int(u.get("input")) + cache
-    out = _int(u.get("output"))
     total = _int(u.get("total")) or (inp + out)
     return inp, out, total, cache
 
@@ -518,32 +525,38 @@ def _int(value: Any) -> int:
         return 0
 
 
-def _obs_cost(obs: dict[str, Any]) -> float:
-    """Cost of one observation, preferring Langfuse's own total."""
-    total = obs.get("totalCost")
-    if total is not None:
+def observation_cost(obs: dict[str, Any]) -> float:
+    """Cost of one observation in USD.
+
+    The observations list endpoint has no ``totalCost`` (that field exists only
+    on traces). It carries ``costDetails`` and the deprecated
+    ``calculatedTotalCost``, which hold the same total; read the current field
+    first and fall back to the deprecated one.
+    """
+    details = obs.get("costDetails") or {}
+    for value in (details.get("total"), obs.get("calculatedTotalCost")):
+        if value is None:
+            continue
         try:
-            return float(total)
+            return float(value)
         except (TypeError, ValueError):
-            return 0.0
-    try:
-        return float(obs.get("inputCost") or 0) + float(
-            obs.get("outputCost") or 0
-        )
-    except (TypeError, ValueError):
-        return 0.0
+            continue
+    return 0.0
 
 
 def _component(obs: dict[str, Any], by_id: dict[str, dict[str, Any]]) -> str:
     """Who made this call: ``agent``, the owning tool's name, or ``other``.
 
-    Walks up ``parentObservationId`` to the nearest TOOL observation (the tool
-    that owns the call) or to the LangGraph ``model`` node (the agent's own
-    call). Anything else — a generation outside both, e.g. one emitted by a
-    manually instrumented span — lands in ``other`` rather than inflating the
-    agent's share.
+    Walks the whole ``parentObservationId`` chain. The nearest TOOL ancestor
+    owns the call, wherever it is: a tool that runs its own agent (e.g.
+    ``search_blogs``) has a LangGraph ``model`` node of its own *below* the TOOL
+    span, so stopping at the first ``model`` would credit the tool's spend to
+    the outer agent. Only a call with a ``model`` ancestor and no TOOL ancestor
+    is the agent's own. Anything else (e.g. a generation emitted by a manually
+    instrumented span outside any turn) lands in ``other``.
     """
     seen: set[str] = set()
+    under_model = False
     cur = by_id.get(obs.get("parentObservationId") or "")
     while cur is not None:
         cid = cur.get("id") or ""
@@ -553,9 +566,9 @@ def _component(obs: dict[str, Any], by_id: dict[str, dict[str, Any]]) -> str:
         if str(cur.get("type") or "").upper() == "TOOL":
             return cur.get("name") or "unknown_tool"
         if cur.get("name") == _AGENT_NODE_NAME:
-            return AGENT_COMPONENT
+            under_model = True
         cur = by_id.get(cur.get("parentObservationId") or "")
-    return OTHER_COMPONENT
+    return AGENT_COMPONENT if under_model else OTHER_COMPONENT
 
 
 def parse_observations(
@@ -588,7 +601,7 @@ def parse_observations(
 
     for o in gens:
         i, out, total, cache = _obs_usage(o)
-        c = _obs_cost(o)
+        c = observation_cost(o)
         t_in += i
         t_out += out
         t_total += total
@@ -709,7 +722,9 @@ def parse_trace(
         # silently becomes "other" — which a fill-rate check cannot catch,
         # because zero is not null. This flag can: it goes False.
         combined["usage_split_agrees"] = (
-            usage["agent_tokens"] == from_messages if from_messages else None
+            usage["agent_tokens"] == from_messages
+            if from_messages is not None
+            else None
         )
         # ``trace.totalCost`` is frequently null even when the observations
         # underneath it are priced, so the observation sum is the fallback.

@@ -122,6 +122,10 @@ kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' 
   turn, not just the agent's own. Re-run with `--backfill --since` over the window you
   analyse to put existing rows on the new basis, or the series has a step in it where
   the parser version changes.
+- Each chunk also fetches all observations of every type, with a 30-minute pad past
+  the chunk end. A trace has approximately 30 or more observations, so a long backfill
+  sends many more requests than before. If the Langfuse instance returns 5xx errors under
+  this load, use a smaller `--chunk-hours` (for example, 4) for the backfill.
 
 ### backfill-turn-fields
 

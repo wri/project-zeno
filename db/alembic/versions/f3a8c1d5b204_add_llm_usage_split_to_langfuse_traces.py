@@ -44,11 +44,8 @@ _NEW_COLUMNS = (
     ("generation_count", sa.Integer()),
 )
 
-# Recreated (not CREATE OR REPLACE'd) because adding columns to a view's select
-# list changes its shape, which REPLACE rejects.
-_CREATE_VIEW = f"""
-CREATE VIEW {_VIEW} AS
-SELECT
+# Projection as of b1f7a3c9d2e5 (stored is_final_turn_in_thread + turn_index).
+_PRIOR_COLS = """
     id,
     session_id,
     user_id,
@@ -69,63 +66,35 @@ SELECT
     turn_output_tokens,
     turn_tokens,
     turn_tool_calls,
+    latency_seconds,
+    total_cost,
+    prompt,
+    is_final_turn_in_thread,
+    turn_index"""
+
+# New columns are appended, so CREATE OR REPLACE accepts the wider view.
+_CREATE_VIEW = f"""
+CREATE OR REPLACE VIEW {_VIEW} AS
+SELECT{_PRIOR_COLS},
     agent_tokens,
     tool_tokens,
     agent_cost,
     tool_cost,
-    generation_count,
-    latency_seconds,
-    total_cost,
-    prompt,
-    (
-        row_number() OVER (
-            PARTITION BY COALESCE(session_id, id)
-            ORDER BY trace_timestamp DESC NULLS LAST, id DESC
-        ) = 1
-    ) AS is_final_turn_in_thread
-FROM langfuse_traces;
+    generation_count
+FROM {_TABLE};
 """
 
+# REPLACE cannot drop columns, so the downgrade recreates the view.
 _PRIOR_VIEW = f"""
 CREATE VIEW {_VIEW} AS
-SELECT
-    id,
-    session_id,
-    user_id,
-    environment,
-    trace_timestamp,
-    outcome,
-    has_answer,
-    answer_is_refusal,
-    had_tool_call,
-    tool_error_count,
-    aoi_name,
-    aoi_type,
-    primary_dataset_name,
-    has_insight,
-    is_global,
-    insight_id,
-    turn_input_tokens,
-    turn_output_tokens,
-    turn_tokens,
-    turn_tool_calls,
-    latency_seconds,
-    total_cost,
-    prompt,
-    (
-        row_number() OVER (
-            PARTITION BY COALESCE(session_id, id)
-            ORDER BY trace_timestamp DESC NULLS LAST, id DESC
-        ) = 1
-    ) AS is_final_turn_in_thread
-FROM langfuse_traces;
+SELECT{_PRIOR_COLS}
+FROM {_TABLE};
 """
 
 
 def upgrade() -> None:
     for name, type_ in _NEW_COLUMNS:
         op.add_column(_TABLE, sa.Column(name, type_, nullable=True))
-    op.execute(f"DROP VIEW IF EXISTS {_VIEW};")
     op.execute(_CREATE_VIEW)
 
 

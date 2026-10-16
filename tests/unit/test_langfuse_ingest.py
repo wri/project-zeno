@@ -131,7 +131,8 @@ def test_build_row_records_usage_from_observations():
             "type": "GENERATION",
             "parentObservationId": "m",
             "usageDetails": {"input": 100, "output": 10, "total": 110},
-            "totalCost": 0.002,
+            "costDetails": {"input": 0.0015, "output": 0.0005, "total": 0.002},
+            "calculatedTotalCost": 0.002,
         },
     ]
     row = build_row(trace, observations)

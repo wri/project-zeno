@@ -516,7 +516,8 @@ async def search_blogs(
         result = await _cached_agent(language=language).ainvoke(
             {"messages": [{"role": "user", "content": query}]},
             # This is a nested agent loop, so it can be several model calls per
-            # search. run_name labels them all under one component in Langfuse.
+            # search. run_name groups them in the Langfuse UI. Cost attribution
+            # credits them to the enclosing search_blogs TOOL span.
             config={"run_name": "search_blogs_agent"},
         )
     except Exception:

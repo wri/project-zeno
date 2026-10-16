@@ -6,12 +6,48 @@ tests) and that the Gemini usage mapping matches the keys the parser reads back
 out of Langfuse.
 """
 
+from contextlib import contextmanager
+
+import pytest
+
 from src.shared.langfuse_tracing import (
     AUXILIARY_TAG,
     auxiliary_config,
     gemini_usage_details,
     generation_span,
 )
+
+
+class _FakeSpan:
+    def __init__(self):
+        self.updates = []
+
+    def update(self, **kwargs):
+        self.updates.append(kwargs)
+
+
+class _FakeClient:
+    def __init__(self):
+        self.opened = []
+
+    @contextmanager
+    def start_as_current_observation(self, **kwargs):
+        span = _FakeSpan()
+        self.opened.append((kwargs, span))
+        yield span
+
+
+@pytest.fixture(autouse=True)
+def fake_langfuse(monkeypatch):
+    """Keep the suite hermetic: with ``LANGFUSE_*`` in the environment (as with
+    the repo ``.env``) the real client would export spans to that host."""
+    import langfuse
+    import langfuse.langchain
+
+    client = _FakeClient()
+    monkeypatch.setattr(langfuse, "get_client", lambda: client)
+    monkeypatch.setattr(langfuse.langchain, "CallbackHandler", object)
+    return client
 
 
 class _Usage:
@@ -40,8 +76,37 @@ def test_cached_tokens_are_reported_separately_from_input():
     assert details["input"] + details["input_cache_read"] == 12_000
 
 
-def test_thinking_tokens_are_billed_as_output():
-    assert gemini_usage_details(_Response())["output"] == 550
+def test_thinking_tokens_are_reported_as_output_reasoning():
+    """Same convention as the LangChain handler: ``output`` net of thoughts,
+    with the thoughts beside it under the key Langfuse prices for Gemini."""
+    details = gemini_usage_details(_Response())
+    assert details["output"] == 400
+    assert details["output_reasoning"] == 150
+
+
+def test_tool_use_prompt_tokens_are_billed_as_input():
+    """For code execution, the code and results the model reads back are in
+    ``tool_use_prompt_token_count``, outside ``prompt_token_count``."""
+
+    class U:
+        prompt_token_count = 1_000
+        tool_use_prompt_token_count = 900
+        candidates_token_count = 50
+        thoughts_token_count = 20
+        total_token_count = 1_970
+
+    class R:
+        usage_metadata = U()
+
+    details = gemini_usage_details(R())
+    assert details == {
+        "input": 1_900,
+        "output": 50,
+        "output_reasoning": 20,
+        "total": 1_970,
+    }
+    # The parser's per-side sums must reconstruct Gemini's own total.
+    assert sum(v for k, v in details.items() if k != "total") == 1_970
 
 
 def test_total_is_taken_from_the_response():
@@ -79,12 +144,26 @@ def test_garbage_usage_values_do_not_raise():
 
 
 # --------------------------------------------------------------------------- #
-# no-op behaviour (Langfuse unconfigured, as in tests and CLI runs)
+# span reporting
 # --------------------------------------------------------------------------- #
-def test_generation_span_is_usable_without_langfuse():
+def test_generation_span_reports_to_the_langfuse_span(fake_langfuse):
     with generation_span("probe", model="m") as gen:
         gen.record(usage={"input": 1, "output": 2, "total": 3})
         gen.record(level="ERROR", status_message="boom")
+
+    [(kwargs, span)] = fake_langfuse.opened
+    assert kwargs["as_type"] == "generation"
+    assert kwargs["name"] == "probe"
+    assert kwargs["model"] == "m"
+    assert span.updates == [
+        {"usage_details": {"input": 1, "output": 2, "total": 3}},
+        {"level": "ERROR", "status_message": "boom"},
+    ]
+
+
+# --------------------------------------------------------------------------- #
+# no-op behaviour (Langfuse unconfigured or broken)
+# --------------------------------------------------------------------------- #
 
 
 def test_generation_span_yields_a_recorder_even_on_failure():

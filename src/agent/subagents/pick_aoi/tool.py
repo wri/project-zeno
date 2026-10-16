@@ -438,8 +438,9 @@ async def select_best_aoi(
     )
 
     # Chain for selecting the best location match and returning the src_id.
-    # run_name is what this call is labelled in Langfuse, and so what
-    # derived.cost_by_component attributes its spend to.
+    # run_name labels the call in the Langfuse UI. Cost attribution does not
+    # use it: derived.cost_by_component credits the spend to the enclosing
+    # pick_aoi TOOL span.
     AOI_SELECTION_CHAIN = (
         AOI_SELECTION_PROMPT | SMALL_MODEL.with_structured_output(AOIId)
     ).with_config(run_name="select_aoi")

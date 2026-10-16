@@ -409,6 +409,7 @@ async def ingest_window(
     traces = await asyncio.to_thread(
         client.fetch_window, from_ts, to_ts, environment, page_size
     )
+    fetched = len(traces)
     traces, auxiliary = _split_auxiliary(traces)
     if auxiliary:
         logger.info(
@@ -424,7 +425,9 @@ async def ingest_window(
         page_size,
         {tid for t in traces if (tid := t.get("id"))},
     )
-    stats = WindowStats(fetched=len(traces))
+    # ``fetched`` counts auxiliary traces too: it is what Langfuse returned,
+    # and ``fetched - upserted`` is then what the window chose not to store.
+    stats = WindowStats(fetched=fetched)
     batch: list[dict[str, Any]] = []
     for t in traces:
         trace_id = t.get("id")

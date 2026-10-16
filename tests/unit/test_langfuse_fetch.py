@@ -20,8 +20,11 @@ class _Resp:
         self._payload = payload if payload is not None else {"data": []}
         self.status_code = status_code
         self.headers = {}
+        self.text = ""
 
     def json(self):
+        if isinstance(self._payload, Exception):
+            raise self._payload
         return self._payload
 
     def raise_for_status(self):
@@ -155,3 +158,19 @@ def test_5xx_at_page_size_one_raises_rather_than_dropping_data(
     _install(monkeypatch, [_Resp(status_code=503) for _ in range(30)])
     with pytest.raises(F.LangfuseFetchError):
         client.fetch_observations_window(FROM, TO, page_size=1)
+
+
+def test_non_retriable_4xx_raises_a_fetch_error(monkeypatch, client):
+    """A 403 (key without observation read scope) or a 400 (an instance that
+    rejects a parameter) must surface as LangfuseFetchError, the one error the
+    ingest layer degrades on. A raw HTTPStatusError would abort the run and
+    leave its run row in ``running``."""
+    _install(monkeypatch, [_Resp(status_code=403)])
+    with pytest.raises(F.LangfuseFetchError, match="403"):
+        client.fetch_observations_window(FROM, TO, obs_type=None)
+
+
+def test_undecodable_body_raises_a_fetch_error(monkeypatch, client):
+    _install(monkeypatch, [_Resp(ValueError("not json"))])
+    with pytest.raises(F.LangfuseFetchError, match="invalid JSON"):
+        client.fetch_window(FROM, TO)
