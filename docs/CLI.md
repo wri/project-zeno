@@ -233,6 +233,13 @@ kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' 
   only. Then thinking tokens (`output_reasoning`) and cached tokens (`input_cache_read`)
   cost $0. The dry run shows each key that has no price.
 - To change a price, change it in `model_prices.py` and run the command with `--replace`.
+- Langfuse versions without pricing tiers (for example 3.100.0) drop per-key prices
+  without an error and store a definition with no price. On such an instance the
+  command sets only the flat input and output prices, and it prints a warning. Then
+  cached tokens (`input_cache_read`) and thinking tokens (`output_reasoning`) cost $0.
+  Add their prices in the Langfuse UI (Settings → Models), or upgrade Langfuse.
+- After each create, the command reads the stored prices. If the instance stored no
+  price, the command deletes that definition and stops with an error.
 - The new prices apply to new calls only. Earlier calls keep their cost.
 - After you apply it, run `langfuse-model-prices` to make sure that each model is priced.
 

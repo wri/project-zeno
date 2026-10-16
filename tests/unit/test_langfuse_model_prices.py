@@ -189,3 +189,83 @@ def test_a_failed_replace_restores_the_old_definition(monkeypatch):
         "input": 0.5e-6,
         "output": 3e-6,
     }
+
+
+# As Langfuse 3.100.0 (staging) returns a definition: no pricingTiers field.
+_OLD_INSTANCE_EMPTY = {
+    "id": "empty",
+    "modelName": "gemini-3-flash-preview",
+    "matchPattern": _spec("gemini-3-flash-preview")["matchPattern"],
+    "isLangfuseManaged": False,
+    "inputPrice": None,
+    "outputPrice": None,
+    "prices": {},
+}
+
+
+def test_an_instance_without_tiers_is_detected():
+    assert not MP.supports_pricing_tiers([_OLD_INSTANCE_EMPTY])
+    assert MP.supports_pricing_tiers([_HAND_MADE_FLASH])
+
+
+def test_flat_fallback_sets_input_and_output_only():
+    spec = MP.flat(_spec("gemini-3.1-pro-preview"))
+    assert spec["inputPrice"] == pytest.approx(2.00e-6)  # the default tier
+    assert spec["outputPrice"] == pytest.approx(12.00e-6)
+    assert "pricingTiers" not in spec
+
+
+def test_flat_plan_replaces_a_definition_stored_without_prices():
+    """What staging needed after a tiered create was silently dropped."""
+    definitions = [MP.flat(d) for d in MP.DEFINITIONS]
+    changes = MP.plan(
+        [_OLD_INSTANCE_EMPTY], replace=True, definitions=definitions
+    )
+    flash = next(
+        c for c in changes if c.model_name == "gemini-3-flash-preview"
+    )
+    assert flash.action == "replace"
+    assert flash.diff == [
+        "Standard.input: none -> $0.5/1M",
+        "Standard.output: none -> $3/1M",
+    ]
+
+
+def test_create_rejects_a_definition_stored_without_prices(monkeypatch):
+    """The instance drops fields it does not know without an error. The
+    empty definition is deleted again and the error raised."""
+
+    class _Resp:
+        status_code = 200
+        text = ""
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return dict(_OLD_INSTANCE_EMPTY, id="new")
+
+    class _Http:
+        def __init__(self, **kw):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def post(self, *a, **kw):
+            return _Resp()
+
+    deleted = []
+    monkeypatch.setattr(MP.httpx, "Client", _Http)
+    monkeypatch.setattr(MP, "delete_model", lambda c, i: deleted.append(i))
+    client = type(
+        "C",
+        (),
+        {"host": "h", "public_key": "p", "secret_key": "s", "timeout": 1},
+    )()
+    with pytest.raises(MP.LangfuseFetchError, match="without prices"):
+        MP.create_model(client, _spec("gemini-3-flash-preview"))
+    assert deleted == ["new"]

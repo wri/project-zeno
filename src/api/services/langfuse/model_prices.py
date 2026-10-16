@@ -28,7 +28,11 @@ from typing import Any, Optional
 
 import httpx
 
-from src.api.services.langfuse.fetch import LangfuseClient, _json_or_raise
+from src.api.services.langfuse.fetch import (
+    LangfuseClient,
+    LangfuseFetchError,
+    _json_or_raise,
+)
 
 _MODELS_PATH = "/api/public/models"
 _PER_MILLION = 1e-6
@@ -156,7 +160,7 @@ def diff(existing: dict[str, Any], spec: dict[str, Any]) -> list[str]:
             f"{spec['matchPattern']!r}"
         )
     old = _tier_prices(existing)
-    new = {t["name"]: t["prices"] for t in spec["pricingTiers"]}
+    new = _tier_prices(spec)
     for tier in sorted(set(old) | set(new)):
         if tier not in new:
             lines.append(f"tier {tier!r}: removed")
@@ -172,7 +176,9 @@ def diff(existing: dict[str, Any], spec: dict[str, Any]) -> list[str]:
 
 
 def plan(
-    existing: list[dict[str, Any]], replace: bool = False
+    existing: list[dict[str, Any]],
+    replace: bool = False,
+    definitions: Optional[list[dict[str, Any]]] = None,
 ) -> list[PlannedChange]:
     """Decide, per definition, whether to create, replace or skip it.
 
@@ -183,7 +189,7 @@ def plan(
     skipped either way.
     """
     out = []
-    for spec in DEFINITIONS:
+    for spec in definitions if definitions is not None else DEFINITIONS:
         name = spec["modelName"]
         same = [m for m in existing if m.get("modelName") == name]
         custom = [m for m in same if not m.get("isLangfuseManaged")]
@@ -218,6 +224,34 @@ def plan(
     return out
 
 
+def supports_pricing_tiers(models: list[dict[str, Any]]) -> bool:
+    """Whether the instance stores per-key prices (``pricingTiers``).
+
+    Older instances (Langfuse 3.100.0 has none) accept a create request with
+    ``pricingTiers`` or ``prices``, drop them without an error, and store the
+    definition with no price at all. They return no ``pricingTiers`` field.
+    """
+    return any("pricingTiers" in m for m in models)
+
+
+def flat(spec: dict[str, Any]) -> dict[str, Any]:
+    """``spec`` with only the flat input and output prices of its default
+    tier, for an instance without pricing tiers.
+
+    Those price the ``input`` and ``output`` keys only. Cached tokens
+    (``input_cache_read``) and thinking tokens (``output_reasoning``) stay
+    unpriced; add them in the Langfuse UI, or upgrade Langfuse.
+    """
+    default = next(t for t in spec["pricingTiers"] if t["isDefault"])
+    return {
+        "modelName": spec["modelName"],
+        "matchPattern": spec["matchPattern"],
+        "unit": spec["unit"],
+        "inputPrice": default["prices"]["input"],
+        "outputPrice": default["prices"]["output"],
+    }
+
+
 def list_models(client: LangfuseClient) -> list[dict[str, Any]]:
     """Every model definition on the instance, built-in and custom."""
     models: list[dict[str, Any]] = []
@@ -238,14 +272,26 @@ def list_models(client: LangfuseClient) -> list[dict[str, Any]]:
 
 
 def create_model(client: LangfuseClient, spec: dict[str, Any]) -> str:
-    """Create one definition and return its id."""
+    """Create one definition and return its id.
+
+    Checks that the instance stored a price. An instance that does not know
+    a field drops it without an error, so a definition can be created with no
+    price at all. Then the definition is deleted again and the error raised.
+    """
     with httpx.Client(timeout=client.timeout) as http:
         resp = http.post(
             client.host + _MODELS_PATH,
             json=spec,
             auth=(client.public_key, client.secret_key),
         )
-    return _json_or_raise(resp, _MODELS_PATH).get("id", "")
+    created = _json_or_raise(resp, _MODELS_PATH)
+    model_id = created.get("id", "")
+    if not any(_tier_prices(created).values()):
+        delete_model(client, model_id)
+        raise LangfuseFetchError(
+            f"Langfuse stored {spec['modelName']} without prices; deleted it"
+        )
+    return model_id
 
 
 def delete_model(client: LangfuseClient, model_id: str) -> None:

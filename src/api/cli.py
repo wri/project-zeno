@@ -932,15 +932,27 @@ def langfuse_sync_model_prices_command(apply: bool, replace: bool):
     from src.api.services.langfuse.model_prices import (
         DEFINITIONS,
         create_model,
+        flat,
         list_models,
         plan,
         replace_model,
+        supports_pricing_tiers,
     )
 
     client = LangfuseClient.from_env()
     click.echo(f"Langfuse: {client.host}")
-    changes = plan(list_models(client), replace=replace)
-    specs = {d["modelName"]: d for d in DEFINITIONS}
+    models = list_models(client)
+    definitions = DEFINITIONS
+    if not supports_pricing_tiers(models):
+        definitions = [flat(d) for d in DEFINITIONS]
+        click.echo(
+            "⚠️  This Langfuse has no pricing tiers, so only the input and "
+            "output prices can be set here. Cached tokens (input_cache_read) "
+            "and thinking tokens (output_reasoning) stay at $0: add them in "
+            "the Langfuse UI (Settings → Models), or upgrade Langfuse."
+        )
+    changes = plan(models, replace=replace, definitions=definitions)
+    specs = {d["modelName"]: d for d in definitions}
     for change in changes:
         click.echo(
             f"{change.model_name:34} {change.action:8} ({change.reason})"
