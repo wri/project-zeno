@@ -1,6 +1,5 @@
 """Base classes and types for code executors."""
 
-from base64 import b64encode
 from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, List, Literal, Optional, get_args
@@ -105,14 +104,3 @@ class ExecutionResult:
     insight: Optional[MultiChartInsight]
 
     error: Optional[str] = None
-
-    def get_encoded_parts(self) -> List[Dict]:
-        return [
-            {
-                "type": part.type.value,
-                "content": b64encode(part.content.encode("utf-8")).decode(
-                    "utf-8"
-                ),
-            }
-            for part in self.parts
-        ]

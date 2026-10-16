@@ -437,22 +437,6 @@ class AOISearchResult(BaseModel):
     )
 
 
-class DailyUsageModel(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    id: str
-    date: datetime
-    usage_count: int
-
-    @field_validator("date", mode="before")
-    def parse_date(cls, value):
-        if isinstance(value, str):
-            try:
-                return datetime.fromisoformat(value)
-            except ValueError:
-                return value
-        return value
-
-
 class CustomAreaModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID

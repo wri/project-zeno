@@ -505,9 +505,6 @@ async def test_generate_insights_persists_statistics_provenance(monkeypatch):
             )
         ]
 
-        def get_encoded_parts(self):
-            return [{"type": "text_output", "content": "Brazil has one unit."}]
-
     class FakeExecutor:
         def build_file_references(self, dataframes):
             return "input_file_0.csv"
@@ -599,11 +596,6 @@ async def test_generate_insights_threads_dataset_id_and_resolves_colors(
                 content="Composition summarized.",
             )
         ]
-
-        def get_encoded_parts(self):
-            return [
-                {"type": "text_output", "content": "Composition summarized."}
-            ]
 
     class FakeExecutor:
         def build_file_references(self, dataframes):
