@@ -335,6 +335,23 @@ uv run pytest tests/api/
 
 For user administration commands (making users admin), see [CLI Documentation](docs/CLI.md).
 
+## Authentication and quotas
+
+The API accepts only authenticated users. All `/api/chat` and `/api/quota`
+requests must be authenticated. The API creates a user on the first
+successful authenticated call to `/api/auth/me`. There is no signup
+whitelist.
+
+Quota settings and their defaults:
+
+```bash
+ENABLE_QUOTA_CHECKING=true
+ADMIN_USER_DAILY_QUOTA=100
+REGULAR_USER_DAILY_QUOTA=25
+PRO_USER_DAILY_QUOTA=50
+MACHINE_USER_DAILY_QUOTA=99999
+```
+
 ## Environment Files
 
 - `.env` - Base configuration (production settings)

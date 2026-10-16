@@ -7,7 +7,9 @@ and writes one new section.
 The section is a normal section. The user can edit it, move its widgets and
 delete it. The agent can apply a template too (see "Agent").
 
-The design and the decisions are in `analysis-templates-plan.md`.
+The design plan and its decisions were removed after the feature shipped.
+To read them, see PR #840 and the git history of
+`docs/analysis-templates-plan.md`.
 
 ## Templates
 
