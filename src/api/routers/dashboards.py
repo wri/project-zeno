@@ -252,7 +252,8 @@ async def get_dashboard(
 
 
 def get_alerts_source() -> AlertsSource:
-    return AnalyticsAlertsSource(AnalyticsHandler())
+    handler = AnalyticsHandler()
+    return AnalyticsAlertsSource(handler, handler.BASE_URL)
 
 
 def get_dashboard_alerts_service(
@@ -271,7 +272,7 @@ async def summarize_dashboard_alerts(
     service: DashboardAlertsService = Depends(get_dashboard_alerts_service),
 ):
     """Integrated alerts area in each dashboard's AOI over the requested
-    period, by default the latest full alert week (Sunday to Saturday)."""
+    period, by default the week ending on the latest alert date."""
     rows = await dashboard_writer.get_visible_dashboards_with_dataset(
         body.dashboard_ids, user.id, INTEGRATED_ALERTS_ID
     )
