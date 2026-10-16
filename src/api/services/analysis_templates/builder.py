@@ -199,20 +199,19 @@ async def _build_chart(
     )
 
 
-async def _build_layer(
-    spec: LayerWidgetSpec, context: BuildContext
-) -> BuiltWidget:
+def _layer_snapshot(
+    dataset_id: int, context_layer: Optional[str], start: str, end: str
+) -> dict:
     """The same tile layer the chat path resolves: ``pick_dataset`` passes
     its selection and the catalog row to ``get_tile_services_for_dataset``.
-    Here the selection is a stub with the spec's context layer and no
-    parameters, which gives the dataset defaults (for example a canopy
-    threshold of 30, or 0 with natural forest).
+    Here the selection is a stub with the context layer and no parameters,
+    which gives the dataset defaults (for example a canopy threshold of 30,
+    or 0 with natural forest). The snapshot is what a map widget stores.
     """
-    record = _dataset_record(spec.dataset_id)
-    start, end = await _period(spec.dataset_id, context, spec.context_layer)
+    record = _dataset_record(dataset_id)
     selection = SimpleNamespace(
-        dataset_id=spec.dataset_id,
-        context_layer=spec.context_layer,
+        dataset_id=dataset_id,
+        context_layer=context_layer,
         parameters=None,
     )
     tile_url, context_layers, layers = get_tile_services_for_dataset(
@@ -221,10 +220,10 @@ async def _build_layer(
     snapshot = dataset_config(
         {
             "dataset": {
-                "dataset_id": spec.dataset_id,
+                "dataset_id": dataset_id,
                 "dataset_name": record["dataset_name"],
                 "tile_url": tile_url,
-                "context_layer": spec.context_layer,
+                "context_layer": context_layer,
                 "selected_layer": None,
                 "context_layers": [
                     layer.model_dump() for layer in context_layers
@@ -240,6 +239,15 @@ async def _build_layer(
         raise WidgetFailedError(
             f"{record['dataset_name']} has no map layer to show."
         )
+    return snapshot
+
+
+async def _build_layer(
+    spec: LayerWidgetSpec, context: BuildContext
+) -> BuiltWidget:
+    record = _dataset_record(spec.dataset_id)
+    start, end = await _period(spec.dataset_id, context, spec.context_layer)
+    snapshot = _layer_snapshot(spec.dataset_id, spec.context_layer, start, end)
     name = record["dataset_name"]
     if spec.context_layer:
         name += f" with the {spec.context_layer} context layer"
