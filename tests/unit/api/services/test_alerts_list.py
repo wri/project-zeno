@@ -43,8 +43,8 @@ def test_one_row_per_day_newest_first_with_tiers_as_columns():
     )
 
     assert alert_days(data, WEEK) == [
-        AlertDay(date(2026, 10, 9), 12.5, 3.0, 15.5, new=True),
-        AlertDay(date(2026, 10, 2), 1.5, 0.0, 1.5, new=False),
+        AlertDay(date(2026, 10, 9), 12.5, 3.0, new=True),
+        AlertDay(date(2026, 10, 2), 1.5, 0.0, new=False),
     ]
 
 
@@ -96,7 +96,7 @@ def test_a_missing_area_counts_as_zero():
     )
 
     assert alert_days(data, WEEK) == [
-        AlertDay(date(2026, 10, 9), 2.0, 0.0, 2.0, new=True)
+        AlertDay(date(2026, 10, 9), 2.0, 0.0, new=True)
     ]
 
 
@@ -268,9 +268,7 @@ async def test_a_land_filter_restricts_the_pull_to_that_land(land_filter):
         "context_layer": land_filter,
     }
     # The rows of a filtered pull are pivoted like any other.
-    assert alerts.rows == [
-        AlertDay(date(2026, 10, 9), 2.0, 0.0, 2.0, new=True)
-    ]
+    assert alerts.rows == [AlertDay(date(2026, 10, 9), 2.0, 0.0, new=True)]
     assert alerts.total_area_ha == 2.0
 
 
@@ -347,8 +345,8 @@ async def test_rows_and_total():
     alerts = await _list(handler)
 
     assert alerts.rows == [
-        AlertDay(date(2026, 10, 9), 12.5, 3.0, 15.5, new=True),
-        AlertDay(date(2026, 9, 20), 0.1, 0.0, 0.1, new=False),
+        AlertDay(date(2026, 10, 9), 12.5, 3.0, new=True),
+        AlertDay(date(2026, 9, 20), 0.1, 0.0, new=False),
     ]
     assert alerts.total_area_ha == 15.6
 

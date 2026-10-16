@@ -34,8 +34,6 @@ EXCLUDED_CONFIDENCES = ("low",)
 ALERT_COLUMNS = ("alert_date", "alert_confidence", "area_ha")
 # The period when the caller gives no start date, counted back from the end.
 ALERTS_LIST_DEFAULT_DAYS = 30
-# The longest period one request may pull, the same as an alerts widget's.
-ALERTS_LIST_MAX_DAYS = ALERTS_MAX_DAYS
 # The land classes the list can be restricted to. The handler sends each,
 # given as the dataset's context layer, as the analytics API's land_filter.
 ALERTS_LAND_FILTERS: tuple[str, ...] = get_args(AlertsLandFilter)
@@ -58,9 +56,12 @@ class AlertDay:
     alert_date: date
     high_ha: float
     highest_ha: float
-    total_ha: float
     # The day is in the latest full alert week.
     new: bool
+
+    @property
+    def total_ha(self) -> float:
+        return self.high_ha + self.highest_ha
 
 
 @dataclass(frozen=True)
@@ -79,8 +80,11 @@ class AlertsList:
     start_date: date
     end_date: date
     new_week: AlertsWeek
-    total_area_ha: float
     rows: list[AlertDay]
+
+    @property
+    def total_area_ha(self) -> float:
+        return math.fsum(row.total_ha for row in self.rows)
 
 
 def _parse_date(value: Any) -> date:
@@ -125,7 +129,7 @@ def _columns(data: Optional[dict]) -> list[list]:
 def latest_alert_date(data: Optional[dict]) -> Optional[date]:
     """The most recent alert date in the result, of any confidence tier: a
     low confidence alert is data arriving too. None for an empty result."""
-    dates = _columns(data)[ALERT_COLUMNS.index("alert_date")]
+    dates, _, _ = _columns(data)
     return max((_parse_date(value) for value in dates), default=None)
 
 
@@ -164,15 +168,10 @@ def alert_days(
                 alert_date=day,
                 high_ha=high_ha,
                 highest_ha=highest_ha,
-                total_ha=high_ha + highest_ha,
                 new=new_week[0] <= day <= new_week[1],
             )
         )
     return days
-
-
-def supports_alerts_list(aoi: dict) -> bool:
-    return aoi.get("subtype") in ANALYTICS_AOI_SUBTYPES
 
 
 class AlertsListService:
@@ -201,10 +200,10 @@ class AlertsListService:
                 "both are limited to the dates the integrated alerts data "
                 "covers (up to today)."
             )
-        if (end - start).days > ALERTS_LIST_MAX_DAYS:
+        if (end - start).days > ALERTS_MAX_DAYS:
             raise InvalidWindowError(
                 f"The period from {start} to {end} is longer than "
-                f"{ALERTS_LIST_MAX_DAYS} days."
+                f"{ALERTS_MAX_DAYS} days."
             )
         return start, end
 
@@ -230,7 +229,7 @@ class AlertsListService:
         # which would silently list alerts on all land.
         if land_filter is not None and land_filter not in ALERTS_LAND_FILTERS:
             raise ValueError(f"Unknown land filter: {land_filter!r}")
-        if not supports_alerts_list(aoi):
+        if aoi.get("subtype") not in ANALYTICS_AOI_SUBTYPES:
             raise UnsupportedAreaError(
                 f"The integrated alerts list is not available for "
                 f"{aoi.get('subtype')!r} areas. It is available for "
@@ -256,12 +255,10 @@ class AlertsListService:
         if not result.success:
             raise AlertsUnavailableError(result.message)
         week = latest_alert_week(today)
-        rows = alert_days(result.data, week)
         return AlertsList(
             data_to=latest_alert_date(result.data),
             start_date=start,
             end_date=end,
             new_week=AlertsWeek(*week),
-            total_area_ha=math.fsum(row.total_ha for row in rows),
-            rows=rows,
+            rows=alert_days(result.data, week),
         )
