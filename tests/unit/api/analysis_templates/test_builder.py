@@ -149,17 +149,21 @@ async def test_builds_three_widgets_in_template_order():
     )
     kwargs = mocks.write.await_args.kwargs
     widgets = kwargs["widgets"]
-    assert [w.widget_type for w in widgets] == ["insight", "map", "map"]
+    assert [w.widget_type for w in widgets] == ["insight", "alerts", "map"]
     chart = widgets[0].insight.charts[0]
     assert chart.dataset_id == INTEGRATED_ALERTS_ID
     assert chart.x_axis == "alert_date"
     assert widgets[1].config["dataset"]["dataset_id"] == INTEGRATED_ALERTS_ID
     assert widgets[1].config["dataset"]["end_date"] == "2026-09-23"
+    assert widgets[1].config["alerts"]["days"] == 30
+    assert widgets[1].insight is None
     assert widgets[2].config["imagery"]["mosaic_id"] == "mosaic-1"
     assert kwargs["user_id"] == "user-1"
     # nrt-monitoring sets no size and no context layer.
     assert not any("size" in w.config for w in widgets)
     assert widgets[1].config["dataset"]["context_layer"] is None
+    # The chart and the list share one pull.
+    assert mocks.pull.await_count == 1
 
 
 @pytest.mark.asyncio
@@ -220,7 +224,7 @@ async def test_a_section_with_no_dated_data_keeps_the_requested_period():
 
     record = mocks.write.await_args.kwargs["template"]
     assert (record["start_date"], record["end_date"]) == (
-        "2026-09-09",
+        "2026-08-24",
         "2026-09-23",
     )
 
@@ -231,8 +235,8 @@ async def test_args_default_to_the_template_default():
 
     await _apply(stack)
 
-    assert mocks.write.await_args.kwargs["template"]["args"] == {"days": 14}
-    assert mocks.pull.await_args.kwargs["start_date"] == "2026-09-09"
+    assert mocks.write.await_args.kwargs["template"]["args"] == {"days": 30}
+    assert mocks.pull.await_args.kwargs["start_date"] == "2026-08-24"
 
 
 @pytest.mark.asyncio
@@ -267,7 +271,7 @@ async def test_optional_failure_gives_a_warning_and_drops_the_widget():
 
     assert result.warnings == ["No cloud-free imagery in the period."]
     widgets = mocks.write.await_args.kwargs["widgets"]
-    assert [w.widget_type for w in widgets] == ["insight", "map"]
+    assert [w.widget_type for w in widgets] == ["insight", "alerts"]
 
 
 @pytest.mark.asyncio
@@ -286,6 +290,8 @@ async def test_each_builder_gets_its_own_aoi_copy():
     (request,) = mocks.imagery.await_args.args
     assert request.aois[0]["src_id"] == "BRA.16_1"
     assert request.target_date == TODAY
+    alerts = mocks.write.await_args.kwargs["widgets"][1]
+    assert alerts.config["alerts"]["aoi"]["src_id"] == "BRA.16_1"
 
 
 @pytest.mark.asyncio
@@ -296,6 +302,10 @@ async def test_empty_period_builds_an_empty_chart():
 
     widgets = mocks.write.await_args.kwargs["widgets"]
     assert widgets[0].insight.charts[0].chart_data == []
+    assert mocks.text.await_args.kwargs["facts"] == [
+        "No high or highest confidence integrated alerts were recorded in "
+        "Paraná from 2026-09-13 to 2026-09-19."
+    ]
 
 
 @pytest.mark.asyncio
