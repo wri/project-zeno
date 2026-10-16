@@ -212,20 +212,27 @@ cost $0. A custom definition with the same model name overrides the built-in one
 kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' | head -1) -- \
   uv run python src/api/cli.py langfuse-sync-model-prices
 
-# Create the definitions
+# Create the definitions, and replace custom ones that differ
 kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' | head -1) -- \
-  uv run python src/api/cli.py langfuse-sync-model-prices --apply
+  uv run python src/api/cli.py langfuse-sync-model-prices --replace --apply
 ```
 
 **Parameters:**
-- `--apply`: create the definitions. Without it, the command prints the plan only.
+- `--apply`: make the changes. Without it, the command prints the plan only.
+- `--replace`: replace a custom definition that differs from ours. Without it, the
+  command skips that model and prints the differences.
 
 **Notes:**
 - Requires `LANGFUSE_HOST`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`.
 - Run it on each instance (local, staging, production).
-- The command skips a model that already has a custom definition. Langfuse has no update
-  call. To change a price, delete the custom definition in Langfuse (Settings → Models),
-  change the price in `model_prices.py`, and run the command again.
+- Langfuse has no update call, and it rejects a second custom definition with the same
+  name. So `--replace` deletes the old definition, then creates ours. For approximately
+  one second between the two calls, the model uses its built-in definition or has no
+  price. If the create fails, the command recreates the old definition and stops.
+- A custom definition made by hand in the Langfuse UI often prices `input` and `output`
+  only. Then thinking tokens (`output_reasoning`) and cached tokens (`input_cache_read`)
+  cost $0. The dry run shows each key that has no price.
+- To change a price, change it in `model_prices.py` and run the command with `--replace`.
 - The new prices apply to new calls only. Earlier calls keep their cost.
 - After you apply it, run `langfuse-model-prices` to make sure that each model is priced.
 

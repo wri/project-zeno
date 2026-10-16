@@ -911,15 +911,22 @@ def langfuse_model_prices_command(hours: int, environment: Optional[str]):
 @click.option(
     "--apply",
     is_flag=True,
-    help="Create the definitions. Without it, only print the plan.",
+    help="Make the changes. Without it, only print the plan.",
 )
-def langfuse_sync_model_prices_command(apply: bool):
+@click.option(
+    "--replace",
+    is_flag=True,
+    help="Replace custom definitions that differ from ours.",
+)
+def langfuse_sync_model_prices_command(apply: bool, replace: bool):
     """Create Zeno's custom Gemini model definitions in Langfuse.
 
     Adds a definition for each model in
     ``src.api.services.langfuse.model_prices.DEFINITIONS`` that has no custom
-    definition yet. It prints the plan first and changes nothing without
-    ``--apply``. Run ``langfuse-model-prices`` afterwards to confirm.
+    definition yet. A model whose custom definition differs is skipped, and
+    the differences are printed; ``--replace`` deletes the old one and
+    creates ours. Nothing changes without ``--apply``. Run
+    ``langfuse-model-prices`` afterwards to confirm.
     """
     from src.api.services.langfuse.fetch import LangfuseClient
     from src.api.services.langfuse.model_prices import (
@@ -927,20 +934,31 @@ def langfuse_sync_model_prices_command(apply: bool):
         create_model,
         list_models,
         plan,
+        replace_model,
     )
 
     client = LangfuseClient.from_env()
     click.echo(f"Langfuse: {client.host}")
-    changes = plan(list_models(client))
+    changes = plan(list_models(client), replace=replace)
     specs = {d["modelName"]: d for d in DEFINITIONS}
     for change in changes:
-        line = f"{change.model_name:34} {change.action:7} ({change.reason})"
-        if change.action == "create" and apply:
-            model_id = create_model(client, specs[change.model_name])
-            line += f" -> created {model_id}"
-        click.echo(line)
-    if not apply and any(c.action == "create" for c in changes):
-        click.echo("\nDry run. Re-run with --apply to create the definitions.")
+        click.echo(
+            f"{change.model_name:34} {change.action:8} ({change.reason})"
+        )
+        for line in change.diff:
+            click.echo(f"    {line}")
+        if not apply or change.action == "skip":
+            continue
+        spec = specs[change.model_name]
+        if change.replaces:
+            model_id = replace_model(client, change.replaces, spec)
+            for model in change.replaces:
+                click.echo(f"    deleted {model['id']}")
+        else:
+            model_id = create_model(client, spec)
+        click.echo(f"    created {model_id}")
+    if not apply and any(c.action != "skip" for c in changes):
+        click.echo("\nDry run. Re-run with --apply to make these changes.")
 
 
 # ---------------------------------------------------------------------------

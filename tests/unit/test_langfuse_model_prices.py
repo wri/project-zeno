@@ -84,3 +84,108 @@ def test_plan_skips_a_model_that_has_a_custom_definition():
         for d in MP.DEFINITIONS
     ]
     assert {c.action for c in MP.plan(existing)} == {"skip"}
+
+
+# A definition made by hand in the Langfuse UI, as staging had it: input and
+# output priced, nothing else.
+_HAND_MADE_FLASH = {
+    "id": "old",
+    "modelName": "gemini-3-flash-preview",
+    "matchPattern": "(?i)^(gemini-3-flash-preview)$",
+    "isLangfuseManaged": False,
+    "unit": "TOKENS",
+    "pricingTiers": [
+        {
+            "id": "old_tier",
+            "name": "Standard",
+            "isDefault": True,
+            "priority": 0,
+            "conditions": [],
+            "prices": {"input": 0.5e-6, "output": 3e-6},
+        }
+    ],
+}
+
+
+def test_diff_shows_the_unpriced_keys_of_a_hand_made_definition():
+    lines = MP.diff(_HAND_MADE_FLASH, _spec("gemini-3-flash-preview"))
+    assert "Standard.output_reasoning: none -> $3/1M" in lines
+    assert "Standard.input_cache_read: none -> $0.05/1M" in lines
+    # The prices it does have are right, so they are not listed.
+    assert not any(line.startswith("Standard.input:") for line in lines)
+
+
+def test_diff_reads_the_flat_price_shape():
+    flat = {
+        "modelName": "gemini-3-flash-preview",
+        "matchPattern": _spec("gemini-3-flash-preview")["matchPattern"],
+        "inputPrice": 0.5e-6,
+        "outputPrice": 3e-6,
+    }
+    lines = MP.diff(flat, _spec("gemini-3-flash-preview"))
+    assert "Standard.output_reasoning: none -> $3/1M" in lines
+
+
+def test_a_differing_custom_definition_is_skipped_unless_replace():
+    skip = MP.plan([_HAND_MADE_FLASH])
+    flash = next(c for c in skip if c.model_name == "gemini-3-flash-preview")
+    assert flash.action == "skip"
+    assert flash.diff  # the reader still sees why
+
+    replace = MP.plan([_HAND_MADE_FLASH], replace=True)
+    flash = next(
+        c for c in replace if c.model_name == "gemini-3-flash-preview"
+    )
+    assert flash.action == "replace"
+    assert [m["id"] for m in flash.replaces] == ["old"]
+
+
+def test_a_matching_custom_definition_is_skipped_even_with_replace():
+    ours = {**_spec("gemini-3-flash-preview"), "isLangfuseManaged": False}
+    changes = MP.plan([ours], replace=True)
+    flash = next(
+        c for c in changes if c.model_name == "gemini-3-flash-preview"
+    )
+    assert flash.action == "skip"
+
+
+def test_replace_deletes_before_it_creates(monkeypatch):
+    """Langfuse rejects a second custom definition with the same name."""
+    calls = []
+    monkeypatch.setattr(
+        MP, "delete_model", lambda c, i: calls.append(("delete", i))
+    )
+    monkeypatch.setattr(
+        MP, "create_model", lambda c, s: calls.append(("create", s)) or "new"
+    )
+    spec = _spec("gemini-3-flash-preview")
+    assert MP.replace_model(None, [_HAND_MADE_FLASH], spec) == "new"
+    assert calls == [("delete", "old"), ("create", spec)]
+
+
+def test_a_failed_replace_restores_the_old_definition(monkeypatch):
+    created = []
+
+    def create(client, spec):
+        if spec is _spec("gemini-3-flash-preview"):
+            raise RuntimeError("400 Invalid request data")
+        created.append(spec)
+        return "restored"
+
+    monkeypatch.setattr(MP, "delete_model", lambda c, i: None)
+    monkeypatch.setattr(MP, "create_model", create)
+    with pytest.raises(RuntimeError, match="400"):
+        MP.replace_model(
+            None, [_HAND_MADE_FLASH], _spec("gemini-3-flash-preview")
+        )
+
+    [restored] = created
+    assert restored["modelName"] == "gemini-3-flash-preview"
+    assert restored["matchPattern"] == _HAND_MADE_FLASH["matchPattern"]
+    # Rebuilt without the server-side ids, which a create request rejects.
+    assert "id" not in restored
+    assert "id" not in restored["pricingTiers"][0]
+    assert restored["pricingTiers"][0]["prices"] == {
+        "input": 0.5e-6,
+        "output": 3e-6,
+    }

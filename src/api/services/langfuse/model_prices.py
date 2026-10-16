@@ -23,8 +23,8 @@ tier), read 2026-10-16. Update them here when Google changes them, then run
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, field
+from typing import Any, Optional
 
 import httpx
 
@@ -108,28 +108,113 @@ DEFINITIONS: list[dict[str, Any]] = [
 @dataclass
 class PlannedChange:
     model_name: str
-    action: str  # "create" | "skip"
+    action: str  # "create" | "replace" | "skip"
     reason: str
+    # Custom definitions that "replace" deletes before it creates ours.
+    replaces: list[dict[str, Any]] = field(default_factory=list)
+    # How the existing custom definition differs from ours, one line each.
+    diff: list[str] = field(default_factory=list)
 
 
-def plan(existing: list[dict[str, Any]]) -> list[PlannedChange]:
-    """Decide, per definition, whether to create it.
+def _tier_prices(model: dict[str, Any]) -> dict[str, dict[str, float]]:
+    """Prices per tier name, from either API shape.
 
-    A model that already has a custom definition is skipped: Langfuse has no
-    update call, and a second custom definition would only win by being newer.
-    To change a price, delete the custom definition in Langfuse first.
+    Newer instances return ``pricingTiers``. A definition made with the flat
+    fields only has ``prices`` (``{key: {"price": p}}``) or
+    ``inputPrice`` / ``outputPrice``.
+    """
+    tiers = model.get("pricingTiers") or []
+    if tiers:
+        return {
+            t.get("name") or "?": dict(t.get("prices") or {}) for t in tiers
+        }
+    prices: dict[str, float] = {
+        k: float(v["price"])
+        for k, v in (model.get("prices") or {}).items()
+        if isinstance(v, dict) and v.get("price") is not None
+    }
+    if not prices:
+        for key, field_name in (
+            ("input", "inputPrice"),
+            ("output", "outputPrice"),
+        ):
+            if model.get(field_name) is not None:
+                prices[key] = model[field_name]
+    return {"Standard": prices}
+
+
+def _fmt(price: Optional[float]) -> str:
+    return "none" if price is None else f"${price / _PER_MILLION:g}/1M"
+
+
+def diff(existing: dict[str, Any], spec: dict[str, Any]) -> list[str]:
+    """How ``existing`` differs from ``spec``, as readable lines."""
+    lines = []
+    if existing.get("matchPattern") != spec["matchPattern"]:
+        lines.append(
+            f"matchPattern: {existing.get('matchPattern')!r} -> "
+            f"{spec['matchPattern']!r}"
+        )
+    old = _tier_prices(existing)
+    new = {t["name"]: t["prices"] for t in spec["pricingTiers"]}
+    for tier in sorted(set(old) | set(new)):
+        if tier not in new:
+            lines.append(f"tier {tier!r}: removed")
+            continue
+        if tier not in old:
+            lines.append(f"tier {tier!r}: added")
+            continue
+        for key in sorted(set(old[tier]) | set(new[tier])):
+            a, b = old[tier].get(key), new[tier].get(key)
+            if a is None or b is None or abs(a - b) > 1e-15:
+                lines.append(f"{tier}.{key}: {_fmt(a)} -> {_fmt(b)}")
+    return lines
+
+
+def plan(
+    existing: list[dict[str, Any]], replace: bool = False
+) -> list[PlannedChange]:
+    """Decide, per definition, whether to create, replace or skip it.
+
+    Langfuse has no update call. A model that already has a custom definition
+    is skipped unless ``replace`` is set; then the old custom definitions are
+    deleted and ours is created (Langfuse rejects a second custom definition
+    with the same name). A custom definition that already matches ours is
+    skipped either way.
     """
     out = []
     for spec in DEFINITIONS:
         name = spec["modelName"]
         same = [m for m in existing if m.get("modelName") == name]
         custom = [m for m in same if not m.get("isLangfuseManaged")]
-        if custom:
-            out.append(PlannedChange(name, "skip", "custom definition exists"))
-        elif same:
-            out.append(PlannedChange(name, "create", "overrides built-in"))
+        if not custom:
+            reason = "overrides built-in" if same else "no definition"
+            out.append(PlannedChange(name, "create", reason))
+            continue
+        lines = [line for m in custom for line in diff(m, spec)]
+        if not lines and len(custom) == 1:
+            out.append(
+                PlannedChange(name, "skip", "custom definition matches")
+            )
+        elif replace:
+            out.append(
+                PlannedChange(
+                    name,
+                    "replace",
+                    f"{len(custom)} custom definition(s) differ",
+                    replaces=custom,
+                    diff=lines,
+                )
+            )
         else:
-            out.append(PlannedChange(name, "create", "no definition"))
+            out.append(
+                PlannedChange(
+                    name,
+                    "skip",
+                    "custom definition differs; use --replace",
+                    diff=lines,
+                )
+            )
     return out
 
 
@@ -161,3 +246,58 @@ def create_model(client: LangfuseClient, spec: dict[str, Any]) -> str:
             auth=(client.public_key, client.secret_key),
         )
     return _json_or_raise(resp, _MODELS_PATH).get("id", "")
+
+
+def delete_model(client: LangfuseClient, model_id: str) -> None:
+    """Delete one custom definition. Built-in ones cannot be deleted."""
+    with httpx.Client(timeout=client.timeout) as http:
+        resp = http.delete(
+            f"{client.host}{_MODELS_PATH}/{model_id}",
+            auth=(client.public_key, client.secret_key),
+        )
+    _json_or_raise(resp, _MODELS_PATH)
+
+
+def as_create_request(model: dict[str, Any]) -> dict[str, Any]:
+    """A create request that rebuilds ``model``, as read from the API."""
+    keep = (
+        "modelName",
+        "matchPattern",
+        "unit",
+        "startDate",
+        "tokenizerId",
+        "tokenizerConfig",
+    )
+    req = {k: model[k] for k in keep if model.get(k) is not None}
+    tiers = model.get("pricingTiers") or []
+    if tiers:
+        req["pricingTiers"] = [
+            {k: v for k, v in t.items() if k != "id"} for t in tiers
+        ]
+    else:
+        for k in ("inputPrice", "outputPrice", "totalPrice"):
+            if model.get(k) is not None:
+                req[k] = model[k]
+    return req
+
+
+def replace_model(
+    client: LangfuseClient,
+    old: list[dict[str, Any]],
+    spec: dict[str, Any],
+) -> str:
+    """Delete the ``old`` custom definitions, then create ``spec``.
+
+    Between the two calls the model falls back to its built-in definition, or
+    has no price; that is approximately one second. If the create fails, the
+    old definitions are recreated from the copies read before the delete, and
+    the error is raised.
+    """
+    for model in old:
+        delete_model(client, model["id"])
+    try:
+        return create_model(client, spec)
+    except Exception:
+        for model in old:
+            create_model(client, as_create_request(model))
+        raise
