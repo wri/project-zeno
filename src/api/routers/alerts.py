@@ -65,7 +65,8 @@ async def list_alerts(
 
     The period defaults to the 30 days to today. It is clamped to the data
     and must not be longer than 365 days. Rows in the latest full alert week
-    (Sunday to Saturday) are flagged `new`.
+    (Sunday to Saturday) are flagged `new`. `land_filter` restricts the rows
+    and totals to alerts on natural lands or natural forests.
 
     422 when the area type has no alerts analysis or the period is empty or
     too long. 502 with a fixed message when the analytics API fails or does
@@ -80,10 +81,17 @@ async def list_alerts(
         **aoi,
         "start_date": str(body.start_date),
         "end_date": str(body.end_date),
+        "land_filter": body.land_filter,
     }
     try:
         alerts = await asyncio.wait_for(
-            service.list(aoi, body.start_date, body.end_date, today=today),
+            service.list(
+                aoi,
+                body.start_date,
+                body.end_date,
+                today=today,
+                land_filter=body.land_filter,
+            ),
             timeout=ALERTS_LIST_TIMEOUT_SECONDS,
         )
     except (UnsupportedAreaError, InvalidWindowError) as error:

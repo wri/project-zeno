@@ -251,6 +251,39 @@ async def test_pulls_integrated_alerts_once_for_a_copy_of_the_area():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("land_filter", ["natural_lands", "natural_forests"])
+async def test_a_land_filter_restricts_the_pull_to_that_land(land_filter):
+    data = _rows(
+        ("2026-10-09", "high", 2.0),
+        ("2026-10-09", "low", 7.0),
+    )
+    handler = FakeHandler(DataPullResult(success=True, data=data, message=""))
+
+    alerts = await _list(handler, land_filter=land_filter)
+
+    (call,) = handler.calls
+    assert call["dataset"] == {
+        "dataset_id": INTEGRATED_ALERTS_ID,
+        "context_layer": land_filter,
+    }
+    # The rows of a filtered pull are pivoted like any other.
+    assert alerts.rows == [
+        AlertDay(date(2026, 10, 9), 2.0, 0.0, 2.0, new=True)
+    ]
+    assert alerts.total_area_ha == 2.0
+
+
+@pytest.mark.asyncio
+async def test_an_unknown_land_filter_never_reaches_the_api():
+    handler = FakeHandler()
+
+    with pytest.raises(ValueError, match="Unknown land filter"):
+        await _list(handler, land_filter="intact_forest")
+
+    assert handler.calls == []
+
+
+@pytest.mark.asyncio
 async def test_rows_and_total():
     data = _rows(
         ("2026-10-09", "high", 12.5),

@@ -1073,6 +1073,11 @@ class DashboardAlertsSummaryResponse(BaseModel):
     )
 
 
+# The land classes the integrated alerts list can be restricted to: the
+# analytics API's land_filter.
+AlertsLandFilter = Literal["natural_lands", "natural_forests"]
+
+
 class AlertsListRequest(BaseModel):
     source: str = Field(
         min_length=1,
@@ -1099,6 +1104,14 @@ class AlertsListRequest(BaseModel):
     end_date: Optional[date] = Field(
         default=None,
         description="Defaults to today; a later date is capped at today.",
+    )
+    land_filter: Optional[AlertsLandFilter] = Field(
+        default=None,
+        description=(
+            "Only alerts on `natural_lands` (SBTN Natural Lands Map, 2020) "
+            "or `natural_forests` (its natural forest classes). Absent or "
+            "null: alerts on all land."
+        ),
     )
 
 
