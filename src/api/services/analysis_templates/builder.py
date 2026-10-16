@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from types import SimpleNamespace
 from typing import Any, Awaitable, Callable, Optional, Sequence
+from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 
 import pandas as pd
 
@@ -32,7 +33,6 @@ from src.agent.datasets.config import DATASETS
 from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import (
     INTEGRATED_ALERTS_ID,
-    TREE_COVER_LOSS_ID,
     AnalyticsHandler,
 )
 from src.agent.datasets.handlers.base import (
@@ -419,29 +419,51 @@ async def _build_natural_forest_loss(
     )
 
 
+# The SBTN Natural Lands Map classes that are natural forest: natural
+# forests, mangroves, wetland natural forests and peat natural forests. The
+# analytics API's natural_forests land filter keeps the same classes.
+NATURAL_FOREST_CLASSES = (2, 5, 8, 9)
 # The land overlays the alerts widget carries for its map, one per land
 # filter of the alerts list and named after it, so the frontend overlays the
-# one the list is filtered to. Each is a catalog context layer: (dataset,
-# context layer). Natural forests reuses tree cover loss's natural_forest
-# tile, the same SBTN collection with only the forest classes coloured.
-ALERTS_LAND_OVERLAYS = {
-    "natural_lands": (INTEGRATED_ALERTS_ID, "natural_lands"),
-    "natural_forests": (TREE_COVER_LOSS_ID, "natural_forest"),
+# one the list is filtered to. Both draw the integrated alerts natural_lands
+# context layer (the SBTN Natural Lands Map); each keeps the classes given,
+# or every class the catalog layer shows for None.
+ALERTS_LAND_OVERLAYS: dict[str, Optional[tuple[int, ...]]] = {
+    "natural_lands": None,
+    "natural_forests": NATURAL_FOREST_CLASSES,
 }
+
+
+def _only_classes(tile_url: str, classes: tuple[int, ...]) -> str:
+    """The Natural Lands Map tile URL drawing only ``classes``: the colormap
+    keeps their entries (the catalog's colours), and the expression sets
+    every other class to 0, which the colormap leaves transparent. Built
+    from the catalog URL, so a colormap change there flows through."""
+    url = urlsplit(tile_url)
+    query = dict(parse_qsl(url.query, keep_blank_values=True))
+    colormap = json.loads(query["colormap"])
+    query["colormap"] = json.dumps({str(c): colormap[str(c)] for c in classes})
+    query["expression"] = "+".join(f"asset*(asset=={c})" for c in classes)
+    return urlunsplit(url._replace(query=urlencode(query, quote_via=quote)))
 
 
 def _land_overlays(start: str, end: str) -> list[dict]:
     """The alerts widget's land overlays as snapshot context layers."""
-    overlays = []
-    for name, (dataset_id, context_layer) in ALERTS_LAND_OVERLAYS.items():
-        layers = _layer_snapshot(dataset_id, context_layer, start, end)[
-            "context_layers"
-        ]
-        (layer,) = [
-            entry for entry in layers if entry["name"] == context_layer
-        ]
-        overlays.append({**layer, "name": name})
-    return overlays
+    layers = _layer_snapshot(
+        INTEGRATED_ALERTS_ID, "natural_lands", start, end
+    )["context_layers"]
+    (natural_lands,) = [
+        entry for entry in layers if entry["name"] == "natural_lands"
+    ]
+    return [
+        {
+            "name": name,
+            "tile_url": natural_lands["tile_url"]
+            if classes is None
+            else _only_classes(natural_lands["tile_url"], classes),
+        }
+        for name, classes in ALERTS_LAND_OVERLAYS.items()
+    ]
 
 
 async def _alerts_fact(
