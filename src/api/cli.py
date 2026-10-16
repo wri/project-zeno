@@ -827,10 +827,13 @@ def langfuse_model_prices_command(hours: int, environment: Optional[str]):
     cost-per-query silently understates by that model's whole share, with
     nothing in the data to say so.
 
-    For every model flagged UNPRICED here, add a model definition with its
-    prices in Langfuse (Settings → Models), then re-run
-    ``ingest-langfuse-traces --backfill --since`` over the affected window to
-    recompute the stored costs.
+    For every model flagged UNPRICED or PARTIAL here, add a model definition
+    with its prices in Langfuse (Settings → Models, or ``POST
+    /api/public/models``). Give it a price for every usage key the calls
+    report, including ``input_cache_read`` and ``output_reasoning``.
+
+    Langfuse prices a call when it receives it. A new definition does not
+    re-price earlier calls, so re-ingesting does not recover their cost.
     """
     from src.api.services.langfuse.fetch import LangfuseClient
     from src.api.services.langfuse.parse import observation_cost
@@ -868,6 +871,7 @@ def langfuse_model_prices_command(hours: int, environment: Optional[str]):
         f"{'model':38} {'calls':>7} {'tokens':>10} {'cost':>11}  status"
     )
     unpriced = []
+    partial = []
     for model, (calls, tokens, cost, priced) in sorted(
         stats.items(), key=lambda kv: -kv[1][1]
     ):
@@ -876,6 +880,7 @@ def langfuse_model_prices_command(hours: int, environment: Optional[str]):
             unpriced.append(model)
         elif priced < calls:
             status = f"PARTIAL ({priced}/{calls} priced)"
+            partial.append(model)
         else:
             status = "ok"
         click.echo(
@@ -887,9 +892,16 @@ def langfuse_model_prices_command(hours: int, environment: Optional[str]):
             "\n⚠️  Unpriced models contribute tokens but no cost: "
             + ", ".join(unpriced)
         )
+    if partial:
         click.echo(
-            "   Add a model definition for each in Langfuse, then re-ingest "
-            "the window."
+            "\n⚠️  Some calls were not priced (a definition added or changed "
+            "inside the window, or a usage key without a price): "
+            + ", ".join(partial)
+        )
+    if unpriced or partial:
+        click.echo(
+            "   Add a model definition for each in Langfuse. It prices new "
+            "calls only."
         )
     else:
         click.echo("\n✅ Every model in this window is priced.")

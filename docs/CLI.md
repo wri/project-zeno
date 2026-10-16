@@ -187,9 +187,15 @@ kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' 
 - `UNPRICED` means the model produced tokens and no cost. `PARTIAL` means only some
   calls were priced, which usually means the definition was added part-way through the
   window.
-- To fix an `UNPRICED` model: add a model definition with its prices in Langfuse
-  (Settings → Models), then re-run `ingest-langfuse-traces --backfill --since` over the
-  affected window so the stored costs are recomputed.
+- To fix an `UNPRICED` or `PARTIAL` model, add a model definition with its prices in
+  Langfuse (Settings → Models, or `POST /api/public/models`). Give a price for each
+  usage key that the calls report, including `input_cache_read` and `output_reasoning`.
+  A built-in definition can be correct for a model and still have no price for a key.
+  For example, the built-in Gemini definitions do not price `input_cache_read`, so
+  Langfuse costs cached tokens at $0. A custom definition with the same model name
+  overrides the built-in one.
+- Langfuse calculates cost when it receives a call. A new definition does not change the
+  cost of earlier calls, so a re-run of `ingest-langfuse-traces` does not recover it.
 
 ### build-aois
 
