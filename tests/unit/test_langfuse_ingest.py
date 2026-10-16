@@ -5,6 +5,8 @@ Synthetic fixtures only (no real user text). Focus: NUL-byte sanitization, since
 Postgres text/jsonb reject 0x00 and an unsanitized trace once aborted a batch.
 """
 
+import json
+
 from src.api.services.langfuse.ingest import (
     _split_auxiliary,
     _strip_nul,
@@ -107,6 +109,24 @@ def test_auxiliary_traces_are_dropped_from_the_turn_table():
         ]
     )
     assert [t["id"] for t in turns] == ["turn", "no_tags_field"]
+    assert dropped == 1
+
+
+def test_a_tagged_trace_with_agent_state_is_kept():
+    """Seen live: with a request span active, thread naming joins the turn's
+    trace and its tag lands on that trace. The turn must not be dropped.
+    ``output`` arrives JSON-encoded, as it does from the API."""
+    turns, dropped = _split_auxiliary(
+        [
+            {
+                "id": "turn",
+                "tags": [AUXILIARY_TAG],
+                "output": json.dumps({"messages": []}),
+            },
+            {"id": "naming", "tags": [AUXILIARY_TAG], "output": {"name": "x"}},
+        ]
+    )
+    assert [t["id"] for t in turns] == ["turn"]
     assert dropped == 1
 
 

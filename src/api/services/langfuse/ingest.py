@@ -449,14 +449,22 @@ def _split_auxiliary(
 ) -> tuple[list[dict[str, Any]], int]:
     """Drop non-turn traces, returning (turns, dropped_count).
 
-    An auxiliary trace is one LLM call made outside an agent turn — thread
-    naming, area naming, language detection (see
-    ``src.shared.langfuse_tracing.AUXILIARY_TAG``). It carries no AgentState, so
-    ingesting it would add a zero-token EMPTY-outcome row and drag down every
-    per-turn average. Its cost stays visible in Langfuse, under the same session
-    id as the thread it belongs to.
+    An auxiliary trace is one LLM call made outside an agent turn, such as
+    custom-area naming (see ``src.shared.langfuse_tracing.AUXILIARY_TAG``). It
+    carries no AgentState, so ingesting it would add a zero-token EMPTY-outcome
+    row and drag down every per-turn average. Its cost stays visible in
+    Langfuse, under the same session id as the thread it belongs to.
+
+    A tagged trace that does carry AgentState is a turn and is kept. The tag is
+    set per call, and Langfuse applies it to whichever trace the call joins, so
+    a tag that reaches a turn's trace must not cost us that turn.
     """
-    turns = [t for t in traces if AUXILIARY_TAG not in (t.get("tags") or [])]
+    turns = [
+        t
+        for t in traces
+        if AUXILIARY_TAG not in (t.get("tags") or [])
+        or P.has_agent_state(t.get("output"))
+    ]
     return turns, len(traces) - len(turns)
 
 

@@ -233,11 +233,12 @@ async def stream_chat(
         query=query,
         already_resolved=bool(existing_state.values.get("language")),
         # Runs before astream, so there is no ambient handler to inherit and
-        # the call would otherwise be billed untraced. It gets its own
-        # auxiliary trace, joined to this thread by session id.
+        # the call would otherwise be billed untraced. It joins the request's
+        # trace (the turn) when a request span is active.
         config=auxiliary_config(
             "detect_language",
             session_id=thread_id,
+            in_turn_request=True,
             # The caller's user dict carries profile fields, not the id; the
             # id is already resolved into langfuse_metadata for the graph.
             user_id=(langfuse_metadata or {}).get("langfuse_user_id"),
@@ -331,8 +332,8 @@ async def generate_thread_name(
     """
     Generate a descriptive name for a chat thread based on the user's query.
 
-    Traced as an auxiliary trace: this runs in the /chat request but outside the
-    graph invocation, so it has no ambient callback handler of its own.
+    Traced with ``auxiliary_config``: this runs in the /chat request but outside
+    the graph invocation, so it has no ambient callback handler of its own.
     """
     try:
         prompt = f"""Generate a concise, descriptive title (max 50 chars) for a chat conversation that starts with this query:
@@ -354,6 +355,7 @@ async def generate_thread_name(
                 "generate_thread_name",
                 session_id=thread_id,
                 user_id=user_id,
+                in_turn_request=True,
             ),
         )
         name = response.name

@@ -26,18 +26,17 @@ from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-# Marks a trace that is NOT an agent turn: a one-off LLM call made by its own
-# HTTP request (thread naming, area naming) or before the graph is invoked
-# (language detection). Such a call creates its own root trace, because a
-# LangChain callback handler opens a trace per root invocation and there is no
-# turn to nest it under.
+# Marks a trace that is NOT an agent turn: a one-off LLM call that has no turn
+# trace to join (custom-area naming, or thread naming / language detection when
+# no request span is active). A LangChain callback handler opens a trace per
+# root invocation, so such a call gets a trace of its own.
 #
-# The ingest layer drops these from ``langfuse_traces`` — that table is
-# turn-level, and a tiny auxiliary trace carries no AgentState, so it would land
-# as a zero-token EMPTY-outcome row and dilute every per-turn average. Their
-# cost stays visible in Langfuse itself, and they share the thread's session id,
-# so session-level cost remains complete. See
-# ``src.api.services.langfuse.ingest.ingest_window``.
+# The ingest layer drops tagged traces that carry no AgentState from
+# ``langfuse_traces``. That table is turn-level, and a tiny auxiliary trace
+# would land as a zero-token EMPTY-outcome row and dilute every per-turn
+# average. Their cost stays visible in Langfuse itself, and they share the
+# thread's session id, so session-level cost remains complete. See
+# ``src.api.services.langfuse.ingest._split_auxiliary``.
 AUXILIARY_TAG = "auxiliary"
 
 
@@ -195,19 +194,29 @@ def auxiliary_config(
     *,
     session_id: Optional[str] = None,
     user_id: Optional[str] = None,
+    in_turn_request: bool = False,
 ) -> Dict[str, Any]:
-    """A RunnableConfig that traces an LLM call made outside an agent turn.
+    """A RunnableConfig that traces an LLM call made outside the agent graph.
 
     Without one of these, a call like thread naming or custom-area naming is
-    billed and never appears anywhere: it runs in its own request, so there is
-    no ambient handler for LangChain's config propagation to find.
+    billed and never appears anywhere: it runs outside the graph invocation,
+    so there is no ambient handler for LangChain's config propagation to find.
 
-    Passing ``session_id`` (the thread id) is what lets the resulting trace be
+    Set ``in_turn_request`` for a call made in the same request as an agent
+    turn (thread naming, language detection in ``/api/chat``). When a request
+    span is active, the handler joins that span's trace, which is the turn's
+    trace. The call is then part of the turn's cost, and the trace must not
+    get the auxiliary tag. Without an active span the call gets its own trace,
+    which is tagged.
+
+    Passing ``session_id`` (the thread id) is what lets a separate trace be
     joined back to the conversation it belongs to. Returns a config with no
     callbacks if Langfuse is unconfigured, so callers need no conditional.
     """
     config: Dict[str, Any] = {"run_name": run_name}
-    metadata: Dict[str, Any] = {"langfuse_tags": [AUXILIARY_TAG]}
+    metadata: Dict[str, Any] = {}
+    if not (in_turn_request and _span_is_active()):
+        metadata["langfuse_tags"] = [AUXILIARY_TAG]
     if session_id:
         metadata["langfuse_session_id"] = session_id
     if user_id:
@@ -221,3 +230,14 @@ def auxiliary_config(
     except Exception:
         logger.debug("langfuse_callback_unavailable", exc_info=True)
     return config
+
+
+def _span_is_active() -> bool:
+    """True when an OpenTelemetry span is current, so a new observation joins
+    its trace instead of opening one."""
+    try:
+        from opentelemetry import trace
+
+        return trace.get_current_span().get_span_context().is_valid
+    except Exception:  # pragma: no cover - telemetry must not raise
+        return False

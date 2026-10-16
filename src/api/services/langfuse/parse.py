@@ -483,6 +483,12 @@ def _as_state_dict(output: Any) -> Any:
     return value if isinstance(value, dict) else output
 
 
+def has_agent_state(output: Any) -> bool:
+    """True when ``trace.output`` is an AgentState snapshot (has ``messages``)."""
+    state = _as_state_dict(output)
+    return isinstance(state, dict) and "messages" in state
+
+
 # --------------------------------------------------------------------------- #
 # Observations (the usage source)
 # --------------------------------------------------------------------------- #

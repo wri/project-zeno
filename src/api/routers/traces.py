@@ -90,8 +90,9 @@ class TraceListItem(BaseModel):
     tool_tokens: Optional[int] = Field(
         None,
         description=(
-            "The subset spent by LLM calls inside tools. See "
-            "derived.tokens_by_component for the per-tool breakdown."
+            "turn_tokens minus agent_tokens: LLM calls inside tools, plus calls "
+            "in the turn's request outside the graph (thread naming, language "
+            'detection), which derived.tokens_by_component lists as "other".'
         ),
     )
     turn_tool_calls: Optional[int] = None
@@ -103,8 +104,8 @@ class TraceListItem(BaseModel):
     tool_cost: Optional[float] = Field(
         None,
         description=(
-            "Cost of the tools' own LLM calls. Runs materially higher than the "
-            "token share suggests: tool prompts get no prompt-cache hits."
+            "total_cost minus agent_cost, with the same scope as tool_tokens. "
+            "See derived.cost_by_component for the breakdown."
         ),
     )
     # Sourced from the ``derived`` JSONB (long-tail fields kept out of columns).

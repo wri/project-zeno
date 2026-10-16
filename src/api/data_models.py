@@ -795,8 +795,9 @@ class LangfuseTraceOrm(Base):
     answer = Column(String, nullable=True)
     # turn_* covers EVERY LLM call in the turn, sourced from the trace's
     # generation observations (parser v3+). agent_* is the subset the agent made
-    # itself; tool_* is the remainder, i.e. LLM calls made inside tools, which
-    # the AIMessage stream cannot see at all. agent_tokens + tool_tokens ==
+    # itself; tool_* is the remainder: LLM calls made inside tools, which the
+    # AIMessage stream cannot see at all, plus calls in the turn's request
+    # outside the graph (thread naming, language detection; "other"). agent_tokens + tool_tokens ==
     # turn_tokens by construction. derived.tokens_by_component /
     # derived.cost_by_component break tool_* down per tool.
     turn_input_tokens = Column(Integer, nullable=True)

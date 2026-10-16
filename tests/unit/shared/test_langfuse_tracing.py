@@ -180,6 +180,24 @@ def test_auxiliary_config_tags_and_names_the_call():
     assert config["metadata"]["langfuse_session_id"] == "t1"
 
 
+def test_in_turn_call_joins_an_active_request_span_untagged():
+    """Inside an active request span the handler joins the turn's trace, and
+    the auxiliary tag would land on the turn. So it is left off."""
+    from opentelemetry.sdk.trace import TracerProvider
+
+    tracer = TracerProvider().get_tracer("test")
+    with tracer.start_as_current_span("POST /api/chat"):
+        joined = auxiliary_config("detect_language", in_turn_request=True)
+        separate = auxiliary_config("name_custom_area")
+    assert "langfuse_tags" not in joined["metadata"]
+    assert separate["metadata"]["langfuse_tags"] == [AUXILIARY_TAG]
+
+
+def test_in_turn_call_without_a_request_span_gets_its_own_tagged_trace():
+    config = auxiliary_config("detect_language", in_turn_request=True)
+    assert config["metadata"]["langfuse_tags"] == [AUXILIARY_TAG]
+
+
 def test_auxiliary_config_omits_ids_it_was_not_given():
     metadata = auxiliary_config("name_custom_area")["metadata"]
     assert "langfuse_session_id" not in metadata
