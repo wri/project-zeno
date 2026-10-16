@@ -30,6 +30,7 @@ BODY = {
     "end_date": "2026-10-16",
 }
 ALERTS = AlertsList(
+    data_to=date(2026, 10, 12),
     start_date=date(2026, 9, 16),
     end_date=TODAY,
     new_week=AlertsWeek(date(2026, 10, 4), date(2026, 10, 10)),
@@ -88,7 +89,7 @@ def test_lists_the_alert_days():
 
     assert response.status_code == 200
     assert response.json() == {
-        "data_to": "2026-10-16",
+        "data_to": "2026-10-12",
         "start_date": "2026-09-16",
         "end_date": "2026-10-16",
         "new_week": {"start_date": "2026-10-04", "end_date": "2026-10-10"},
@@ -110,6 +111,24 @@ def test_lists_the_alert_days():
             },
         ],
     }
+
+
+def test_no_data_in_the_period_is_a_null_data_date():
+    empty = AlertsList(
+        data_to=None,
+        start_date=date(2026, 9, 16),
+        end_date=TODAY,
+        new_week=AlertsWeek(date(2026, 10, 4), date(2026, 10, 10)),
+        total_area_ha=0.0,
+        rows=[],
+    )
+
+    response = _post(FakeService(result=empty))
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["data_to"] is None
+    assert (body["end_date"], body["rows"]) == ("2026-10-16", [])
 
 
 def test_passes_the_area_the_dates_and_today():

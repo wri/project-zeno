@@ -232,7 +232,8 @@ async def test_defaults_to_the_30_days_to_today():
         date(2026, 9, 16),
         TODAY,
     )
-    assert alerts.data_to == TODAY
+    # The fake pull returns no rows, so there is no data date.
+    assert alerts.data_to is None
     assert alerts.new_week == AlertsWeek(*WEEK)
 
 
@@ -281,6 +282,56 @@ async def test_an_unknown_land_filter_never_reaches_the_api():
         await _list(handler, land_filter="intact_forest")
 
     assert handler.calls == []
+
+
+async def _list_data(*rows):
+    data = _rows(*rows) if rows else {}
+    handler = FakeHandler(DataPullResult(success=True, data=data, message=""))
+    return await _list(handler)
+
+
+@pytest.mark.asyncio
+async def test_data_to_is_the_latest_alert_date_in_the_data():
+    alerts = await _list_data(
+        ("2026-10-09", "high", 1.0),
+        ("2026-10-12", "highest", 2.0),
+        ("2026-09-20", "high", 3.0),
+    )
+
+    # The data stops before the end of the period.
+    assert alerts.data_to == date(2026, 10, 12)
+    assert alerts.end_date == TODAY
+
+
+@pytest.mark.asyncio
+async def test_data_to_counts_low_confidence_alerts():
+    alerts = await _list_data(
+        ("2026-10-09", "high", 1.0),
+        ("2026-10-14", "low", 2.0),
+    )
+
+    assert alerts.data_to == date(2026, 10, 14)
+    assert [row.alert_date for row in alerts.rows] == [date(2026, 10, 9)]
+
+
+@pytest.mark.asyncio
+async def test_only_low_confidence_alerts_give_a_data_date_and_no_rows():
+    alerts = await _list_data(
+        ("2026-10-13", "low", 2.0),
+        ("2026-10-11", "low", 1.0),
+    )
+
+    assert alerts.data_to == date(2026, 10, 13)
+    assert alerts.rows == []
+    assert alerts.total_area_ha == 0.0
+
+
+@pytest.mark.asyncio
+async def test_no_rows_give_no_data_date():
+    alerts = await _list_data()
+
+    assert alerts.data_to is None
+    assert alerts.rows == []
 
 
 @pytest.mark.asyncio
