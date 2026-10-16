@@ -185,7 +185,9 @@ def insight_updated_command(
             "insight_id": str(insight_id),
             "insight": insight.primary_insight,
             "follow_up_suggestions": insight.follow_up_suggestions,
-            "charts_data": [c.to_frontend_dict() for c in insight.charts],
+            "charts_data": [
+                c.to_frontend_dict(str(insight_id)) for c in insight.charts
+            ],
             "messages": [
                 ToolMessage(
                     content=content,

@@ -39,10 +39,13 @@ LGMS_CLASS_LABELS = {
 class LGMSChartGenerator(ChartGenerator):
     """Land GHG Monitoring System: four charts per analysis.
 
-    Three stacked-bar-with-line time series at increasing levels of
-    aggregation (full detail, category, summary), plus one hierarchical-bar
-    chart of period-of-record averages (see `_hierarchy_rows`). Net flux and
-    chart styling are left to the frontend to derive.
+    One hierarchical-bar chart of period-of-record averages (see
+    `_hierarchy_rows`), then three stacked-bar-with-line time series at
+    increasing levels of aggregation (full detail, category, summary). The
+    annual-average chart leads because position is the frontend's reading
+    order and the science team wants readers to grasp the categories before
+    the time dimension is added. Net flux and chart styling are left to the
+    frontend to derive.
 
     Input is one row per (category, class, year), with emissions always
     positive and removals always negative. A row can carry both metrics at
@@ -103,7 +106,7 @@ class LGMSChartGenerator(ChartGenerator):
                         soil, "gross_emissions_MgCO2e"
                     ),
                     "soil_removals": _sum_metric(soil, "gross_removals_MgCO2"),
-                    "cropland_emissions": _sum_metric(
+                    "cropland_management_emissions": _sum_metric(
                         cropland, "gross_emissions_MgCO2e"
                     ),
                     "livestock_emissions": _sum_metric(
@@ -119,7 +122,8 @@ class LGMSChartGenerator(ChartGenerator):
                     row["vegetation_emissions"], row["soil_emissions"]
                 ),
                 "agriculture_emissions": _fold_metric(
-                    row["cropland_emissions"], row["livestock_emissions"]
+                    row["cropland_management_emissions"],
+                    row["livestock_emissions"],
                 ),
                 "land_use_removals": _fold_metric(
                     row["vegetation_removals"], row["soil_removals"]
@@ -145,41 +149,6 @@ class LGMSChartGenerator(ChartGenerator):
         return [
             InsightChart(
                 position=0,
-                title="charts.lgms.full_detail",
-                chart_type="stacked-bar-with-line",
-                x_axis="year",
-                series_fields=full_series_fields,
-                chart_data=full_rows,
-            ),
-            InsightChart(
-                position=1,
-                title="charts.lgms.by_category",
-                chart_type="stacked-bar-with-line",
-                x_axis="year",
-                series_fields=[
-                    "vegetation_emissions",
-                    "soil_emissions",
-                    "cropland_emissions",
-                    "livestock_emissions",
-                    "vegetation_removals",
-                    "soil_removals",
-                ],
-                chart_data=category_rows,
-            ),
-            InsightChart(
-                position=2,
-                title="charts.lgms.summary",
-                chart_type="stacked-bar-with-line",
-                x_axis="year",
-                series_fields=[
-                    "land_use_emissions",
-                    "agriculture_emissions",
-                    "land_use_removals",
-                ],
-                chart_data=summary_rows,
-            ),
-            InsightChart(
-                position=3,
                 title="charts.lgms.annual_average",
                 chart_type="hierarchical-bar",
                 # A hierarchy has no cartesian axes; each chart_data row's
@@ -190,6 +159,41 @@ class LGMSChartGenerator(ChartGenerator):
                 chart_data=self._hierarchy_rows(
                     full_rows, category_rows, summary_rows
                 ),
+            ),
+            InsightChart(
+                position=1,
+                title="charts.lgms.full_detail",
+                chart_type="stacked-bar-with-line",
+                x_axis="year",
+                series_fields=full_series_fields,
+                chart_data=full_rows,
+            ),
+            InsightChart(
+                position=2,
+                title="charts.lgms.by_category",
+                chart_type="stacked-bar-with-line",
+                x_axis="year",
+                series_fields=[
+                    "vegetation_emissions",
+                    "soil_emissions",
+                    "cropland_management_emissions",
+                    "livestock_emissions",
+                    "vegetation_removals",
+                    "soil_removals",
+                ],
+                chart_data=category_rows,
+            ),
+            InsightChart(
+                position=3,
+                title="charts.lgms.summary",
+                chart_type="stacked-bar-with-line",
+                x_axis="year",
+                series_fields=[
+                    "land_use_emissions",
+                    "agriculture_emissions",
+                    "land_use_removals",
+                ],
+                chart_data=summary_rows,
             ),
         ]
 
@@ -302,7 +306,7 @@ class LGMSChartGenerator(ChartGenerator):
                 "cropland",
                 "agriculture",
                 "Crop management",
-                "cropland_emissions",
+                "cropland_management_emissions",
                 None,
                 category_rows,
             ),

@@ -3,10 +3,24 @@ Centralized dataset configuration to avoid circular imports.
 """
 
 from pathlib import Path
+from typing import Optional
 
 import yaml
 
 DATASETS_DIR = Path(__file__).parent / "catalog"
+
+# Dataset ids that a removed dataset used. A dataset id is permanently
+# reserved once it is assigned: it is persisted in `statistics.dataset_id`
+# and it is a public filter on `GET /api/insights?dataset_id=`, so the same
+# id on a new dataset re-attributes historical insights to it. A stale
+# embeddings index makes the same reuse wrong in a second way — the index
+# keeps the removed dataset's vector under that id, so retrieval answers
+# under the new dataset's identity and returns the wrong data instead of
+# raising. `_load_datasets` refuses to load a catalog that reuses one.
+#
+#   0 -- Global all ecosystem disturbance alerts (DIST-ALERT), removed in #802
+RETIRED_DATASET_IDS = frozenset({0})
+
 CANDIDATE_DATASET_REQUIRED_COLUMNS = [
     "dataset_id",
     "dataset_name",
@@ -43,7 +57,41 @@ def _load_datasets() -> list[dict]:
         raise ValueError(
             f"duplicate dataset_id in {DATASETS_DIR}. Each dataset must have a unique dataset_id."
         )
+    reused = sorted(
+        d["dataset_id"]
+        for d in datasets
+        if d["dataset_id"] in RETIRED_DATASET_IDS
+    )
+    if reused:
+        raise ValueError(
+            f"dataset_id {reused} in {DATASETS_DIR} is retired and must not be "
+            "reused (see RETIRED_DATASET_IDS). Give the dataset a new id."
+        )
     return datasets
 
 
 DATASETS = _load_datasets()
+_DATASETS_BY_ID = {d["dataset_id"]: d for d in DATASETS}
+
+
+def catalog_layers(dataset_id: Optional[int]) -> list[dict]:
+    """A dataset's declared primary layers from its catalog yml; empty for
+    an unknown id or a dataset that declares no `layers`."""
+    dataset = (
+        _DATASETS_BY_ID.get(dataset_id) if dataset_id is not None else None
+    )
+    return list((dataset or {}).get("layers") or [])
+
+
+def resolve_selected_layer(
+    dataset_id: Optional[int], selected_layer: Optional[str]
+) -> Optional[str]:
+    """`selected_layer` if it names a real layer of a genuinely multi-layer
+    dataset, else None — nothing to select between on a single-layer dataset,
+    and a hallucinated or stale name falls back to `layers[0]` downstream."""
+    layers = catalog_layers(dataset_id)
+    if len(layers) <= 1 or selected_layer not in {
+        lyr["name"] for lyr in layers
+    }:
+        return None
+    return selected_layer

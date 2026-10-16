@@ -7,11 +7,22 @@ not assert the CRUD response bodies, which ``test_custom_area.py`` covers and wh
 must not change.
 """
 
+from uuid import UUID
+
 import pytest
 from sqlalchemy import text
 
-from src.api.services.aoi_sync import prune_orphan_custom_aois
-from tests.conftest import async_session_maker, seed_reference_aoi
+from src.api.services import aoi_sync
+from src.api.services.aoi_sync import (
+    prune_orphan_custom_aois,
+    upsert_custom_aoi,
+)
+from tests.conftest import (
+    async_session_maker,
+    has_lexeme,
+    rebuild_search_tokens,
+    seed_reference_aoi,
+)
 
 AUTH = {"Authorization": "Bearer abc123"}
 
@@ -72,7 +83,8 @@ async def _fetch_aoi(area_id):
                 text(
                     "SELECT id, name, subtype, source, created_by, bbox, "
                     "area_km2, is_disputed, is_deprecated, "
-                    "ST_GeometryType(geometry) AS gtype "
+                    "ST_GeometryType(geometry) AS gtype, "
+                    "leaf, leaf_norm, designation, search_tsv::text AS tsv "
                     "FROM aois "
                     "WHERE source = 'custom' AND source_id = :src_id"
                 ),
@@ -96,6 +108,51 @@ async def _fetch_aoi(area_id):
             .all()
         )
         return aoi, links
+
+
+async def _fetch_names(aoi_id):
+    """Return ``{(kind, name_norm)}`` of the ``aoi_names`` rows for an AOI."""
+    async with async_session_maker() as session:
+        rows = await session.execute(
+            text(
+                "SELECT kind, name_norm FROM aoi_names WHERE aoi_id = :aoi_id"
+            ),
+            {"aoi_id": aoi_id},
+        )
+        return {(row[0], row[1]) for row in rows}
+
+
+@pytest.mark.asyncio
+async def test_create_fills_search_columns(auth_override, client):
+    auth_override("test-user-wri")
+    area_id = await _create_area(client, "  Área do Rio  ")
+
+    aoi, _ = await _fetch_aoi(area_id)
+    # The leaf is the trimmed name; its normalized form is lowercase with the
+    # accents removed, which is what the exact and prefix tiers compare.
+    assert aoi["leaf"] == "Área do Rio"
+    assert aoi["leaf_norm"] == "area do rio"
+    assert aoi["designation"] is None
+    assert has_lexeme(aoi["tsv"], "area", "A") and has_lexeme(
+        aoi["tsv"], "rio", "A"
+    )
+    # A custom area has no alternate spellings, so no aoi_names rows.
+    assert await _fetch_names(aoi["id"]) == set()
+
+
+@pytest.mark.asyncio
+async def test_patch_updates_the_search_columns(auth_override, client):
+    auth_override("test-user-wri")
+    area_id = await _create_area(client, "Before")
+
+    res = await client.patch(
+        f"/api/custom_areas/{area_id}", json={"name": "After"}, headers=AUTH
+    )
+    assert res.status_code == 200, res.text
+
+    aoi, _ = await _fetch_aoi(area_id)
+    assert aoi["leaf_norm"] == "after"
+    assert has_lexeme(aoi["tsv"], "after", "A") and "before" not in aoi["tsv"]
 
 
 @pytest.mark.asyncio
@@ -200,6 +257,33 @@ async def test_degenerate_geometry_skipped_but_crud_succeeds(
 
 
 @pytest.mark.asyncio
+async def test_batch_warning_names_only_the_skipped_areas(
+    auth_override, client, monkeypatch
+):
+    """A batch of 500 must not log 500 ids to report the one it dropped."""
+    auth_override("test-user-wri")
+    good_id = await _create_area(client, "Good")
+    bad_id = await _create_area(client, "Degenerate", [_DEGENERATE])
+
+    warnings = []
+    monkeypatch.setattr(
+        aoi_sync.logger,
+        "warning",
+        lambda *args, **kwargs: warnings.append(kwargs),
+    )
+
+    async with async_session_maker() as session:
+        await upsert_custom_aoi(
+            session, area_ids=[UUID(good_id), UUID(bad_id)]
+        )
+        await session.commit()
+
+    assert len(warnings) == 1
+    assert warnings[0]["skipped"] == 1
+    assert warnings[0]["skipped_area_ids"] == [bad_id]
+
+
+@pytest.mark.asyncio
 async def test_mirror_is_idempotent_across_repeated_patches(
     auth_override, client
 ):
@@ -245,6 +329,68 @@ async def test_mirror_is_scoped_to_the_created_area(
     assert second_links[0]["user_id"] == "test-user-ds"
     assert first_aoi["created_by"] == "test-user-wri"
     assert second_aoi["created_by"] == "test-user-ds"
+
+
+# ---------------------------------------------------------------------------
+# properties: projected into aois.properties
+# ---------------------------------------------------------------------------
+
+
+async def _set_properties(area_id, properties):
+    """Set ``custom_areas.properties`` directly and re-run the mirror.
+
+    The create API does not accept properties; the upload endpoint sets them.
+    This drives the same upsert SQL that endpoint runs.
+    """
+    async with async_session_maker() as session:
+        await session.execute(
+            text(
+                "UPDATE custom_areas SET properties = CAST(:props AS jsonb) "
+                "WHERE id::text = :id"
+            ),
+            {"props": properties, "id": area_id},
+        )
+        await upsert_custom_aoi(session, area_id=area_id)
+        await session.commit()
+
+
+async def _fetch_properties(area_id):
+    async with async_session_maker() as session:
+        return await session.scalar(
+            text(
+                "SELECT properties FROM aois "
+                "WHERE source = 'custom' AND source_id = :src_id"
+            ),
+            {"src_id": area_id},
+        )
+
+
+@pytest.mark.asyncio
+async def test_properties_mirrored_on_update(auth_override, client):
+    """The DO UPDATE branch projects properties over the existing row."""
+    auth_override("test-user-wri")
+    area_id = await _create_area(client, "With Properties")
+    assert await _fetch_properties(area_id) is None
+
+    await _set_properties(area_id, '{"region": "Kivu", "code": 7}')
+
+    assert await _fetch_properties(area_id) == {"region": "Kivu", "code": 7}
+
+
+@pytest.mark.asyncio
+async def test_null_properties_stays_null(auth_override, client):
+    """A drawn area has no properties, and the mirror must keep the null."""
+    auth_override("test-user-wri")
+    area_id = await _create_area(client, "Drawn")
+
+    res = await client.patch(
+        f"/api/custom_areas/{area_id}",
+        json={"name": "Still Drawn"},
+        headers=AUTH,
+    )
+    assert res.status_code == 200, res.text
+
+    assert await _fetch_properties(area_id) is None
 
 
 # ---------------------------------------------------------------------------
@@ -336,3 +482,22 @@ async def test_prune_does_not_commit(auth_override, client):
 
     aoi, _ = await _fetch_aoi(orphan)
     assert aoi is not None
+
+
+@pytest.mark.asyncio
+async def test_custom_area_names_stay_out_of_the_token_table(
+    auth_override, client
+):
+    """The token table is shared by every user, so a private name must not
+    become another user's typo correction."""
+    auth_override("test-user-wri")
+    await _create_area(client, "Zqxvba Reserve")
+    await rebuild_search_tokens()
+    async with async_session_maker() as session:
+        tokens = {
+            row[0]
+            for row in await session.execute(
+                text("SELECT token FROM aoi_search_tokens")
+            )
+        }
+    assert "zqxvba" not in tokens

@@ -13,6 +13,10 @@ from datetime import date
 from langchain.agents.middleware.types import AgentMiddleware, ModelRequest
 from langchain_core.messages import SystemMessage
 
+from src.agent.datasets.curated_only import (
+    CURATED_ONLY_SESSION_NOTE,
+    is_curated_only,
+)
 from src.agent.language import DEFAULT_LANGUAGE, language_name
 from src.agent.view_pages import get_page, on_screen_counts
 
@@ -46,9 +50,26 @@ def format_session_block(state: dict) -> str:
     ds_name = dataset.get("dataset_name")
     if ds_name:
         ctx = dataset.get("context_layer")
-        lines.append(
-            f"Dataset: {ds_name}" + (f" (context: {ctx})" if ctx else "")
-        )
+        line = f"Dataset: {ds_name}" + (f" (context: {ctx})" if ctx else "")
+        # Which of a multi-layer dataset's layers is on the map. Carried on
+        # every turn, not just the one it was picked, so the agent keeps
+        # narrating the layer the user is actually looking at.
+        layers = dataset.get("layers") or []
+        if len(layers) > 1:
+            selected = dataset.get("selected_layer")
+            displayed = next(
+                (lyr for lyr in layers if lyr.get("name") == selected),
+                layers[0],
+            )
+            label = displayed.get("title") or displayed.get("name")
+            if label:
+                line += f" (map layer: {label}"
+                if displayed.get("description"):
+                    line += f" — {displayed['description']}"
+                line += ")"
+        if is_curated_only(dataset.get("dataset_id")):
+            line += f" — {CURATED_ONLY_SESSION_NOTE}"
+        lines.append(line)
     else:
         lines.append("Dataset: none")
 

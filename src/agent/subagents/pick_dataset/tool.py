@@ -16,13 +16,16 @@ from shapely import box
 from src.agent.datasets.config import (
     CANDIDATE_DATASET_REQUIRED_COLUMNS,
     DATASETS,
+    RETIRED_DATASET_IDS,
 )
 from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import (
+    DEFAULT_CANOPY_COVER,
     FOREST_CARBON_FLUX_ID,
     GRASSLANDS_ID,
     INTEGRATED_ALERTS_ID,
     LAND_COVER_CHANGE_ID,
+    NATURAL_FOREST_DEFAULT_CANOPY_COVER,
     TREE_COVER_ID,
     TREE_COVER_LOSS_BY_DRIVER_ID,
     TREE_COVER_LOSS_BY_FIRES_ID,
@@ -38,6 +41,7 @@ from src.agent.llms import SMALL_MODEL
 from src.agent.subagents.pick_dataset.prompts import DATASET_SELECTOR_PROMPT
 from src.agent.subagents.pick_dataset.schema import (
     ContextLayer,
+    DatasetLayer,
     DatasetSelectionResponse,
     DatasetSelectionResult,
 )
@@ -67,6 +71,66 @@ data_dir = Path("data")
 retriever_cache = None
 
 
+def _catalog_by_id() -> dict[int, dict]:
+    """Catalog datasets keyed by dataset_id, for doc-id lookups."""
+    return {ds["dataset_id"]: ds for ds in DATASETS}
+
+
+def _document_dataset_id(doc) -> Optional[int]:
+    """The dataset_id a retrieved document points at, or None if its id is
+    not an integer (a malformed or foreign document in the index)."""
+    try:
+        return int(doc.id)
+    except (TypeError, ValueError):
+        return None
+
+
+def _log_index_catalog_skew(index: InMemoryVectorStore) -> None:
+    """Compare the loaded index against the catalog and report any skew.
+
+    The index is a build artifact of the catalog (see
+    src/ingest/embed_datasets.py), but it is published separately, as an S3
+    object the pods sync into `data/`. A catalog change that ships without a
+    rebuilt index leaves the two out of step: documents for removed datasets
+    keep coming back from retrieval, and datasets added since the last build
+    can never be retrieved. Both are silent faults, so name them once at load.
+    """
+    catalog_ids = set(_catalog_by_id())
+    doc_ids = set()
+    for doc_id in getattr(index, "store", {}):
+        try:
+            doc_ids.add(int(doc_id))
+        except (TypeError, ValueError):
+            doc_ids.add(doc_id)
+
+    removed = doc_ids - catalog_ids
+    missing = catalog_ids - doc_ids
+    # A retired id explains itself: the index predates the removal of that
+    # dataset. An indexed id the catalog has never held does not, so name the
+    # two apart.
+    retired = removed & RETIRED_DATASET_IDS
+    unknown = removed - RETIRED_DATASET_IDS
+    if removed or missing:
+        logger.error(
+            "Dataset embeddings index %s is out of step with the catalog. "
+            "Indexed but retired from the catalog: %s. Indexed and unknown "
+            "to the catalog: %s. In the catalog but not indexed: %s. Rebuild "
+            "the index from the catalog (src/ingest/embed_datasets.py), "
+            "publish it under a NEW version name, and point "
+            "DATASET_EMBEDDINGS_DB at that name.",
+            SharedSettings.dataset_embeddings_db,
+            sorted(retired, key=str) or "none",
+            sorted(unknown, key=str) or "none",
+            sorted(missing, key=str) or "none",
+        )
+    else:
+        logger.info(
+            "Dataset embeddings index %s matches the catalog (%s datasets).",
+            SharedSettings.dataset_embeddings_db,
+            len(catalog_ids),
+        )
+
+
 async def _get_retriever():
     global retriever_cache
     if retriever_cache is None:
@@ -79,6 +143,7 @@ async def _get_retriever():
             data_dir / SharedSettings.dataset_embeddings_db,
             embedding=embeddings,
         )
+        _log_index_catalog_skew(index)
         retriever_cache = index.as_retriever(
             search_type="similarity", search_kwargs={"k": 5}
         )
@@ -88,13 +153,32 @@ async def _get_retriever():
 async def rag_candidate_datasets(query: str, k=3):
     logger.debug(f"Retrieving candidate datasets for query: '{query}'")
     candidate_datasets = []
+    stale_doc_ids = []
     retriever = await _get_retriever()
     match_documents = await retriever.ainvoke(query)
+    catalog = _catalog_by_id()
     for doc in match_documents:
-        data = [ds for ds in DATASETS if ds["dataset_id"] == int(doc.id)]
-        if not data:
-            raise ValueError(f"No data found for dataset ID: {doc.id}")
-        candidate_datasets.append(data[0])
+        dataset_id = _document_dataset_id(doc)
+        dataset = None if dataset_id is None else catalog.get(dataset_id)
+        if dataset is None:
+            # The index still holds a dataset the catalog has dropped. Skip
+            # it and keep the valid candidates: a stale index must degrade
+            # the shortlist, not fail the turn.
+            stale_doc_ids.append(doc.id)
+            continue
+        candidate_datasets.append(dataset)
+
+    if stale_doc_ids:
+        logger.warning(
+            "Skipped %s retrieved document(s) with no matching catalog "
+            "dataset: %s. Index %s holds datasets the catalog no longer "
+            "has; rebuild and republish it "
+            "(src/ingest/embed_datasets.py). Catalog ids: %s.",
+            len(stale_doc_ids),
+            stale_doc_ids,
+            SharedSettings.dataset_embeddings_db,
+            sorted(catalog),
+        )
 
     logger.debug(f"Found {len(candidate_datasets)} candidate datasets.")
     names = [ds["dataset_name"] for ds in candidate_datasets]
@@ -123,6 +207,30 @@ def _format_selection_hints(candidate_datasets: pd.DataFrame) -> str:
         if hints:
             lines.append(f"{row['dataset_name']}:\n{hints}")
     return "\n\n".join(lines) if lines else ""
+
+
+def _format_layer(layer: dict) -> str:
+    """One layer as `name (title): description`, parts omitted when absent."""
+    line = layer["name"]
+    if layer.get("title"):
+        line += f" ({layer['title']})"
+    if layer.get("description"):
+        line += f": {layer['description']}"
+    return line
+
+
+def _format_layer_options(candidate_datasets: pd.DataFrame) -> str:
+    """The choices for `selected_layer`: each multi-layer candidate's layers
+    by name, title and description. Tile URLs are left out — they carry no
+    selection signal."""
+    blocks = []
+    for _, row in candidate_datasets.iterrows():
+        layers = row.get("layers")
+        if not isinstance(layers, list) or len(layers) <= 1:
+            continue
+        lines = "\n".join(f"- {_format_layer(layer)}" for layer in layers)
+        blocks.append(f"{row['dataset_name']}:\n{lines}")
+    return "\n\n".join(blocks) if blocks else "None"
 
 
 async def select_best_dataset(
@@ -154,6 +262,10 @@ async def select_best_dataset(
 ## Candidate datasets
 
 {candidate_datasets}
+
+## Map layers (for selected_layer)
+
+{layer_options}
 
 ## User query
 
@@ -192,6 +304,7 @@ async def select_best_dataset(
         removed_df = removed_layers.to_csv(index=False)
 
     selection_hints = _format_selection_hints(candidate_datasets)
+    layer_options = _format_layer_options(candidate_datasets)
 
     return await dataset_selection_chain.ainvoke(
         {
@@ -201,6 +314,7 @@ async def select_best_dataset(
             "user_query": query,
             "removed_layers": removed_df,
             "selection_hints": selection_hints,
+            "layer_options": layer_options,
             "rules": SELECTION_RULES,
         }
     )
@@ -232,9 +346,31 @@ class DatasetSelector:
         candidate_datasets = await rag_candidate_datasets(query, k=5)
         # Drop datasets the current agent profile (feature flag) excludes, so
         # they can never be selected under a flag that hides them.
-        candidate_datasets = _drop_excluded_datasets(
-            candidate_datasets, bound_availability().excluded_datasets
-        )
+        if not candidate_datasets.empty:
+            candidate_datasets = _drop_excluded_datasets(
+                candidate_datasets, bound_availability().excluded_datasets
+            )
+        if candidate_datasets.empty:
+            # Nothing retrieved survived the catalog lookup or the profile
+            # exclusions. Tell the user plainly; the cause is in the logs.
+            logger.error(
+                "No candidate datasets for query %r (index %s). Every "
+                "retrieved document was skipped.",
+                query,
+                SharedSettings.dataset_embeddings_db,
+            )
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            await t(
+                                "pick_dataset.retrieval_unavailable", language
+                            ),
+                            tool_call_id=tool_call_id,
+                        )
+                    ]
+                }
+            )
         # Step 2: LLM picks the best dataset and context layer
         selection_result = await select_best_dataset(
             query,
@@ -315,6 +451,7 @@ class DatasetSelector:
         logger.debug(
             f"Selected dataset ID: {option.dataset_id}. "
             f"context_layer={option.context_layer!r} (type={type(option.context_layer).__name__}). "
+            f"selected_layer={option.selected_layer!r}. "
             f"Reason: {option.reason}"
         )
 
@@ -328,22 +465,26 @@ class DatasetSelector:
             selected_row.dataset_id,
             option.context_layer,
         )
-        dataset_tile_url, context_layers = get_tile_services_for_dataset(
-            option,
-            selected_row,
-            effective_start_date,
-            effective_end_date,
+        dataset_tile_url, context_layers, layers = (
+            get_tile_services_for_dataset(
+                option,
+                selected_row,
+                effective_start_date,
+                effective_end_date,
+            )
         )
 
         dataset_result = DatasetSelectionResult(
             dataset_id=selected_row.dataset_id,
             dataset_name=selected_row.dataset_name,
             context_layer=option.context_layer,
+            selected_layer=option.selected_layer,
             parameters=option.parameters,
             start_date=effective_start_date,
             end_date=effective_end_date,
             reason=option.reason,
             tile_url=dataset_tile_url,
+            layers=layers,
             analytics_api_endpoint=selected_row.analytics_api_endpoint,
             description=selected_row.description,
             prompt_instructions=selected_row.prompt_instructions,
@@ -366,9 +507,32 @@ class DatasetSelector:
             + (f" (context layer: {layer})" if layer else ""),
         )
 
+        # The map layer(s) this dataset renders, and which one is on the map.
+        # Without this the agent only ever sees the dataset name and its
+        # (inventory-flavoured) prose, and narrates that there is no map layer
+        # even as the frontend paints the one that was selected.
+        layers = [layer.model_dump() for layer in dataset_result.layers]
+        if layers:
+            available_layers = "".join(
+                f"\n      - {_format_layer(layer)}" for layer in layers
+            )
+            displayed = next(
+                (
+                    layer
+                    for layer in layers
+                    if layer["name"] == dataset_result.selected_layer
+                ),
+                layers[0],
+            )
+            displayed_layer = _format_layer(displayed)
+        else:
+            available_layers = displayed_layer = "none"
+
         tool_message = f"""# About the selection
     Selected dataset name: {dataset_result.dataset_name}
     Selected context layer: {dataset_result.context_layer}
+    Map layers available: {available_layers}
+    Map layer displayed: {displayed_layer}
     Reasoning for selection: {dataset_result.reason}
 
     # Additional dataset information
@@ -513,11 +677,17 @@ def get_tile_services_for_dataset(
     selection_result, selected_row, start_date, end_date
 ):
     context_layers = []
+    # Deprecated top-level tile_url mirror — left as the yml's own field,
+    # unresolved against `selected_layer`/`layers`. Readers of the live
+    # response check `layers` themselves for a multi-layer dataset (e.g.
+    # pickDataset.ts); add_map_widget.py resolves selected_layer/layers[0]
+    # on its own at persistence time, where a single tile_url is actually
+    # required — no need to duplicate that here.
     tile_url = selected_row.tile_url
     start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
     end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
 
-    if not selected_row.tile_url.startswith("http"):
+    if tile_url and not tile_url.startswith("http"):
         tile_url = SharedSettings.eoapi_base_url + tile_url
 
     if (
@@ -532,9 +702,12 @@ def get_tile_services_for_dataset(
             ),
             None,
         )
+        context_tile_url = selected_context_layer.get("tile_url")
+        if context_tile_url and not context_tile_url.startswith("http"):
+            context_tile_url = SharedSettings.eoapi_base_url + context_tile_url
         context_layer = ContextLayer(
             name=selected_context_layer.get("value"),
-            tile_url=selected_context_layer.get("tile_url"),
+            tile_url=context_tile_url,
         )
         context_layers.append(context_layer)
 
@@ -545,13 +718,18 @@ def get_tile_services_for_dataset(
         TREE_COVER_LOSS_BY_FIRES_ID,
         FOREST_CARBON_FLUX_ID,
     ]:
-        canopy_cover = 30
+        natural_forest = selection_result.context_layer == "natural_forest"
+        canopy_cover = (
+            NATURAL_FOREST_DEFAULT_CANOPY_COVER
+            if natural_forest
+            else DEFAULT_CANOPY_COVER
+        )
         if selection_result.parameters is not None:
             for param in selection_result.parameters:
                 if param.name == "canopy_cover":
                     canopy_cover = max(param.values)
 
-        if selected_row.dataset_id != TREE_COVER_ID:
+        if selected_row.dataset_id != TREE_COVER_ID and not natural_forest:
             canopy_cover_tile_url = next(
                 (
                     param["tile_url"]
@@ -571,9 +749,7 @@ def get_tile_services_for_dataset(
             )
             context_layers.append(context_layer)
 
-        tile_url = selected_row.tile_url.replace(
-            "{threshold}", str(canopy_cover)
-        )
+        tile_url = tile_url.replace("{threshold}", str(canopy_cover))
 
     if (
         selected_row.dataset_id == TREE_COVER_LOSS_ID
@@ -591,7 +767,40 @@ def get_tile_services_for_dataset(
         # Annual raster item in URL; start/end are already clamped to dataset YAML
         tile_url = tile_url.format(year=end_date.year)
 
-    return tile_url, context_layers
+    layers = get_dataset_layers(selected_row, tile_url)
+
+    return tile_url, context_layers, layers
+
+
+def to_dataset_layers(raw_layers: list[dict]) -> list[DatasetLayer]:
+    """Catalog yml `layers` entries as DatasetLayers."""
+    return [
+        DatasetLayer(
+            name=layer["name"],
+            tile_url=layer["tile_url"],
+            title=layer.get("title"),
+            description=layer.get("description"),
+            start_date=layer.get("start_date"),
+            end_date=layer.get("end_date"),
+        )
+        for layer in raw_layers
+    ]
+
+
+def get_dataset_layers(selected_row, tile_url: str) -> list[DatasetLayer]:
+    """The dataset's primary layer(s): the yml's explicit `layers` list when
+    present (e.g. LGMS's agriculture/lulucf), otherwise a single layer
+    auto-derived from the dataset's resolved `tile_url` — so every other
+    catalog entry keeps working unchanged with no per-dataset branching
+    downstream. Empty for an analytics-only dataset with no tile_url and no
+    `layers` — there's nothing to render, so no placeholder entry is worth
+    manufacturing."""
+    raw_layers = getattr(selected_row, "layers", None)
+    if isinstance(raw_layers, list) and raw_layers:
+        return to_dataset_layers(raw_layers)
+    if not tile_url:
+        return []
+    return [DatasetLayer(name=selected_row.dataset_name, tile_url=tile_url)]
 
 
 def get_dates_for_dataset(

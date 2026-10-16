@@ -54,19 +54,6 @@ For adding eval cases and running evals locally, see [tests/evals/README.md](tes
 We have a set of scripts to ingest STAC data into the eoAPI deployment. The ingestion code
 for STAC can be found in the [gnw-stac](https://github.com/wri/gnw-stac) repository.
 
-## Versioning
-
-This project uses [Calendar Versioning (CalVer)](https://calver.org/) with the format `YYYY.M.D`.
-
-Version bumps happen automatically via the `bump-calver` pre-commit hook. When you commit on a branch
-that is at the same version as `main`, the hook updates `pyproject.toml` to today's CalVer date and
-stages the change (causing the commit to fail once so you re-run it with the bumped version included).
-If two commits land on the same day, a build suffix is appended (`YYYY.M.D.1`, `YYYY.M.D.2`, …).
-
-The CI workflow (`calver-bump.yml`) runs on pull requests and verifies that the version was already
-bumped by the hook — it does **not** commit to `main`. No manual version changes are needed.
-The current version is always readable at the `/api/v1/version` endpoint.
-
 ## Dependencies
 
 - [uv](https://docs.astral.sh/uv/getting-started/installation/)
@@ -173,9 +160,20 @@ for running the system locally.
    uv run python src/ingest/ingest_kba.py
    uv run python src/ingest/ingest_landmark.py
    uv run python src/ingest/ingest_wdpa.py
+   uv run python src/ingest/ingest_concessions.py  # GFW concessions, five types (~1.8 GB)
    ```
 
    See `src/ingest/` directory for details on each ingestion script.
+
+   The WDPA, LandMark and concessions ingests repair invalid shapes as they
+   load them. To repair a table that was loaded before this repair existed,
+   without a new download, run the ingest with `--repair-only`, then rebuild
+   that source:
+
+   ```bash
+   uv run python src/ingest/ingest_wdpa.py --repair-only
+   uv run python src/api/cli.py build-aois --source wdpa
+   ```
 
 7. **Start application services:**
 
@@ -271,6 +269,7 @@ Runs all services — API, PostgreSQL, Langfuse, and ClickHouse — in container
    uv python src/ingest/ingest_kba.py
    uv python src/ingest/ingest_landmark.py
    uv python src/ingest/ingest_wdpa.py
+   uv python src/ingest/ingest_concessions.py
    exit
    ```
 

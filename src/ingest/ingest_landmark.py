@@ -1,9 +1,10 @@
 from src.ingest.utils import (
     create_geometry_index_if_not_exists,
     create_id_index_if_not_exists,
-    create_text_search_index_if_not_exists,
     gdf_from_ndjson_chunked,
     ingest_to_postgis,
+    make_valid_polygons,
+    repair_invalid_geometries,
 )
 from src.shared.geocoding_helpers import AOI_SOURCE_ID_COLUMNS
 
@@ -40,6 +41,9 @@ def ingest_landmark() -> None:
         # Add subtype column
         gdf_chunk["subtype"] = "indigenous-and-community-land"
 
+        # Repair invalid shapes whole; see src/ingest/utils.py.
+        gdf_chunk["geometry"] = make_valid_polygons(gdf_chunk.geometry)
+
         if_exists_param = "replace" if i == 0 else "append"
         ingest_to_postgis(
             table_name="geometries_landmark",
@@ -52,11 +56,6 @@ def ingest_landmark() -> None:
         index_name="idx_geometries_landmark_geom",
         column="geometry",
     )
-    create_text_search_index_if_not_exists(
-        table_name="geometries_landmark",
-        index_name="idx_geometries_landmark_name_gin",
-        column="name",
-    )
     id_column = AOI_SOURCE_ID_COLUMNS["landmark"]
     create_id_index_if_not_exists(
         table_name="geometries_landmark",
@@ -68,4 +67,15 @@ def ingest_landmark() -> None:
 
 
 if __name__ == "__main__":
-    ingest_landmark()
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--repair-only",
+        action="store_true",
+        help="Only repair the invalid shapes already in geometries_landmark.",
+    )
+    if parser.parse_args().repair_only:
+        repair_invalid_geometries("geometries_landmark")
+    else:
+        ingest_landmark()

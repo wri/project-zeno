@@ -209,3 +209,24 @@ async def test_analyze_localises_titles_and_category_labels():
         "charts.label.net_flux", "es"
     )
     assert "charts." not in chart.title
+
+
+@pytest.mark.asyncio
+async def test_analyze_passes_context_layer_and_canopy_to_handler():
+    handler = FakeHandler(SUCCESS_RESULT)
+    service = make_service(handler)
+
+    await service.analyze(
+        aois=[AOI],
+        dataset_id=HANDLED_DATASET_ID,
+        start_date="2020-01-01",
+        end_date="2022-12-31",
+        context_layer="primary_forest",
+        canopy_cover=50,
+    )
+
+    assert handler.last_call["dataset"] == {
+        "dataset_id": HANDLED_DATASET_ID,
+        "context_layer": "primary_forest",
+        "parameters": [{"name": "canopy_cover", "values": [50]}],
+    }

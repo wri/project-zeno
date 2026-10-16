@@ -9,6 +9,8 @@ from src.agent.agent_config import (
     DEFAULT_PROFILE,
     DEFAULT_SKILLS,
     EXPERIMENTAL_PROFILE,
+    LGMS_PROFILE,
+    PUBLIC_PROFILES,
     AgentConfig,
     AgentConfigRegistry,
     default_registry,
@@ -174,13 +176,16 @@ def test_directly_bound_tools_do_not_activate_skills():
     the capability surface is exactly what's declared."""
     from src.agent.subagents.pick_aoi.tool import SPEC as pick_aoi_spec
     from src.agent.tools.show_imagery import SPEC as show_imagery_spec
+    from src.agent.tools.show_planet_imagery import (
+        SPEC as show_planet_imagery_spec,
+    )
 
     c = AgentConfig(
         "test",
         skills=("capabilities",),
-        tools=(pick_aoi_spec, show_imagery_spec),
+        tools=(pick_aoi_spec, show_imagery_spec, show_planet_imagery_spec),
     )
-    # pick_aoi + show_imagery satisfy show-imagery's requires, but it was
+    # These tools satisfy show-imagery's requires, but it was
     # never declared — it must not be advertised or counted available.
     assert {s.name for s in c.skill_metas()} == {"capabilities"}
     assert not c.availability().has_skill("show-imagery")
@@ -256,6 +261,20 @@ def test_experimental_profile_reveals_land_ghg():
     )
 
 
+def test_lgms_profile_reveals_land_ghg():
+    config = default_registry.resolve(LGMS_PROFILE)
+    assert (
+        "Land GHG Monitoring System (LGMS)"
+        not in config.availability().excluded_datasets
+    )
+
+
+def test_only_lgms_profile_is_public():
+    # Anything added here is open to every user; the experimental surface
+    # must stay behind the admin gate.
+    assert PUBLIC_PROFILES == frozenset({LGMS_PROFILE})
+
+
 # --- Structural invariants ---------------------------------------------------
 
 
@@ -311,6 +330,8 @@ def test_default_profile_derives_exactly_the_core_tools():
             "inspect_view_context",
             "search_blogs",
             "show_imagery",
+            "show_planet_imagery",
+            "update_insight_display",
             "search_insights",
             "create_dashboard",
             "add_to_dashboard",
@@ -346,6 +367,7 @@ def test_experimental_profile_derives_exactly_the_experimental_tools():
             "add_text_widget",
             "edit_text_widget",
             "add_dashboard_section",
+            "add_template_section",
             "edit_dashboard_section",
             "move_dashboard_widget",
             "send_nudge",
@@ -373,32 +395,6 @@ async def test_fetch_zeno_binds_the_resolved_configs_availability():
     available = bound_availability()
     assert available.skills == frozenset({"capabilities"})
     assert available.tools == frozenset({"_fake_tool", "read_skill"})
-
-
-def test_experimental_config_adds_standalone_tools_and_planet():
-    """dashboard and explore graduated into the default set; experimental now
-    layers standalone tools plus the opt-in Planet imagery recipe."""
-    default = default_registry.resolve(DEFAULT_PROFILE)
-    experimental = default_registry.resolve(EXPERIMENTAL_PROFILE)
-
-    default_tools = {t.name for t in default.bound_tools()}
-    experimental_tools = {t.name for t in experimental.bound_tools()}
-    assert {
-        "show_imagery",
-        "search_blogs",
-        "add_to_dashboard",
-        # Owned by the dashboard skill's workflow: it reads a dashboard's
-        # sections and widget ids before grouping or moving anything.
-        "inspect_view_context",
-    } <= default_tools
-    assert {"update_insight_display"} <= (experimental_tools - default_tools)
-
-    default_skills = {s.name for s in default.skill_metas()}
-    experimental_skills = {s.name for s in experimental.skill_metas()}
-    assert {"show-imagery", "explore", "wri-insights", "dashboard"} <= (
-        default_skills
-    )
-    assert experimental_skills - default_skills == {"show-imagery-planet"}
 
 
 # --- excluded_datasets enforcement in pick_dataset ---------------------------

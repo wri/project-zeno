@@ -41,6 +41,10 @@ _EXPORT_COLUMNS: tuple[str, ...] = (
     "topics",
     "receive_news_emails",
     "help_test_features",
+    "terms_accepted_at",
+    "terms_version",
+    "first_seen_at",
+    "rw_apps",
 )
 
 
@@ -51,6 +55,8 @@ def _csv_cell(value: Any) -> str:
         return "true" if value else "false"
     if isinstance(value, datetime):
         return value.isoformat()
+    if isinstance(value, list):
+        return ";".join(str(item) for item in value)
     return str(value)
 
 

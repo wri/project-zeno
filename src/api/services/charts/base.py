@@ -58,6 +58,9 @@ class ChartGenerator(ABC):
     # chart_data columns whose values are message keys rather than literals
     # (a chart's category axis is as user-facing as its title).
     label_fields: ClassVar[tuple[str, ...]] = ()
+    # True when `series_fields` are message keys. The frontend shows a
+    # series key as the legend name, so it must be display text too.
+    label_series: ClassVar[bool] = False
 
     def can_handle(self, dataset_id: int) -> bool:
         return dataset_id == self.dataset_id

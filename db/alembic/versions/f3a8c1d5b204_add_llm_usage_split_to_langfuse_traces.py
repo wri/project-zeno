@@ -1,7 +1,7 @@
 """add agent/tool llm usage split to langfuse_traces
 
 Revision ID: f3a8c1d5b204
-Revises: c9f1a2b3d4e5
+Revises: 9c4e1d7f2a60
 Create Date: 2026-09-03 11:20:00.000000
 
 Token columns used to be derived from the AIMessage stream, which only carries
@@ -28,7 +28,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "f3a8c1d5b204"
-down_revision: Union[str, None] = "c9f1a2b3d4e5"
+down_revision: Union[str, None] = "9c4e1d7f2a60"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

@@ -29,14 +29,6 @@ _DATA_DIR = _CORPUS_ROOT / _SOURCE
 _INDEX_PATH = _CORPUS_ROOT / "index.json"
 
 
-def articles_dir() -> Path:
-    return _DATA_DIR
-
-
-def index_path() -> Path:
-    return _INDEX_PATH
-
-
 def list_insight_urls(
     client: httpx.Client | None = None,
 ) -> list[tuple[str, str]]:

@@ -27,6 +27,10 @@ from langgraph.types import Command
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
+from src.agent.datasets.curated_only import (
+    CURATED_ONLY_DATA_WITHHELD,
+    is_curated_only,
+)
 from src.agent.i18n import t
 from src.agent.language import DEFAULT_LANGUAGE
 from src.agent.tool_spec import ToolCategory, ToolSpec
@@ -203,7 +207,12 @@ async def format_chart_data(chart, language: str = DEFAULT_LANGUAGE) -> str:
     For series <= DATA_INJECT_THRESHOLD: a compact text table of the rows.
     For larger series: per-column min/max/mean (numeric) or distinct count +
     samples (string).
+
+    Rows of a curated-only dataset are withheld: the agent must not
+    interpret them, so it does not receive them.
     """
+    if is_curated_only(getattr(chart, "dataset_id", None)):
+        return f"  {CURATED_ONLY_DATA_WITHHELD}"
     data = chart.chart_data or []
     if not data:
         return await t("analyst.chart_data_none", language)

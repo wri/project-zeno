@@ -8,20 +8,24 @@ Ownership checks live in the callers (router/tools) via ``dashboard_access``
 (None/False) rather than raising.
 """
 
-from typing import Optional
+from typing import NamedTuple, Optional
 from uuid import UUID
 
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
+from src.agent.subagents.analyst.charts.model import Insight
 from src.api.data_models import (
     DashboardAoiOrm,
     DashboardOrm,
     DashboardSectionOrm,
     DashboardWidgetOrm,
+    InsightChartOrm,
     InsightOrm,
 )
+from src.api.repositories.dashboard_access import visible_dashboards_clause
+from src.api.repositories.insight_writer import add_insight_rows
 from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger
 from src.shared.tile_urls import relativize_widget_config
@@ -141,6 +145,32 @@ async def get_dashboard(dashboard_id) -> Optional[DashboardOrm]:
             .where(DashboardOrm.id == target)
         )
         return result.scalar_one_or_none()
+
+
+async def get_visible_dashboards_with_dataset(
+    dashboard_ids: list[UUID], user_id: str, dataset_id: int
+) -> list[DashboardOrm]:
+    """The dashboards the user may see that have a chart of the dataset,
+    with their AOIs."""
+    with_dataset = (
+        select(DashboardWidgetOrm.dashboard_id)
+        .join(
+            InsightChartOrm,
+            InsightChartOrm.insight_id == DashboardWidgetOrm.insight_id,
+        )
+        .where(InsightChartOrm.dataset_id == dataset_id)
+    )
+    async with get_session_from_pool() as session:
+        result = await session.execute(
+            select(DashboardOrm)
+            .options(selectinload(DashboardOrm.aois))
+            .where(
+                DashboardOrm.id.in_(dashboard_ids),
+                DashboardOrm.id.in_(with_dataset),
+                visible_dashboards_clause(user_id),
+            )
+        )
+        return list(result.scalars().all())
 
 
 async def get_widget(widget_id) -> Optional[DashboardWidgetOrm]:
@@ -375,14 +405,101 @@ async def add_section(
     return section_id
 
 
-async def get_section(section_id) -> Optional[DashboardSectionOrm]:
-    """Load a single section by id; the caller applies access checks via the
-    owning dashboard. Malformed ids are not-found (None), never an error."""
-    target = _parse_uuid(section_id)
+class SectionWidget(NamedTuple):
+    """One widget for ``add_section_with_widgets``.
+
+    ``insight`` is an insight that is not yet written. The writer adds it in
+    the same transaction as the widget that shows it.
+    """
+
+    widget_type: str
+    config: dict
+    insight: Optional[Insight] = None
+
+
+async def add_section_with_widgets(
+    dashboard_id,
+    *,
+    title: str,
+    description: Optional[str],
+    widgets: list[SectionWidget],
+    user_id: str,
+    thread_id: Optional[str] = None,
+    template: Optional[dict] = None,
+) -> Optional[tuple[str, list[str]]]:
+    """Write a section, its widgets and their new insights in one commit.
+
+    A failure writes nothing, so no insight is left without a widget. The
+    section goes after the last section; the widgets take positions 0..n-1
+    in the order given. Each new insight belongs to ``user_id`` and takes
+    the dashboard's ``is_public``, so a public dashboard keeps showing its
+    charts. ``template`` is the section's provenance record. Returns
+    ``(section_id, widget_ids)``, or None if the dashboard does not exist.
+    """
+    target = _parse_uuid(dashboard_id)
     if target is None:
         return None
+
     async with get_session_from_pool() as session:
-        return await session.get(DashboardSectionOrm, target)
+        is_public = await session.scalar(
+            select(DashboardOrm.is_public).where(DashboardOrm.id == target)
+        )
+        if is_public is None:
+            return None
+
+        max_position = await session.scalar(
+            select(func.max(DashboardSectionOrm.position)).where(
+                DashboardSectionOrm.dashboard_id == target
+            )
+        )
+        section = DashboardSectionOrm(
+            dashboard_id=target,
+            title=title,
+            description=description,
+            position=0 if max_position is None else max_position + 1,
+            template=template,
+        )
+        session.add(section)
+        insights = [
+            add_insight_rows(
+                session,
+                spec.insight,
+                user_id=user_id,
+                thread_id=thread_id,
+                is_public=is_public,
+            )
+            if spec.insight is not None
+            else None
+            for spec in widgets
+        ]
+        # Ids for the section and the insights, which the widgets reference.
+        await session.flush()
+
+        rows = [
+            DashboardWidgetOrm(
+                dashboard_id=target,
+                widget_type=spec.widget_type,
+                insight_id=insight.id if insight is not None else None,
+                config=relativize_widget_config(spec.config) or {},
+                position=position,
+                section_id=section.id,
+            )
+            for position, (spec, insight) in enumerate(zip(widgets, insights))
+        ]
+        session.add_all(rows)
+        await session.commit()
+
+        section_id = str(section.id)
+        widget_ids = [str(row.id) for row in rows]
+
+    logger.info(
+        "dashboard_section_added_with_widgets",
+        dashboard_id=str(target),
+        section_id=section_id,
+        template=(template or {}).get("name"),
+        widgets=len(widget_ids),
+    )
+    return section_id, widget_ids
 
 
 async def update_section(

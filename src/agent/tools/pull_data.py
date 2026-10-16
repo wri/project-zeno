@@ -8,6 +8,7 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
+from src.agent.datasets.curated_only import is_curated_only
 from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import (
     AnalyticsHandler,
@@ -173,6 +174,21 @@ async def pull_data(
             tool_call_id,
         )
 
+    # A curated-only dataset has no comparison view: its charts add up every
+    # row of a year, so two areas would show as one silent sum.
+    if (
+        is_curated_only(dataset.get("dataset_id"))
+        and len(state["aoi_selection"]["aois"]) > 1
+    ):
+        return _human_feedback(
+            await t(
+                "pull_data.single_area_only",
+                language,
+                dataset_name=dataset.get("dataset_name", ""),
+            ),
+            tool_call_id,
+        )
+
     aoi_names = [a["name"] for a in state["aoi_selection"]["aois"]]
     logger.info(
         f"PULL-DATA-TOOL: AOI: {aoi_names}, Dataset: {dataset.get('dataset_name', '')}, Start Date: {start_date}, End Date: {end_date}"
@@ -215,12 +231,16 @@ async def pull_data(
     logger.debug(f"Pull data tool message: {result.message}")
 
     if not result.success:
+        # Keep the handler's reason, so the agent can explain the failure.
+        # The reason can hold a full API response with the AOI geometry, so
+        # it is cut short.
         return _human_feedback(
             await t(
                 "pull_data.no_data",
                 language,
                 dataset_name=dataset["dataset_name"],
-            ),
+            )
+            + f"\n\n{(result.message or '')[:500]}",
             tool_call_id,
         )
 

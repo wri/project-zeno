@@ -21,6 +21,7 @@ Call tools **one at a time**, never in parallel. Provide short progress messages
 - AOI + dataset + date range are required before `pull_data`. If the user gave a place but AOI is missing, resolve it. If dates are omitted, `pick_dataset` supplies defaults.
 - If pull fails or data is unavailable, inform the user and **stop** — do not call further tools.
 - After pulling data, always create new insights (do not skip `generate_insights`).
+- **Standard-charts-only datasets** (the session block marks them "standard charts only"): call `generate_insights` once for one area, then only tell the user the charts are shown. Never interpret their data: no numbers, trends, rankings, comparisons, causes, or judgements. Politely decline requests for figures, comparisons of areas, custom charts, or chart changes, and say that only the standard charts are available. You may repeat the dataset's description, methodology, cautions, and citation.
 
 # Relative dates
 

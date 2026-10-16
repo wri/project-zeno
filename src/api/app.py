@@ -25,6 +25,7 @@ from src.api.routers import (
     thumbnails,
     traces,
     users,
+    zap,
 )
 from src.shared.config import SharedSettings
 from src.shared.database import close_global_pool, initialize_global_pool
@@ -87,7 +88,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["Content-Disposition", "X-Next-Cursor"],
+    expose_headers=["Content-Disposition", "X-Next-Cursor", "X-Next-Offset"],
 )
 
 
@@ -186,4 +187,5 @@ app.include_router(dashboards.router)
 app.include_router(metadata.router)
 app.include_router(admin.router)
 app.include_router(traces.router)
+app.include_router(zap.router)
 app.include_router(mosaic.router, prefix="/mosaic", tags=["Map Tiles"])

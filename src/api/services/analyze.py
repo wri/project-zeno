@@ -2,10 +2,9 @@ from dataclasses import dataclass, field
 from typing import Optional, Sequence
 
 from src.agent.datasets.handlers.base import DataPullResult, DataSourceHandler
-from src.agent.i18n import t
-from src.agent.language import DEFAULT_LANGUAGE
 from src.agent.subagents.analyst.charts import InsightChart
 from src.api.services.charts import ChartGenerator, column_to_rows
+from src.api.services.charts.curated import build_curated_charts
 
 
 @dataclass
@@ -24,28 +23,6 @@ class AnalyzeService:
         self._handler = handler
         self._generators = generators
 
-    @staticmethod
-    async def _localise(
-        charts: list[InsightChart],
-        generator: ChartGenerator,
-        language: Optional[str],
-    ) -> None:
-        """Resolve the message keys a generator emits into display text.
-
-        Generators stay synchronous and dataset-focused; rendering their
-        titles and category labels in the reader's language belongs here.
-        An unknown key keeps the generator's own text rather than blanking.
-        """
-        language = language or DEFAULT_LANGUAGE
-        for chart in charts:
-            chart.title = await t(chart.title, language) or chart.title
-            for column in generator.label_fields:
-                for row in chart.chart_data:
-                    if column in row:
-                        row[column] = (
-                            await t(row[column], language) or row[column]
-                        )
-
     async def analyze(
         self,
         aois: list[dict],
@@ -53,10 +30,26 @@ class AnalyzeService:
         start_date: str,
         end_date: str,
         language: Optional[str] = None,
+        context_layer: Optional[str] = None,
+        canopy_cover: Optional[int] = None,
+        forest_breakdown: Optional[str] = None,
     ) -> AnalyzeResult:
+        # The same dataset fields the agent's pick_dataset sets: the handler
+        # reads the forest filter and the canopy cover threshold from them.
+        # The forest breakdown is the one field only the analysis templates
+        # set.
+        dataset: dict = {"dataset_id": dataset_id}
+        if context_layer:
+            dataset["context_layer"] = context_layer
+        if canopy_cover is not None:
+            dataset["parameters"] = [
+                {"name": "canopy_cover", "values": [canopy_cover]}
+            ]
+        if forest_breakdown:
+            dataset["forest_breakdown"] = forest_breakdown
         result = await self._handler.pull_data(
             query="",
-            dataset={"dataset_id": dataset_id},
+            dataset=dataset,
             start_date=start_date,
             end_date=end_date,
             change_over_time_query=False,
@@ -65,12 +58,12 @@ class AnalyzeService:
 
         charts: list[InsightChart] = []
         if result.success and result.data:
-            rows = column_to_rows(result.data)
-            for gen in self._generators:
-                if gen.can_handle(dataset_id):
-                    charts = gen.generate(rows)
-                    await self._localise(charts, gen, language)
-                    break
+            charts = await build_curated_charts(
+                dataset_id,
+                column_to_rows(result.data),
+                language,
+                self._generators,
+            )
 
         source_urls = (
             [result.analytics_api_url] if result.analytics_api_url else None

@@ -55,12 +55,41 @@ def _message(command):
 async def test_planet_shown_inside_coverage():
     planet = AsyncMock(return_value=_result("planet"))
 
-    with patch.object(PLANET_PROVIDER, "get_imagery", planet):
+    with (
+        patch.object(PLANET_PROVIDER, "get_imagery", planet),
+        patch.object(
+            PLANET_PROVIDER,
+            "service_status",
+            AsyncMock(return_value="available"),
+        ),
+    ):
         command = await show_planet_imagery.coroutine(
             state=IN_COVERAGE, target_date="2025-06-15", tool_call_id="t1"
         )
 
     assert command.update["imagery"]["provider"] == "planet"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("status", "reason"),
+    [("unavailable", "back next month"), ("error", "check back soon")],
+)
+async def test_explains_planet_service_outage(status, reason):
+    sentinel = AsyncMock(return_value=_result("sentinel-2"))
+
+    with (
+        patch.object(SENTINEL2_PROVIDER, "get_imagery", sentinel),
+        patch.object(
+            PLANET_PROVIDER, "service_status", AsyncMock(return_value=status)
+        ),
+    ):
+        command = await show_planet_imagery.coroutine(
+            state=IN_COVERAGE, target_date="2025-06-15", tool_call_id="t1"
+        )
+
+    assert command.update["imagery"]["provider"] == "sentinel-2"
+    assert reason in _message(command)
 
 
 @pytest.mark.asyncio
@@ -86,6 +115,19 @@ async def test_falls_back_to_sentinel_with_reason(state, target_date):
     assert command.update["imagery"]["provider"] == "sentinel-2"
     assert "not available" in _message(command)
     assert planet.await_count == 0
+
+
+@pytest.mark.asyncio
+async def test_explains_planet_starts_september_2020():
+    sentinel = AsyncMock(return_value=_result("sentinel-2"))
+
+    with patch.object(SENTINEL2_PROVIDER, "get_imagery", sentinel):
+        command = await show_planet_imagery.coroutine(
+            state=IN_COVERAGE, target_date="2019-03-15", tool_call_id="t1"
+        )
+
+    assert command.update["imagery"]["provider"] == "sentinel-2"
+    assert "September 2020" in _message(command)
 
 
 @pytest.mark.asyncio

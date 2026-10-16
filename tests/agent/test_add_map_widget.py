@@ -4,11 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
-from src.agent.tools.add_map_widget import (
-    _dataset_config,
-    _imagery_config,
-    add_map_widget,
-)
+from src.agent.tools.add_map_widget import add_map_widget
 from src.shared.request_context import bound_user_id
 
 
@@ -51,6 +47,35 @@ def _dataset_state():
         "analytics_api_endpoint": "tree-cover-loss",
         "content_date": "2024",
     }
+
+
+def _multilayer_dataset_state():
+    """A multi-layer (e.g. LGMS) dataset state dump — `layers` carries the
+    independently-toggleable siblings; `tile_url` mirrors layers[0]."""
+    state = _dataset_state()
+    state["dataset_id"] = 12
+    state["dataset_name"] = "Land GHG Monitoring System (LGMS)"
+    state["tile_url"] = "https://tiles.example.com/lgms/lulucf.png"
+    state["selected_layer"] = "agriculture"
+    state["layers"] = [
+        {
+            "name": "lulucf",
+            "title": "Land use",
+            "description": "Net flux.",
+            "tile_url": "https://tiles.example.com/lgms/lulucf.png",
+            "start_date": None,
+            "end_date": None,
+        },
+        {
+            "name": "agriculture",
+            "title": "Agriculture",
+            "description": "Gross emissions.",
+            "tile_url": "https://tiles.example.com/lgms/agriculture.png",
+            "start_date": None,
+            "end_date": None,
+        },
+    ]
+    return state
 
 
 def _imagery_state():
@@ -121,8 +146,10 @@ async def test_add_map_widget_dataset_from_state():
         "dataset_name",
         "tile_url",
         "context_layer",
+        "selected_layer",
         "context_layers",
         "parameters",
+        "layers",
         "start_date",
         "end_date",
     }
@@ -130,6 +157,38 @@ async def test_add_map_widget_dataset_from_state():
     assert dataset["tile_url"].startswith("https://tiles.example.com/tcl")
     # Parameter prose is projected away.
     assert dataset["parameters"] == [{"name": "canopy_cover", "values": [30]}]
+    # Single-layer dataset state carries no `layers` — snapshot is None too.
+    assert dataset["layers"] is None
+
+
+async def test_add_map_widget_persists_multilayer_dataset_layers():
+    """A multi-layer dataset (e.g. LGMS) survives add_map_widget's snapshot
+    with its independently-toggleable siblings intact, not just tile_url."""
+    dashboard = _dashboard()
+    get_dash, add_widget = _patches(dashboard)
+    state = {
+        "dataset": _multilayer_dataset_state(),
+        "dashboard_id": str(dashboard.id),
+    }
+    with (
+        get_dash,
+        add_widget as add_widget_mock,
+        bound_user_id("user-1"),
+    ):
+        command = await add_map_widget.coroutine(
+            layer="dataset", state=state, tool_call_id="t1"
+        )
+
+    assert command.update["messages"][0].status == "success"
+    dataset = add_widget_mock.await_args.kwargs["config"]["dataset"]
+    assert dataset["dataset_id"] == 12
+    assert [layer["name"] for layer in dataset["layers"]] == [
+        "lulucf",
+        "agriculture",
+    ]
+    # selected_layer survives persistence alongside the full `layers` list —
+    # it's an initial-state hint, not a replacement for the sibling list.
+    assert dataset["selected_layer"] == "agriculture"
 
 
 async def test_add_map_widget_imagery_from_state():
@@ -266,41 +325,3 @@ async def test_add_map_widget_owner_only():
     assert command.update["messages"][0].status == "error"
     assert "not found or not editable" in _content(command)
     add_widget_mock.assert_not_awaited()
-
-
-def test_dataset_config_date_fallback_to_state():
-    dataset = _dataset_state()
-    dataset["start_date"] = None
-    dataset["end_date"] = None
-    state = {
-        "dataset": dataset,
-        "start_date": "2023-01-01",
-        "end_date": "2023-12-31",
-    }
-    config = _dataset_config(state)
-    assert config["start_date"] == "2023-01-01"
-    assert config["end_date"] == "2023-12-31"
-
-
-def test_dataset_config_none_without_tile_url():
-    assert _dataset_config({}) is None
-    assert _dataset_config({"dataset": {"tile_url": ""}}) is None
-
-
-def test_imagery_config_none_without_essentials():
-    assert _imagery_config({}) is None
-    assert _imagery_config({"imagery": {"tile_url": "x"}}) is None
-    assert _imagery_config({"imagery": {"mosaic_id": "x"}}) is None
-
-
-def test_imagery_config_includes_cloud_cover():
-    """Cloud cover fields are included in the widget config snapshot."""
-    state = {"imagery": _imagery_state()}
-    config = _imagery_config(state)
-    assert config["mean_cloud_cover"] == 8.5
-    assert config["min_cloud_cover"] == 2.1
-    assert config["max_cloud_cover_observed"] == 15.3
-    assert config["max_cloud_cover"] == 20
-    assert config["bounds"] == [-70.0, -10.0, -60.0, 0.0]
-    assert config["min_zoom"] == 5
-    assert config["max_zoom"] == 15

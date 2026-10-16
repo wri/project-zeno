@@ -6,7 +6,7 @@ def test_every_area_type_is_offered_to_the_model_verbatim():
     """The prompt lists the enum, so the two cannot drift apart.
 
     `area_type` is parsed back into AreaOfInterestType, so a value the prompt
-    spells differently from the enum (the "adminstrative" typo included) is a
+    spells differently from the enum is a
     value the model can never return.
     """
     for area_type in AreaOfInterestType:

@@ -2,7 +2,7 @@ from typing import Any, List, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from src.agent.datasets.config import DATASETS
+from src.agent.datasets.config import DATASETS, resolve_selected_layer
 from src.agent.datasets.handlers.analytics_handler import (
     TREE_COVER_LOSS_BY_DRIVER_ID,
 )
@@ -19,6 +19,22 @@ class ContextLayer(BaseModel):
     tile_url: Optional[str]
 
 
+class DatasetLayer(BaseModel):
+    """A dataset's primary, independently-toggleable data layer. Distinct from
+    ContextLayer, which is a mutually-exclusive masking/reference overlay —
+    sibling DatasetLayers can all be shown at once (e.g. LGMS's "agriculture"
+    and "lulucf" layers)."""
+
+    name: str
+    tile_url: str
+    # Human label and plain-language meaning (including what the layer
+    # measures, e.g. net flux vs gross emissions). `name` stays the machine id.
+    title: Optional[str] = None
+    description: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+
+
 class DatasetOption(BaseModel):
     dataset_id: Optional[int] = Field(
         None,
@@ -27,6 +43,19 @@ class DatasetOption(BaseModel):
     context_layer: Optional[str] = Field(
         None,
         description="Context layer to apply. Follow the context layer descriptions — select the layer whose description matches the query, and always select one when a description says to default to it for the query type.",
+    )
+    selected_layer: Optional[str] = Field(
+        None,
+        description=(
+            "For a dataset with more than one independently-toggleable layer "
+            "(see the Map layers section), the `name` of the layer whose "
+            "description best matches the query's focus. Prefer picking the "
+            "closest-matching layer over leaving this null — even a query "
+            "that only leans toward one layer should get that layer. Leave "
+            "null only for single-layer datasets or a query that is "
+            "explicitly about the combined/overall picture across layers, "
+            "not merely one that doesn't name a layer."
+        ),
     )
     parameters: Optional[list[DatasetParameter]] = Field(
         None, description="Dataset specific parameters."
@@ -74,6 +103,16 @@ class DatasetOption(BaseModel):
         if self.context_layer not in context_layer_values:
             self.context_layer = None
 
+        return self
+
+    @model_validator(mode="after")
+    def validate_selected_layer_for_dataset(self) -> "DatasetOption":
+        """Ensure selected_layer names a real layer of a genuinely
+        multi-layer dataset — null it out for single-layer datasets (nothing
+        to select between) or a hallucinated name."""
+        self.selected_layer = resolve_selected_layer(
+            self.dataset_id, self.selected_layer
+        )
         return self
 
     @model_validator(mode="after")
@@ -129,10 +168,24 @@ class DatasetSelectionResponse(BaseModel):
 
 class DatasetSelectionResult(DatasetOption):
     tile_url: str = Field(
-        description="Tile URL of the dataset that best matches the user query.",
+        description=(
+            "Deprecated: the dataset's own tile URL, unresolved against "
+            "`layers`/`selected_layer` — empty for a multi-layer dataset "
+            "(e.g. LGMS) with no single-layer URL of its own. Kept for "
+            "callers that haven't migrated to `layers` yet — new code "
+            "should read `layers`."
+        ),
     )
     dataset_name: str = Field(
         description="Name of the dataset that best matches the user query."
+    )
+    layers: list[DatasetLayer] = Field(
+        description=(
+            "The dataset's primary data layer(s). Most datasets have exactly "
+            "one; some (e.g. LGMS) have several that can be shown "
+            "independently or together. Empty for an analytics-only dataset "
+            "with no map layer to render."
+        ),
     )
     context_layers: list[ContextLayer] = Field(
         [],

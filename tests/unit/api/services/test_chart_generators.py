@@ -1,9 +1,12 @@
+import pytest
+
 from src.agent.datasets.handlers.analytics_handler import (
     INTEGRATED_ALERTS_ID,
     LAND_COVER_CHANGE_ID,
     LAND_GHG_INVENTORY_ID,
     TREE_COVER_LOSS_ID,
 )
+from src.agent.i18n import t
 from src.api.services.charts import (
     DETERMINISTIC_GENERATORS,
     IntegratedAlertsChartGenerator,
@@ -11,6 +14,13 @@ from src.api.services.charts import (
     LGMSChartGenerator,
     TCLChartGenerator,
     column_to_rows,
+)
+from src.api.services.charts.curated import build_curated_charts
+from src.api.services.charts.tcl_natural_forest import (
+    NATURAL_SERIES,
+    OTHER_SERIES,
+    TCLNaturalForestChartGenerator,
+    natural_forest_totals,
 )
 
 TCL_DATA = {
@@ -87,9 +97,165 @@ def test_sorts_rows_by_year():
         assert years == [2001, 2004, 2010, 2021, 2023]
 
 
+# --- Tree cover loss split by natural forest class --------------------------
+# Shaped like the analytics answer for BRA.14.1 with
+# forest_filter="natural_forest": one row per year and class, in arbitrary
+# order. 2022 is the live sample; 2024 has no rows.
+NATURAL_FOREST_DATA = {
+    "aoi_id": ["BRA.14.1"] * 10,
+    "aoi_type": ["admin"] * 10,
+    "tree_cover_loss_year": [
+        2023,
+        2022,
+        2021,
+        2022,
+        2025,
+        2021,
+        2022,
+        2023,
+        2025,
+        2021,
+    ],
+    "natural_forests_class": [
+        "Unknown",
+        "Natural Forest",
+        "Non-natural Forest",
+        "Unknown",
+        "Natural Forest",
+        "Natural Forest",
+        "Non-natural Forest",
+        "Natural Forest",
+        "Unknown",
+        "Unknown",
+    ],
+    "area_ha": [
+        200.0,
+        1222.35,
+        80.25,
+        230.15,
+        800.0,
+        900.5,
+        103.11,
+        1500.0,
+        99.5,
+        150.0,
+    ],
+    "carbon_emissions_MgCO2e": [1.0] * 10,
+}
+NATURAL_FOREST_ROWS = column_to_rows(NATURAL_FOREST_DATA)
+
+
+def _split_chart(rows=NATURAL_FOREST_ROWS):
+    (chart,) = TCLNaturalForestChartGenerator(2021, 2025).generate(rows)
+    return chart
+
+
+def test_natural_forest_split_is_one_stacked_bar_per_year():
+    chart = _split_chart()
+
+    assert chart.chart_type == "stacked-bar"
+    assert chart.x_axis == "tree_cover_loss_year"
+    assert chart.y_axis == "area_ha"
+    assert [row["tree_cover_loss_year"] for row in chart.chart_data] == [
+        2021,
+        2022,
+        2023,
+        2024,
+        2025,
+    ]
+
+
+def test_natural_forest_split_folds_non_natural_and_unknown_into_other():
+    by_year = {
+        row["tree_cover_loss_year"]: row for row in _split_chart().chart_data
+    }
+
+    assert by_year[2022][NATURAL_SERIES] == 1222.35
+    assert by_year[2022][OTHER_SERIES] == pytest.approx(230.15 + 103.11)
+    assert by_year[2023][OTHER_SERIES] == 200.0
+    # A year with no loss still has its bar, at zero.
+    assert by_year[2024][NATURAL_SERIES] == 0.0
+    assert by_year[2024][OTHER_SERIES] == 0.0
+
+
+def test_natural_forest_is_on_top_of_the_stack_with_its_colours():
+    chart = _split_chart()
+
+    # The first series is the bottom of the stack.
+    assert chart.series_fields == [OTHER_SERIES, NATURAL_SERIES]
+    assert chart.color_map == {
+        NATURAL_SERIES: "#246E24",
+        OTHER_SERIES: "#DC6C9A",
+    }
+
+
+def test_natural_forest_split_with_no_rows_has_a_zero_bar_per_year():
+    chart = _split_chart(rows=[])
+
+    assert len(chart.chart_data) == 5
+    assert all(row[NATURAL_SERIES] == 0.0 for row in chart.chart_data)
+    assert natural_forest_totals([]) == (0.0, 0.0)
+
+
+@pytest.mark.parametrize(
+    "row",
+    [
+        {"tree_cover_loss_year": 2022, "area_ha": 1.0},
+        {
+            "tree_cover_loss_year": 2022,
+            "natural_forests_class": "Natural Grassland",
+            "area_ha": 1.0,
+        },
+    ],
+)
+def test_natural_forest_split_rejects_an_unknown_class(row):
+    with pytest.raises(ValueError, match="natural forest class"):
+        _split_chart(rows=[row])
+
+
+def test_natural_forest_totals():
+    natural, total = natural_forest_totals(NATURAL_FOREST_ROWS)
+
+    assert natural == pytest.approx(900.5 + 1222.35 + 1500.0 + 800.0)
+    assert total == pytest.approx(sum(NATURAL_FOREST_DATA["area_ha"]))
+
+
+def test_natural_forest_split_is_not_the_default_tree_cover_loss_chart():
+    assert not any(
+        isinstance(g, TCLNaturalForestChartGenerator)
+        for g in DETERMINISTIC_GENERATORS
+    )
+
+
+async def test_natural_forest_split_legend_and_colours_are_localised():
+    (chart,) = await build_curated_charts(
+        TREE_COVER_LOSS_ID,
+        NATURAL_FOREST_ROWS,
+        "es",
+        [TCLNaturalForestChartGenerator(2021, 2025)],
+    )
+
+    natural = await t(NATURAL_SERIES, "es")
+    other = await t(OTHER_SERIES, "es")
+    assert (natural, other) == ("Bosque natural", "Otra cobertura arbórea")
+    assert chart.title == await t(
+        "charts.tcl_natural_forest.annual_split", "es"
+    )
+    assert chart.series_fields == [other, natural]
+    assert chart.color_map == {natural: "#246E24", other: "#DC6C9A"}
+    assert set(chart.chart_data[0]) == {"tree_cover_loss_year", other, natural}
+
+
 # --- Integrated Alerts -------------------------------------------------------
 IA_DATA = {
-    "alert_date": ["2024-03-01", "2024-03-20", "2024-04-05", "2024-04-18"],
+    # Two rows share 2024-04-05: the analytics API returns one row per
+    # intersecting geometry, so a day can appear more than once.
+    "alert_date": [
+        "2024-03-01",
+        "2024-03-01",
+        "2024-04-05",
+        "2024-04-05",
+    ],
     "alert_confidence": ["high", "low", "high", "high"],
     "area_ha": [10.0, 5.0, 20.0, 2.5],
     "aoi_id": ["BRA"] * 4,
@@ -115,24 +281,62 @@ def test_ia_generates_one_line_chart_by_confidence():
     chart = IntegratedAlertsChartGenerator().generate(IA_ROWS)[0]
     fe = chart.to_frontend_dict()
     assert fe["type"] == "line"
-    assert fe["xAxis"] == "month"
+    assert fe["xAxis"] == "alert_date"
     assert fe["yAxis"] == "area_ha"
     assert fe["colorField"] == "alert_confidence"
     # snake_case persistence parity
     assert chart.to_orm_kwargs()["color_field"] == "alert_confidence"
 
 
-def test_ia_aggregates_area_by_month_and_confidence():
+def test_ia_aggregates_area_by_day_and_confidence():
+    """Daily, not monthly: it is the resolution the data arrives at, and a
+    monthly bucket would collapse the default two-week window to one point."""
     chart = IntegratedAlertsChartGenerator().generate(IA_ROWS)[0]
     by_key = {
-        (r["month"], r["alert_confidence"]): r["area_ha"]
+        (r["alert_date"], r["alert_confidence"]): r["area_ha"]
         for r in chart.chart_data
     }
-    # March: high=10, low=5 (kept separate by confidence)
-    assert by_key[("2024-03", "high")] == 10.0
-    assert by_key[("2024-03", "low")] == 5.0
-    # April: high alerts on two days summed (20 + 2.5)
-    assert by_key[("2024-04", "high")] == 22.5
+    # Same day, different confidence: kept apart.
+    assert by_key[("2024-03-01", "high")] == 10.0
+    assert by_key[("2024-03-01", "low")] == 5.0
+    # Same day, same confidence, two geometries: summed.
+    assert by_key[("2024-04-05", "high")] == 22.5
+    # A month is never a bucket.
+    assert all(len(r["alert_date"]) == 10 for r in chart.chart_data)
+
+
+def test_ia_days_are_chronological():
+    chart = IntegratedAlertsChartGenerator().generate(
+        column_to_rows(
+            {
+                "alert_date": ["2024-04-05", "2024-03-01", "2024-03-20"],
+                "alert_confidence": ["high"] * 3,
+                "area_ha": [1.0, 2.0, 3.0],
+            }
+        )
+    )[0]
+
+    assert [r["alert_date"] for r in chart.chart_data] == [
+        "2024-03-01",
+        "2024-03-20",
+        "2024-04-05",
+    ]
+
+
+def test_ia_absent_days_are_not_zero_filled():
+    """The API reports what it detected; a fabricated zero is a claim about
+    a day nobody looked at that way."""
+    chart = IntegratedAlertsChartGenerator().generate(
+        column_to_rows(
+            {
+                "alert_date": ["2024-03-01", "2024-03-05"],
+                "alert_confidence": ["high", "high"],
+                "area_ha": [1.0, 2.0],
+            }
+        )
+    )[0]
+
+    assert len(chart.chart_data) == 2
 
 
 # --- LGMS ---------------------------------------------------------------
@@ -188,26 +392,28 @@ def test_lgms_generates_four_charts():
 
 def test_lgms_time_series_charts_are_stacked_bar_with_line_on_year():
     charts = LGMSChartGenerator().generate(LGMS_ROWS)
-    for chart in charts[:3]:
+    for chart in charts[1:]:
         fe = chart.to_frontend_dict()
         assert fe["type"] == "stacked-bar-with-line"
         assert fe["xAxis"] == "year"
 
 
 def test_lgms_hierarchical_chart_is_axis_less():
-    chart = LGMSChartGenerator().generate(LGMS_ROWS)[3]
+    chart = LGMSChartGenerator().generate(LGMS_ROWS)[0]
     fe = chart.to_frontend_dict()
     assert fe["type"] == "hierarchical-bar"
     assert fe["xAxis"] == ""
     assert fe["yAxis"] == ""
-    assert chart.position == 3
+    # Position 0: the annual-average chart leads the analysis (the science
+    # team wants categories understood before the time dimension).
+    assert chart.position == 0
 
 
 def test_lgms_full_detail_keeps_both_emissions_and_removals_per_class():
     # tree_gain has emissions=0.0 (still a real, present value) AND
     # removals=-2.0 on the same row — both must survive as distinct series,
     # not collapse into a single "whichever metric is populated" value.
-    chart = LGMSChartGenerator().generate(LGMS_ROWS)[0]
+    chart = LGMSChartGenerator().generate(LGMS_ROWS)[1]
     row = chart.chart_data[0]
     assert row["tree_loss_emissions"] == 10.0
     assert row["tree_loss_removals"] == -1.0
@@ -220,7 +426,7 @@ def test_lgms_full_detail_keeps_both_emissions_and_removals_per_class():
 def test_lgms_full_detail_omits_series_for_classes_with_no_such_metric():
     # organic soil has no removals at all (None) — no "organic_soil_removals"
     # series should be fabricated.
-    chart = LGMSChartGenerator().generate(LGMS_ROWS)[0]
+    chart = LGMSChartGenerator().generate(LGMS_ROWS)[1]
     row = chart.chart_data[0]
     assert "organic_soil_removals" not in row
     assert "organic_soil_removals" not in chart.series_fields
@@ -228,7 +434,7 @@ def test_lgms_full_detail_omits_series_for_classes_with_no_such_metric():
 
 
 def test_lgms_categories_chart_folds_class_into_category():
-    chart = LGMSChartGenerator().generate(LGMS_ROWS)[1]
+    chart = LGMSChartGenerator().generate(LGMS_ROWS)[2]
     row = chart.chart_data[0]
     # vegetation_emissions = tree_loss(10.0) + tree_gain(0.0)
     assert row["vegetation_emissions"] == 10.0
@@ -238,12 +444,12 @@ def test_lgms_categories_chart_folds_class_into_category():
     assert row["soil_emissions"] == 8.0
     # soil_removals = mineral_soil(-1.0); organic_soil has none
     assert row["soil_removals"] == -1.0
-    assert row["cropland_emissions"] == 33.0
+    assert row["cropland_management_emissions"] == 33.0
     assert row["livestock_emissions"] == 5.0
 
 
 def test_lgms_summary_chart_folds_categories_further():
-    chart = LGMSChartGenerator().generate(LGMS_ROWS)[2]
+    chart = LGMSChartGenerator().generate(LGMS_ROWS)[3]
     row = chart.chart_data[0]
     # land_use_emissions = vegetation_emissions(10.0) + soil_emissions(8.0)
     assert row["land_use_emissions"] == 18.0
@@ -268,7 +474,7 @@ def test_lgms_groups_rows_by_year_and_sorts_ascending():
             "gross_removals_MgCO2": [None, None, None, None],
         }
     )
-    chart = LGMSChartGenerator().generate(scrambled)[0]
+    chart = LGMSChartGenerator().generate(scrambled)[1]
     years = [row["year"] for row in chart.chart_data]
     assert years == [2016, 2017, 2018]
     # Both 2016 rows summed: 10.0 + 5.0
@@ -286,7 +492,7 @@ def _node_by_id(chart, node_id):
 
 
 def test_lgms_hierarchy_has_thirteen_nodes_with_correct_parents():
-    chart = LGMSChartGenerator().generate(LGMS_ROWS)[3]
+    chart = LGMSChartGenerator().generate(LGMS_ROWS)[0]
     by_id = {n["id"]: n for n in chart.chart_data}
     assert set(by_id) == {
         "all_land",
@@ -317,7 +523,7 @@ def test_lgms_hierarchy_has_thirteen_nodes_with_correct_parents():
 
 
 def test_lgms_hierarchy_leaf_values_match_full_detail_averages():
-    chart = LGMSChartGenerator().generate(LGMS_ROWS)[3]
+    chart = LGMSChartGenerator().generate(LGMS_ROWS)[0]
     # LGMS_DATA: tree_loss emissions=10.0/removals=-1.0; tree_gain
     # emissions=0.0/removals=-2.0 — single year, so the average is the value.
     assert _node_by_id(chart, "tree_loss")["avg_emissions"] == 10.0
@@ -328,7 +534,7 @@ def test_lgms_hierarchy_leaf_values_match_full_detail_averages():
 
 def test_lgms_hierarchy_omits_metric_never_present_as_none_not_zero():
     # organic_soil has no removals at all in LGMS_DATA (None, not 0.0).
-    chart = LGMSChartGenerator().generate(LGMS_ROWS)[3]
+    chart = LGMSChartGenerator().generate(LGMS_ROWS)[0]
     organic = _node_by_id(chart, "organic_soil")
     assert organic["avg_emissions"] == 3.0
     assert organic["avg_removals"] is None
@@ -339,7 +545,7 @@ def test_lgms_hierarchy_omits_metric_never_present_as_none_not_zero():
 
 
 def test_lgms_hierarchy_category_nodes_fold_their_leaves():
-    chart = LGMSChartGenerator().generate(LGMS_ROWS)[3]
+    chart = LGMSChartGenerator().generate(LGMS_ROWS)[0]
     # vegetation_emissions = tree_loss(10.0) + tree_gain(0.0), matching the
     # categories chart's own fold.
     vegetation = _node_by_id(chart, "vegetation")
@@ -353,7 +559,7 @@ def test_lgms_hierarchy_category_nodes_fold_their_leaves():
 
 
 def test_lgms_hierarchy_root_folds_land_use_and_agriculture():
-    chart = LGMSChartGenerator().generate(LGMS_ROWS)[3]
+    chart = LGMSChartGenerator().generate(LGMS_ROWS)[0]
     land_use = _node_by_id(chart, "land_use")
     agriculture = _node_by_id(chart, "agriculture")
     all_land = _node_by_id(chart, "all_land")
@@ -374,7 +580,7 @@ def test_lgms_hierarchy_averages_across_multiple_years():
             "gross_removals_MgCO2": [None, None],
         }
     )
-    chart = LGMSChartGenerator().generate(two_year_rows)[3]
+    chart = LGMSChartGenerator().generate(two_year_rows)[0]
     assert _node_by_id(chart, "tree_loss")["avg_emissions"] == 20.0
 
 
@@ -393,7 +599,7 @@ def test_lgms_hierarchy_reports_real_zero_when_class_measured_no_removals():
             "gross_removals_MgCO2": [0.0, 0.0],
         }
     )
-    chart = LGMSChartGenerator().generate(rows)[3]
+    chart = LGMSChartGenerator().generate(rows)[0]
     assert _node_by_id(chart, "vegetation")["avg_removals"] == 0.0
     assert _node_by_id(chart, "land_use")["avg_removals"] == 0.0
     assert _node_by_id(chart, "all_land")["avg_removals"] == 0.0
@@ -414,7 +620,7 @@ def test_lgms_hierarchy_agriculture_removals_none_never_reported_by_api():
             "gross_removals_MgCO2": [None, None],
         }
     )
-    chart = LGMSChartGenerator().generate(rows)[3]
+    chart = LGMSChartGenerator().generate(rows)[0]
     assert _node_by_id(chart, "cropland")["avg_removals"] is None
     assert _node_by_id(chart, "livestock")["avg_removals"] is None
     assert _node_by_id(chart, "agriculture")["avg_removals"] is None
@@ -422,7 +628,7 @@ def test_lgms_hierarchy_agriculture_removals_none_never_reported_by_api():
 
 def test_lgms_time_series_charts_keep_real_zero_not_none():
     # Same real-zero scenario as the hierarchy test above, asserted directly
-    # on the category/summary time-series charts (positions 1/2).
+    # on the category/summary time-series charts (positions 2/3).
     rows = column_to_rows(
         {
             "category": ["vegetation", "vegetation"],
@@ -433,15 +639,15 @@ def test_lgms_time_series_charts_keep_real_zero_not_none():
         }
     )
     charts = LGMSChartGenerator().generate(rows)
-    category_row = charts[1].chart_data[0]
+    category_row = charts[2].chart_data[0]
     assert category_row["vegetation_emissions"] == 10.0
     assert category_row["vegetation_removals"] == 0.0
     assert category_row["soil_emissions"] is None
     assert category_row["soil_removals"] is None
-    assert category_row["cropland_emissions"] is None
+    assert category_row["cropland_management_emissions"] is None
     assert category_row["livestock_emissions"] is None
 
-    summary_row = charts[2].chart_data[0]
+    summary_row = charts[3].chart_data[0]
     assert summary_row["land_use_emissions"] == 10.0
     assert summary_row["agriculture_emissions"] is None
     assert summary_row["land_use_removals"] == 0.0
@@ -489,7 +695,7 @@ STP_2020_ROWS = column_to_rows(
 
 
 def test_lgms_real_sample_full_detail_keeps_zero_valued_present_metrics():
-    chart = LGMSChartGenerator().generate(STP_2020_ROWS)[0]
+    chart = LGMSChartGenerator().generate(STP_2020_ROWS)[1]
     row = chart.chart_data[0]
     # tree_loss's removals is 0.0, not None — a present value, must survive.
     assert row["tree_loss_removals"] == 0.0
@@ -502,8 +708,8 @@ def test_lgms_real_sample_full_detail_keeps_zero_valued_present_metrics():
 
 def test_lgms_real_sample_categories_sum_matches_full_detail():
     charts = LGMSChartGenerator().generate(STP_2020_ROWS)
-    full_row = charts[0].chart_data[0]
-    category_row = charts[1].chart_data[0]
+    full_row = charts[1].chart_data[0]
+    category_row = charts[2].chart_data[0]
     vegetation_emissions_fields = [
         k
         for k in full_row

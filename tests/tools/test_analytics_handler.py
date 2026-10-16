@@ -1,6 +1,7 @@
 import pytest
 
 from src.agent.datasets.handlers.analytics_handler import (
+    INTEGRATED_ALERTS_ID,
     TREE_COVER_LOSS_ID,
     AnalyticsHandler,
     _count_and_enrich,
@@ -100,6 +101,124 @@ async def test_build_payload_uses_no_canopy_cover_parameter():
     }
 
 
+@pytest.mark.parametrize(
+    "context_layer, land_filter",
+    [("natural_lands", "natural_lands"), (None, None)],
+)
+async def test_build_payload_integrated_alerts_land_filter(
+    context_layer, land_filter
+):
+    handler = AnalyticsHandler()
+    dataset = {
+        "dataset_id": INTEGRATED_ALERTS_ID,
+        "dataset_name": "Integrated alerts",
+        "context_layer": context_layer,
+    }
+    aois = [{"name": "Indonesia", "subtype": "country", "src_id": "IDN"}]
+
+    payload = await handler._build_payload(
+        dataset=dataset,
+        aois=aois,
+        start_date="2026-07-01",
+        end_date="2026-10-01",
+    )
+
+    assert payload.get("land_filter") == land_filter
+
+
+@pytest.mark.parametrize(
+    "parameters, canopy_cover",
+    [
+        (None, 10),
+        ([{"name": "canopy_cover", "values": [50]}], 50),
+    ],
+)
+async def test_build_payload_natural_forest_canopy_cover(
+    parameters, canopy_cover
+):
+    handler = AnalyticsHandler()
+    dataset = {
+        "dataset_id": TREE_COVER_LOSS_ID,
+        "dataset_name": "Tree cover loss",
+        "context_layer": "natural_forest",
+        "parameters": parameters,
+    }
+    aois = [{"name": "Pará", "subtype": "state-province", "src_id": "BRA.14"}]
+
+    payload = await handler._build_payload(
+        dataset=dataset,
+        aois=aois,
+        start_date="2021-01-01",
+        end_date="2024-12-31",
+    )
+
+    assert payload["forest_filter"] == "natural_forest_only"
+    assert payload["canopy_cover"] == canopy_cover
+
+
+async def test_build_payload_natural_forest_breakdown_groups_by_class():
+    handler = AnalyticsHandler()
+    dataset = {
+        "dataset_id": TREE_COVER_LOSS_ID,
+        "forest_breakdown": "natural_forest",
+    }
+    aois = [{"name": "Pará", "subtype": "state-province", "src_id": "BRA.14"}]
+
+    payload = await handler._build_payload(
+        dataset=dataset,
+        aois=aois,
+        start_date="2021-01-01",
+        end_date="2025-12-31",
+    )
+
+    # No canopy_cover: the API rejects a threshold with this filter.
+    assert payload == {
+        "aoi": {"type": "admin", "ids": ["BRA.14"]},
+        "start_year": "2021",
+        "end_year": "2025",
+        "forest_filter": "natural_forest",
+        "intersections": [],
+    }
+
+
+@pytest.mark.parametrize(
+    ("dataset", "problem"),
+    [
+        (
+            {
+                "dataset_id": TREE_COVER_LOSS_ID,
+                "forest_breakdown": "natural_forest",
+                "context_layer": "natural_forest",
+            },
+            "cannot be combined",
+        ),
+        (
+            {
+                "dataset_id": INTEGRATED_ALERTS_ID,
+                "forest_breakdown": "natural_forest",
+            },
+            "only available for tree cover loss",
+        ),
+        (
+            {"dataset_id": TREE_COVER_LOSS_ID, "forest_breakdown": "primary"},
+            "Unknown forest breakdown",
+        ),
+    ],
+)
+async def test_build_payload_rejects_an_invalid_forest_breakdown(
+    dataset, problem
+):
+    aois = [{"name": "Pará", "subtype": "state-province", "src_id": "BRA.14"}]
+
+    with pytest.raises(ValueError, match=problem):
+        await AnalyticsHandler()._build_payload(
+            dataset=dataset,
+            aois=aois,
+            start_date="2021-01-01",
+            end_date="2025-12-31",
+        )
+
+
 # --- LGMS per-section result merged into one flat category/class table -------
 # The Land GHG Monitoring System returns a per-section result; the handler
 # flattens it into one column-oriented table with unified category/class
@@ -192,3 +311,151 @@ async def test_flat_result_enriches_names_and_counts():
     enriched, count = _count_and_enrich(raw, aois)
     assert count == 2
     assert enriched["name"] == ["Brazil", "Argentina"]
+
+
+@pytest.mark.parametrize(
+    "subtype", ["municipality", "locality", "neighbourhood"]
+)
+async def test_pull_data_rejects_admin_levels_the_api_does_not_take(subtype):
+    result = await AnalyticsHandler().pull_data(
+        query="",
+        dataset={"dataset_id": TREE_COVER_LOSS_ID},
+        start_date="2024-01-01",
+        end_date="2024-12-31",
+        change_over_time_query=False,
+        aois=[{"name": "Loja", "subtype": subtype, "src_id": "ECU.18.4.7"}],
+    )
+
+    assert not result.success
+    assert subtype in result.message
+    assert "district-county" in result.message
+
+
+class _FakeResponse:
+    def __init__(self, status, headers=None, status_code=200, message=None):
+        self.status_code = status_code
+        self.headers = headers or {}
+        self._body = {
+            "status": "success",  # the wrapper is always "success"
+            "data": {"status": status, "message": message, "result": None},
+        }
+
+    def json(self):
+        return self._body
+
+
+def _patch_get(monkeypatch, responses):
+    """Serve `responses` in order from httpx GET (the last one repeats).
+
+    Sleeping advances a fake clock, so deadline logic runs instantly.
+    Returns the (urls requested, sleeps) lists.
+    """
+    calls, sleeps, clock = [], [], [0.0]
+    queue = iter(responses)
+    last = []
+
+    class _Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        async def get(self, url, headers=None):
+            calls.append(url)
+            item = next(queue, None)
+            if item is None:
+                item = last[0]
+            last[:] = [item]
+            if isinstance(item, Exception):
+                raise item
+            return item
+
+    async def _sleep(seconds):
+        sleeps.append(seconds)
+        clock[0] += seconds
+
+    monkeypatch.setattr(
+        "src.agent.datasets.handlers.analytics_handler.httpx.AsyncClient",
+        _Client,
+    )
+    monkeypatch.setattr(
+        "src.agent.datasets.handlers.analytics_handler.asyncio.sleep", _sleep
+    )
+    monkeypatch.setattr(
+        "src.agent.datasets.handlers.analytics_handler.monotonic",
+        lambda: clock[0],
+    )
+    return calls, sleeps
+
+
+async def test_poll_gets_resource_link_and_honors_retry_after(monkeypatch):
+    calls, sleeps = _patch_get(
+        monkeypatch,
+        [
+            _FakeResponse("pending", {"Retry-After": "2"}),
+            _FakeResponse("pending"),
+            _FakeResponse("saved"),
+        ],
+    )
+
+    result = await AnalyticsHandler()._poll_for_completion("http://x/y/1")
+
+    assert result is None
+    assert calls == ["http://x/y/1"] * 3
+    assert sleeps == [2.0, 1.0]  # header when present, else the 1s default
+
+
+async def test_poll_returns_failure_message(monkeypatch):
+    _patch_get(monkeypatch, [_FakeResponse("failed", message="boom")])
+
+    result = await AnalyticsHandler()._poll_for_completion("http://x/y/1")
+
+    assert isinstance(result, str)
+    assert "failed" in result and "boom" in result
+
+
+async def test_poll_waits_after_errors(monkeypatch):
+    _, sleeps = _patch_get(
+        monkeypatch,
+        [
+            _FakeResponse("pending", status_code=503),
+            RuntimeError("conn reset"),
+            _FakeResponse("saved"),
+        ],
+    )
+
+    result = await AnalyticsHandler()._poll_for_completion("http://x/y/1")
+
+    assert result is None
+    assert sleeps == [1.0, 1.0]
+
+
+async def test_poll_times_out_at_deadline(monkeypatch):
+    _, sleeps = _patch_get(
+        monkeypatch, [_FakeResponse("pending", {"Retry-After": "4"})]
+    )
+
+    result = await AnalyticsHandler()._poll_for_completion(
+        "http://x/y/1", timeout=10
+    )
+
+    assert isinstance(result, str) and "Timed out after 10s" in result
+    assert sleeps == [4.0, 4.0, 2.0]  # last sleep trimmed to the deadline
+
+
+async def test_poll_ignores_unparseable_retry_after(monkeypatch):
+    _, sleeps = _patch_get(
+        monkeypatch,
+        [
+            _FakeResponse(
+                "pending", {"Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT"}
+            ),
+            _FakeResponse("saved"),
+        ],
+    )
+
+    result = await AnalyticsHandler()._poll_for_completion("http://x/y/1")
+
+    assert result is None
+    assert sleeps == [1.0]

@@ -11,6 +11,7 @@ from typing import Optional
 import pandas as pd
 
 from src.agent.subagents.pick_aoi import Geocoder
+from src.shared.aoi_search import PARTIAL_TIER
 from src.shared.geocoding_helpers import WORLD_BBOX
 
 # The module that imports `query_aoi_database`, which is where it has to be
@@ -25,20 +26,32 @@ def _row(
     subtype="country",
     score=0.5,
     bbox=WORLD_BBOX,
+    tier=PARTIAL_TIER,
+    leaf=None,
+    corrected=False,
+    context_hit=False,
 ):
     """One `search_aois` row.
 
-    Both optional columns are present by default because the real search
-    always returns them: `bbox` is COALESCEd to the world bbox, and
-    `similarity_score` is computed for every search by name. Pass None for
-    either to leave that column out, which is how the recorded fixture frames
-    (no `bbox`) are reproduced.
+    The optional columns are present by default because the real search
+    always returns them: `bbox` is COALESCEd to the world bbox,
+    `similarity_score` is computed for every search by name, `tier` is the
+    match tier (a partial match unless given), `leaf` is the stored leaf
+    (here the first segment of *name* unless given), `corrected` says
+    whether the row came from the miss path and `context_hit` whether a
+    typed parent matched it. Pass None for `bbox` or `score` to leave that
+    column out, which is how older recorded fixture frames (no `bbox`) are
+    reproduced.
     """
     row = {
         "src_id": src_id,
         "name": name,
         "subtype": subtype,
         "source": source,
+        "tier": tier,
+        "leaf": name.split(",")[0] if leaf is None else leaf,
+        "corrected": corrected,
+        "context_hit": context_hit,
     }
     if bbox is not None:
         row["bbox"] = bbox

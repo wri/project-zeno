@@ -7,11 +7,11 @@ from that request. Every translation / subregion / global-query rule lives
 here, behind the tool boundary — the orchestrator never needs to know them.
 
 The `place` and `canonical` fields deliberately follow OPPOSITE accent
-rules. `place` stays de-accented English, which is what the search has
-always used; `canonical` restores the official spelling because the stored
-names keep their accents and the trigram search is accent-sensitive, so
-"Pará, Brazil" retrieves the row that "Para, Brazil" only half-matches.
-Both are searched, so neither spelling can cost recall.
+rules. `place` stays de-accented English, the form the user is most likely
+to recognise in a message; `canonical` restores the official spelling and
+expands exonyms and acronyms, which is how the stored names read. The search
+itself ignores accents, so both forms reach the same rows; both are searched
+so that neither spelling can cost recall.
 """
 
 from src.agent.subagents.pick_aoi.types import AreaOfInterestType
@@ -80,12 +80,23 @@ Examples:
 # Subregion
 
 Set `subregion` ONLY when the user wants to analyze or compare across
-multiple administrative units inside a parent area. Otherwise leave it null.
+multiple administrative units inside a parent area, or asks about
+concessions. Otherwise leave it null.
 
 Types: country, state, district, municipality, locality, neighbourhood, kba,
-wdpa, landmark — where state is a province/region, district is a county, kba
-is a Key Biodiversity Area, wdpa is a protected area, and landmark is an
-Indigenous/community land.
+wdpa, landmark, oil_palm, rspo_oil_palm, logging, mining, wood_fiber — where
+state is a province/region, district is a county, kba is a Key Biodiversity
+Area, wdpa is a protected area, landmark is an Indigenous/community land, and
+the rest are concession types: oil palm, RSPO-certified oil palm, logging
+(timber), mining, and wood fiber (pulpwood/timber plantation) concessions.
+Use rspo_oil_palm only when the user says RSPO; plain "oil palm" is
+oil_palm.
+
+Concessions are found only as the subregions of a place, never by their own
+name. Whenever the request is about concessions, set the concession type as
+`subregion` and the area they lie in as the place. For one named concession
+("the PT. Batang Kamalah concession in Riau") also use the area it lies in;
+the user then narrows down from there.
 
 For state/district/municipality/locality/neighbourhood, also set
 `admin_term` to the exact local word the user used for that unit ("province",
@@ -97,11 +108,12 @@ your `subregion` value only needs to be your best-guess default (state for a
 province/region/department-sized unit, district for a county-sized unit,
 municipality for a city/town-sized unit) and is used only when that
 correction isn't possible. Leave `admin_term` null for country/kba/wdpa/
-landmark, which are unambiguous.
+landmark and the concession types, which are unambiguous.
 
 subregion=country is only valid for global queries. Sub-national units are
 `state` even when the user calls them countries, nations or regions (e.g.
 the UK's constituent countries, which are state-level units).
+Concession subregions need a parent place; they are not global.
 
 Use subregion:
 - "Which countries have the most deforestation globally?" → places=["global"], subregion=country
@@ -112,6 +124,11 @@ Use subregion:
   (Spain's provinces are administratively one level deeper than Canada's — the system resolves that, not you)
 - "Which districts in Odisha have tiger threats?" → places=["Odisha"], subregion=district, admin_term=District
 - "Which KBAs in Brazil have highest biodiversity loss?" → places=["Brazil"], subregion=kba
+- "Deforestation in oil palm concessions in Riau" → places=["Riau"], subregion=oil_palm
+- "Which logging concessions in Gabon lost the most tree cover?" → places=["Gabon"], subregion=logging
+- "Forest loss in mining concessions inside Bahuaja-Sonene National Park" → places=["Bahuaja-Sonene National Park"], subregion=mining
+- "Tree cover loss in RSPO concessions in Sabah" → places=["Sabah"], subregion=rspo_oil_palm
+- "Pulpwood plantations in Jambi" → places=["Jambi"], subregion=wood_fiber
 
 Do not use subregion:
 - "Deforestation in Ontario" → places=["Ontario"], no subregion

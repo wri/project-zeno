@@ -11,8 +11,10 @@ from src.agent.subagents.pick_aoi.scoring import (
     _first_segment,
     _score_candidate,
     _strip_accents,
+    leaf_key,
 )
 from src.agent.subagents.pick_aoi.tool import score_best_aoi
+from src.shared.aoi_search import EXACT_TIER, PARTIAL_TIER
 from src.shared.geocoding_helpers import WORLD_BBOX
 from tests.unit.agent.tools.pick_aoi.conftest import _row
 
@@ -52,7 +54,8 @@ def test_scoring_rejects_an_unknown_subtype():
 def test_accent_insensitive_scoring_prefers_para_over_parana():
     """The production bug, pinned on the recorded candidate names.
 
-    In tests/fixtures/aoi_pick_aoi_v1.json the DB ranks Paraná (0.733) above
+    In the first recorded fixture (v1, since replaced) the old trigram
+    search ranked Paraná (0.733) above
     Pará (0.714) for the term "Para, Brazil"; the scorer must invert that.
     """
     para = _score_candidate("Para, Brazil", "Pará, Brazil", "state-province")
@@ -85,9 +88,9 @@ def test_hierarchy_separates_identically_named_places():
     assert country > state > site
 
 
-# Verbatim rows from tests/fixtures/aoi_pick_aoi_v1.json for "Para, Brazil",
-# in the order the DB returned them — Paraná first, because pg_trgm ranks it
-# above Pará. The same four rows and scores are mirrored in
+# Verbatim rows from the first recorded fixture (v1, since replaced) for "Para, Brazil",
+# in the order the old trigram search returned them — Paraná first, because
+# the accent broke Pará's trigrams. The same four rows and scores are mirrored in
 # tests/agent/test_graph.py; `bbox` is left out because the recording predates
 # that column.
 _PARA_CANDIDATES = pd.DataFrame(
@@ -213,3 +216,152 @@ def test_selected_aoi_keeps_the_state_shape_of_an_aoi_selection_entry():
     # bbox is absent from the recorded fixture columns, so the model default
     # (the world bbox) must fill it.
     assert selected.bbox == WORLD_BBOX
+
+
+def test_a_stored_name_match_breaks_a_tie_the_string_comparison_cannot():
+    """Two rows read the same; only the search knows that one of them
+    matched a stored name (a variant) exactly. Without that tier the
+    deterministic tie-break picks the other."""
+    rows = pd.DataFrame(
+        [
+            _row("B", "Springfield, Country B", subtype="state-province"),
+            _row(
+                "A",
+                "Springfield, Country A",
+                subtype="state-province",
+                tier=EXACT_TIER,
+            ),
+        ]
+    )
+
+    assert score_best_aoi(rows, ["Springfield"]).src_id == "A"
+    rows["tier"] = PARTIAL_TIER
+    assert score_best_aoi(rows, ["Springfield"]).src_id == "A"
+    rows.loc[rows.src_id == "B", "tier"] = EXACT_TIER
+    assert score_best_aoi(rows, ["Springfield"]).src_id == "B"
+
+
+def test_a_frame_without_a_search_rank_still_scores():
+    rows = pd.DataFrame(
+        [
+            {
+                "src_id": "PRT.12_1",
+                "name": "Lisboa, Portugal",
+                "subtype": "state-province",
+                "source": "gadm",
+            }
+        ]
+    )
+
+    selected = score_best_aoi(rows, ["Lisboa, Portugal"])
+
+    assert selected is not None and selected.src_id == "PRT.12_1"
+
+
+def test_exactness_is_judged_on_the_stored_leaf():
+    """A comma inside a stored name is not a segment boundary: "Kruger" is
+    not an exact match of "Krüger-, Rähden- und Möschensee", so the bonus
+    goes to the row whose stored leaf is Kruger."""
+    lake = "Krüger-, Rähden- und Möschensee, B, DEU"
+    lake_leaf = "Krüger-, Rähden- und Möschensee"
+    rows = pd.DataFrame(
+        [
+            _row(
+                "1",
+                lake,
+                source="wdpa",
+                subtype="protected-area",
+                score=0.33,
+                leaf=lake_leaf,
+            ),
+            _row(
+                "2",
+                "Kruger, Kruger National Park, ZAF",
+                source="wdpa",
+                subtype="protected-area",
+                score=0.33,
+                leaf="Kruger",
+            ),
+        ]
+    )
+
+    selected = score_best_aoi(rows, ["Kruger"])
+
+    assert selected is not None and selected.src_id == "2"
+    assert "leaf" not in selected.model_dump()
+    # The same row scores lower once its real leaf is known: the bonus that
+    # the first-segment split awarded was spurious.
+    with_leaf = _score_candidate("Kruger", lake, "protected-area", lake_leaf)
+    assert with_leaf < _score_candidate("Kruger", lake, "protected-area")
+
+
+def test_leaf_key_ignores_accents_case_and_outer_punctuation():
+    assert leaf_key("São Tomé") == leaf_key("sao tome")
+    assert leaf_key("(Paris)") == "paris"
+    assert (
+        _first_segment("Kruger National Park, ZAF") == "kruger national park"
+    )
+
+
+def test_a_row_from_the_miss_path_loses_a_near_tie():
+    """The real Bialowieza case: the canonical spelling matched the World
+    Heritage Site as written; the place name, narrowed to protected areas,
+    matched nothing and the dropped-word retry offered every national park.
+    The two read almost the same to the string comparison."""
+    rows = pd.DataFrame(
+        [
+            _row(
+                "22490",
+                "Wrangell-St. Elias, National Park, USA",
+                source="wdpa",
+                subtype="protected-area",
+                score=0.27,
+                corrected=True,
+            ),
+            _row(
+                "2008",
+                "Białowieża Forest, World Heritage Site (natural or mixed), POL",
+                source="wdpa",
+                subtype="protected-area",
+                score=0.33,
+            ),
+        ]
+    )
+    terms = ["Bialowieza National Park", "Białowieża"]
+
+    selected = score_best_aoi(rows, terms)
+
+    assert selected is not None and selected.src_id == "2008"
+    # Without the penalty the guess wins: pin that the penalty is what decides.
+    rows["corrected"] = False
+    assert score_best_aoi(rows, terms).src_id == "22490"
+
+
+def test_a_typed_parent_beats_a_more_prominent_namesake():
+    """ "Victoria, Canada": the Canadian county carries the parent; the
+    Australian state reads almost the same and sits a hierarchy step higher.
+    The parent bonus has to outweigh that step."""
+    rows = pd.DataFrame(
+        [
+            _row(
+                "AUS.10_1",
+                "Victoria, Australia",
+                subtype="state-province",
+                score=0.775,
+            ),
+            _row(
+                "CAN.7.17_1",
+                "Victoria, Nova Scotia, Canada",
+                subtype="district-county",
+                score=0.925,
+                context_hit=True,
+            ),
+        ]
+    )
+
+    selected = score_best_aoi(rows, ["Victoria, Canada"])
+
+    assert selected is not None and selected.src_id == "CAN.7.17_1"
+    assert "context_hit" not in selected.model_dump()
+    rows["context_hit"] = False
+    assert score_best_aoi(rows, ["Victoria, Canada"]).src_id == "AUS.10_1"
