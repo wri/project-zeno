@@ -1,10 +1,15 @@
 import copy
 from datetime import date
+from typing import get_args
 
 import pytest
 
-from src.agent.datasets.handlers.analytics_handler import INTEGRATED_ALERTS_ID
+from src.agent.datasets.handlers.analytics_handler import (
+    INTEGRATED_ALERTS_ID,
+    INTEGRATED_ALERTS_LAND_FILTERS,
+)
 from src.agent.datasets.handlers.base import DataPullResult, DataSourceHandler
+from src.api.schemas import AlertsLandFilter
 from src.api.services.alerts_list import (
     AlertDay,
     AlertsListService,
@@ -270,6 +275,12 @@ async def test_a_land_filter_restricts_the_pull_to_that_land(land_filter):
     # The rows of a filtered pull are pivoted like any other.
     assert alerts.rows == [AlertDay(date(2026, 10, 9), 2.0, 0.0, new=True)]
     assert alerts.total_area_ha == 2.0
+
+
+def test_the_request_takes_the_land_filters_the_handler_sends():
+    assert set(get_args(AlertsLandFilter)) == set(
+        INTEGRATED_ALERTS_LAND_FILTERS
+    )
 
 
 @pytest.mark.asyncio
