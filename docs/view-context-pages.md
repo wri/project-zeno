@@ -1,7 +1,7 @@
 # View pages — how the agent knows which surface the user is on
 
 *Status: implemented 2026-07-03 on `feat/dashboards-mvp`, as a follow-up to
-`docs/dashboards-mvp-plan.md`. The app is growing a second surface (the
+the dashboards MVP. The app is growing a second surface (the
 dashboard page, toggled in the top bar, next to the map explorer); this
 records how page scope is communicated to the agent and where to add the
 next page.*

@@ -1,10 +1,9 @@
 # Insight chart colors — implementation plan
 
-*Status: agreed design. Written 2026-07-24. Phase 1 and phase 2 are both
-implemented (same day) on top of each other in the existing phase-1
-branches/PRs (backend PR #771, frontend PR #615) — phase 3 cleanup is not yet
-started. This document is self-contained: a fresh session can pick up any
-phase from here without prior conversation context.*
+*Status: phase 1 and phase 2 are implemented (backend PR #771, frontend PR
+#615). This repository has no work left. Phase 3 removes old color code from
+the frontend repository only. This document is the design reference for the
+backend color registry.*
 
 ## Problem
 
