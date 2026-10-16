@@ -484,13 +484,11 @@ async def _build_alerts(
     cache for the list's first view.
     """
     record = _dataset_record(spec.dataset_id)
-    start, end = await _period(spec.dataset_id, context)
     try:
+        # The service clamps the period to the data as _period does for the
+        # chart, so the two pull the same dates. It copies the area.
         alerts = await AlertsListService(context.handler).list(
-            dict(context.aoi),
-            date.fromisoformat(start),
-            date.fromisoformat(end),
-            today=context.end,
+            context.aoi, context.start, context.end, today=context.end
         )
     except (UnsupportedAreaError, InvalidWindowError) as error:
         raise WidgetFailedError(str(error)) from error
@@ -499,6 +497,7 @@ async def _build_alerts(
             f"Could not get {record['dataset_name']} data for "
             f"'{context.aoi['name']}': {error}"
         ) from error
+    start, end = alerts.start_date.isoformat(), alerts.end_date.isoformat()
     fact = await _alerts_fact(alerts, context)
     snapshot = _layer_snapshot(spec.dataset_id, None, start, end)
     # The snapshot's own context_layer stays None, so the map shows alerts
