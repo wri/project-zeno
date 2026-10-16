@@ -1131,7 +1131,13 @@ class AlertDayResponse(BaseModel):
 
 
 class AlertsListResponse(BaseModel):
-    data_to: date = Field(description="The last day covered; the end date.")
+    data_to: Optional[date] = Field(
+        description=(
+            "The latest alert date in the data for the period, of any "
+            "confidence (low included); null when there is none. It can be "
+            "before `end_date` when the data has not arrived yet."
+        )
+    )
     start_date: date = Field(
         description="Start of the period, clamped to the data."
     )

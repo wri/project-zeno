@@ -66,7 +66,9 @@ async def list_alerts(
     The period defaults to the 30 days to today. It is clamped to the data
     and must not be longer than 365 days. Rows in the latest full alert week
     (Sunday to Saturday) are flagged `new`. `land_filter` restricts the rows
-    and totals to alerts on natural lands or natural forests.
+    and totals to alerts on natural lands or natural forests. `data_to` is
+    the latest alert date in the data, of any confidence, which can be before
+    `end_date`; null when the period has no data.
 
     422 when the area type has no alerts analysis or the period is empty or
     too long. 502 with a fixed message when the analytics API fails or does

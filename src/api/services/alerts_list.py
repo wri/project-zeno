@@ -71,17 +71,16 @@ class AlertsWeek:
 
 @dataclass(frozen=True)
 class AlertsList:
+    # The latest alert date in the pulled data, any confidence; None when
+    # the pull returned no rows. Shown as "DATA TO", and the frontend counts
+    # its periods back from it.
+    data_to: Optional[date]
     # The period pulled, clamped to the data and to today.
     start_date: date
     end_date: date
     new_week: AlertsWeek
     total_area_ha: float
     rows: list[AlertDay]
-
-    @property
-    def data_to(self) -> date:
-        """The last day the list covers, shown as "DATA TO"."""
-        return self.end_date
 
 
 def _parse_date(value: Any) -> date:
@@ -121,6 +120,13 @@ def _columns(data: Optional[dict]) -> list[list]:
             "The integrated alerts result has columns of different lengths."
         )
     return columns
+
+
+def latest_alert_date(data: Optional[dict]) -> Optional[date]:
+    """The most recent alert date in the result, of any confidence tier: a
+    low confidence alert is data arriving too. None for an empty result."""
+    dates = _columns(data)[ALERT_COLUMNS.index("alert_date")]
+    return max((_parse_date(value) for value in dates), default=None)
 
 
 def alert_days(
@@ -252,6 +258,7 @@ class AlertsListService:
         week = latest_alert_week(today)
         rows = alert_days(result.data, week)
         return AlertsList(
+            data_to=latest_alert_date(result.data),
             start_date=start,
             end_date=end,
             new_week=AlertsWeek(*week),

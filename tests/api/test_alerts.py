@@ -57,10 +57,11 @@ async def test_alerts_list(client, auth_override, fake_alerts_list_service):
 
     assert response.status_code == 200
     body = response.json()
+    # data_to is the latest alert date in the data, low confidence included.
     assert (body["start_date"], body["end_date"], body["data_to"]) == (
         "2026-09-01",
         "2026-09-30",
-        "2026-09-30",
+        "2026-09-20",
     )
     assert body["rows"] == [
         {
