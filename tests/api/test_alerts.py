@@ -3,35 +3,24 @@ faked."""
 
 import pytest
 
-from src.agent.datasets.handlers.base import DataPullResult, DataSourceHandler
 from src.api.app import app
 from src.api.routers.alerts import get_alerts_list_service
 from src.api.services.alerts_list import AlertsListService
 from tests.api.test_dashboards import AUTH, _create_user
+from tests.unit.api.services.test_alerts_list import FakeHandler
 
 BODY = {"source": "gadm", "src_id": "BRA.16_1", "subtype": "state-province"}
-
-
-class FakeHandler(DataSourceHandler):
-    def can_handle(self, dataset) -> bool:
-        return True
-
-    async def pull_data(self, **kwargs):
-        return DataPullResult(
-            success=True,
-            data={
-                "alert_date": ["2026-09-20", "2026-09-20"],
-                "alert_confidence": ["high", "low"],
-                "area_ha": [1.5, 9.0],
-            },
-            message="",
-        )
+DATA = {
+    "alert_date": ["2026-09-20", "2026-09-20"],
+    "alert_confidence": ["high", "low"],
+    "area_ha": [1.5, 9.0],
+}
 
 
 @pytest.fixture
 def fake_alerts_list_service():
     app.dependency_overrides[get_alerts_list_service] = lambda: (
-        AlertsListService(FakeHandler())
+        AlertsListService(FakeHandler(DATA))
     )
     yield
     app.dependency_overrides.pop(get_alerts_list_service, None)

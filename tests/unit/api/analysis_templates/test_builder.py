@@ -8,7 +8,6 @@ from uuid import uuid4
 
 import pytest
 
-from src.agent.datasets.config import DATASETS
 from src.agent.datasets.handlers.analytics_handler import (
     INTEGRATED_ALERTS_ID,
     INTEGRATED_ALERTS_LAND_FILTERS,
@@ -38,6 +37,7 @@ from src.api.services.analysis_templates.registry import (
 )
 from src.api.user_profile_configs.languages import LANGUAGES
 from tests.unit.api.analysis_templates.test_text import _FakeModel
+from tests.unit.api.services.test_alerts_list import FakeHandler
 from tests.unit.api.services.test_chart_generators import NATURAL_FOREST_DATA
 
 NRT = get_template("nrt-monitoring")
@@ -164,8 +164,6 @@ async def test_builds_three_widgets_in_template_order():
     # nrt-monitoring sets no size and no context layer.
     assert not any("size" in w.config for w in widgets)
     assert widgets[1].config["dataset"]["context_layer"] is None
-    # The chart and the list share one pull.
-    assert mocks.pull.await_count == 1
 
 
 @pytest.mark.asyncio
@@ -304,10 +302,6 @@ async def test_empty_period_builds_an_empty_chart():
 
     widgets = mocks.write.await_args.kwargs["widgets"]
     assert widgets[0].insight.charts[0].chart_data == []
-    assert mocks.text.await_args.kwargs["facts"] == [
-        "No high or highest confidence integrated alerts were recorded in "
-        "Paraná from 2026-09-13 to 2026-09-19."
-    ]
 
 
 @pytest.mark.asyncio
@@ -326,27 +320,6 @@ async def test_dashboard_deleted_during_the_build():
 
     with pytest.raises(DashboardGoneError):
         await _apply(stack)
-
-
-class _CountingHandler:
-    """An analytics handler that counts its pulls and, like the real one,
-    strips the GADM suffix of its input in place."""
-
-    def __init__(self, error=None):
-        self.calls = 0
-        self.error = error
-
-    def can_handle(self, dataset):
-        return True
-
-    async def pull_data(self, **kwargs):
-        self.calls += 1
-        await asyncio.sleep(0)
-        for aoi in kwargs["aois"]:
-            aoi["src_id"] = aoi["src_id"][:-2]
-        if self.error:
-            raise self.error
-        return _pull()
 
 
 def _pull_args(**change):
@@ -369,7 +342,7 @@ def _pull_args(**change):
 
 @pytest.mark.asyncio
 async def test_concurrent_identical_pulls_share_one_request():
-    inner = _CountingHandler()
+    inner = FakeHandler(ROWS)
     shared = builder._SharedPulls(inner)
     args = _pull_args()
 
@@ -377,7 +350,7 @@ async def test_concurrent_identical_pulls_share_one_request():
         shared.pull_data(**args), shared.pull_data(**args)
     )
 
-    assert inner.calls == 1
+    assert len(inner.calls) == 1
     assert first is second
     # The caller's area is left alone; the handler got a copy.
     assert args["aois"][0]["src_id"] == "BRA.16_1"
@@ -385,7 +358,7 @@ async def test_concurrent_identical_pulls_share_one_request():
 
 @pytest.mark.asyncio
 async def test_different_pulls_are_separate_requests():
-    inner = _CountingHandler()
+    inner = FakeHandler(ROWS)
     shared = builder._SharedPulls(inner)
 
     await shared.pull_data(**_pull_args())
@@ -399,12 +372,12 @@ async def test_different_pulls_are_separate_requests():
         )
     )
 
-    assert inner.calls == 3
+    assert len(inner.calls) == 3
 
 
 @pytest.mark.asyncio
 async def test_a_failed_shared_pull_fails_every_caller():
-    inner = _CountingHandler(error=RuntimeError("boom"))
+    inner = FakeHandler(error=RuntimeError("boom"))
     shared = builder._SharedPulls(inner)
     args = _pull_args()
 
@@ -414,7 +387,7 @@ async def test_a_failed_shared_pull_fails_every_caller():
         return_exceptions=True,
     )
 
-    assert inner.calls == 1
+    assert len(inner.calls) == 1
     assert all(isinstance(r, RuntimeError) for r in results)
 
 
@@ -452,6 +425,10 @@ WEEK_ROWS = {
 WEEK_FACT = (
     "From 2026-09-13 to 2026-09-19, Paraná had 2 alert day(s) with 4 ha of "
     "high and highest confidence integrated alerts."
+)
+NO_ALERTS_FACT = (
+    "No high or highest confidence integrated alerts were recorded in "
+    "Paraná from 2026-09-13 to 2026-09-19."
 )
 ALERTS = NRT.model_copy(update={"widgets": (AlertsWidgetSpec(),)})
 
@@ -506,9 +483,10 @@ async def test_alerts_widget_stores_the_area_the_period_and_the_layer():
 
 
 def _catalog_tile(dataset_id, context_layer):
-    (record,) = [d for d in DATASETS if d["dataset_id"] == dataset_id]
     (layer,) = [
-        c for c in record["context_layers"] if c["value"] == context_layer
+        c
+        for c in builder._dataset_record(dataset_id)["context_layers"]
+        if c["value"] == context_layer
     ]
     return layer["tile_url"]
 
@@ -534,10 +512,7 @@ async def test_alerts_fact_is_the_latest_week_without_low_confidence():
 async def test_no_alerts_in_the_week_is_a_fact():
     mocks = await _apply_alerts(data={})
 
-    assert mocks.text.await_args.kwargs["facts"] == [
-        "No high or highest confidence integrated alerts were recorded in "
-        "Paraná from 2026-09-13 to 2026-09-19."
-    ]
+    assert mocks.text.await_args.kwargs["facts"] == [NO_ALERTS_FACT]
 
 
 @pytest.mark.asyncio
@@ -633,7 +608,7 @@ async def test_a_failed_alerts_pull_names_the_area_and_the_reason():
     "key",
     ["analysis_template.alerts.week", "analysis_template.alerts.no_alerts"],
 )
-def test_alerts_facts_take_their_placeholders_in_every_language(key):
+def test_alerts_facts_cover_every_language_with_their_placeholders(key):
     values = {
         "aoi_name": "A",
         "start_date": "2026-09-13",
@@ -641,17 +616,9 @@ def test_alerts_facts_take_their_placeholders_in_every_language(key):
         "days": 2,
         "area_ha": "4",
     }
+    assert set(LANGUAGES) <= set(MESSAGES[key])
     for message in MESSAGES[key].values():
         assert "A" in message.format(**values)
-
-
-@pytest.mark.parametrize(
-    "key",
-    ["analysis_template.alerts.week", "analysis_template.alerts.no_alerts"],
-)
-@pytest.mark.parametrize("language", sorted(LANGUAGES))
-def test_alerts_facts_exist_in_each_supported_language(key, language):
-    assert language in MESSAGES[key]
 
 
 SHARE_FACT = (

@@ -48,13 +48,19 @@ class FakeService:
         self.error = error
         self.delay = delay
         self.calls = []
-        self.land_filters = []
 
     async def list(
         self, aoi, start=None, end=None, *, today, land_filter=None
     ):
-        self.calls.append((aoi, start, end, today))
-        self.land_filters.append(land_filter)
+        self.calls.append(
+            {
+                "aoi": aoi,
+                "start": start,
+                "end": end,
+                "today": today,
+                "land_filter": land_filter,
+            }
+        )
         if self.delay:
             await asyncio.sleep(self.delay)
         if self.error:
@@ -135,16 +141,17 @@ def test_passes_the_area_the_dates_and_today():
     _post(service)
 
     assert service.calls == [
-        (
-            {
+        {
+            "aoi": {
                 "source": "gadm",
                 "src_id": "BRA.16.137_2",
                 "subtype": "district-county",
             },
-            date(2026, 9, 16),
-            TODAY,
-            TODAY,
-        )
+            "start": date(2026, 9, 16),
+            "end": TODAY,
+            "today": TODAY,
+            "land_filter": None,
+        }
     ]
 
 
@@ -155,8 +162,8 @@ def test_the_dates_are_optional():
     response = _post(service, body)
 
     assert response.status_code == 200
-    ((_, start, end, _),) = service.calls
-    assert (start, end) == (None, None)
+    (call,) = service.calls
+    assert (call["start"], call["end"]) == (None, None)
 
 
 @pytest.mark.parametrize("land_filter", ["natural_lands", "natural_forests"])
@@ -166,7 +173,8 @@ def test_passes_the_land_filter(land_filter):
     response = _post(service, {**BODY, "land_filter": land_filter})
 
     assert response.status_code == 200
-    assert service.land_filters == [land_filter]
+    (call,) = service.calls
+    assert call["land_filter"] == land_filter
 
 
 @pytest.mark.parametrize(
@@ -180,7 +188,8 @@ def test_no_land_filter_is_all_land(body):
     response = _post(service, body)
 
     assert response.status_code == 200
-    assert service.land_filters == [None]
+    (call,) = service.calls
+    assert call["land_filter"] is None
 
 
 @pytest.mark.parametrize("land_filter", ["intact_forest", "Natural_lands", ""])
