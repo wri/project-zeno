@@ -1031,6 +1031,72 @@ class DashboardAlertsSummaryResponse(BaseModel):
     )
 
 
+class AlertsListRequest(BaseModel):
+    source: str = Field(
+        min_length=1,
+        max_length=64,
+        description="Data source of the area, e.g. `gadm`, `kba`, `custom`.",
+    )
+    src_id: str = Field(
+        min_length=1,
+        max_length=128,
+        description="Source-specific id of the area, e.g. `BRA.16.137_2`.",
+    )
+    subtype: str = Field(
+        min_length=1,
+        max_length=64,
+        description=(
+            "Area subtype, e.g. `district-county`. Admin areas below "
+            "district-county are not supported."
+        ),
+    )
+    start_date: Optional[date] = Field(
+        default=None,
+        description="Defaults to 30 days before the end date.",
+    )
+    end_date: Optional[date] = Field(
+        default=None,
+        description="Defaults to today; a later date is capped at today.",
+    )
+
+
+class AlertsWeekResponse(BaseModel):
+    start_date: date
+    end_date: date
+
+
+class AlertDayResponse(BaseModel):
+    alert_date: date
+    high_ha: float = Field(description="High confidence alert area.")
+    highest_ha: float = Field(description="Highest confidence alert area.")
+    total_ha: float = Field(description="High plus highest.")
+    new: bool = Field(
+        description="The day is in `new_week`, the latest full alert week."
+    )
+
+
+class AlertsListResponse(BaseModel):
+    data_to: date = Field(description="The last day covered; the end date.")
+    start_date: date = Field(
+        description="Start of the period, clamped to the data."
+    )
+    end_date: date = Field(
+        description="End of the period, clamped to the data and to today."
+    )
+    new_week: AlertsWeekResponse = Field(
+        description="The latest full alert week, Sunday to Saturday."
+    )
+    total_area_ha: float = Field(
+        description="High and highest confidence alert area in the period."
+    )
+    rows: List[AlertDayResponse] = Field(
+        description=(
+            "One row per day with high or highest confidence alerts, "
+            "newest first. Low confidence alerts are left out."
+        )
+    )
+
+
 class DatasetPaletteCategoryResponse(BaseModel):
     slug: str
     label_en: str
