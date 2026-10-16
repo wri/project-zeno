@@ -1,9 +1,11 @@
 """Tests for the analysis template builder, with the data sources mocked."""
 
 import asyncio
+import json
 from datetime import date
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
+from urllib.parse import parse_qsl, urlsplit
 from uuid import uuid4
 
 import pytest
@@ -460,17 +462,31 @@ async def test_alerts_widget_stores_the_area_the_period_and_the_layer():
     dataset = widget.config["dataset"]
     assert dataset["dataset_id"] == INTEGRATED_ALERTS_ID
     assert dataset["context_layer"] is None
-    # One inactive land overlay per land filter of the list, named after it:
-    # natural lands from integrated alerts, natural forests from tree cover
-    # loss's natural_forest layer.
+    # One inactive land overlay per land filter of the list, named after it.
     overlays = {o["name"]: o["tile_url"] for o in dataset["context_layers"]}
     assert set(overlays) == {"natural_lands", "natural_forests"}
     assert overlays["natural_lands"].endswith(
         _catalog_tile(INTEGRATED_ALERTS_ID, "natural_lands")
     )
-    assert overlays["natural_forests"].endswith(
-        _catalog_tile(TREE_COVER_LOSS_ID, "natural_forest")
+    # Natural forests: the same layer, drawing only the natural forest
+    # classes, in the catalog's colours.
+    lands, forests = (
+        urlsplit(overlays[name])
+        for name in ("natural_lands", "natural_forests")
     )
+    assert forests.path == lands.path
+    lands_query = dict(parse_qsl(lands.query))
+    forests_query = dict(parse_qsl(forests.query))
+    assert json.loads(forests_query.pop("colormap")) == {
+        key: colour
+        for key, colour in json.loads(lands_query.pop("colormap")).items()
+        if key in {"2", "5", "8", "9"}
+    }
+    assert forests_query.pop("expression") == (
+        "asset*(asset==2)+asset*(asset==5)+asset*(asset==8)+asset*(asset==9)"
+    )
+    lands_query.pop("expression")
+    assert forests_query == lands_query
 
     assert (dataset["start_date"], dataset["end_date"]) == (
         "2026-08-24",
