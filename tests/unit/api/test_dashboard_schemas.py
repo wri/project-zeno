@@ -36,6 +36,15 @@ IMAGERY_SNAPSHOT = {
     "target_date": "2024-06-01",
 }
 
+ALERTS_CONFIG = {
+    "alerts": {"aoi": AOI, "days": 30},
+    "dataset": {
+        **DATASET_SNAPSHOT,
+        "dataset_id": 11,
+        "dataset_name": "Integrated alerts",
+    },
+}
+
 
 class TestDashboardCreateRequest:
     def test_single_aoi_accepted(self):
@@ -69,12 +78,15 @@ class TestDashboardCreateRequest:
 
 
 class TestWidgetType:
-    @pytest.mark.parametrize("widget_type", ["insight", "map", "text"])
+    @pytest.mark.parametrize(
+        "widget_type", ["insight", "map", "text", "alerts"]
+    )
     def test_known_types_accepted(self, widget_type):
         config = {
             "insight": None,
             "map": {"dataset": DATASET_SNAPSHOT},
             "text": {"text": "# Hello"},
+            "alerts": ALERTS_CONFIG,
         }[widget_type]
         body = DashboardWidgetCreateRequest(
             widget_type=widget_type, config=config
@@ -218,3 +230,69 @@ class TestUpdateRequests:
         )
         assert body.position == 3
         assert body.config == {"default_view": "table"}
+
+
+def _alerts(change: dict) -> dict:
+    """ALERTS_CONFIG with `change` merged into its `alerts` block."""
+    return {**ALERTS_CONFIG, "alerts": {**ALERTS_CONFIG["alerts"], **change}}
+
+
+class TestAlertsWidgetConfig:
+    def test_valid_config_accepted(self):
+        body = DashboardWidgetCreateRequest(
+            widget_type="alerts", config=ALERTS_CONFIG
+        )
+        assert body.config["alerts"]["aoi"]["src_id"] == "BRA.16_1"
+
+    @pytest.mark.parametrize(
+        "config",
+        [
+            None,
+            {"dataset": ALERTS_CONFIG["dataset"]},
+            {**ALERTS_CONFIG, "alerts": "BRA.16_1"},
+            _alerts({"aoi": None}),
+            _alerts({"aoi": {**AOI, "src_id": ""}}),
+            _alerts({"aoi": {k: v for k, v in AOI.items() if k != "subtype"}}),
+            _alerts({"aoi": {**AOI, "source": 7}}),
+        ],
+        ids=[
+            "no-config",
+            "no-alerts",
+            "alerts-not-a-dict",
+            "no-aoi",
+            "empty-src-id",
+            "no-subtype",
+            "source-not-a-string",
+        ],
+    )
+    def test_requires_the_area(self, config):
+        with pytest.raises(ValidationError, match="config.alerts.aoi"):
+            DashboardWidgetCreateRequest(widget_type="alerts", config=config)
+
+    @pytest.mark.parametrize("days", [None, 0, 366, "30", True, 7.5])
+    def test_requires_days_from_1_to_365(self, days):
+        config = _alerts({"days": days})
+        with pytest.raises(ValidationError, match="config.alerts.days"):
+            DashboardWidgetCreateRequest(widget_type="alerts", config=config)
+
+    @pytest.mark.parametrize(
+        "dataset",
+        [None, "https://tiles.example.com", {"dataset_id": 11}],
+        ids=["no-dataset", "not-a-dict", "no-tile-url"],
+    )
+    def test_requires_a_layer_with_a_tile_url(self, dataset):
+        config = {**ALERTS_CONFIG, "dataset": dataset}
+        with pytest.raises(ValidationError, match="tile_url"):
+            DashboardWidgetCreateRequest(widget_type="alerts", config=config)
+
+    def test_name_and_extra_keys_are_not_checked(self):
+        aoi = {k: v for k, v in AOI.items() if k != "name"}
+        config = {
+            **_alerts({"aoi": aoi, "future_key": 1}),
+            "size": "double",
+            "title": "Alerts",
+        }
+        body = DashboardWidgetCreateRequest(
+            widget_type="alerts", config=config
+        )
+        assert body.config["size"] == "double"

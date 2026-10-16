@@ -103,7 +103,11 @@ async def test_build_payload_uses_no_canopy_cover_parameter():
 
 @pytest.mark.parametrize(
     "context_layer, land_filter",
-    [("natural_lands", "natural_lands"), (None, None)],
+    [
+        ("natural_lands", "natural_lands"),
+        ("natural_forests", "natural_forests"),
+        (None, None),
+    ],
 )
 async def test_build_payload_integrated_alerts_land_filter(
     context_layer, land_filter

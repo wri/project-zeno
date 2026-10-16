@@ -777,12 +777,16 @@ class DashboardSectionUpdateRequest(BaseModel):
     position: Optional[int] = None
 
 
-_WIDGET_TYPES = ("insight", "map", "text")
+_WIDGET_TYPES = ("insight", "map", "text", "alerts")
+# The longest integrated alerts period: an alerts widget's `days` and one
+# alerts list request.
+ALERTS_MAX_DAYS = 365
+_ALERTS_AOI_KEYS = ("source", "src_id", "subtype")
 
 
 class DashboardWidgetCreateRequest(BaseModel):
     widget_type: str = Field(
-        description="Widget kind: `insight`, `map` or `text`.",
+        description="Widget kind: `insight`, `map`, `text` or `alerts`.",
     )
     insight_id: Optional[UUID] = Field(
         default=None,
@@ -799,7 +803,12 @@ class DashboardWidgetCreateRequest(BaseModel):
             "context layers, parameters, dates) or `imagery` (Sentinel-2 "
             "mosaic_id and tile URLs); optional `viewport` override — by "
             "default map widgets render fitted to the dashboard's area. "
-            "Text widgets: `text` (markdown string)."
+            "Text widgets: `text` (markdown string). "
+            "Alerts widgets (a live list of integrated alert days next to "
+            "their map): `alerts` with `aoi` (`source`, `src_id`, "
+            "`subtype`, optional `name`) and `days`, the period length; "
+            "and `dataset`, the integrated alerts layer snapshot as for a "
+            "map widget."
         ),
     )
     position: Optional[int] = Field(
@@ -845,6 +854,41 @@ class DashboardWidgetCreateRequest(BaseModel):
         if not isinstance(layer, dict) or not layer.get("tile_url"):
             raise ValueError(
                 f"map widget {kinds[0]} config requires a tile_url"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def validate_alerts_config(self) -> "DashboardWidgetCreateRequest":
+        """Alerts widgets carry the area and the period length the frontend
+        asks the alerts list for, and the layer snapshot of their map.
+
+        Only those are checked. The snapshot keys may evolve, as for map
+        widgets, and the area's `name` is display only.
+        """
+        if self.widget_type != "alerts":
+            return self
+        config = self.config or {}
+        alerts = config.get("alerts")
+        aoi = alerts.get("aoi") if isinstance(alerts, dict) else None
+        if not isinstance(aoi, dict) or not all(
+            isinstance(aoi.get(key), str) and aoi[key]
+            for key in _ALERTS_AOI_KEYS
+        ):
+            raise ValueError(
+                "alerts widgets require config.alerts.aoi with "
+                + ", ".join(_ALERTS_AOI_KEYS)
+            )
+        days = alerts.get("days") if isinstance(alerts, dict) else None
+        # A JSON true is a bool, which is an int subclass: not a period.
+        if type(days) is not int or not 1 <= days <= ALERTS_MAX_DAYS:
+            raise ValueError(
+                "alerts widgets require config.alerts.days from 1 to "
+                f"{ALERTS_MAX_DAYS}"
+            )
+        dataset = config.get("dataset")
+        if not isinstance(dataset, dict) or not dataset.get("tile_url"):
+            raise ValueError(
+                "alerts widgets require a config.dataset with a tile_url"
             )
         return self
 
@@ -955,7 +999,8 @@ class AnalysisTemplateResponse(BaseModel):
     widgets: List[str] = Field(
         description=(
             "Widget kinds, in order: `chart`, `natural_forest_loss` (a "
-            "chart), `layer` or `imagery`."
+            "chart), `layer`, `alerts` (the live alerts list and its map) "
+            "or `imagery`."
         )
     )
 
@@ -1021,6 +1066,91 @@ class DashboardAlertsSummaryResponse(BaseModel):
         description=(
             "Dashboards the user may see that have an integrated alerts chart "
             "and a GADM country, state-province or district-county AOI."
+        )
+    )
+
+
+# The land classes the integrated alerts list can be restricted to: the
+# analytics API's land_filter.
+AlertsLandFilter = Literal["natural_lands", "natural_forests"]
+
+
+class AlertsListRequest(BaseModel):
+    source: str = Field(
+        min_length=1,
+        max_length=64,
+        description="Data source of the area, e.g. `gadm`, `kba`, `custom`.",
+    )
+    src_id: str = Field(
+        min_length=1,
+        max_length=128,
+        description="Source-specific id of the area, e.g. `BRA.16.137_2`.",
+    )
+    subtype: str = Field(
+        min_length=1,
+        max_length=64,
+        description=(
+            "Area subtype, e.g. `district-county`. Admin areas below "
+            "district-county are not supported."
+        ),
+    )
+    start_date: Optional[date] = Field(
+        default=None,
+        description="Defaults to 30 days before the end date.",
+    )
+    end_date: Optional[date] = Field(
+        default=None,
+        description="Defaults to today; a later date is capped at today.",
+    )
+    land_filter: Optional[AlertsLandFilter] = Field(
+        default=None,
+        description=(
+            "Only alerts on `natural_lands` (SBTN Natural Lands Map, 2020) "
+            "or `natural_forests` (its natural forest classes). Absent or "
+            "null: alerts on all land."
+        ),
+    )
+
+
+class AlertsWeekResponse(BaseModel):
+    start_date: date
+    end_date: date
+
+
+class AlertDayResponse(BaseModel):
+    alert_date: date
+    high_ha: float = Field(description="High confidence alert area.")
+    highest_ha: float = Field(description="Highest confidence alert area.")
+    total_ha: float = Field(description="High plus highest.")
+    new: bool = Field(
+        description="The day is in `new_week`, the latest full alert week."
+    )
+
+
+class AlertsListResponse(BaseModel):
+    data_to: Optional[date] = Field(
+        description=(
+            "The latest alert date in the data for the period, of any "
+            "confidence (low included); null when there is none. It can be "
+            "before `end_date` when the data has not arrived yet."
+        )
+    )
+    start_date: date = Field(
+        description="Start of the period, clamped to the data."
+    )
+    end_date: date = Field(
+        description="End of the period, clamped to the data and to today."
+    )
+    new_week: AlertsWeekResponse = Field(
+        description="The latest full alert week, Sunday to Saturday."
+    )
+    total_area_ha: float = Field(
+        description="High and highest confidence alert area in the period."
+    )
+    rows: List[AlertDayResponse] = Field(
+        description=(
+            "One row per day with high or highest confidence alerts, "
+            "newest first. Low confidence alerts are left out."
         )
     )
 

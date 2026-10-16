@@ -143,7 +143,7 @@ async def test_invalid_args_are_an_error(args, problem):
 
     assert _message(command).status == "error"
     assert problem in _message(command).content
-    assert "days (integer, >=1, <=365, default 14)" in (
+    assert "days (integer, >=1, <=365, default 30)" in (
         _message(command).content
     )
     apply.assert_not_awaited()
@@ -174,7 +174,7 @@ def test_schema_lists_the_template_names():
 def test_prompt_fragment_lists_each_template():
     assert "'nrt-monitoring'" in SPEC.prompt_fragment
     assert (
-        "Args: days (integer, >=1, <=365, default 14): Length of the period"
+        "Args: days (integer, >=1, <=365, default 30): Length of the period"
         in SPEC.prompt_fragment
     )
     assert "'post-2020-forest-loss'" in SPEC.prompt_fragment
