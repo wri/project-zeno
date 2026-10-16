@@ -6,7 +6,7 @@ The values are rows of the GFW v2025 concession files.
 import geopandas as gpd
 import pandas as pd
 import pytest
-from shapely.geometry import MultiPolygon, box
+from shapely.geometry import GeometryCollection, LineString, MultiPolygon, box
 
 from src.ingest.ingest_concessions import (
     CONCESSION_DATASETS,
@@ -167,3 +167,19 @@ def test_make_valid_polygons_unions_overlapping_parts():
     assert out.iloc[0].geom_type == "MultiPolygon"
     # A valid shape is not touched.
     assert out.iloc[1] is valid
+
+
+def test_make_valid_polygons_flattens_geometry_collections():
+    # GEOS calls a collection valid even when its polygons overlap.
+    collection = GeometryCollection(
+        [box(0, 0, 2, 2), box(1, 1, 3, 3), LineString([(5, 5), (6, 6)])]
+    )
+    lines_only = GeometryCollection([LineString([(0, 0), (1, 1)])])
+    assert collection.is_valid
+
+    out = make_valid_polygons(gpd.GeoSeries([collection, lines_only]))
+
+    assert out.iloc[0].geom_type == "MultiPolygon"
+    assert out.iloc[0].is_valid
+    assert out.iloc[0].area == pytest.approx(7)
+    assert out.iloc[1] is None

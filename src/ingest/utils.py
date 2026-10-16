@@ -184,8 +184,24 @@ def create_id_index_if_not_exists(
 
 
 def _as_multipolygon(geom):
-    """A repaired Polygon as a MultiPolygon: some staging columns are typed."""
-    if geom is not None and geom.geom_type == "Polygon":
+    """A repaired shape as a MultiPolygon: some staging columns are typed.
+
+    A GeometryCollection keeps only its polygon parts, unioned so that
+    overlapping parts do not make the MultiPolygon invalid. A collection with
+    no polygon part becomes None.
+    """
+    if geom is None:
+        return geom
+    if geom.geom_type == "GeometryCollection":
+        polygons = [
+            part
+            for part in shapely.get_parts(geom)
+            if part.geom_type in ("Polygon", "MultiPolygon")
+        ]
+        if not polygons:
+            return None
+        geom = shapely.union_all(polygons)
+    if geom.geom_type == "Polygon":
         return shapely.MultiPolygon([geom])
     return geom
 
@@ -195,16 +211,21 @@ def make_valid_polygons(geometry: gpd.GeoSeries) -> gpd.GeoSeries:
 
     The "structure" repair unions overlapping parts and drops collapsed
     (line or point) leftovers. A repaired shape is a MultiPolygon. Valid
-    shapes are left as they are.
+    shapes are left as they are, except a GeometryCollection: GEOS calls one
+    valid even when its parts overlap, but a typed column rejects it.
     """
-    invalid = ~geometry.is_valid
+    invalid = ~geometry.is_valid | (geometry.geom_type == "GeometryCollection")
     if not invalid.any():
         return geometry
     repaired = geometry.copy()
     fixed = shapely.make_valid(
         geometry[invalid].values, method="structure", keep_collapsed=False
     )
-    repaired[invalid] = [_as_multipolygon(g) for g in fixed]
+    repaired[invalid] = gpd.GeoSeries(
+        [_as_multipolygon(g) for g in fixed],
+        index=geometry.index[invalid],
+        crs=geometry.crs,
+    )
     return repaired
 
 
