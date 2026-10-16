@@ -20,6 +20,7 @@ and the agent tool both call it.
 
 import asyncio
 import json
+import math
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from types import SimpleNamespace
@@ -44,7 +45,14 @@ from src.agent.subagents.pick_dataset.tool import (
 from src.api.data_models import DashboardOrm
 from src.api.repositories import dashboard_writer
 from src.api.repositories.dashboard_writer import SectionWidget
+from src.api.services.alerts_list import (
+    AlertsList,
+    AlertsListService,
+    InvalidWindowError,
+    UnsupportedAreaError,
+)
 from src.api.services.analysis_templates.models import (
+    AlertsWidgetSpec,
     AnalysisTemplate,
     ChartWidgetSpec,
     ImageryWidgetSpec,
@@ -61,6 +69,7 @@ from src.api.services.charts.tcl_natural_forest import (
     TCLNaturalForestChartGenerator,
     natural_forest_totals,
 )
+from src.api.services.dashboard_alerts import AlertsUnavailableError
 from src.api.services.dashboard_aoi import dashboard_aoi
 from src.api.services.widget_configs import (
     dataset_config,
@@ -406,6 +415,86 @@ async def _build_natural_forest_loss(
     )
 
 
+async def _alerts_fact(
+    alerts: AlertsList, context: BuildContext
+) -> Optional[str]:
+    """The alerts of the latest full alert week, over the part of it that
+    the period covers. None when the period and the week do not meet."""
+    week = alerts.new_week
+    start = max(week.start_date, alerts.start_date)
+    end = min(week.end_date, alerts.end_date)
+    if start > end:
+        return None
+    values = {
+        "aoi_name": context.aoi["name"],
+        "start_date": start.isoformat(),
+        "end_date": end.isoformat(),
+    }
+    new_days = [row for row in alerts.rows if row.new]
+    if not new_days:
+        return await t(
+            "analysis_template.alerts.no_alerts", context.language, **values
+        )
+    return await t(
+        "analysis_template.alerts.week",
+        context.language,
+        days=len(new_days),
+        area_ha=_hectares(math.fsum(row.total_ha for row in new_days)),
+        **values,
+    )
+
+
+async def _build_alerts(
+    spec: AlertsWidgetSpec, context: BuildContext
+) -> BuiltWidget:
+    """The live alerts list and its map: the area, the period length and
+    the alerts layer. The frontend fetches the rows, so none are stored.
+
+    The one pull here, shared with an alerts chart in the same build, gives
+    the latest week as a fact for the description and warms the analytics
+    cache for the list's first view.
+    """
+    record = _dataset_record(spec.dataset_id)
+    start, end = await _period(spec.dataset_id, context)
+    try:
+        alerts = await AlertsListService(context.handler).list(
+            dict(context.aoi),
+            date.fromisoformat(start),
+            date.fromisoformat(end),
+            today=context.end,
+        )
+    except (UnsupportedAreaError, InvalidWindowError) as error:
+        raise WidgetFailedError(str(error)) from error
+    except AlertsUnavailableError as error:
+        raise WidgetFailedError(
+            f"Could not get {record['dataset_name']} data for "
+            f"'{context.aoi['name']}': {error}"
+        ) from error
+    fact = await _alerts_fact(alerts, context)
+    return BuiltWidget(
+        widget=SectionWidget(
+            widget_type="alerts",
+            config={
+                "alerts": {
+                    "aoi": {
+                        key: context.aoi[key]
+                        for key in ("source", "src_id", "subtype", "name")
+                    },
+                    # The template's period, which the chart shares.
+                    "days": (context.end - context.start).days,
+                },
+                "dataset": _layer_snapshot(spec.dataset_id, None, start, end),
+            },
+        ),
+        summary=(
+            f"alerts list and map: {record['dataset_name']}, high and "
+            f"highest confidence, {start} to {end}"
+        ),
+        facts=[fact] if fact else [],
+        period=(start, end),
+    )
+
+
 _IMAGERY_PROVIDER = Sentinel2ImageryProvider()
 
 
@@ -444,6 +533,7 @@ _BUILDERS: dict[str, Callable[..., Awaitable[BuiltWidget]]] = {
     "layer": _build_layer,
     "imagery": _build_imagery,
     "natural_forest_loss": _build_natural_forest_loss,
+    "alerts": _build_alerts,
 }
 
 

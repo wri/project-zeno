@@ -10,7 +10,10 @@ from typing import Annotated, Any, ClassVar, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.agent.datasets.handlers.analytics_handler import TREE_COVER_LOSS_ID
+from src.agent.datasets.handlers.analytics_handler import (
+    INTEGRATED_ALERTS_ID,
+    TREE_COVER_LOSS_ID,
+)
 
 
 class TemplateArgs(BaseModel):
@@ -78,11 +81,24 @@ class NaturalForestLossWidgetSpec(_WidgetSpec):
     dataset_id: ClassVar[int] = TREE_COVER_LOSS_ID
 
 
+class AlertsWidgetSpec(_WidgetSpec):
+    """A live list of integrated alert days next to the alerts map of the
+    same period. The widget stores the area, the period length and the map
+    layer; the frontend fetches the rows when it shows them. The latest
+    full alert week is a fact for the description."""
+
+    kind: Literal["alerts"] = "alerts"
+    # The list is of integrated alerts only. dataset_ids() reads it for the
+    # dataset presentation rules.
+    dataset_id: ClassVar[int] = INTEGRATED_ALERTS_ID
+
+
 WidgetSpec = Annotated[
     ChartWidgetSpec
     | LayerWidgetSpec
     | ImageryWidgetSpec
-    | NaturalForestLossWidgetSpec,
+    | NaturalForestLossWidgetSpec
+    | AlertsWidgetSpec,
     Field(discriminator="kind"),
 ]
 
