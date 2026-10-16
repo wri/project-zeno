@@ -879,11 +879,8 @@ class DashboardWidgetCreateRequest(BaseModel):
                 + ", ".join(_ALERTS_AOI_KEYS)
             )
         days = alerts.get("days") if isinstance(alerts, dict) else None
-        if (
-            not isinstance(days, int)
-            or isinstance(days, bool)
-            or not 1 <= days <= ALERTS_MAX_DAYS
-        ):
+        # A JSON true is a bool, which is an int subclass: not a period.
+        if type(days) is not int or not 1 <= days <= ALERTS_MAX_DAYS:
             raise ValueError(
                 "alerts widgets require config.alerts.days from 1 to "
                 f"{ALERTS_MAX_DAYS}"
