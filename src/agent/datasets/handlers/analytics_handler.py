@@ -432,6 +432,10 @@ class AnalyticsHandler(DataSourceHandler):
             land_filter = None
             if dataset.get("context_layer") == "natural_lands":
                 land_filter = "natural_lands"
+            elif dataset.get("context_layer") == "natural_forests":
+                # SBTN natural forest classes only. Not a catalog context
+                # layer: the alerts list asks for it directly.
+                land_filter = "natural_forests"
 
             payload = {
                 **base_payload,
