@@ -9,6 +9,7 @@ and the agent tool both call it.
 3. Build every widget concurrently. Each widget builder clamps the period to
    its dataset and gets its own copy of the AOI, because the analytics
    handler changes its input in place (it strips the GADM level suffix).
+   Builders that need the same data share one analytics pull.
    A builder returns data. It does not write to the database.
 4. A failed required widget stops the build with nothing written. A failed
    optional widget adds a warning and is left out.
@@ -18,17 +19,21 @@ and the agent tool both call it.
 """
 
 import asyncio
+import json
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from types import SimpleNamespace
-from typing import Awaitable, Callable, Optional, Sequence
+from typing import Any, Awaitable, Callable, Optional, Sequence
 
 import pandas as pd
 
 from src.agent.datasets.config import DATASETS
 from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import AnalyticsHandler
-from src.agent.datasets.handlers.base import DataPullResult
+from src.agent.datasets.handlers.base import (
+    DataPullResult,
+    DataSourceHandler,
+)
 from src.agent.i18n import t
 from src.agent.imagery import ImageryRequest, Sentinel2ImageryProvider
 from src.agent.language import DEFAULT_LANGUAGE
@@ -92,15 +97,73 @@ class TemplateResult:
     warnings: list[str] = field(default_factory=list)
 
 
+class _SharedPulls(DataSourceHandler):
+    """The analytics handler of one template build: one pull per payload.
+
+    The builders run concurrently, and two of them can need the same data,
+    such as the integrated alerts chart and the alerts list. The analytics
+    API runs both of two identical requests that arrive together, so here
+    the second caller awaits the first caller's pull instead. Callers get
+    the same result object and must not change it.
+    """
+
+    def __init__(self, handler: DataSourceHandler):
+        self._handler = handler
+        self._pulls: dict[str, asyncio.Future[DataPullResult]] = {}
+
+    def can_handle(self, dataset: Any) -> bool:
+        return self._handler.can_handle(dataset)
+
+    async def pull_data(
+        self,
+        query: str,
+        dataset: dict,
+        start_date: str,
+        end_date: str,
+        change_over_time_query: bool,
+        aois: list[dict],
+    ) -> DataPullResult:
+        key = json.dumps(
+            [
+                query,
+                dataset,
+                start_date,
+                end_date,
+                change_over_time_query,
+                [
+                    [aoi.get("source"), aoi.get("src_id"), aoi.get("subtype")]
+                    for aoi in aois
+                ],
+            ],
+            sort_keys=True,
+            default=str,
+        )
+        if key not in self._pulls:
+            # Copies, because the handler changes its input in place.
+            self._pulls[key] = asyncio.ensure_future(
+                self._handler.pull_data(
+                    query=query,
+                    dataset=dict(dataset),
+                    start_date=start_date,
+                    end_date=end_date,
+                    change_over_time_query=change_over_time_query,
+                    aois=[dict(aoi) for aoi in aois],
+                )
+            )
+        return await self._pulls[key]
+
+
 @dataclass(frozen=True)
 class BuildContext:
     """What every widget builder reads. ``aoi`` is the dashboard's first
-    AOI as a reference dict; a builder must copy it before use."""
+    AOI as a reference dict; a builder must copy it before use. ``handler``
+    is the build's analytics handler, shared by all its builders."""
 
     aoi: dict
     start: date
     end: date
     language: str
+    handler: DataSourceHandler
 
 
 @dataclass
@@ -153,7 +216,7 @@ async def _curated_charts(
     """The dataset's curated charts for the period, and the pull they were
     built from. ``options`` go to ``AnalyzeService.analyze``."""
     record = _dataset_record(dataset_id)
-    service = AnalyzeService(AnalyticsHandler(), generators)
+    service = AnalyzeService(context.handler, generators)
     result = await service.analyze(
         aois=[dict(context.aoi)],
         dataset_id=dataset_id,
@@ -427,6 +490,7 @@ async def apply_template(
         start=start,
         end=end,
         language=language or DEFAULT_LANGUAGE,
+        handler=_SharedPulls(AnalyticsHandler()),
     )
     logger.info(
         "analysis_template_build_started",
