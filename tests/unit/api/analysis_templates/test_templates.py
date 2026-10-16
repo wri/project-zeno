@@ -63,6 +63,26 @@ def test_layer_widget_context_layer_is_in_the_catalog(template, widget):
     assert widget.context_layer in [layer["value"] for layer in layers]
 
 
+@pytest.mark.parametrize("template, widget", _widgets("alerts"))
+def test_alerts_widget_dataset_has_a_tile_layer(template, widget):
+    assert _CATALOG[widget.dataset_id].get("tile_url")
+
+
+def test_nrt_monitoring_covers_the_30_days_to_today():
+    template = get_template("nrt-monitoring")
+    today = date(2026, 10, 16)
+
+    assert template.parse_args({}).period(today) == (
+        date(2026, 9, 16),
+        today,
+    )
+    assert [widget.kind for widget in template.widgets] == [
+        "chart",
+        "alerts",
+        "imagery",
+    ]
+
+
 def test_post_2020_forest_loss_starts_at_the_natural_forest_baseline():
     template = get_template("post-2020-forest-loss")
     today = date(2026, 10, 7)
