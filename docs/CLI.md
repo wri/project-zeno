@@ -197,6 +197,38 @@ kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' 
 - Langfuse calculates cost when it receives a call. A new definition does not change the
   cost of earlier calls, so a re-run of `ingest-langfuse-traces` does not recover it.
 
+### langfuse-sync-model-prices
+
+Creates custom Langfuse model definitions for the Gemini models that Zeno calls. The
+definitions and their prices are in `src/api/services/langfuse/model_prices.py`.
+
+Each Langfuse instance keeps its own model-definition table. On Langfuse 3.152.0, the
+Gemini 3.1 preview models have no definition, so their calls cost $0. The built-in
+Gemini definitions also have no price for `input_cache_read`, so cached prompt tokens
+cost $0. A custom definition with the same model name overrides the built-in one.
+
+```bash
+# Show the plan. This changes nothing.
+kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' | head -1) -- \
+  uv run python src/api/cli.py langfuse-sync-model-prices
+
+# Create the definitions
+kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' | head -1) -- \
+  uv run python src/api/cli.py langfuse-sync-model-prices --apply
+```
+
+**Parameters:**
+- `--apply`: create the definitions. Without it, the command prints the plan only.
+
+**Notes:**
+- Requires `LANGFUSE_HOST`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`.
+- Run it on each instance (local, staging, production).
+- The command skips a model that already has a custom definition. Langfuse has no update
+  call. To change a price, delete the custom definition in Langfuse (Settings → Models),
+  change the price in `model_prices.py`, and run the command again.
+- The new prices apply to new calls only. Earlier calls keep their cost.
+- After you apply it, run `langfuse-model-prices` to make sure that each model is priced.
+
 ### build-aois
 
 Populates the unified `aois` / `user_aois` tables from data already loaded in the

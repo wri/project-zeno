@@ -907,6 +907,42 @@ def langfuse_model_prices_command(hours: int, environment: Optional[str]):
         click.echo("\n✅ Every model in this window is priced.")
 
 
+@cli.command("langfuse-sync-model-prices")
+@click.option(
+    "--apply",
+    is_flag=True,
+    help="Create the definitions. Without it, only print the plan.",
+)
+def langfuse_sync_model_prices_command(apply: bool):
+    """Create Zeno's custom Gemini model definitions in Langfuse.
+
+    Adds a definition for each model in
+    ``src.api.services.langfuse.model_prices.DEFINITIONS`` that has no custom
+    definition yet. It prints the plan first and changes nothing without
+    ``--apply``. Run ``langfuse-model-prices`` afterwards to confirm.
+    """
+    from src.api.services.langfuse.fetch import LangfuseClient
+    from src.api.services.langfuse.model_prices import (
+        DEFINITIONS,
+        create_model,
+        list_models,
+        plan,
+    )
+
+    client = LangfuseClient.from_env()
+    click.echo(f"Langfuse: {client.host}")
+    changes = plan(list_models(client))
+    specs = {d["modelName"]: d for d in DEFINITIONS}
+    for change in changes:
+        line = f"{change.model_name:34} {change.action:7} ({change.reason})"
+        if change.action == "create" and apply:
+            model_id = create_model(client, specs[change.model_name])
+            line += f" -> created {model_id}"
+        click.echo(line)
+    if not apply and any(c.action == "create" for c in changes):
+        click.echo("\nDry run. Re-run with --apply to create the definitions.")
+
+
 # ---------------------------------------------------------------------------
 # build-aois: populate the unified `aois` / `user_aois` tables
 # ---------------------------------------------------------------------------
