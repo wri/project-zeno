@@ -30,10 +30,11 @@ async def _call(tool: str, args: dict):
 # --- the server ----------------------------------------------------------
 
 
-async def test_server_offers_the_four_read_only_tools():
+async def test_server_offers_the_read_only_tools():
     async with Client(mcp_server) as client:
         tools = await client.list_tools()
     assert [tool.name for tool in tools] == [
+        "resolve_areas",
         "search_areas",
         "list_datasets",
         "get_dataset",
@@ -287,3 +288,17 @@ async def test_pull_data_withholds_curated_only_rows(monkeypatch, pulled):
     )
     assert result.structured_content["rows"] == []
     assert "805620.12" not in result.content[0].text
+
+
+async def test_pull_data_refuses_areas_from_two_sources(monkeypatch, pulled):
+    async def mixed_lookup(aoi_ids):
+        return [dict(PARA), {**PARA, "source": "kba", "src_id": "19363"}]
+
+    monkeypatch.setattr(data, "lookup_areas", mixed_lookup)
+    result = await _call(
+        "pull_data",
+        {"aoi_ids": ["gadm:BRA.14_1", "kba:19363"], "dataset_id": 4},
+    )
+    assert result.is_error
+    assert "multiple sources" in result.content[0].text
+    assert pulled == []

@@ -15,7 +15,7 @@ from fastmcp.server.middleware.rate_limiting import (
 )
 
 from mcp.types import ToolAnnotations
-from src.mcp.areas import search_areas
+from src.mcp.areas import resolve_areas, search_areas
 from src.mcp.data import pull_data
 from src.mcp.datasets import get_dataset, list_datasets
 from src.shared.version import get_version
@@ -26,8 +26,10 @@ for countries, administrative areas, protected areas, key biodiversity areas \
 and indigenous lands.
 
 To answer a question with data:
-1. search_areas for each place the user names. Use the aoi_id it returns; \
-never write an area id from memory. Ask the user when several areas fit.
+1. resolve_areas with the places the user names, and the subregion when \
+they compare the parts of a place. When it returns candidates, ask the user \
+which one they mean. Use the aoi_ids it returns; never write an area id from \
+memory. search_areas lists matches for a name when you need to browse.
 2. list_datasets, then get_dataset for the one that measures what the user \
 asks about. It lists the dataset's context layers, parameters and cautions.
 3. pull_data with the area ids and the dataset id.
@@ -36,9 +38,14 @@ Quote only numbers a tool returned, mention the dataset's cautions where \
 they matter, and give its citation. Custom (user-drawn) areas are not \
 available here."""
 
-# Requests per client per minute. A client is the first X-Forwarded-For
-# address (the API runs behind a load balancer), else the peer address.
+# Requests per client per minute.
 RATE_LIMIT_PER_MINUTE = int(os.getenv("MCP_RATE_LIMIT_PER_MINUTE", "120"))
+# The proxies in front of the API that append to X-Forwarded-For: one, the
+# ingress (or the ALB of an ephemeral deploy). A client writes whatever it
+# likes into the header, and each proxy appends the address it saw, so only
+# the entry the outermost of our proxies appended names the client. 0 trusts
+# no header and uses the peer address.
+TRUSTED_PROXY_HOPS = int(os.getenv("MCP_TRUSTED_PROXY_HOPS", "1"))
 
 _READ_ONLY = ToolAnnotations(read_only_hint=True, open_world_hint=True)
 
@@ -49,10 +56,23 @@ def _client_id(context: MiddlewareContext) -> str:
     except RuntimeError:
         # In-process clients (tests) have no HTTP request.
         return "in-process"
-    forwarded = request.headers.get("x-forwarded-for", "")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    return client_address(
+        request.headers.get("x-forwarded-for", ""),
+        request.client.host if request.client else "unknown",
+    )
+
+
+def client_address(
+    forwarded: str, peer: str, hops: int = TRUSTED_PROXY_HOPS
+) -> str:
+    """The rate-limit key: the X-Forwarded-For entry `hops` from the right,
+    the last one a client cannot write itself; the peer address when the
+    header is shorter or not trusted."""
+    entries = [entry.strip() for entry in forwarded.split(",")]
+    entries = [entry for entry in entries if entry]
+    if hops > 0 and len(entries) >= hops:
+        return entries[-hops]
+    return peer
 
 
 def build_server() -> FastMCP:
@@ -71,7 +91,13 @@ def build_server() -> FastMCP:
             )
         ],
     )
-    for tool in (search_areas, list_datasets, get_dataset, pull_data):
+    for tool in (
+        resolve_areas,
+        search_areas,
+        list_datasets,
+        get_dataset,
+        pull_data,
+    ):
         server.tool(tool, annotations=_READ_ONLY)
     return server
 

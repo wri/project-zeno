@@ -13,12 +13,21 @@ from fastmcp.tools.base import ToolResult
 from pydantic import Field
 from sqlalchemy import text
 
+from src.agent.datasets.pull_checks import SUBREGION_LIMIT_ADMIN
+from src.agent.subagents.pick_aoi.tool import (
+    ExtractedPlace,
+    Geocoder,
+    PlaceQuery,
+    SubregionType,
+)
+from src.agent.tools.send_nudge import NUDGE_ALREADY_SET_NOTE
 from src.shared.aoi_search import (
     MAX_SEARCH_NAME_CHARS,
     SearchRequestError,
     search_aois,
 )
 from src.shared.database import get_connection_from_pool
+from src.shared.gadm_admin_types import GadmAdminTerm
 from src.shared.geocoding_helpers import VALID_AOI_SOURCES
 
 # The sources a name search can match. Concessions have no search columns
@@ -26,6 +35,10 @@ from src.shared.geocoding_helpers import VALID_AOI_SOURCES
 SearchSource = Literal["gadm", "kba", "wdpa", "landmark"]
 
 MAX_SEARCH_RESULTS = 25
+# The most areas one pull takes: the geocoder's limit for an administrative
+# subregion expansion, so every selection resolve_areas returns can be pulled.
+MAX_AREAS = SUBREGION_LIMIT_ADMIN
+MAX_PLACES = 10
 
 
 def format_aoi_id(source: str, src_id: str) -> str:
@@ -179,3 +192,111 @@ async def search_areas(
     else:
         message = f"Areas matching '{name}', best first:\n" + "\n".join(lines)
     return ToolResult(content=message, structured_content={"areas": areas})
+
+
+def _area_lines(found: list[dict]) -> str:
+    return "\n".join(
+        f"- {area['aoi_id']}: {area['name']} ({area['subtype']})"
+        for area in found
+    )
+
+
+async def resolve_areas(
+    places: Annotated[
+        list[ExtractedPlace],
+        Field(
+            min_length=1,
+            max_length=MAX_PLACES,
+            description=(
+                "One entry per distinct place the user names. For a "
+                "worldwide question use the place 'World' with subregion "
+                "'country'."
+            ),
+        ),
+    ],
+    subregion: Annotated[
+        Optional[SubregionType],
+        Field(description=PlaceQuery.model_fields["subregion"].description),
+    ] = None,
+    admin_term: Annotated[
+        Optional[GadmAdminTerm],
+        Field(description=PlaceQuery.model_fields["admin_term"].description),
+    ] = None,
+) -> ToolResult:
+    """Resolve the places a user names to areas, the way Zeno's geocoder
+    does, and expand them into their subregions when asked.
+
+    Give each place as the user named it, in English, with its parent when
+    the user gave one ('Para, Brazil'), plus the database spelling and other
+    spellings when you know them. The tool picks the best area for each
+    place, so use it rather than choosing from search_areas when the user
+    names a place in plain words. Set subregion to compare the parts of a
+    place ("the districts of Odisha", "protected areas in Peru").
+
+    When a name is a prominent place in more than one country, it returns
+    candidates and no selection: ask the user which one they mean, then use
+    that candidate's aoi_id. Pass the returned aoi_ids to pull_data.
+    """
+    command = await Geocoder().lookup(
+        question="; ".join(place.place for place in places),
+        places=places,
+        subregion=subregion,
+        # The geocoder answers with LangChain ToolMessages, which need an id.
+        tool_call_id="mcp",
+        language="en",
+        admin_term=admin_term,
+        # The deterministic scorer, never a model pick.
+        normalized=True,
+    )
+    update = command.update or {}
+    messages = update.get("messages") or []
+    message = str(messages[0].content) if messages else ""
+    message = message.replace(NUDGE_ALREADY_SET_NOTE, "")
+
+    selection = update.get("aoi_selection")
+    if selection:
+        found = [_area(aoi) for aoi in selection["aois"]]
+        lines = [
+            f"Selected {selection['name']}: {len(found)} area(s).",
+            _area_lines(found),
+        ]
+        # The geocoder's own notes follow its list of names: places it could
+        # not match, and the closest stored names for them.
+        _, _, notes = message.partition("\n\n")
+        if notes:
+            lines.append(notes)
+        return ToolResult(
+            content="\n".join(lines),
+            structured_content={
+                "selection_name": selection["name"],
+                "areas": found,
+                "candidates": [],
+            },
+        )
+
+    nudge = update.get("nudge") or {}
+    if nudge.get("type") == "aoi_choice" and nudge.get("data"):
+        candidates = [_area(aoi) for aoi in nudge["data"]]
+        return ToolResult(
+            content=(
+                "The name matches places in more than one country, so "
+                "nothing is selected. Ask the user which one they mean, "
+                "then use its aoi_id:\n" + _area_lines(candidates)
+            ),
+            structured_content={
+                "selection_name": None,
+                "areas": [],
+                "candidates": candidates,
+            },
+        )
+
+    # No selection: the geocoder's reason (no match, too many subregions,
+    # a worldwide question without subregion 'country').
+    return ToolResult(
+        content=message.strip() or "No area was selected.",
+        structured_content={
+            "selection_name": None,
+            "areas": [],
+            "candidates": [],
+        },
+    )

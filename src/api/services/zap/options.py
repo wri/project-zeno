@@ -13,15 +13,16 @@ NONE = "none"
 # dataset-picker experiments (PR #841, variant `cards:neutral`). They scored
 # 94-98% on the dataset step, against 78-96% for the long catalog text.
 # The cards live in the catalog YAML (`selection_card`), which the MCP
-# server's dataset listing reads too. Zap offers only the datasets with a
-# map layer in the default profile: not 9 (sLUC emission factors, table
-# data with no map layer) and not 12 (LGMS, which has no card).
-ZAP_EXCLUDED_DATASET_IDS = frozenset({9})
+# server's dataset listing reads too. Zap offers the datasets that have a
+# map layer and that the default profile shows: not 9 (sLUC emission
+# factors, table data with no map layer) and not 12 (LGMS, hidden by
+# default). This set is the rule; a card alone does not put a dataset in
+# zap.
+ZAP_EXCLUDED_DATASET_IDS = frozenset({9, 12})
 DATASET_CARDS: dict[int, str] = {
     ds["dataset_id"]: ds["selection_card"]
     for ds in DATASETS
-    if ds.get("selection_card")
-    and ds["dataset_id"] not in ZAP_EXCLUDED_DATASET_IDS
+    if ds["dataset_id"] not in ZAP_EXCLUDED_DATASET_IDS
 }
 
 DATASET_INSTRUCTIONS = (

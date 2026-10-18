@@ -678,12 +678,18 @@ class AnalyticsHandler(DataSourceHandler):
         change_over_time_query: bool,
         aois: list[dict],
     ) -> DataPullResult:
+        # Every area is checked, not only the first: a caller can send areas
+        # of mixed subtypes (an MCP client lists them by hand).
         # SLUC emission factors are only available for GADM levels 0, 1, and 2
+        sluc_misfit = next(
+            (aoi for aoi in aois if aoi["subtype"] not in SLUC_GADM_LEVELS),
+            None,
+        )
         if (
             dataset.get("dataset_id") == SLUC_EMISSION_FACTORS_ID
-            and aois[0]["subtype"] not in SLUC_GADM_LEVELS
+            and sluc_misfit
         ):
-            msg = f"Can not pull data for aoi {aois[0].get('name', '')}. Subtype {aois[0]['subtype']} not supported for SLUC emission factors data, it is only available for GADM admin areas."
+            msg = f"Can not pull data for aoi {sluc_misfit.get('name', '')}. Subtype {sluc_misfit['subtype']} not supported for SLUC emission factors data, it is only available for GADM admin areas."
             return DataPullResult(
                 success=False,
                 data=None,
@@ -691,14 +697,20 @@ class AnalyticsHandler(DataSourceHandler):
                 data_points_count=0,
                 analytics_api_url=None,
             )
-        if (
-            aois[0]["subtype"] in ADMIN_SUBTYPES
-            and aois[0]["subtype"] not in ANALYTICS_ADMIN_SUBTYPES
-        ):
+        level_misfit = next(
+            (
+                aoi
+                for aoi in aois
+                if aoi["subtype"] in ADMIN_SUBTYPES
+                and aoi["subtype"] not in ANALYTICS_ADMIN_SUBTYPES
+            ),
+            None,
+        )
+        if level_misfit:
             msg = (
-                f"Can not pull data for aoi {aois[0].get('name', '')}. "
+                f"Can not pull data for aoi {level_misfit.get('name', '')}. "
                 f"The GFW Analytics API does not support the "
-                f"{aois[0]['subtype']} level; it takes country, "
+                f"{level_misfit['subtype']} level; it takes country, "
                 "state-province and district-county areas."
             )
             return DataPullResult(

@@ -13,6 +13,7 @@ chooses. That keeps the server cheap to run and its answers deterministic.
 
 | Tool | Does | Calls |
 |---|---|---|
+| `resolve_areas(places, subregion?, admin_term?)` | Resolves the places a user names to areas, the way the agent's geocoder does: picks the best match for each place, expands subregions ("the districts of Odisha"), and returns candidates instead of a pick when a name is a prominent place in more than one country. | `Geocoder.lookup`, the deterministic half of `pick_aoi`. The calling model fills in the `places` fields (`ExtractedPlace`) that the geocoder's Flash step extracts in the agent. |
 | `search_areas(name, sources?, limit?)` | Finds countries, administrative areas, protected areas, key biodiversity areas and indigenous lands by name. Returns each match with an `aoi_id`. | `search_aois`, the search behind `GET /api/aois` and the agent's `pick_aoi` |
 | `list_datasets()` | Lists the datasets with a short description of each. | the catalog YAML (`selection_card`) |
 | `get_dataset(dataset_id)` | One dataset's description, dates, context layers, parameters, cautions, charting and presentation guidance, colors and citation. | the catalog YAML and `palette.py` |
@@ -21,6 +22,10 @@ chooses. That keeps the server cheap to run and its answers deterministic.
 An area id is `<source>:<src_id>`, for example `gadm:BRA.14_1`. It is the
 same pair that the REST API's `AreaOfInterest` and the agent's
 `aoi_selection` hold, in one string a model can copy.
+
+One pull takes areas from one source, at most 1000 administrative areas or
+50 of any other kind: the limits `pick_aoi` applies to a selection, checked
+for every pull by `refuse_areas` in `pull_checks`.
 
 `pull_data` returns the rows in its text, as CSV up to 200 rows and as
 per-column stats beyond that. A model that gets a handle without the numbers
@@ -45,9 +50,11 @@ that needs a token.
 - **The analytics token is optional.** When `WRI_BEARER_TOKEN` is set, the
   server sends it, as the agent does. When it is not set, the requests go
   without an `Authorization` header. The client never sends a token.
-- **Rate limit.** Each client (the first `X-Forwarded-For` address) may send
-  `MCP_RATE_LIMIT_PER_MINUTE` requests a minute (default 120). The limit
-  counts in each API process.
+- **Rate limit.** Each client may send `MCP_RATE_LIMIT_PER_MINUTE` requests
+  a minute (default 120). The limit counts in each API process. A client is
+  the `X-Forwarded-For` entry that the outermost of our proxies appended,
+  `MCP_TRUSTED_PROXY_HOPS` from the right (default 1: the ingress). Entries
+  further left are written by the client and are never used.
 - **Stateless HTTP.** Each request stands alone, so any API replica serves
   any call. `/mcp` and `/mcp/` both answer, without a redirect.
 - **Errors are written for the model.** A refused call (an unknown id, a
@@ -77,10 +84,10 @@ URL.
 | File | Holds |
 |---|---|
 | `src/mcp/server.py` | The FastMCP server, its instructions, the rate limit, and the app that `src/api/app.py` mounts at `/mcp` |
-| `src/mcp/areas.py` | `search_areas`, the `aoi_id` format and `lookup_areas` |
+| `src/mcp/areas.py` | `resolve_areas`, `search_areas`, the `aoi_id` format and `lookup_areas` |
 | `src/mcp/datasets.py` | `list_datasets`, `get_dataset` and the hidden datasets |
 | `src/mcp/data.py` | `pull_data` |
-| `src/agent/datasets/pull_checks.py` | The checks both `pull_data` tools run before the API call: hidden dataset, one area for a curated-only dataset, the date range |
+| `src/agent/datasets/pull_checks.py` | The checks both `pull_data` tools run before the API call: hidden dataset, one source and the size limits for the areas (which `pick_aoi` also runs), one area for a curated-only dataset, the date range |
 
 `tests/unit/mcp/` calls the tools through an in-process client.
 `tests/unit/agent/datasets/test_analytics_request_snapshot.py` pins the exact
@@ -113,10 +120,6 @@ in GNW like the agent's insights. The design keeps this possible now:
 
 ### More tools
 
-- `resolve_areas`: the agent geocoder's deterministic half
-  (`Geocoder.lookup`). The client gives the place names and the subregion
-  type, and the tool expands subregions ("the districts of Odisha") and
-  reports ambiguity as candidates.
 - Curated insights: the charts of `src/api/services/charts` (the
   deterministic generators) for a pulled result, with the generator's source
   and the dataset citation as provenance.

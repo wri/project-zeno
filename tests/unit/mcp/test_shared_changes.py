@@ -164,3 +164,105 @@ def test_mcp_answers_on_the_bare_path_without_a_redirect(path):
         )
     assert response.status_code == 200
     assert '"serverInfo"' in response.text
+
+
+# --- review fixes: rate-limit key, area checks, zap rule ---------------------
+
+
+@pytest.mark.parametrize(
+    ("forwarded", "hops", "expected"),
+    [
+        # A client-written entry before the ingress's own is ignored.
+        ("6.6.6.6, 203.0.113.7", 1, "203.0.113.7"),
+        ("203.0.113.7", 1, "203.0.113.7"),
+        ("6.6.6.6, 203.0.113.7, 10.0.0.2", 2, "203.0.113.7"),
+        # Shorter than the trusted chain, or no trust: the peer address.
+        ("203.0.113.7", 2, "10.0.0.9"),
+        ("6.6.6.6", 0, "10.0.0.9"),
+        ("", 1, "10.0.0.9"),
+    ],
+)
+def test_rate_limit_key_is_the_trusted_end_of_the_chain(
+    forwarded, hops, expected
+):
+    from src.mcp.server import client_address
+
+    assert client_address(forwarded, "10.0.0.9", hops) == expected
+
+
+def _areas(source, count):
+    return [{"source": source, "src_id": str(i)} for i in range(count)]
+
+
+def test_refuse_areas_rejects_mixed_sources_and_oversized_sets():
+    from src.agent.datasets.pull_checks import (
+        SUBREGION_LIMIT,
+        SUBREGION_LIMIT_ADMIN,
+        refuse_areas,
+    )
+
+    mixed = _areas("gadm", 1) + _areas("kba", 1)
+    assert refuse_areas(mixed).key == "pick_aoi.multiple_sources"
+    assert refuse_areas(_areas("kba", SUBREGION_LIMIT)) is None
+    assert (
+        refuse_areas(_areas("kba", SUBREGION_LIMIT + 1)).key
+        == "pick_aoi.too_many_subregions"
+    )
+    assert refuse_areas(_areas("gadm", SUBREGION_LIMIT_ADMIN)) is None
+    assert (
+        refuse_areas(_areas("logging", SUBREGION_LIMIT + 1)).key
+        == "pick_aoi.too_many_concessions"
+    )
+
+
+async def test_plan_pull_refuses_mixed_sources():
+    plan = await plan_pull(
+        TCL, _areas("gadm", 1) + _areas("kba", 1), None, None
+    )
+    assert plan == PullRefusal("pick_aoi.multiple_sources")
+
+
+async def test_handler_checks_every_areas_admin_level(monkeypatch):
+    from unittest.mock import patch
+
+    from src.agent.datasets.handlers.analytics_handler import AnalyticsHandler
+
+    areas = [
+        {
+            "source": "gadm",
+            "src_id": "BRA",
+            "name": "Brazil",
+            "subtype": "country",
+        },
+        {
+            "source": "gadm",
+            "src_id": "BRA.14.1.1_1",
+            "name": "A locality",
+            "subtype": "locality",
+        },
+    ]
+    with patch(
+        "src.agent.datasets.handlers.analytics_handler.httpx.AsyncClient",
+        side_effect=AssertionError("the analytics API must not be called"),
+    ):
+        result = await AnalyticsHandler().pull_data(
+            query="",
+            dataset=TCL,
+            start_date="2015-01-01",
+            end_date="2020-12-31",
+            change_over_time_query=False,
+            aois=areas,
+        )
+    assert not result.success
+    assert "A locality" in result.message
+
+
+def test_every_zap_dataset_has_a_card():
+    from src.agent.datasets.config import DATASETS
+
+    offered = [
+        ds
+        for ds in DATASETS
+        if ds["dataset_id"] not in options.ZAP_EXCLUDED_DATASET_IDS
+    ]
+    assert all(ds.get("selection_card") for ds in offered)

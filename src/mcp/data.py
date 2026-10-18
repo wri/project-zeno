@@ -31,10 +31,9 @@ from src.agent.datasets.pull_checks import (
 )
 from src.agent.i18n import t
 from src.api.services.charts.base import column_to_rows
-from src.mcp.areas import format_aoi_id, lookup_areas
+from src.mcp.areas import MAX_AREAS, format_aoi_id, lookup_areas
 from src.mcp.datasets import MCP_EXCLUDED_DATASETS, get_catalog_dataset
 
-MAX_AREAS = 100
 # Rows in the structured result.
 MAX_ROWS = 1000
 # Rows the text renders as CSV; a larger result shows per-column stats.
@@ -142,8 +141,8 @@ async def pull_data(
             min_length=1,
             max_length=MAX_AREAS,
             description=(
-                "Area ids from search_areas, e.g. ['gadm:BRA.14_1']. More "
-                "than one compares the areas."
+                "Area ids from resolve_areas or search_areas, e.g. "
+                "['gadm:BRA.14_1']. More than one compares the areas."
             ),
         ),
     ],
