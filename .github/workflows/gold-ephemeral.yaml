@@ -1,0 +1,227 @@
+name: GOLD on ephemeral environment
+
+# Runs the GOLD eval set (evals/gold) against a fresh deployment of one commit:
+# deploy an ephemeral environment, run every case for 3 trials, report, then
+# always destroy the environment.
+#
+# The "on:" section below lists the three alternatives when the jobs below are
+# triggered: runs for every push to main once docker-build.yml has built its image;
+# once when a PR becomes ready for review: opened as non-draft, or moved out of
+# draft; and by hand for the head of any branch, PR or not:
+#
+#   gh workflow run gold-ephemeral.yaml --ref <branch> \
+#     [-f trials=1] [-f ids="1-030 1-136"] [-f keep_env=true]
+#
+# PRs and manual runs build their own image first. Marking a PR ready again
+# re-runs it; so does a manual run on its branch, which also comments on the PR.
+#
+# Eval results never fail the workflow. A pass rate (pass / all cases) below
+# GOLD_PASS_THRESHOLD is flagged in red in the job summary, as an annotation
+# and in the PR comment.
+
+on:
+  pull_request:
+    types: [opened, ready_for_review]
+  workflow_run:
+    workflows: ["Build and Publish Docker Image"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      trials:
+        description: Trials per case
+        required: false
+        default: 3
+        type: number
+      ids:
+        description: Case ids to run, space- or comma-separated (default all)
+        required: false
+        default: ""
+        type: string
+      keep_env:
+        description: Leave the environment up afterwards (destroy it by hand)
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gold-ephemeral-${{ github.event.pull_request.head.sha || github.event.workflow_run.head_sha || github.sha }}
+  cancel-in-progress: false
+
+env:
+  GOLD_PASS_THRESHOLD: "90"
+
+jobs:
+  # Decides whether to run, and which commit.
+  eval-needed:
+    # Main: only builds from a push that succeeded (not manual dispatches).
+    # PRs: non-draft only; fork PRs get no secrets, so they can't deploy.
+    # Manual runs: always.
+    if: >-
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push') ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.draft == false &&
+       github.event.pull_request.head.repo.full_name == github.repository) ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.commit.outputs.sha }}
+    steps:
+      - id: commit
+        run: echo "sha=${{ github.event.pull_request.head.sha || github.event.workflow_run.head_sha || github.sha }}" >> "$GITHUB_OUTPUT"
+
+  # Invokes docker-build.yml for PRs and manual runs. Main's image was already
+  # built by the workflow that triggered this run.
+  build:
+    needs: eval-needed
+    if: github.event_name != 'workflow_run'
+    uses: ./.github/workflows/docker-build.yml
+    with:
+      sha: ${{ needs.eval-needed.outputs.sha }}
+      # Only main's own build moves `latest`.
+      push_latest: false
+    secrets: inherit
+
+  deploy:
+    needs: [eval-needed, build]
+    # build is skipped on main.
+    if: >-
+      !cancelled() && needs.eval-needed.result == 'success' &&
+      (needs.build.result == 'success' || needs.build.result == 'skipped')
+    uses: ./.github/workflows/deploy-ephemeral.yaml
+    with:
+      commit_sha: ${{ needs.eval-needed.outputs.sha }}
+      action: create
+    secrets: inherit
+
+  gold:
+    needs: [eval-needed, deploy]
+    if: ${{ !cancelled() && needs.deploy.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      pull-requests: write
+    defaults:
+      run:
+        working-directory: evals/gold
+    env:
+      SHA: ${{ needs.eval-needed.outputs.sha }}
+      API_BASE_URL: ${{ needs.deploy.outputs.api_base_url }}
+      # An RW token: the API creates its user on first use. Ground-truth
+      # fetches fall back to it too.
+      API_TOKEN: ${{ secrets.WRI_BEARER_TOKEN }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      # Manual-run inputs; empty on other triggers.
+      TRIALS: ${{ inputs.trials || 3 }}
+      IDS: ${{ inputs.ids }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SHA }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install
+        run: uv sync --frozen
+
+      # A fresh results dir, so the summary finds exactly this run's record.
+      - name: Run GOLD
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          id_args=()
+          for id in ${IDS//,/ }; do
+            id_args+=(--id "$id")
+          done
+          uv run gold run \
+            --env ephemeral \
+            --api-base-url "$API_BASE_URL" \
+            --trials "$TRIALS" \
+            "${id_args[@]}" \
+            --workers 10 \
+            --build "$SHA" \
+            --results-dir ci-results \
+            2>&1 | tee gold.log
+
+      - name: Summarise
+        if: always()
+        run: |
+          uv run python tools/ci_summary.py \
+            --results-dir ci-results \
+            --out summary.md \
+            --log gold.log \
+            --threshold "$GOLD_PASS_THRESHOLD" \
+            --details-url "$RUN_URL"
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Render HTML report
+        if: always()
+        continue-on-error: true
+        run: |
+          for run in ci-results/runs/*.json; do
+            [ -e "$run" ] || exit 0
+            uv run python tools/render_html.py "$run" \
+              --out "ci-results/reports/$(basename "$run" .json).html"
+          done
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gold-${{ env.SHA }}-${{ github.run_attempt }}
+          path: |
+            evals/gold/ci-results/
+            evals/gold/gold.log
+          if-no-files-found: warn
+
+      - name: Note the environment left up
+        if: always() && inputs.keep_env
+        run: |
+          {
+            echo ""
+            echo "Environment left up at $API_BASE_URL. Destroy it with:"
+            echo ""
+            echo '```'
+            echo "gh workflow run deploy-ephemeral.yaml -f commit_sha=$SHA -f action=destroy -f dry_run=false"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # A manual run comments on its branch's open PR, if there is one.
+      - name: Comment on the PR
+        if: always() && github.event_name != 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          [ -f summary.md ] || exit 0
+          if [ -z "$PR" ]; then
+            PR=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$GITHUB_REF_NAME" \
+              --state open --json number --jq '.[0].number // empty')
+          fi
+          [ -n "$PR" ] || exit 0
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file summary.md
+
+  destroy:
+    # Whenever a deploy was attempted, even if it or the run failed or was
+    # cancelled, so nothing is left up, unless a manual run asked to keep it.
+    needs: [eval-needed, deploy, gold]
+    if: always() && needs.deploy.result != 'skipped' && !inputs.keep_env
+    uses: ./.github/workflows/deploy-ephemeral.yaml
+    with:
+      commit_sha: ${{ needs.eval-needed.outputs.sha }}
+      action: destroy
+    secrets: inherit

@@ -3,6 +3,7 @@
 Examples:
   gold run --env staging --trials 3
   gold run --api-base-url https://api.staging.globalnaturewatch.org --id 1-030
+  gold run --env ephemeral --api-base-url http://<alb>:<port> --trials 3
   gold run --resume <run_id>
   gold prune-artifacts --keep-runs 5
 
@@ -13,7 +14,7 @@ Flags always win: no environment variable changes a flag or its default.
 The environment (or a .env file) supplies secrets only:
   STAGING_API_TOKEN, PROD_API_TOKEN  API token for that environment. API_TOKEN
                                      is the fallback, and the only one a local
-                                     run reads.
+                                     or ephemeral run reads.
   ANTHROPIC_API_KEY                  the LLM judge (the default backend)
   OPENROUTER_API_KEY                 the LLM judge under
                                      --judge-backend openrouter-jev-decisions
@@ -63,9 +64,34 @@ ENV_URLS = {
     "prod": "https://api.globalnaturewatch.org",
     "local": "http://localhost:8000",
 }
+# A per-commit deployment (terraform/ephemeral) has no fixed address, so it
+# needs --api-base-url. CI runs only; never committed or diffed.
+EPHEMERAL = "ephemeral"
 NON_CHECK_SCORES = {"overall_score"}
 REASON_TRIM = 500
 ENV_TOKEN_VARS = {"staging": "STAGING_API_TOKEN", "prod": "PROD_API_TOKEN"}
+
+
+def resolve_environment(env: str, api_base_url: str | None) -> tuple[str, str]:
+    """The run's environment label and the URL its requests go to.
+
+    An explicit URL overrides --env and its host decides the label, except
+    under --env ephemeral, which always needs a URL and keeps its label.
+    Raises ValueError for --env ephemeral without a URL.
+    """
+    if env == EPHEMERAL:
+        if not api_base_url:
+            raise ValueError(
+                "--env ephemeral needs --api-base-url, the deployment's address"
+            )
+        return EPHEMERAL, api_base_url
+    if not api_base_url:
+        return env, ENV_URLS[env]
+    if "staging" in api_base_url:
+        return "staging", api_base_url
+    if any(h in api_base_url for h in ("localhost", "127.0.0.1", "0.0.0.0")):
+        return "local", api_base_url
+    return "prod", api_base_url
 
 
 def require_api_token(environment: str) -> str | None:
@@ -596,7 +622,7 @@ def main() -> int:
     )
     sub = parser.add_subparsers(dest="command", required=True)
     run = sub.add_parser("run", help="run cases against a live API")
-    run.add_argument("--env", choices=sorted(ENV_URLS), default="staging")
+    run.add_argument("--env", choices=sorted([*ENV_URLS, EPHEMERAL]), default="staging")
     run.add_argument(
         "--api-base-url", default=None, help="explicit URL; overrides --env"
     )
@@ -714,15 +740,13 @@ def main() -> int:
     # only for secrets: the environment never overrides a CLI default.
     load_dotenv()
 
-    args.resolved_url = args.api_base_url or ENV_URLS[args.env]
-    if not args.api_base_url:
-        environment = args.env
-    elif "staging" in args.api_base_url:
-        environment = "staging"
-    elif any(h in args.api_base_url for h in ("localhost", "127.0.0.1", "0.0.0.0")):
-        environment = "local"
-    else:
-        environment = "prod"
+    try:
+        environment, args.resolved_url = resolve_environment(
+            args.env, args.api_base_url
+        )
+    except ValueError as error:
+        print(error)
+        return 1
     args.environment = environment
 
     args.api_token = require_api_token(environment)

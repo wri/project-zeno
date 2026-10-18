@@ -32,6 +32,7 @@ they all follow.
 | tool | what it does |
 |---|---|
 | `report_run.py` | Markdown summary of one run on stdout: row verdicts, the bucket table, implied against evaluated checks (the reconciliation line), and diagnostics such as judge errors and slow rows. Use it for a quick read in the terminal or to paste into a PR. |
+| `ci_summary.py` | The short Markdown summary CI posts for an ephemeral run: the pass rate (pass / all cases), red below `--threshold`, the verdict counts and the cases not passing. Prints an `::error` annotation below the threshold and always exits 0. When a run wrote no record, it shows the tail of `--log` instead. |
 | `render_html.py` | Standalone HTML report of one run for stakeholders; `--all` builds the cross-run page with a run selector. Refresh both after every official run. |
 | `render_inspector.py` | HTML matrix of every case against every check, with expected and measured values. Use it to find which checks failed on which cases; `--all` builds the cross-run page. |
 | `render_trends.py` | Pass-rate trends across every run in the ledger, one line per `ff`. Use it to see movement across releases; never read a trend across differing `ff`. |

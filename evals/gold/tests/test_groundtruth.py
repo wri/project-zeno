@@ -275,16 +275,18 @@ def _pull_read_environment(run_environment: str) -> str:
     return seen["environment"]
 
 
-def test_a_staging_run_reads_the_agents_pull_from_staging():
+@pytest.mark.parametrize("run_environment", ["staging", "ephemeral"])
+def test_a_staging_run_reads_the_agents_pull_from_staging(run_environment):
     """That result belongs to the agent's deployment, which created it under its
-    own environment, so the read asks for the same one."""
-    assert _pull_read_environment("staging") == "staging"
+    own environment, so the read asks for the same one. Ephemeral deployments
+    run with GNW_STAGE=staging."""
+    assert _pull_read_environment(run_environment) == "staging"
 
 
 @pytest.mark.parametrize("run_environment", ["prod", "local", ""])
 def test_other_runs_read_the_agents_pull_from_production(run_environment):
     """Zeno takes the environment from GNW_STAGE, which defaults to production,
-    so only a staging deployment reads staging."""
+    so only a staging or ephemeral deployment reads staging."""
     assert _pull_read_environment(run_environment) == "production"
 
 

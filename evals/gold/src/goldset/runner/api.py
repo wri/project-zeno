@@ -83,8 +83,11 @@ class APITestRunner(BaseTestRunner):
             return None
 
     @staticmethod
-    def _build_app_thread_url(api_base_url: str, thread_id: str) -> str:
-        """Build GNW app thread URL from API base URL and session/thread ID."""
+    def _build_app_thread_url(api_base_url: str, thread_id: str) -> str | None:
+        """Build GNW app thread URL from API base URL and session/thread ID.
+
+        None for an ephemeral deployment, which is an API on a load balancer
+        port with no app in front of it."""
         parsed = urlparse(api_base_url)
         if not parsed.scheme or not parsed.netloc:
             return f"{api_base_url.rstrip('/')}/app/threads/{thread_id}"
@@ -92,6 +95,8 @@ class APITestRunner(BaseTestRunner):
         host = parsed.hostname or ""
         if host in {"localhost", "127.0.0.1", "0.0.0.0"}:
             return f"http://localhost:3000/app/threads/{thread_id}"
+        if host.endswith(".elb.amazonaws.com"):
+            return None
 
         app_host = host.removeprefix("api.") if host.startswith("api.") else host
         netloc = app_host

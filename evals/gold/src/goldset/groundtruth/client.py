@@ -46,9 +46,16 @@ def analytics_headers(token: str, environment: str = X_ENVIRONMENT) -> dict:
     }
 
 
+# Deployments whose agent runs with GNW_STAGE=staging. Ephemeral deployments
+# set it in terraform/ephemeral/variables.tf (env_config).
+STAGING_ANALYTICS_ENVIRONMENTS = {"staging", "ephemeral"}
+
+
 def agent_environment(run_environment: str) -> str:
     """Which analytics environment the agent under test reads from."""
-    return "staging" if run_environment == "staging" else X_ENVIRONMENT
+    if run_environment in STAGING_ANALYTICS_ENVIRONMENTS:
+        return "staging"
+    return X_ENVIRONMENT
 
 
 class AnalyticsError(Exception):
