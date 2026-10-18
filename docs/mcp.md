@@ -2,8 +2,8 @@
 
 The API serves Zeno's data tools as an open [MCP](https://modelcontextprotocol.io)
 server at `/mcp`. Any MCP client (Gemini CLI, Claude, an agent of your own)
-can find areas, read the dataset catalog and pull statistics with the code
-the agent and the REST API use. The code is in `src/mcp/`.
+can find areas, read the dataset catalog, pull statistics and get GNW's own
+charts with the code the agent and the REST API use. The code is in `src/mcp/`.
 
 The tools have **no model inside**. The client's own model does the
 reasoning: it reads the area candidates and the dataset descriptions and
@@ -15,9 +15,11 @@ chooses. That keeps the server cheap to run and its answers deterministic.
 |---|---|---|
 | `resolve_areas(places, subregion?, admin_term?)` | Resolves the places a user names to areas, the way the agent's geocoder does: picks the best match for each place, expands subregions ("the districts of Odisha"), and returns candidates instead of a pick when a name is a prominent place in more than one country. | `Geocoder.lookup`, the deterministic half of `pick_aoi`. The calling model fills in the `places` fields (`ExtractedPlace`) that the geocoder's Flash step extracts in the agent. |
 | `search_areas(name, sources?, limit?)` | Finds countries, administrative areas, protected areas, key biodiversity areas and indigenous lands by name. Returns each match with an `aoi_id`. | `search_aois`, the search behind `GET /api/aois` and the agent's `pick_aoi` |
-| `list_datasets()` | Lists the datasets with a short description of each. | the catalog YAML (`selection_card`) |
+| `list_datasets()` | Lists the datasets with a short description of each, and marks those with curated charts. | the catalog YAML (`selection_card`) |
 | `get_dataset(dataset_id)` | One dataset's description, dates, context layers, parameters, cautions, charting and presentation guidance, colors and citation. | the catalog YAML and `palette.py` |
 | `pull_data(aoi_ids, dataset_id, start_date?, end_date?, context_layer?, canopy_cover?, change_over_time?)` | Pulls the statistics from the GNW analytics API and returns the rows. | `pull_checks` and `AnalyticsHandler`, as the agent's `pull_data` does |
+| `curated_charts(…the pull_data arguments)` | Pulls the data and returns the charts GNW itself shows for the dataset: chart specs with their rows and colors, the pull's provenance and the generator that drew them. | the pull of `pull_data`, then `build_curated_charts`, as `/api/analyze` and the agent's `generate_insights` do |
+| `get_chart_code(dataset_id)` | The source of the dataset's chart generator, also served as the resource `gnw://charts/{dataset_id}/code`. | the modules in `src/api/services/charts` |
 
 An area id is `<source>:<src_id>`, for example `gadm:BRA.14_1`. It is the
 same pair that the REST API's `AreaOfInterest` and the agent's
@@ -32,6 +34,27 @@ per-column stats beyond that. A model that gets a handle without the numbers
 invents them. The structured result adds the analytics `result_id` and
 `source_url`, the areas, the dates and options it ran with, and up to 1000
 rows.
+
+### Curated charts
+
+`curated_charts` gives a client the trusted view of a dataset: the charts
+GNW draws itself, from code GNW maintains and reviews, rather than charts
+the client's model writes. Each chart is an `InsightChart` (`chart_type`,
+`x_axis`, `y_axis`, `color_field`, `series_fields`, `chart_data`,
+`color_map`, `series_color`, …), the shape the frontend renders and
+`InsightOrm` stores. The result carries the pull's provenance (the same keys
+as `pull_data`), `curated: true`, and the generator's name, path and
+GitHub link.
+
+The shared builder leaves curated colors to the frontend, so the MCP tool
+fills them in from the catalog palette: the series color, and a color for
+each category, matched by slug or by English label (the analytics API
+returns "Settlements and infrastructure" where the catalog says
+"Settlements & Infrastructure"). A color a generator sets itself stays.
+
+`get_chart_code` returns the generator's source, so a model can explain a
+curated chart or follow the same choices (which rows to keep, how to sort and
+sum them, which chart type) when it draws its own.
 
 The server offers what the agent's default profile offers. LGMS is hidden:
 it is hidden from the agent too, and its analytics endpoint is the only one
@@ -86,7 +109,8 @@ URL.
 | `src/mcp/server.py` | The FastMCP server, its instructions, the rate limit, and the app that `src/api/app.py` mounts at `/mcp` |
 | `src/mcp/areas.py` | `resolve_areas`, `search_areas`, the `aoi_id` format and `lookup_areas` |
 | `src/mcp/datasets.py` | `list_datasets`, `get_dataset` and the hidden datasets |
-| `src/mcp/data.py` | `pull_data` |
+| `src/mcp/data.py` | `pull_data`, and `run_pull`, the checked pull both data tools run |
+| `src/mcp/charts.py` | `curated_charts`, `get_chart_code` and the chart code resource |
 | `src/agent/datasets/pull_checks.py` | The checks both `pull_data` tools run before the API call: hidden dataset, one source and the size limits for the areas (which `pick_aoi` also runs), one area for a curated-only dataset, the date range |
 
 `tests/unit/mcp/` calls the tools through an in-process client.
@@ -98,9 +122,9 @@ That test protects all three callers of the handler.
 
 ### Insights the client makes, posted back
 
-Today a client draws its own charts from the rows. Next, it should be able to
-post the insight it made, so that the insight can be saved, shared and shown
-in GNW like the agent's insights. The design keeps this possible now:
+Today a client draws its own charts from the rows, or takes GNW's curated
+charts. Next, it should be able to post the insight it made, so that the
+insight can be saved, shared and shown in GNW like the agent's insights. The design keeps this possible now:
 
 - **A pull is its own provenance.** The structured result of `pull_data`
   holds everything a saved insight needs to name its source: `result_id`,
@@ -109,7 +133,8 @@ in GNW like the agent's insights. The design keeps this possible now:
 - **Charts in the shape GNW renders.** A posted insight should carry its
   charts in the `InsightChart` shape (`chart_type`, `x_axis`, `y_axis`,
   `series_fields`, `chart_data`, …) that `InsightOrm` stores and the
-  frontend renders. Then the insight needs no new chart model.
+  frontend renders. Then the insight needs no new chart model, and a
+  curated chart from `curated_charts` can be posted as it is.
 - **A route, not a database write from the MCP server.** For example
   `POST /api/insights` takes `{title, text, charts, sources: [pull
   provenance]}`. The MCP server can expose it as a `save_insight` tool. The
@@ -120,13 +145,14 @@ in GNW like the agent's insights. The design keeps this possible now:
 
 ### More tools
 
-- Curated insights: the charts of `src/api/services/charts` (the
-  deterministic generators) for a pulled result, with the generator's source
-  and the dataset citation as provenance.
 - `get_statistics(result_id)`: page through results larger than the 1000 rows
   `pull_data` returns.
-- A charting skill built from the catalog guidance and the curated
-  generators, served over MCP (FastMCP can serve skills as resources).
+- A charting skill built from the catalog guidance (`code_instructions`,
+  `presentation_instructions`, the palette) and the curated generators, one
+  section per dataset, served over MCP (FastMCP can serve skills as
+  resources).
+- Curated colors in `build_curated_charts` itself, so that the REST API and
+  the agent send them too, and the MCP tool's own color step goes away.
 
 ### Later
 
