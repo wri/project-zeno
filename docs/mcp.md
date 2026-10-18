@@ -56,6 +56,27 @@ returns "Settlements and infrastructure" where the catalog says
 curated chart or follow the same choices (which rows to keep, how to sort and
 sum them, which chart type) when it draws its own.
 
+### The charting skill
+
+`src/mcp/skills/gnw-charting/` is an agent skill: a `SKILL.md` with the
+workflow (curated charts first, then your own), rules for every chart, the
+chart types GNW renders and the analyst's wording guide; one file per
+dataset with its curated charts, "How to chart it", "How to present it",
+cautions, options, colors and citation; and a copy of each chart generator.
+The server serves it as resources (`skill://gnw-charting/SKILL.md` and the
+files it links to). The same folder can be copied into a Claude or Gemini
+skills folder as it is.
+
+`src/mcp/skill.py` builds the folder from the catalog YAML, the palette, the
+generators and the analyst prompts. The folder is checked in so it can be
+reviewed. When you change one of its sources, rebuild it:
+
+```sh
+uv run python -m src.mcp.skill
+```
+
+`tests/unit/mcp/test_skill.py` fails while the checked-in folder is stale.
+
 The server offers what the agent's default profile offers. LGMS is hidden:
 it is hidden from the agent too, and its analytics endpoint is the only one
 that needs a token.
@@ -111,6 +132,7 @@ URL.
 | `src/mcp/datasets.py` | `list_datasets`, `get_dataset` and the hidden datasets |
 | `src/mcp/data.py` | `pull_data`, and `run_pull`, the checked pull both data tools run |
 | `src/mcp/charts.py` | `curated_charts`, `get_chart_code` and the chart code resource |
+| `src/mcp/skill.py`, `src/mcp/skills/gnw-charting/` | The charting skill and its builder |
 | `src/agent/datasets/pull_checks.py` | The checks both `pull_data` tools run before the API call: hidden dataset, one source and the size limits for the areas (which `pick_aoi` also runs), one area for a curated-only dataset, the date range |
 
 `tests/unit/mcp/` calls the tools through an in-process client.
@@ -147,10 +169,9 @@ insight can be saved, shared and shown in GNW like the agent's insights. The des
 
 - `get_statistics(result_id)`: page through results larger than the 1000 rows
   `pull_data` returns.
-- A charting skill built from the catalog guidance (`code_instructions`,
-  `presentation_instructions`, the palette) and the curated generators, one
-  section per dataset, served over MCP (FastMCP can serve skills as
-  resources).
+- Write the catalog's `code_instructions` for any charting client, not
+  only zeno's code executor: some still say "REFUSE" or name the executor's
+  files. The skill quotes them as they are.
 - Curated colors in `build_curated_charts` itself, so that the REST API and
   the agent send them too, and the MCP tool's own color step goes away.
 

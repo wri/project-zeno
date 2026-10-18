@@ -13,12 +13,14 @@ from fastmcp.server.middleware.middleware import MiddlewareContext
 from fastmcp.server.middleware.rate_limiting import (
     SlidingWindowRateLimitingMiddleware,
 )
+from fastmcp.server.providers.skills import SkillProvider
 
 from mcp.types import ToolAnnotations
 from src.mcp.areas import resolve_areas, search_areas
 from src.mcp.charts import chart_code_resource, curated_charts, get_chart_code
 from src.mcp.data import pull_data
 from src.mcp.datasets import get_dataset, list_datasets
+from src.mcp.skill import SKILL_DIR
 from src.shared.version import get_version
 
 INSTRUCTIONS = """\
@@ -39,7 +41,9 @@ For charts: curated_charts returns the charts GNW itself shows for a \
 dataset (list_datasets marks which have them), drawn by code GNW maintains, \
 with their data, colors and provenance. Prefer them for the standard view of \
 a dataset. To draw your own, follow get_dataset's charting guidance and \
-colors; get_chart_code shows how GNW charts the dataset.
+colors; get_chart_code shows how GNW charts the dataset. The \
+skill://gnw-charting/SKILL.md resource holds GNW's charting and wording \
+rules for every dataset.
 
 Quote only numbers a tool returned, mention the dataset's cautions where \
 they matter, and give its citation. Custom (user-drawn) areas are not \
@@ -113,6 +117,8 @@ def build_server() -> FastMCP:
         name="chart_code",
         mime_type="text/x-python",
     )(chart_code_resource)
+    # skill://gnw-charting/SKILL.md and each file it links to.
+    server.add_provider(SkillProvider(SKILL_DIR, supporting_files="resources"))
     return server
 
 
