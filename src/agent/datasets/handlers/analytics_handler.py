@@ -266,9 +266,13 @@ def _parse_retry_after(response: httpx.Response, default: float) -> float:
 
 def analytics_api_headers() -> dict[str, str]:
     """Headers for every request to the analytics API — Bearer auth
-    (WRI_BEARER_TOKEN, now required) plus the environment selector. Read at
-    call time so the token isn't captured at import."""
-    return {
+    (WRI_BEARER_TOKEN) plus the environment selector. Read at call time so
+    the token isn't captured at import.
+
+    Without a token the Authorization header is left out: httpx refuses the
+    empty "Bearer " value, and every endpoint but LGMS answers without one.
+    """
+    headers = {
         "Accept": "application/json",
         "Content-Type": "application/json",
         "X-environment": (
@@ -277,8 +281,11 @@ def analytics_api_headers() -> dict[str, str]:
             == "production"
             else "staging"
         ),
-        "Authorization": f"Bearer {os.getenv('WRI_BEARER_TOKEN', '')}",
     }
+    token = os.getenv("WRI_BEARER_TOKEN", "").strip()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    return headers
 
 
 class AnalyticsHandler(DataSourceHandler):
@@ -729,13 +736,16 @@ class AnalyticsHandler(DataSourceHandler):
                 analytics_api_url=None,
             )
         try:
-            # Hydrate selected dataset with full metadata
+            # Hydrate selected dataset with full metadata. The catalog's
+            # `parameters` list every value a parameter accepts, not a
+            # selection: a caller that selects none (/api/analyze, the MCP
+            # server) gets the defaults, not max(values) — 75% canopy cover.
             dataset_full = [
                 ds
                 for ds in DATASETS
                 if ds["dataset_id"] == dataset.get("dataset_id")
             ]
-            dataset = dataset_full[0] | dataset
+            dataset = dataset_full[0] | {"parameters": None} | dataset
 
             # Get the appropriate endpoint URL
             if (
@@ -757,7 +767,14 @@ class AnalyticsHandler(DataSourceHandler):
             )
 
             headers = analytics_api_headers()
-            redacted_headers = {**headers, "Authorization": "Bearer ***"}
+            redacted_headers = {
+                **headers,
+                **(
+                    {"Authorization": "Bearer ***"}
+                    if "Authorization" in headers
+                    else {}
+                ),
+            }
             # Debug logging for payload (bearer token redacted above)
             logger.info(
                 f"Analytics API Request - Dataset: {dataset.get('dataset_name')}"

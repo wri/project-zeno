@@ -1,5 +1,6 @@
 dataset_id: 7
 dataset_name: Tree cover
+selection_card: "Tree cover (2000). Tree canopy cover density (percent) in the year 2000 at 30 m for vegetation over 5 m tall. Gives tree cover area and density for 2000, with a selectable canopy cover threshold; can be limited to primary forest. One year only, no change over time."
 context_layers:
 - value: primary_forest
   description: Shows loss within humid tropical primary forest in global pan-tropical regions
