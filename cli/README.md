@@ -26,6 +26,7 @@ repository); the CLI holds no GNW logic of its own. Point it at another
 server with `--server` or `GNW_MCP_URL`, e.g. `http://localhost:8000/mcp`
 with `make api` running.
 
-`src/gnw_cli/skill/SKILL.md` is the `gnw-cli` agent skill: the workflow, the files, and
-what every answer ends with. `gnw skill install` writes it next to the
-server's `gnw-charting` skill.
+`src/gnw_cli/skill/SKILL.md` is the `gnw-cli` agent skill: the workflow,
+the files, and what every answer ends with. `gnw skill install` writes it
+next to the server's `gnw-charting` skill, whose `generators/run.py` draws
+GNW's curated charts from a `rows.csv` without the server (needs numpy).

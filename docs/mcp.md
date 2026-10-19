@@ -320,7 +320,8 @@ insight can be saved, shared and shown in GNW like the agent's insights. The des
 - **A pull is its own provenance.** The structured result of `pull_data`
   holds everything a saved insight needs to name its source: `result_id`,
   `source_url`, `dataset_id`, the `aoi_ids`, the dates, `context_layer`,
-  `canopy_cover`, the `request` and `retrieved_at`. These keys are a public contract. Do not rename them.
+  `canopy_cover`, the `request`, `retrieved_at` and `rows_sha256`. These
+  keys are a public contract. Do not rename them.
 - **Charts in the shape GNW renders.** A posted insight should carry its
   charts in the `InsightChart` shape (`chart_type`, `x_axis`, `y_axis`,
   `series_fields`, `chart_data`, …) that `InsightOrm` stores and the
@@ -330,14 +331,26 @@ insight can be saved, shared and shown in GNW like the agent's insights. The des
   `POST /api/insights` takes `{title, text, charts, sources: [pull
   provenance]}`. The MCP server can expose it as a `save_insight` tool. The
   write needs an owner, so it comes with auth (below).
-- **Verification.** Because each source names its `source_url`, the API can
-  fetch the rows again and check the chart data against them before it marks
-  an insight as GNW data, rather than trusting what the client sent.
+- **Verification.** Because each source holds its `request` and
+  `rows_sha256`, the API can fetch the rows again, check they still hash to
+  `rows_sha256`, and check the chart data against them before it marks an
+  insight as GNW data, rather than trusting what the client sent. A posted
+  insight can also carry the client's analysis script, so the insight is
+  repeatable from its sources.
 
 ### More tools
 
 - `get_statistics(result_id)`: page through results larger than the 1000 rows
-  `pull_data` returns.
+  `pull_data` returns. Clients that run code already have every row through
+  `pull.py`; this is for chat clients and views.
+- **Data versions.** Neither the catalog nor the analytics API names a
+  dataset's version (Hansen GFC v1.13 appears only in a tile URL and the
+  cautions). A `data_version` in the catalog, or in the analytics
+  metadata, would let the provenance name the data release, not only detect
+  a change through `rows_sha256`.
+- **The tree cover rules** (dataset 7) ask for area by canopy-density bin,
+  but the rows the analytics API returns have no bin column, only
+  `area_ha`. Check the rules against the endpoint.
 - Write the catalog's `code_instructions` for any charting client, not
   only zeno's code executor: some still say "REFUSE" or name the executor's
   files. The skill quotes them with a line on how to read those terms, and
@@ -346,6 +359,14 @@ insight can be saved, shared and shown in GNW like the agent's insights. The des
   zeno's own analyst, which reads the same rules.
 - Curated colors in `build_curated_charts` itself, so that the REST API and
   the agent send them too, and the MCP tool's own color step goes away.
+
+### Links into GNW
+
+Each result should link to the same view in the GNW app: the area, the
+dataset, the dates and the options, so a user can see in the interface what
+a chat or a script showed, and the views can offer "Open in GNW" next to
+Reproduce. This needs a URL format for that state from the frontend
+(`project-zeno-next`), which does not exist yet.
 
 ### Later
 
