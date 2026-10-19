@@ -10,10 +10,16 @@ writes them to a folder with the request and the pull's provenance.
 The script needs Python and nothing else, so anyone can run it without
 zeno or the MCP server. A test runs it against a stub API and checks that
 it writes the rows the server returned.
+
+The analytics API files a request under an id made from the request itself,
+so a data release answers the same request under the same id. The pull's
+`rows_sha256` (`rows_digest`) is what tells a replay whether the rows
+changed: the script computes it the same way and compares.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pprint import pformat
 from textwrap import fill
@@ -39,14 +45,16 @@ writes what the API returns to a folder:
 
     python pull.py [folder]    # default: {folder}
 
-It needs Python 3.9 or later and nothing else. The analytics API gives the
-same request the same result id, so the script warns when it answers with
-a result other than {result_id}.
+It needs Python 3.9 or later and nothing else. It warns when the rows
+differ from the ones the MCP server returned (the data was updated), or
+when the API files the request under an id other than {result_id} (it
+reads the request differently).
 
 {citation}
 """
 
 import csv
+import hashlib
 import json
 import os
 import shutil
@@ -139,6 +147,13 @@ def to_rows(result):
         return rows
 
 
+def rows_digest(rows):
+    """The SHA-256 of the rows as canonical JSON, as the MCP server makes
+    it: equal rows give equal digests."""
+    text = json.dumps(rows, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
 def write_csv(rows, path):
     columns = {{}}
     for row in rows:
@@ -162,10 +177,17 @@ def main():
     link, result = fetch()
     rows = to_rows(result)
     result_id = link.rstrip("/").rsplit("/", 1)[-1]
+    digest = rows_digest(rows)
+    if digest != PROVENANCE["rows_sha256"]:
+        print(
+            "Warning: the rows differ from the ones the MCP server returned "
+            f"on {{PROVENANCE['retrieved_at']}}. The data may have been updated.",
+            file=sys.stderr,
+        )
     if PROVENANCE["result_id"] and result_id != PROVENANCE["result_id"]:
         print(
-            f"Warning: the analytics API answered with result {{result_id}}, "
-            f"not {{PROVENANCE['result_id']}}. The data may have changed.",
+            f"Warning: the analytics API filed the request as {{result_id}}, "
+            f"not {{PROVENANCE['result_id']}}. It reads the request differently now.",
             file=sys.stderr,
         )
 
@@ -178,6 +200,7 @@ def main():
             "replayed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "replayed_result_id": result_id,
             "replayed_source_url": link,
+            "replayed_rows_sha256": digest,
         }},
         folder / "provenance.json",
     )
@@ -190,6 +213,15 @@ def main():
 if __name__ == "__main__":
     main()
 '''
+
+
+def rows_digest(rows: list[dict]) -> str:
+    """The SHA-256 of `rows` as canonical JSON. pull.py has a copy; the
+    two must agree, which test_script checks by running the script."""
+    text = json.dumps(
+        rows, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    )
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 def _literal(value) -> str:

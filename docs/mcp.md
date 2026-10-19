@@ -32,9 +32,19 @@ for every pull by `refuse_areas` in `pull_checks`.
 `pull_data` returns the rows in its text, as CSV up to 200 rows and as
 per-column stats beyond that. A model that gets a handle without the numbers
 invents them. The structured result adds the analytics `result_id` and
-`source_url`, the areas, the dates and options it ran with, the `request`
-sent to the analytics API, `retrieved_at`, up to 1000 rows, and `script`
-(see below).
+`source_url`, the areas, the dates and options it ran with, up to 1000
+rows, and `script` (see below). Its provenance also holds:
+
+| Key | Holds |
+|---|---|
+| `request` | The request sent to the analytics API: method, URL, the `X-environment` header and the JSON body. Never the token. |
+| `analytics_metadata` | The request as the analytics API read it, with the area provider and version (`gadm`, `4.1`). |
+| `retrieved_at` | When the server pulled the rows (UTC). |
+| `rows_sha256` | The SHA-256 of the rows as canonical JSON (`rows_digest` in `src/mcp/script.py`). |
+| `server` | The server's `version` and the `commit` it was built from (`GIT_SHA`, set by the Docker build; `null` locally). |
+
+The catalog has no dataset version yet, so the provenance has none; the
+dataset is named by its id, its dates and the citation.
 
 ### Replaying a pull
 
@@ -55,8 +65,11 @@ gnw/pulls/<result_id>/
 ```
 
 It needs Python 3.9 or later and nothing else (`python pull.py [folder]`).
-It warns when the analytics API answers with a result id other than the
-one it was made from, which means the data may have changed.
+It warns when its rows' digest differs from `rows_sha256` (the data was
+updated) and when the API files the request under another result id (it
+reads the request differently). The result id alone cannot show a data
+release: the API makes it from the request (a UUID version 5), so the same
+request keeps its id when the data behind it changes.
 `src/mcp/script.py` writes it; `tests/unit/mcp/test_script.py` runs it
 against a stub API and checks that it writes the server's rows.
 
@@ -79,6 +92,10 @@ fills them in from the catalog palette: the series color, and a color for
 each category, matched by slug or by English label (the analytics API
 returns "Settlements and infrastructure" where the catalog says
 "Settlements & Infrastructure"). A color a generator sets itself stays.
+
+The generator's `code_url` points at the commit the server runs
+(`GIT_SHA`), so the link shows the code that drew the chart, and at `main`
+when the commit is not known.
 
 `get_chart_code` returns the generator's source, so a model can explain a
 curated chart or follow the same choices (which rows to keep, how to sort and
@@ -153,9 +170,10 @@ tool's text, as before.
   `search_aois(include_custom=False)` leaves them out, and a `custom:` id is
   refused before any query.
 - **Nothing is saved.** The server writes no statistics, insights or threads.
-  The analytics API keeps each result, under an id that is the same for the
-  same request. The `result_id` is therefore a stable handle, and anyone can
-  fetch it from `source_url` without a token.
+  The analytics API keeps each result, under an id it makes from the
+  request. The `result_id` is therefore a stable handle, and anyone can
+  fetch it from `source_url` without a token. It names the request, not the
+  data: `rows_sha256` names the data.
 - **The analytics token is optional.** When `WRI_BEARER_TOKEN` is set, the
   server sends it, as the agent does. When it is not set, the requests go
   without an `Authorization` header. The client never sends a token.

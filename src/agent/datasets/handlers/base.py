@@ -23,6 +23,9 @@ class DataPullResult(BaseModel):
     # The request sent to the analytics API ({method, url, headers, body},
     # without the token), so a caller can replay it.
     analytics_api_request: Optional[dict] = None
+    # The metadata the analytics API answered with: the request as it read
+    # it, with the area provider and version (GADM 4.1).
+    analytics_api_metadata: Optional[dict] = None
 
 
 class DataSourceHandler(ABC):

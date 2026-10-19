@@ -34,7 +34,8 @@ from src.agent.i18n import t
 from src.api.services.charts.base import column_to_rows
 from src.mcp.areas import MAX_AREAS, format_aoi_id, lookup_areas
 from src.mcp.datasets import MCP_EXCLUDED_DATASETS, get_catalog_dataset
-from src.mcp.script import pull_script
+from src.mcp.script import pull_script, rows_digest
+from src.shared.version import get_commit, get_version
 
 # Rows in the structured result.
 MAX_ROWS = 1000
@@ -213,9 +214,12 @@ class Pull:
     canopy_cover: Optional[int]
     rows: list[dict]
     source_url: Optional[str]
-    # The request sent to the analytics API, as AnalyticsHandler recorded it.
+    # The request sent to the analytics API, as AnalyticsHandler recorded it,
+    # and the metadata the API answered with.
     request: Optional[dict]
+    metadata: Optional[dict]
     retrieved_at: str
+    rows_sha256: str
 
     def heading(self) -> str:
         options = []
@@ -247,7 +251,10 @@ class Pull:
             "context_layer": self.context_layer,
             "canopy_cover": self.canopy_cover,
             "request": self.request,
+            "analytics_metadata": self.metadata,
             "retrieved_at": self.retrieved_at,
+            "rows_sha256": self.rows_sha256,
+            "server": {"version": get_version(), "commit": get_commit()},
         }
 
 
@@ -349,7 +356,9 @@ async def run_pull(
         rows=rows,
         source_url=result.analytics_api_url,
         request=result.analytics_api_request,
+        metadata=result.analytics_api_metadata,
         retrieved_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        rows_sha256=rows_digest(rows),
     )
 
 

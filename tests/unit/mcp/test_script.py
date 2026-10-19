@@ -17,7 +17,11 @@ import src.mcp.data as data
 from src.agent.datasets.handlers import analytics_handler
 from src.agent.datasets.handlers.analytics_handler import AnalyticsHandler
 from src.agent.datasets.handlers.base import DataPullResult
+from src.api.services.charts.base import column_to_rows
+from src.mcp.charts import find_generator, generator_info
+from src.mcp.script import rows_digest
 from src.mcp.server import mcp_server
+from src.shared.version import get_version
 
 PARA = {
     "source": "gadm",
@@ -33,6 +37,17 @@ RESULT = {
     "tree_cover_loss_year": [2021, 2020],
     "area_ha": [693512.76, 805620.12],
 }
+METADATA = {
+    "aoi": {
+        "type": "admin",
+        "ids": ["BRA.14"],
+        "provider": "gadm",
+        "version": "4.1",
+    },
+    "start_year": "2020",
+    "end_year": "2021",
+    "canopy_cover": 30,
+}
 BODY = {
     "aoi": {"type": "admin", "ids": ["BRA.14"]},
     "start_year": "2020",
@@ -47,6 +62,7 @@ class StubApi:
 
     def __init__(self, result_id: str = "df747c81"):
         self.result_id = result_id
+        self.result = RESULT
         self.requests: list[dict] = []
         stub = self
 
@@ -86,7 +102,11 @@ class StubApi:
                 self._answer(
                     {
                         "status": "success",
-                        "data": {"status": "saved", "result": RESULT},
+                        "data": {
+                            "status": "saved",
+                            "result": stub.result,
+                            "metadata": METADATA,
+                        },
                     }
                 )
 
@@ -130,6 +150,7 @@ def pulled(monkeypatch, api):
                 "headers": {"X-environment": "production"},
                 "body": BODY,
             },
+            analytics_api_metadata=METADATA,
         )
 
     monkeypatch.setattr(data, "lookup_areas", fake_lookup)
@@ -168,6 +189,17 @@ async def test_a_pull_returns_its_request_and_a_script(pulled, tool):
     assert structured["request"]["body"] == BODY
     assert structured["request"]["headers"] == {"X-environment": "production"}
     assert structured["retrieved_at"].endswith("+00:00")
+    assert structured["analytics_metadata"]["aoi"]["version"] == "4.1"
+    assert structured["rows_sha256"] == rows_digest(
+        [
+            {**row, "name": "Pará"}
+            for row in column_to_rows(RESULT)[::-1]  # sorted by year
+        ]
+    )
+    assert structured["server"] == {
+        "version": get_version(),
+        "commit": None,
+    }
     assert structured["script"].startswith('"""Tree cover loss for Pará')
     assert "standalone pull.py" in result.content[0].text
     # The script is in the structured result only, not in the model's text.
@@ -211,7 +243,27 @@ async def test_the_script_writes_the_rows_the_server_returned(
     assert (folder / "pull.py").read_text() == structured["script"]
 
 
-async def test_the_script_warns_when_the_result_changed(pulled, api, tmp_path):
+async def test_the_script_warns_when_the_rows_changed(pulled, api, tmp_path):
+    result = await _pull()
+    # A data release: the same request, under the same id, new numbers.
+    api.result = {**RESULT, "area_ha": [693512.76, 805620.13]}
+
+    run = _run(
+        result.structured_content["script"], tmp_path, str(tmp_path / "out")
+    )
+
+    assert run.returncode == 0, run.stderr
+    assert (
+        "the rows differ from the ones the MCP server returned" in run.stderr
+    )
+    assert "filed the request" not in run.stderr
+    provenance = json.loads((tmp_path / "out" / "provenance.json").read_text())
+    assert provenance["replayed_rows_sha256"] != provenance["rows_sha256"]
+
+
+async def test_the_script_warns_when_the_result_id_changed(
+    pulled, api, tmp_path
+):
     result = await _pull()
     api.result_id = "0a1b2c3d"
 
@@ -220,7 +272,20 @@ async def test_the_script_warns_when_the_result_changed(pulled, api, tmp_path):
     )
 
     assert run.returncode == 0, run.stderr
-    assert "answered with result 0a1b2c3d, not df747c81" in run.stderr
+    assert "filed the request as 0a1b2c3d, not df747c81" in run.stderr
+    assert "rows differ" not in run.stderr
+
+
+def test_a_generator_links_to_the_commit_the_server_runs(monkeypatch):
+    generator = find_generator(4)
+    monkeypatch.setenv("GIT_SHA", "5EB91F59")
+    assert generator_info(generator)["code_url"] == (
+        "https://github.com/wri/project-zeno/blob/5eb91f59/"
+        "src/api/services/charts/tcl.py"
+    )
+    # Not a commit: the link falls back to main.
+    monkeypatch.setenv("GIT_SHA", "main; rm -rf")
+    assert "/blob/main/" in generator_info(generator)["code_url"]
 
 
 async def test_no_script_without_a_recorded_request(monkeypatch, pulled):
@@ -263,3 +328,4 @@ async def test_the_handler_records_the_request_without_the_token(
         },
         "body": sent["body"],
     }
+    assert result.analytics_api_metadata == METADATA

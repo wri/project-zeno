@@ -639,8 +639,10 @@ class AnalyticsHandler(DataSourceHandler):
         result: Dict,
         aois: list[dict],
         dataset: dict,
-    ) -> tuple[Any, int, str, str]:
-        """Process the response data based on dataset type."""
+    ) -> tuple[Any, int, str, str, dict | None]:
+        """Process the response data based on dataset type; also the
+        metadata the API answers with (the request as it read it, with the
+        GADM version)."""
 
         if "data" not in result:
             raise ValueError(f"Response missing 'data' key: {result}")
@@ -678,7 +680,14 @@ class AnalyticsHandler(DataSourceHandler):
         message_detail = f"Found {data_points_count} data points"
         analytics_url = result["data"]["link"]
 
-        return raw_data, data_points_count, message_detail, analytics_url
+        metadata = data["data"].get("metadata")
+        return (
+            raw_data,
+            data_points_count,
+            message_detail,
+            analytics_url,
+            metadata,
+        )
 
     async def pull_data(
         self,
@@ -872,6 +881,7 @@ class AnalyticsHandler(DataSourceHandler):
                         data_points_count,
                         message_detail,
                         analytics_url,
+                        metadata,
                     ) = await self._process_response_data(
                         result, aois, dataset
                     )
@@ -882,6 +892,7 @@ class AnalyticsHandler(DataSourceHandler):
                         data_points_count=data_points_count,
                         analytics_api_url=analytics_url,
                         analytics_api_request=request,
+                        analytics_api_metadata=metadata,
                     )
             elif result["status"] in ["success", "saved"]:
                 (
@@ -889,6 +900,7 @@ class AnalyticsHandler(DataSourceHandler):
                     data_points_count,
                     message_detail,
                     analytics_url,
+                    metadata,
                 ) = await self._process_response_data(result, aois, dataset)
                 return DataPullResult(
                     success=True,
@@ -897,6 +909,7 @@ class AnalyticsHandler(DataSourceHandler):
                     data_points_count=data_points_count,
                     analytics_api_url=analytics_url,
                     analytics_api_request=request,
+                    analytics_api_metadata=metadata,
                 )
             else:
                 error_msg = f"Failed to pull {dataset.get('dataset_name')} data from GFW Analytics for {aoi_names} - URL: {endpoint_url}, payload: {payload}, response: {response.text}"

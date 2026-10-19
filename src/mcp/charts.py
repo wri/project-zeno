@@ -47,8 +47,9 @@ from src.mcp.data import (
 )
 from src.mcp.datasets import get_catalog_dataset
 from src.mcp.script import pull_script
+from src.shared.version import get_commit
 
-REPO_URL = "https://github.com/wri/project-zeno/blob/main"
+REPO_URL = "https://github.com/wri/project-zeno/blob"
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -74,7 +75,9 @@ def generator_info(generator: ChartGenerator) -> dict:
     return {
         "name": type(generator).__name__,
         "path": path,
-        "code_url": f"{REPO_URL}/{path}",
+        # At the commit the server runs, so the link shows the code that
+        # drew the chart; at main when the commit is not known.
+        "code_url": f"{REPO_URL}/{get_commit() or 'main'}/{path}",
         "description": inspect.getdoc(type(generator)) or "",
     }
 
