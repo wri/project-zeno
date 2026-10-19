@@ -29,9 +29,15 @@ One pull takes areas from one source, at most 1000 administrative areas or
 50 of any other kind: the limits `pick_aoi` applies to a selection, checked
 for every pull by `refuse_areas` in `pull_checks`.
 
-`pull_data` returns the rows in its text, as CSV up to 200 rows and as
-per-column stats beyond that. A model that gets a handle without the numbers
-invents them. The structured result adds the analytics `result_id` and
+`pull_data` returns the rows in its text: as CSV when there are at most 200
+rows and the CSV fits in 7,000 characters (`TEXT_CHAR_BUDGET`, about 2,000
+tokens), as per-column stats otherwise, with a line saying where all the rows
+are. The budget counts characters, not tokens, because the client's model,
+and so its tokenizer, is not known; `curated_charts` shares one budget
+across its charts. Numbers in the text are rounded to two decimals (four
+significant digits below 1); the structured rows, `pull.py` and
+`rows_sha256` keep full precision. A model that gets a handle without the
+numbers invents them, so a small result always comes with its numbers. The structured result adds the analytics `result_id` and
 `source_url`, the areas, the dates and options it ran with, up to 1000
 rows, and `script` (see below). Its provenance also holds:
 

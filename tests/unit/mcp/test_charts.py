@@ -3,12 +3,18 @@
 The pull is stubbed as in test_tools; the generators run for real.
 """
 
+import copy
+import json
+from pathlib import Path
+
 import pytest
 from fastmcp import Client
 
 import src.mcp.charts as charts
 import src.mcp.data as data
 from src.agent.datasets.handlers.base import DataPullResult
+from src.api.services.charts.curated import build_curated_charts
+from src.mcp.data import text_csv
 from src.mcp.server import mcp_server
 
 PARA = {
@@ -178,3 +184,25 @@ async def test_the_code_is_also_a_resource():
     async with Client(mcp_server) as client:
         contents = await client.read_resource("gnw://charts/8/code")
     assert "class TCLByDriverChartGenerator" in contents[0].text
+
+
+async def test_the_charts_share_one_text_budget(monkeypatch, pull_returns):
+    # SLUC draws two charts from different rows. The budget fits the first
+    # chart's rows exactly, so the second chart's rows are summarised.
+    rows = json.loads(
+        (Path(__file__).parent / "fixtures" / "sample_rows.json").read_text()
+    )["9"]
+    pull_returns["data"] = {key: [row[key] for row in rows] for key in rows[0]}
+    first, _ = await build_curated_charts(9, copy.deepcopy(rows), "en")
+    monkeypatch.setattr(
+        charts, "TEXT_CHAR_BUDGET", len(text_csv(first.chart_data))
+    )
+
+    result = await _call(
+        "curated_charts", {"aoi_ids": ["gadm:BRA.14_1"], "dataset_id": 9}
+    )
+    text = result.content[0].text
+    one, two = text.split("## 2.")
+    assert text_csv(first.chart_data) in one
+    assert "too large to show here" in two
+    assert "Values are rounded here" in text

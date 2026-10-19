@@ -39,8 +39,13 @@ from src.shared.version import get_commit, get_version
 
 # Rows in the structured result.
 MAX_ROWS = 1000
-# Rows the text renders as CSV; a larger result shows per-column stats.
+# The text shows the rows as CSV when there are at most MAX_TEXT_ROWS of them
+# and the CSV fits in TEXT_CHAR_BUDGET characters (about 2,000 tokens; one
+# budget for all the charts of curated_charts). Otherwise it shows
+# per-column stats. Characters, not tokens: the client's model, and so its
+# tokenizer, is not known. The structured rows and pull.py have every row.
 MAX_TEXT_ROWS = 200
+TEXT_CHAR_BUDGET = 7000
 
 # Tool messages are read by a model, so they are English.
 LANGUAGE = "en"
@@ -111,23 +116,56 @@ def _sorted_rows(rows: list[dict]) -> list[dict]:
         return rows
 
 
-async def _rows_text(rows: list[dict], dataset_id: int) -> str:
-    """The rows as CSV when there are few enough to read, else per-column
-    stats — the view the agent gets of a large series."""
+def text_number(value):
+    """A number as the text shows it: two decimals, or four significant
+    digits below 1. The rows the API returned carry up to 17 digits, which
+    cost tokens and say nothing more."""
+    if isinstance(value, float) and value == value:
+        return (
+            float(f"{value:.2f}") if abs(value) >= 1 else float(f"{value:.4g}")
+        )
+    return value
+
+
+def text_csv(rows: list[dict]) -> str:
+    """Rows as the text shows them: CSV without the id columns, rounded."""
     # Deferred: imported first, inspect_view_context closes an import cycle
     # through src.agent.subagents (the analyst imports it back).
-    from src.agent.tools.inspect_view_context import (
-        DATA_SKIP_COLUMNS,
-        format_chart_data,
+    from src.agent.tools.inspect_view_context import DATA_SKIP_COLUMNS
+
+    return rows_csv(
+        [
+            {key: text_number(value) for key, value in row.items()}
+            for row in rows
+        ],
+        skip=DATA_SKIP_COLUMNS,
     )
+
+
+async def rows_text(
+    rows: list[dict], dataset_id: int, budget: int = TEXT_CHAR_BUDGET
+) -> str:
+    """The rows as rounded CSV when there are at most MAX_TEXT_ROWS and the
+    CSV fits in `budget` characters; else per-column stats, the view the
+    agent gets of a large series, and where the rows are."""
+    from src.agent.tools.inspect_view_context import format_chart_data
 
     if is_curated_only(dataset_id):
         return CURATED_ONLY_DATA_WITHHELD
-    if len(rows) > MAX_TEXT_ROWS or not rows:
-        return await format_chart_data(
-            SimpleNamespace(chart_data=rows, dataset_id=dataset_id), LANGUAGE
-        )
-    return rows_csv(rows, skip=DATA_SKIP_COLUMNS)
+    if rows and len(rows) <= MAX_TEXT_ROWS:
+        text = text_csv(rows)
+        if len(text) <= budget:
+            return text
+    stats = await format_chart_data(
+        SimpleNamespace(chart_data=rows, dataset_id=dataset_id), LANGUAGE
+    )
+    if not rows:
+        return stats
+    return (
+        f"{stats}\nThese {len(rows)} rows are too large to show here: the "
+        "structured result and its script (pull.py) hold all of them. Do "
+        "not estimate a value this summary does not give."
+    )
 
 
 def rows_csv(rows: list[dict], skip=()) -> str:
@@ -262,6 +300,12 @@ def citation_line(ds: dict) -> str:
     return f"Citation: {' '.join(str(ds.get('citation', '')).split())}"
 
 
+ROUNDED_NOTE = (
+    "Values are rounded here; the structured rows and pull.py have full "
+    "precision."
+)
+
+
 def script_note(pull: Pull) -> list[str]:
     if not pull.request:
         return []
@@ -391,7 +435,8 @@ async def pull_data(
     lines = [
         f"{pull.heading()}: {len(rows)} rows.",
         *clamp_note(pull, start_date, end_date),
-        await _rows_text(rows, pull.ds["dataset_id"]),
+        await rows_text(rows, pull.ds["dataset_id"]),
+        ROUNDED_NOTE,
         citation_line(pull.ds),
         *script_note(pull),
         "Quote only numbers shown here. Read the cautions with get_dataset "

@@ -31,7 +31,8 @@ from src.api.services.charts.curated import build_curated_charts
 from src.api.services.charts.registry import DETERMINISTIC_GENERATORS
 from src.mcp.data import (
     LANGUAGE,
-    MAX_TEXT_ROWS,
+    ROUNDED_NOTE,
+    TEXT_CHAR_BUDGET,
     AoiIds,
     CanopyCover,
     ChangeOverTime,
@@ -41,7 +42,7 @@ from src.mcp.data import (
     StartDate,
     citation_line,
     clamp_note,
-    rows_csv,
+    rows_text,
     run_pull,
     script_note,
 )
@@ -129,9 +130,14 @@ def _chart_spec(chart: InsightChart) -> dict:
     return chart.model_dump(exclude={"insight"})
 
 
-def _chart_text(
-    chart: InsightChart, withheld: bool, previous: list[InsightChart]
-) -> str:
+async def _chart_text(
+    chart: InsightChart,
+    withheld: bool,
+    previous: list[InsightChart],
+    budget: int,
+) -> tuple[str, int]:
+    """The chart's spec and rows as text, and the characters of rows used
+    from `budget`, which all the charts of a result share."""
     fields = [
         f"type {chart.chart_type}",
         *(
@@ -148,9 +154,7 @@ def _chart_text(
         ),
     ]
     lines = [f"## {chart.position + 1}. {chart.title} ({'; '.join(fields)})"]
-    # Deferred: see _rows_text in src.mcp.data.
-    from src.agent.tools.inspect_view_context import DATA_SKIP_COLUMNS
-
+    used = 0
     same = next(
         (other for other in previous if other.chart_data == chart.chart_data),
         None,
@@ -160,13 +164,11 @@ def _chart_text(
     elif same is not None:
         lines.append(f"The rows of chart {same.position + 1}.")
     else:
-        rows = chart.chart_data[:MAX_TEXT_ROWS]
-        if len(chart.chart_data) > MAX_TEXT_ROWS:
-            lines.append(
-                f"{len(chart.chart_data)} rows, all in the structured "
-                f"result; the first {MAX_TEXT_ROWS}:"
-            )
-        lines.append(rows_csv(rows, skip=DATA_SKIP_COLUMNS))
+        text = await rows_text(
+            chart.chart_data, chart.dataset_id or 0, budget=budget
+        )
+        lines.append(text)
+        used = len(text)
     if chart.color_map:
         lines.append(
             "Colors: "
@@ -176,7 +178,7 @@ def _chart_text(
         )
     elif chart.series_color:
         lines.append(f"Color: {chart.series_color}")
-    return "\n".join(lines)
+    return "\n".join(lines), used
 
 
 async def curated_charts(
@@ -223,10 +225,15 @@ async def curated_charts(
         *clamp_note(pull, start_date, end_date),
     ]
     if charts:
-        lines.extend(
-            _chart_text(chart, withheld, charts[:i])
-            for i, chart in enumerate(charts)
-        )
+        budget = TEXT_CHAR_BUDGET
+        for i, chart in enumerate(charts):
+            text, used = await _chart_text(
+                chart, withheld, charts[:i], max(budget, 0)
+            )
+            lines.append(text)
+            budget -= used
+        if not withheld:
+            lines.append(ROUNDED_NOTE)
     else:
         lines.append("The pull returned no data to chart.")
     lines.extend(
