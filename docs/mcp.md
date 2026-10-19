@@ -219,6 +219,31 @@ cloudflared tunnel --url http://localhost:8000
 The tunnel makes the full API public while it runs, not only `/mcp`. Stop
 it when you finish.
 
+## The gnw CLI, for coding agents
+
+Chat clients use the server and its views. Coding agents (Claude Code,
+Codex, Gemini CLI) can use `gnw` instead, a command line client in `cli/`:
+
+```sh
+uv tool install "git+https://github.com/wri/project-zeno#subdirectory=cli"
+gnw skill install
+gnw pull --aoi gadm:BRA.14_1 --dataset 4 --start 2015-01-01
+```
+
+Every command calls one of the server's tools, so the CLI holds no GNW
+logic. What it adds is files: `gnw pull` and `gnw charts` write the pull to
+`gnw/pulls/<result_id>/` by running the pull's `pull.py`, print a summary
+(heading, row count, columns, how to repeat it) instead of the rows, and
+record the command in `gnw/manifest.json`. `gnw replay` runs every
+`pull.py` again and fails when a pull's rows changed. `gnw skill install`
+writes the server's `gnw-charting` skill and the CLI's own `gnw-cli` skill
+(`cli/src/gnw_cli/skill/SKILL.md`: the workflow, analysis in code, and what
+every answer ends with) into `.claude/skills`.
+
+The CLI talks to `$GNW_MCP_URL`, then `https://api.globalnaturewatch.org/mcp`;
+`--server` overrides both. `tests/unit/mcp/test_cli.py` runs it against the
+in-process server.
+
 ## Code
 
 | File | Holds |
@@ -228,6 +253,7 @@ it when you finish.
 | `src/mcp/datasets.py` | `list_datasets`, `get_dataset` and the hidden datasets |
 | `src/mcp/data.py` | `pull_data`, and `run_pull`, the checked pull both data tools run |
 | `src/mcp/script.py` | `pull_script`, the standalone `pull.py` that replays a pull |
+| `cli/` | The `gnw` CLI and its `gnw-cli` skill |
 | `src/mcp/charts.py` | `curated_charts`, `get_chart_code` and the chart code resource |
 | `src/mcp/skill.py`, `src/mcp/skills/gnw-charting/` | The charting skill and its builder |
 | `src/mcp/views/` | The MCP Apps views: the shared CSS and scripts (`bridge.js` for the host protocol, `components.js`, `charts.js`, `reproduce.js` for the Reproduce panel), one script per view, and `__init__.py`, which builds and registers the pages |

@@ -7,8 +7,6 @@ import csv
 import json
 import subprocess
 import sys
-import threading
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 from fastmcp import Client
@@ -22,139 +20,7 @@ from src.mcp.charts import find_generator, generator_info
 from src.mcp.script import rows_digest
 from src.mcp.server import mcp_server
 from src.shared.version import get_version
-
-PARA = {
-    "source": "gadm",
-    "src_id": "BRA.14_1",
-    "name": "Pará, Brazil",
-    "subtype": "state-province",
-    "bbox": [-58.9, -9.8, -46.0, 2.6],
-}
-# Column-oriented, in no particular order, as the analytics API returns it.
-RESULT = {
-    "aoi_id": ["BRA.14", "BRA.14"],
-    "aoi_type": ["admin", "admin"],
-    "tree_cover_loss_year": [2021, 2020],
-    "area_ha": [693512.76, 805620.12],
-}
-METADATA = {
-    "aoi": {
-        "type": "admin",
-        "ids": ["BRA.14"],
-        "provider": "gadm",
-        "version": "4.1",
-    },
-    "start_year": "2020",
-    "end_year": "2021",
-    "canopy_cover": 30,
-}
-BODY = {
-    "aoi": {"type": "admin", "ids": ["BRA.14"]},
-    "start_year": "2020",
-    "end_year": "2021",
-    "canopy_cover": 30,
-}
-
-
-class StubApi:
-    """The analytics API: a POST answers pending with a link, a GET of the
-    link answers the result. Records each request."""
-
-    def __init__(self, result_id: str = "df747c81"):
-        self.result_id = result_id
-        self.result = RESULT
-        self.requests: list[dict] = []
-        stub = self
-
-        class Handler(BaseHTTPRequestHandler):
-            def _answer(self, payload):
-                body = json.dumps(payload).encode()
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Retry-After", "0")
-                self.end_headers()
-                self.wfile.write(body)
-
-            def do_POST(self):
-                length = int(self.headers["Content-Length"])
-                stub.requests.append(
-                    {
-                        "method": "POST",
-                        "path": self.path,
-                        "headers": {
-                            key.lower(): value
-                            for key, value in self.headers.items()
-                        },
-                        "body": json.loads(self.rfile.read(length)),
-                    }
-                )
-                self._answer(
-                    {
-                        "status": "pending",
-                        "data": {
-                            "link": f"{stub.url}/result/{stub.result_id}"
-                        },
-                    }
-                )
-
-            def do_GET(self):
-                stub.requests.append({"method": "GET", "path": self.path})
-                self._answer(
-                    {
-                        "status": "success",
-                        "data": {
-                            "status": "saved",
-                            "result": stub.result,
-                            "metadata": METADATA,
-                        },
-                    }
-                )
-
-            def log_message(self, *args):
-                pass
-
-        self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-        self.url = f"http://127.0.0.1:{self.server.server_port}"
-        threading.Thread(target=self.server.serve_forever, daemon=True).start()
-
-    def close(self):
-        self.server.shutdown()
-
-
-@pytest.fixture
-def api():
-    stub = StubApi()
-    yield stub
-    stub.close()
-
-
-@pytest.fixture
-def pulled(monkeypatch, api):
-    """pull_data's area lookup and analytics handler, stubbed: the handler
-    answers as the real one does, with the request it sent."""
-
-    async def fake_lookup(aoi_ids):
-        return [dict(PARA)]
-
-    async def fake_pull(self, **kwargs):
-        rows = {**RESULT, "name": ["Pará", "Pará"]}
-        return DataPullResult(
-            success=True,
-            data=rows,
-            message="ok",
-            data_points_count=2,
-            analytics_api_url=f"{api.url}/result/df747c81",
-            analytics_api_request={
-                "method": "POST",
-                "url": f"{api.url}/v0/land_change/tree_cover_loss/analytics",
-                "headers": {"X-environment": "production"},
-                "body": BODY,
-            },
-            analytics_api_metadata=METADATA,
-        )
-
-    monkeypatch.setattr(data, "lookup_areas", fake_lookup)
-    monkeypatch.setattr(data.AnalyticsHandler, "pull_data", fake_pull)
+from tests.unit.mcp.analytics_stub import BODY, METADATA, PARA, RESULT
 
 
 async def _pull(tool: str = "pull_data"):
@@ -183,7 +49,7 @@ def _run(script: str, tmp_path, *args):
 
 
 @pytest.mark.parametrize("tool", ["pull_data", "curated_charts"])
-async def test_a_pull_returns_its_request_and_a_script(pulled, tool):
+async def test_a_pull_returns_its_request_and_a_script(replayable_pull, tool):
     result = await _pull(tool)
     structured = result.structured_content
     assert structured["request"]["body"] == BODY
@@ -207,7 +73,7 @@ async def test_a_pull_returns_its_request_and_a_script(pulled, tool):
 
 
 async def test_the_script_writes_the_rows_the_server_returned(
-    pulled, api, tmp_path
+    replayable_pull, api, tmp_path
 ):
     result = await _pull()
     structured = result.structured_content
@@ -243,7 +109,9 @@ async def test_the_script_writes_the_rows_the_server_returned(
     assert (folder / "pull.py").read_text() == structured["script"]
 
 
-async def test_the_script_warns_when_the_rows_changed(pulled, api, tmp_path):
+async def test_the_script_warns_when_the_rows_changed(
+    replayable_pull, api, tmp_path
+):
     result = await _pull()
     # A data release: the same request, under the same id, new numbers.
     api.result = {**RESULT, "area_ha": [693512.76, 805620.13]}
@@ -262,7 +130,7 @@ async def test_the_script_warns_when_the_rows_changed(pulled, api, tmp_path):
 
 
 async def test_the_script_warns_when_the_result_id_changed(
-    pulled, api, tmp_path
+    replayable_pull, api, tmp_path
 ):
     result = await _pull()
     api.result_id = "0a1b2c3d"
@@ -288,7 +156,9 @@ def test_a_generator_links_to_the_commit_the_server_runs(monkeypatch):
     assert "/blob/main/" in generator_info(generator)["code_url"]
 
 
-async def test_no_script_without_a_recorded_request(monkeypatch, pulled):
+async def test_no_script_without_a_recorded_request(
+    monkeypatch, replayable_pull
+):
     async def fake_pull(self, **kwargs):
         return DataPullResult(
             success=True, data=dict(RESULT), message="ok", data_points_count=2
