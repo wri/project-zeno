@@ -32,8 +32,36 @@ for every pull by `refuse_areas` in `pull_checks`.
 `pull_data` returns the rows in its text, as CSV up to 200 rows and as
 per-column stats beyond that. A model that gets a handle without the numbers
 invents them. The structured result adds the analytics `result_id` and
-`source_url`, the areas, the dates and options it ran with, and up to 1000
-rows.
+`source_url`, the areas, the dates and options it ran with, the `request`
+sent to the analytics API, `retrieved_at`, up to 1000 rows, and `script`
+(see below).
+
+### Replaying a pull
+
+`pull_data` and `curated_charts` return `script`: the source of a
+standalone `pull.py` that replays the pull. It holds the request
+`AnalyticsHandler` sent (method, URL, the `X-environment` header and the
+JSON body, never the token), so it does not rebuild the request and cannot
+drift from the server. It shapes the rows as `run_pull` does (area names,
+the same sort order) and writes a folder:
+
+```
+gnw/pulls/<result_id>/
+  rows.csv          the rows the server returned
+  request.json      the request it sent
+  provenance.json   the pull's provenance, with replayed_at and the
+                    result id the API answered with
+  pull.py           a copy of the script
+```
+
+It needs Python 3.9 or later and nothing else (`python pull.py [folder]`).
+It warns when the analytics API answers with a result id other than the
+one it was made from, which means the data may have changed.
+`src/mcp/script.py` writes it; `tests/unit/mcp/test_script.py` runs it
+against a stub API and checks that it writes the server's rows.
+
+The script is in the structured result only. The tool's text says it is
+there and does not repeat it.
 
 ### Curated charts
 
@@ -174,6 +202,7 @@ it when you finish.
 | `src/mcp/areas.py` | `resolve_areas`, `search_areas`, the `aoi_id` format and `lookup_areas` |
 | `src/mcp/datasets.py` | `list_datasets`, `get_dataset` and the hidden datasets |
 | `src/mcp/data.py` | `pull_data`, and `run_pull`, the checked pull both data tools run |
+| `src/mcp/script.py` | `pull_script`, the standalone `pull.py` that replays a pull |
 | `src/mcp/charts.py` | `curated_charts`, `get_chart_code` and the chart code resource |
 | `src/mcp/skill.py`, `src/mcp/skills/gnw-charting/` | The charting skill and its builder |
 | `src/mcp/views/` | The MCP Apps views: the shared CSS and scripts (`bridge.js` for the host protocol, `components.js`, `charts.js`), one script per view, and `__init__.py`, which builds and registers the pages |
@@ -197,8 +226,8 @@ insight can be saved, shared and shown in GNW like the agent's insights. The des
 
 - **A pull is its own provenance.** The structured result of `pull_data`
   holds everything a saved insight needs to name its source: `result_id`,
-  `source_url`, `dataset_id`, the `aoi_ids`, the dates, `context_layer` and
-  `canopy_cover`. These keys are a public contract. Do not rename them.
+  `source_url`, `dataset_id`, the `aoi_ids`, the dates, `context_layer`,
+  `canopy_cover`, the `request` and `retrieved_at`. These keys are a public contract. Do not rename them.
 - **Charts in the shape GNW renders.** A posted insight should carry its
   charts in the `InsightChart` shape (`chart_type`, `x_axis`, `y_axis`,
   `series_fields`, `chart_data`, …) that `InsightOrm` stores and the

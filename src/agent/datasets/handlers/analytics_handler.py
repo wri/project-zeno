@@ -288,6 +288,17 @@ def analytics_api_headers() -> dict[str, str]:
     return headers
 
 
+def analytics_request(url: str, headers: dict, payload: dict) -> dict:
+    """The request as a caller can replay it: the token is left out, and
+    only the environment selector is kept of the headers."""
+    return {
+        "method": "POST",
+        "url": url,
+        "headers": {"X-environment": headers["X-environment"]},
+        "body": payload,
+    }
+
+
 class AnalyticsHandler(DataSourceHandler):
     """Generalized handler for GFW Analytics API endpoints"""
 
@@ -779,6 +790,7 @@ class AnalyticsHandler(DataSourceHandler):
             )
 
             headers = analytics_api_headers()
+            request = analytics_request(endpoint_url, headers, payload)
             redacted_headers = {
                 **headers,
                 **(
@@ -869,6 +881,7 @@ class AnalyticsHandler(DataSourceHandler):
                         message=f"Successfully pulled {dataset.get('dataset_name')} data from GFW Analytics for {aoi_names}. {message_detail}.",
                         data_points_count=data_points_count,
                         analytics_api_url=analytics_url,
+                        analytics_api_request=request,
                     )
             elif result["status"] in ["success", "saved"]:
                 (
@@ -883,6 +896,7 @@ class AnalyticsHandler(DataSourceHandler):
                     message=f"Successfully pulled {dataset.get('dataset_name')} data from GFW Analytics for {aoi_names}. {message_detail}.",
                     data_points_count=data_points_count,
                     analytics_api_url=analytics_url,
+                    analytics_api_request=request,
                 )
             else:
                 error_msg = f"Failed to pull {dataset.get('dataset_name')} data from GFW Analytics for {aoi_names} - URL: {endpoint_url}, payload: {payload}, response: {response.text}"

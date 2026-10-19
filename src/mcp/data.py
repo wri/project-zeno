@@ -9,7 +9,7 @@ because a model given a handle and no numbers invents them.
 import csv
 import io
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, timezone
 from types import SimpleNamespace
 from typing import Annotated, Optional
 
@@ -34,6 +34,7 @@ from src.agent.i18n import t
 from src.api.services.charts.base import column_to_rows
 from src.mcp.areas import MAX_AREAS, format_aoi_id, lookup_areas
 from src.mcp.datasets import MCP_EXCLUDED_DATASETS, get_catalog_dataset
+from src.mcp.script import pull_script
 
 # Rows in the structured result.
 MAX_ROWS = 1000
@@ -212,6 +213,9 @@ class Pull:
     canopy_cover: Optional[int]
     rows: list[dict]
     source_url: Optional[str]
+    # The request sent to the analytics API, as AnalyticsHandler recorded it.
+    request: Optional[dict]
+    retrieved_at: str
 
     def heading(self) -> str:
         options = []
@@ -242,11 +246,23 @@ class Pull:
             "date_range_clamped": self.clamped,
             "context_layer": self.context_layer,
             "canopy_cover": self.canopy_cover,
+            "request": self.request,
+            "retrieved_at": self.retrieved_at,
         }
 
 
 def citation_line(ds: dict) -> str:
     return f"Citation: {' '.join(str(ds.get('citation', '')).split())}"
+
+
+def script_note(pull: Pull) -> list[str]:
+    if not pull.request:
+        return []
+    return [
+        "The structured result holds the request sent to the analytics API "
+        "and `script`, a standalone pull.py that replays it and writes the "
+        "rows to a CSV file."
+    ]
 
 
 def clamp_note(pull: Pull, start_date, end_date) -> list[str]:
@@ -332,6 +348,8 @@ async def run_pull(
         canopy_cover=canopy_cover,
         rows=rows,
         source_url=result.analytics_api_url,
+        request=result.analytics_api_request,
+        retrieved_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
     )
 
 
@@ -366,6 +384,7 @@ async def pull_data(
         *clamp_note(pull, start_date, end_date),
         await _rows_text(rows, pull.ds["dataset_id"]),
         citation_line(pull.ds),
+        *script_note(pull),
         "Quote only numbers shown here. Read the cautions with get_dataset "
         "before interpreting them.",
     ]
@@ -381,5 +400,6 @@ async def pull_data(
                 else rows[:MAX_ROWS]
             ),
             "rows_truncated": len(rows) > MAX_ROWS,
+            "script": pull_script(pull),
         },
     )

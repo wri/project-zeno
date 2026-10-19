@@ -20,6 +20,9 @@ class DataPullResult(BaseModel):
     message: str
     data_points_count: int = 0
     analytics_api_url: Optional[str] = None
+    # The request sent to the analytics API ({method, url, headers, body},
+    # without the token), so a caller can replay it.
+    analytics_api_request: Optional[dict] = None
 
 
 class DataSourceHandler(ABC):

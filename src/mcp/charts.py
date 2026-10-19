@@ -43,8 +43,10 @@ from src.mcp.data import (
     clamp_note,
     rows_csv,
     run_pull,
+    script_note,
 )
 from src.mcp.datasets import get_catalog_dataset
+from src.mcp.script import pull_script
 
 REPO_URL = "https://github.com/wri/project-zeno/blob/main"
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -229,6 +231,7 @@ async def curated_charts(
             f"Drawn by {info['name']} ({info['code_url']}); get_chart_code "
             "shows its source.",
             citation_line(pull.ds),
+            *script_note(pull),
         ]
     )
     return ToolResult(
@@ -238,6 +241,7 @@ async def curated_charts(
             "curated": True,
             "generator": info,
             "charts": [_chart_spec(chart) for chart in charts],
+            "script": pull_script(pull),
         },
     )
 
