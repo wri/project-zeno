@@ -5,7 +5,8 @@ import pytest
 
 from src.agent.datasets.handlers.analytics_handler import LAND_COVER_CHANGE_ID
 from src.mcp.columns import COLUMN_NOTES, load, unit_of
-from src.mcp.datasets import available_datasets
+from src.mcp.datasets import available_datasets, get_catalog_dataset
+from src.mcp.skill import _chart_rules, _misnamed_columns
 
 COLUMNS = load()
 
@@ -52,3 +53,22 @@ def test_every_column_is_described():
 )
 def test_a_columns_unit_comes_from_its_name(column, unit):
     assert unit_of(column) == unit
+
+
+def test_the_skill_names_the_columns_the_rules_misspell():
+    # The catalog's SLUC rules say emissions_tco2e; the rows have
+    # emissions_tCO2e.
+    ds = get_catalog_dataset(9)
+    assert ("emissions_tco2e", "emissions_tCO2e") in _misnamed_columns(
+        ds, str(ds["code_instructions"])
+    )
+    rules = _chart_rules(ds)
+    assert "`emissions_tco2e` is `emissions_tCO2e`" in rules
+    assert "where they say REFUSE, decline that request" in rules
+
+
+def test_options_and_words_are_not_taken_for_columns():
+    ds = get_catalog_dataset(4)
+    assert (
+        _misnamed_columns(ds, "primary_forest canopy_cover is_natural") == []
+    )

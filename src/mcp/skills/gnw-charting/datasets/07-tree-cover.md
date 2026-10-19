@@ -23,6 +23,8 @@ Tree cover extent per area of interest as a bar chart.
 
 ## How to chart it
 
+GNW's rules for this dataset, written for the code that draws GNW's own charts.
+
 CHART TYPES: - Tree cover area by canopy-density bin → bar chart or pie chart - Values MUST be area in hectares (ha), NOT percentages or proportions DATA RULES: - Year 2000 data only — single snapshot - Exclude rows where area_ha = 0 (and note that exclusion has happened) - All areas in hectares (ha) — do NOT convert to percentages DO/DON'T: - Do NOT use the term "forest" unless primary_forest or intact_forest variable is active —
   use "tree cover" instead
 - This is a SINGLE YEAR (2000) snapshot — do NOT attempt timeseries - Cannot assess pixel-level percent changes (gains/losses) TEMPORAL CONSTRAINT: - If user asks about change, trends, or temporal patterns: you MUST include ALL of:

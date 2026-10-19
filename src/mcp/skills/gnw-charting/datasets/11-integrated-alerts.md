@@ -40,6 +40,8 @@ day nobody looked at that way.
 
 ## How to chart it
 
+GNW's rules for this dataset, written for the code that draws GNW's own charts.
+
 CHART TYPES — generate EXACTLY ONE chart for Integrated alerts, chosen by the query; never emit both a pie and a line:
 - Totals / breakdown by confidence → PIE chart, one slice per confidence tier (low, high, highest), value = total area_ha summed over the period
 - Alerts over time / recent trends → LINE chart ONLY (x=alert month from alert_date, y=area_ha, one line per confidence tier); the x-axis may be aggregated to month, but render it as a line, NOT as bars

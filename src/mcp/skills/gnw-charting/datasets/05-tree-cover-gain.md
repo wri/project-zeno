@@ -24,6 +24,8 @@ Tree cover gain per reporting period as a bar chart.
 
 ## How to chart it
 
+GNW's rules for this dataset, written for the code that draws GNW's own charts: where they say REFUSE, decline that request and say why; "the insight" is your answer.
+
 CHART TYPES: - Default: bar chart with one bar per CUMULATIVE period (2000-2020, 2005-2020, 2010-2020, 2015-2020) - X-axis labels MUST use the raw cumulative period labels, NOT decomposed intervals - Do NOT split cumulative periods into 5-year buckets unless the user explicitly asks DATA RULES: - Cumulative gain over 4 periods: 2000-2020, 2005-2020, 2010-2020, 2015-2020 - ONLY if user explicitly asks for a specific sub-period (e.g., "gain between 2005 and 2010"):
   calculate Area[Y1 to Y2] = Area[Y1 to 2020] - Area[Y2 to 2020]
 - All areas in hectares (ha) DO/DON'T: - Do NOT use the term "restoration" — use "tree cover gain" - If user asks for net gain/loss or net change: EITHER refuse entirely OR show gain

@@ -26,6 +26,8 @@ chart, with removals drawn below the axis.
 
 ## How to chart it
 
+GNW's rules for this dataset, written for the code that draws GNW's own charts.
+
 CHART TYPES: - Net flux → split/diverging bar chart (emissions positive y-axis, removals negative) DATA RULES: - Values are TOTALS over model period 2001-2025 — present them as totals, NOT annual values - Do NOT divide by 25 in code — keep the raw period totals - Do NOT pre-calculate or present annual averages - 30% canopy density threshold (fixed, cannot be changed) - Units: MgCO2e (tonnes of CO2 equivalent) DO/DON'T: - DO NOT show trends over time or annual values — this is a single-period aggregate - DO NOT attempt timeseries charts - Use "net sink" for net-negative flux (removals > emissions) - Use "net source" for net-positive flux (emissions > removals)
 
 ## How to present it

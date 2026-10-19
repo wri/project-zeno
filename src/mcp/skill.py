@@ -10,6 +10,7 @@ fails when the checked-in files no longer match the sources; rebuild with
     uv run python -m src.mcp.skill
 """
 
+import difflib
 import inspect
 import re
 import shutil
@@ -208,6 +209,69 @@ def _columns_section(ds: dict) -> str:
     return _section("Columns", "\n".join(lines))
 
 
+def _column_names(ds: dict) -> set[str]:
+    variants = load_columns().get(str(ds["dataset_id"])) or {}
+    return {
+        column
+        for variant in variants.values()
+        for column in variant.get("columns") or {}
+    }
+
+
+def _misnamed_columns(ds: dict, text: str) -> list[tuple[str, str]]:
+    """(name in the rules, name in the rows) for each snake_case name the
+    rules use that the rows spell differently, e.g. emissions_tco2e for
+    emissions_tCO2e. Names with no close column are left alone: they are
+    options or words, not columns."""
+    columns = _column_names(ds)
+    by_lower = {column.lower(): column for column in columns}
+    options = {layer["value"] for layer in _context_layers(ds)} | {
+        param["name"] for param in _parameters(ds)
+    }
+    found = []
+    for name in sorted(set(_SNAKE.findall(text)) - columns - options):
+        match = difflib.get_close_matches(
+            name.lower(), by_lower, n=1, cutoff=0.8
+        )
+        if match:
+            found.append((name, by_lower[match[0]]))
+    return found
+
+
+_SNAKE = re.compile(r"\b[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+\b")
+
+
+def _chart_rules(ds: dict) -> str:
+    """The catalog's charting rules, with a word on the terms of GNW's own
+    chart code they use and on column names the rows spell differently."""
+    rules = str(ds.get("code_instructions") or "").strip()
+    if not rules:
+        return ""
+    reading = []
+    if "REFUSE" in rules or "refuse" in rules:
+        reading.append(
+            "where they say REFUSE, decline that request and say why"
+        )
+    if "chart_data" in rules:
+        reading.append("`chart_data.csv` is the data of your chart")
+    if "insight" in rules:
+        reading.append('"the insight" is your answer')
+    lines = [
+        "GNW's rules for this dataset, written for the code that draws GNW's "
+        "own charts" + (f": {'; '.join(reading)}." if reading else ".")
+    ]
+    misnamed = _misnamed_columns(
+        ds, rules + " " + str(ds.get("presentation_instructions") or "")
+    )
+    if misnamed:
+        lines.append(
+            "The rows name some columns differently from these rules: "
+            + ", ".join(f"`{rule}` is `{row}`" for rule, row in misnamed)
+            + "."
+        )
+    return "\n\n".join([*lines, rules])
+
+
 def _generator_file(generator: ChartGenerator) -> str:
     return Path(generator_info(generator)["path"]).name
 
@@ -232,7 +296,7 @@ def _dataset_file(ds: dict) -> str:
             )
         )
     lines += [
-        _section("How to chart it", ds.get("code_instructions")),
+        _section("How to chart it", _chart_rules(ds)),
         _section("How to present it", ds.get("presentation_instructions")),
         _section("Cautions", ds.get("cautions")),
     ]

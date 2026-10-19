@@ -27,6 +27,8 @@ table. Classes with no area are left out.
 
 ## How to chart it
 
+GNW's rules for this dataset, written for the code that draws GNW's own charts.
+
 CHART TYPES: - Land cover change → table with columns: land_cover_class_start, land_cover_class_end, area_ha - Land cover composition (snapshot) → pie chart for 2024 ONLY DATA RULES: - Drop rows where area_ha = 0 - When user asks about agriculture, farming, or agricultural land: you MUST combine
   "cropland" AND "cultivated grassland" into a single "Agriculture" category. Do NOT
   show them as separate classes unless the user explicitly asks to see them separately.

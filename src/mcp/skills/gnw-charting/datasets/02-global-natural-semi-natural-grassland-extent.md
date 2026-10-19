@@ -24,6 +24,8 @@ Grassland extent per year as a bar chart.
 
 ## How to chart it
 
+GNW's rules for this dataset, written for the code that draws GNW's own charts.
+
 CHART TYPES: - Area over time → bar chart or line chart (x=year, y=area_ha) - Comparison across ≤8 geographic units → pie chart - Comparison across ≥9 geographic units → table DATA RULES: - Exclude rows where area_ha = 0 or missing - All areas in hectares (ha) DO/DON'T: - Gain does NOT equal restoration — may be land abandonment, invasive species,
   woody encroachment, or temporary regrowth
 - Loss does NOT equal permanent conversion — may be natural dynamics, seasonal

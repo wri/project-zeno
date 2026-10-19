@@ -24,6 +24,8 @@ Natural lands area by class as a pie, largest class first.
 
 ## How to chart it
 
+GNW's rules for this dataset, written for the code that draws GNW's own charts.
+
 CHART TYPES: - Natural vs non-natural proportions → bar chart or pie chart DATA RULES: - Natural forests = classes 2, 5, 8, 9 (natural forest + mangrove + wetland natural
   forest + natural peat forest) — combine into one "Natural forest" category when
   user asks about natural forests

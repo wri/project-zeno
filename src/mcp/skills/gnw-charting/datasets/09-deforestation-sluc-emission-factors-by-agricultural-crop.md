@@ -28,6 +28,10 @@ Emissions by gas type as a pie, plus emissions by crop as a table.
 
 ## How to chart it
 
+GNW's rules for this dataset, written for the code that draws GNW's own charts: where they say REFUSE, decline that request and say why; `chart_data.csv` is the data of your chart.
+
+The rows name some columns differently from these rules: `emission_factor_tco2e_per_tonne` is `emissions_factor_tCO2e_per_tonne_production`, `emissions_tco2e` is `emissions_tCO2e`.
+
 CHART TYPES:
 - Proportional emissions by gas type (CO2, CH4, N2O) → pie chart (single crop)
 - Multiple crops in one location, or one crop across locations → table

@@ -318,7 +318,10 @@ insight can be saved, shared and shown in GNW like the agent's insights. The des
   `pull_data` returns.
 - Write the catalog's `code_instructions` for any charting client, not
   only zeno's code executor: some still say "REFUSE" or name the executor's
-  files. The skill quotes them as they are.
+  files. The skill quotes them with a line on how to read those terms, and
+  names the columns they spell differently from the rows (SLUC's
+  `emissions_tco2e` is `emissions_tCO2e`). The catalog fix also helps
+  zeno's own analyst, which reads the same rules.
 - Curated colors in `build_curated_charts` itself, so that the REST API and
   the agent send them too, and the MCP tool's own color step goes away.
 

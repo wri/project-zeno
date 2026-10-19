@@ -25,6 +25,8 @@ Tree cover loss area per driver as a pie, excluding unknown drivers.
 
 ## How to chart it
 
+GNW's rules for this dataset, written for the code that draws GNW's own charts: where they say REFUSE, decline that request and say why.
+
 CHART TYPES: - Driver breakdown → pie chart or table ONLY - DO NOT attempt a timeseries — this is a single-period aggregate (2001-2025) DATA RULES: - Exclude the "Unknown" driver class from analysis - Show area_ha or emissions (MgCO2e) per driver class for the full period 2001-2025 - 7 driver classes:
   1. Permanent agriculture — long-term, permanent tree cover loss for agriculture
   2. Hard commodities — loss due to mining or energy infrastructure
