@@ -112,8 +112,28 @@ The server serves it as resources (`skill://gnw-charting/SKILL.md` and the
 files it links to). The same folder can be copied into a Claude or Gemini
 skills folder as it is.
 
+`SKILL.md` also says how to keep an analysis repeatable: run `pull.py` (or
+`gnw pull`), compute every number in code from `rows.csv`, keep the analysis
+in one script, and end the answer with what was pulled, how to repeat it,
+the cautions and the citation. Each dataset file lists the columns of its
+rows, with their types, units and what they hold, and how a context layer
+or option changes them, so a model can write the code before it sees the
+rows.
+
+The columns come from `src/mcp/columns.json`, captured from the analytics
+API by `src/mcp/columns.py` (one country, each dataset, each context layer).
+Building the skill needs no network. Capture them again when the analytics
+API changes, then rebuild the skill:
+
+```sh
+uv run python -m src.mcp.columns
+```
+
+`tests/unit/mcp/test_columns.py` fails when a dataset or context layer has
+no captured columns, or a column has no note in `COLUMN_NOTES`.
+
 `src/mcp/skill.py` builds the folder from the catalog YAML, the palette, the
-generators and the analyst prompts. The folder is checked in so it can be
+generators, the columns and the analyst prompts. The folder is checked in so it can be
 reviewed. When you change one of its sources, rebuild it:
 
 ```sh
