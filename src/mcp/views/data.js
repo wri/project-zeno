@@ -35,11 +35,21 @@ function render(data, args) {
   } else if (!rows.length) {
     body = h("div", { class: "empty" }, "The pull returned no rows.");
   } else if (chartSpec) {
-    body = chartWithTable(chartSpec, { tableRows: rows });
+    body = [
+      h(
+        "span",
+        {
+          class: "eyebrow",
+          title: "Drawn by this view from the first time and value columns. GNW's own charts come from curated_charts.",
+        },
+        "Quick look · not a GNW chart"
+      ),
+      chartWithTable(chartSpec, { tableRows: rows }),
+    ];
   } else {
     body = dataTable(rows, { caption: data.dataset_name });
   }
-  return panel({
+  const dataPanel = panel({
     iconName: "table",
     title: data.dataset_name,
     count: `${formatFull(data.row_count)} rows`,
@@ -52,6 +62,12 @@ function render(data, args) {
       provenanceFooter(data),
     ],
   });
+  return h(
+    "div",
+    { style: { display: "flex", flexDirection: "column", gap: "12px" } },
+    dataPanel,
+    reproducePanel(data)
+  );
 }
 
 mountView({

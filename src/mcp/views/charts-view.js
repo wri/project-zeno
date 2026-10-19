@@ -32,6 +32,7 @@ function render(data, args) {
     charts.length
       ? charts.map((chart) => chartCard(chart, data))
       : note("info", "The pull returned no data to chart."),
+    reproducePanel(data),
     provenanceFooter(
       data,
       generator.code_url &&

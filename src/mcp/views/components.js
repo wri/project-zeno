@@ -41,6 +41,7 @@ const ICON_PATHS = {
   layers: "M8 2 14 5.5 8 9 2 5.5Zm-6 6L8 11.5 14 8M2 10.5 8 14l6-3.5",
   external: "M9 2.5h4.5V7M13.5 2.5 7.5 8.5M12 9.5v4H2.5V4h4",
   code: "M5 4.5 1.5 8 5 11.5M11 4.5 14.5 8 11 11.5M9.5 2.5l-3 11",
+  copy: "M5.5 5.5h8v8h-8ZM10.5 5.5v-3h-8v8h3",
   check: "M8 14.5a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13ZM5.5 8.2l1.8 1.8 3.4-3.6",
   warning: "M8 2 14.5 13.5h-13ZM8 6.5v3M8 11.6v.1",
   info: "M8 14.5a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13ZM8 7.5V11M8 5v.1",
@@ -367,7 +368,13 @@ function provenanceFooter(data, extra) {
     extra,
     data.source_url && linkButton("Analytics result", data.source_url),
     data.result_id &&
-      h("span", { class: "mono", title: "Analytics result id" }, data.result_id)
+      h("span", { class: "mono", title: "Analytics result id" }, data.result_id),
+    data.retrieved_at &&
+      h(
+        "span",
+        { title: data.retrieved_at },
+        `Retrieved ${formatDate(data.retrieved_at.slice(0, 10))}`
+      )
   );
 }
 

@@ -122,8 +122,8 @@ and result. The view draws the `structuredContent`.
 |---|---|---|
 | `ui://gnw/areas.html` | `resolve_areas`, `search_areas` | Area cards. A long selection shows as a list. The candidates of an ambiguous name and the search matches are cards: a click posts the area and its `aoi_id` to the chat. |
 | `ui://gnw/datasets.html` | `list_datasets`, `get_dataset` | Dataset cards. A click calls `get_dataset` through the host and opens the details: dates, cautions, context layers, parameters, colors. |
-| `ui://gnw/data.html` | `pull_data` | The rows as a table, and a chart when the rows are over years or dates. |
-| `ui://gnw/charts.html` | `curated_charts` | One card per chart, with the curated label, a Chart / Table switch, the catalog colors, and links to the generator and the analytics result. |
+| `ui://gnw/data.html` | `pull_data` | The rows as a table, and a quick-look chart, labelled as not a GNW chart, when the rows are over years or dates. The Reproduce panel. |
+| `ui://gnw/charts.html` | `curated_charts` | One card per chart, with the curated label, a Chart / Table switch, the catalog colors, and links to the generator and the analytics result. The Reproduce panel. |
 | `ui://gnw/code.html` | `get_chart_code` | The generator's source. |
 
 The views use the look of the frontend (`project-zeno-next`): its colors,
@@ -135,6 +135,13 @@ Each view is one HTML page. `src/mcp/views/__init__.py` puts the CSS and
 the scripts of `src/mcp/views/` into the page, so the page loads nothing
 except the fonts. Its CSP allows the font hosts only. Without the fonts, the
 page uses the system fonts.
+
+The data and chart views end with a **Reproduce** panel, closed until the
+user opens it. Its tabs show `pull.py`, the request and the pull's
+provenance, each with a copy button; when the host's sandbox blocks the
+clipboard, the button selects the text instead. The footer gives the date
+the data was retrieved. The panel is how a chat user takes a result out of
+the chat and runs it again (see Replaying a pull).
 
 A host that does not support MCP Apps does not use the views. It shows the
 tool's text, as before.
@@ -205,7 +212,7 @@ it when you finish.
 | `src/mcp/script.py` | `pull_script`, the standalone `pull.py` that replays a pull |
 | `src/mcp/charts.py` | `curated_charts`, `get_chart_code` and the chart code resource |
 | `src/mcp/skill.py`, `src/mcp/skills/gnw-charting/` | The charting skill and its builder |
-| `src/mcp/views/` | The MCP Apps views: the shared CSS and scripts (`bridge.js` for the host protocol, `components.js`, `charts.js`), one script per view, and `__init__.py`, which builds and registers the pages |
+| `src/mcp/views/` | The MCP Apps views: the shared CSS and scripts (`bridge.js` for the host protocol, `components.js`, `charts.js`, `reproduce.js` for the Reproduce panel), one script per view, and `__init__.py`, which builds and registers the pages |
 | `src/agent/datasets/pull_checks.py` | The checks both `pull_data` tools run before the API call: hidden dataset, one source and the size limits for the areas (which `pick_aoi` also runs), one area for a curated-only dataset, the date range |
 
 `tests/unit/mcp/` calls the tools through an in-process client.

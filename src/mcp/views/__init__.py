@@ -26,7 +26,7 @@ from fastmcp.resources import TextResource
 
 VIEW_DIR = Path(__file__).parent
 
-SHARED_SCRIPTS = ("bridge.js", "components.js", "charts.js")
+SHARED_SCRIPTS = ("bridge.js", "components.js", "charts.js", "reproduce.js")
 
 # View name → (title, script).
 VIEWS = {

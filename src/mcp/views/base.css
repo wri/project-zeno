@@ -902,6 +902,44 @@ details.section[open] > summary::before {
   color: #61afef;
 }
 
+/* ---- Reproduce (details panel) ------------------------------------------ */
+
+.reproduce > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.reproduce > summary::-webkit-details-marker {
+  display: none;
+}
+
+.reproduce > summary::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-right: 1.3px solid var(--primary-fg);
+  border-bottom: 1.3px solid var(--primary-fg);
+  transform: rotate(-45deg);
+  margin: 0 2px 0 4px;
+  flex-shrink: 0;
+}
+
+.reproduce[open] > summary::after {
+  transform: rotate(45deg);
+}
+
+.reproduce > summary:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: -2px;
+}
+
+.muted code {
+  font-size: 11.5px;
+  padding: 0 3px;
+  border-radius: 3px;
+  background: var(--bg-subtle);
+}
+
 .empty {
   padding: 16px;
   text-align: center;
