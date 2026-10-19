@@ -4,6 +4,20 @@ Global land cover (2015-2024). Land cover and land use classes at 30 m: bare gro
 
 Dates: 2015-01-01 to 2024-12-31.
 
+## Columns
+
+The columns of `rows.csv` and of `pull_data`'s rows, as the GNW analytics API returns them.
+
+| Column | Type | Unit | Holds |
+|---|---|---|---|
+| `aoi_id` | string |  | The area's id at the analytics API: a GADM id without its version suffix (BRA.14 for gadm:BRA.14_1), or the source's id. |
+| `aoi_type` | string |  | The kind of area: admin, protected_area, key_biodiversity_area or indigenous_land. |
+| `land_cover_class` | string |  | The land cover class. |
+| `area_ha` | number | ha | Area. |
+| `name` | string |  | The area's name, added by GNW. |
+
+- With `change_over_time`: adds `land_cover_class_start` (the land cover class in the first year), `land_cover_class_end` (the land cover class in the last year); drops `land_cover_class`.
+
 ## Curated charts
 
 `curated_charts` draws these with `LandCoverChangeChartGenerator` ([generators/land_cover.py](../generators/land_cover.py)).

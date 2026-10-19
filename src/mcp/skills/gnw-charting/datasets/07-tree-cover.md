@@ -4,6 +4,17 @@ Tree cover (2000). Tree canopy cover density (percent) in the year 2000 at 30 m 
 
 Dates: 2000-01-01 to 2000-12-31.
 
+## Columns
+
+The columns of `rows.csv` and of `pull_data`'s rows, as the GNW analytics API returns them.
+
+| Column | Type | Unit | Holds |
+|---|---|---|---|
+| `aoi_id` | string |  | The area's id at the analytics API: a GADM id without its version suffix (BRA.14 for gadm:BRA.14_1), or the source's id. |
+| `aoi_type` | string |  | The kind of area: admin, protected_area, key_biodiversity_area or indigenous_land. |
+| `area_ha` | number | ha | Area. |
+| `name` | string |  | The area's name, added by GNW. |
+
 ## Curated charts
 
 `curated_charts` draws these with `TreeCoverChartGenerator` ([generators/tree_cover.py](../generators/tree_cover.py)).

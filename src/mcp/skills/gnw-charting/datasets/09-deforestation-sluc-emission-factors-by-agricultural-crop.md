@@ -4,6 +4,22 @@
 
 Dates: 2020-01-01 to 2024-12-31.
 
+## Columns
+
+The columns of `rows.csv` and of `pull_data`'s rows, as the GNW analytics API returns them.
+
+| Column | Type | Unit | Holds |
+|---|---|---|---|
+| `aoi_id` | string |  | The area's id at the analytics API: a GADM id without its version suffix (BRA.14 for gadm:BRA.14_1), or the source's id. |
+| `aoi_type` | string |  | The kind of area: admin, protected_area, key_biodiversity_area or indigenous_land. |
+| `crop_type` | string |  | The agricultural crop. |
+| `gas_type` | string |  | The greenhouse gas. |
+| `year` | integer |  | The year the value is for. |
+| `emissions_factor_tCO2e_per_tonne_production` | number | tCO2e/t | Emissions from land use change per tonne of the crop produced. |
+| `emissions_tCO2e` | number | tCO2e | Emissions from land use change. |
+| `production_tonnes` | number | t | Crop production. |
+| `name` | string |  | The area's name, added by GNW. |
+
 ## Curated charts
 
 `curated_charts` draws these with `SlucEmissionFactorsChartGenerator` ([generators/sluc.py](../generators/sluc.py)).

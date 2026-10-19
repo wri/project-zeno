@@ -4,6 +4,21 @@ Tree cover loss (2001-2025). Annual area (ha) of tree cover loss at 30 m for all
 
 Dates: 2001-01-01 to 2025-12-31.
 
+## Columns
+
+The columns of `rows.csv` and of `pull_data`'s rows, as the GNW analytics API returns them.
+
+| Column | Type | Unit | Holds |
+|---|---|---|---|
+| `aoi_id` | string |  | The area's id at the analytics API: a GADM id without its version suffix (BRA.14 for gadm:BRA.14_1), or the source's id. |
+| `aoi_type` | string |  | The kind of area: admin, protected_area, key_biodiversity_area or indigenous_land. |
+| `tree_cover_loss_year` | integer |  | The year the loss was detected. |
+| `area_ha` | number | ha | Area. |
+| `carbon_emissions_MgCO2e` | number | MgCO2e | Greenhouse gas emissions from the loss. |
+| `name` | string |  | The area's name, added by GNW. |
+
+- With context layer `natural_forest`: `carbon_emissions_MgCO2e` can be empty.
+
 ## Curated charts
 
 `curated_charts` draws these with `TCLChartGenerator` ([generators/tcl.py](../generators/tcl.py)).

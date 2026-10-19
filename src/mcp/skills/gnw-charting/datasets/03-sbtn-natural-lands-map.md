@@ -4,6 +4,18 @@ SBTN Natural Lands Map (2020). Baseline map of natural and non-natural land in 2
 
 Dates: 2020-01-01 to 2020-12-31.
 
+## Columns
+
+The columns of `rows.csv` and of `pull_data`'s rows, as the GNW analytics API returns them.
+
+| Column | Type | Unit | Holds |
+|---|---|---|---|
+| `natural_lands_class` | string |  | The SBTN Natural Lands class in 2020. |
+| `area_ha` | number | ha | Area. |
+| `aoi_id` | string |  | The area's id at the analytics API: a GADM id without its version suffix (BRA.14 for gadm:BRA.14_1), or the source's id. |
+| `aoi_type` | string |  | The kind of area: admin, protected_area, key_biodiversity_area or indigenous_land. |
+| `name` | string |  | The area's name, added by GNW. |
+
 ## Curated charts
 
 `curated_charts` draws these with `NaturalLandsChartGenerator` ([generators/natural_lands.py](../generators/natural_lands.py)).

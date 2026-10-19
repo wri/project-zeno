@@ -4,6 +4,19 @@ Integrated alerts (December 2023 to present). Near-real-time alerts of vegetatio
 
 Dates: 2023-12-01 to today.
 
+## Columns
+
+The columns of `rows.csv` and of `pull_data`'s rows, as the GNW analytics API returns them.
+
+| Column | Type | Unit | Holds |
+|---|---|---|---|
+| `aoi_id` | string |  | The area's id at the analytics API: a GADM id without its version suffix (BRA.14 for gadm:BRA.14_1), or the source's id. |
+| `alert_date` | string |  | The date of the alert, YYYY-MM-DD. |
+| `alert_confidence` | string |  | The alert's confidence: low, high, or highest (detected by several systems). |
+| `area_ha` | number | ha | Area. |
+| `aoi_type` | string |  | The kind of area: admin, protected_area, key_biodiversity_area or indigenous_land. |
+| `name` | string |  | The area's name, added by GNW. |
+
 ## Curated charts
 
 `curated_charts` draws these with `IntegratedAlertsChartGenerator` ([generators/integrated_alerts.py](../generators/integrated_alerts.py)).

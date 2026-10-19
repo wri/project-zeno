@@ -4,6 +4,18 @@ Natural/semi-natural grassland extent (2000-2022). Annual 30 m maps of natural a
 
 Dates: 2000-01-01 to 2022-12-31.
 
+## Columns
+
+The columns of `rows.csv` and of `pull_data`'s rows, as the GNW analytics API returns them.
+
+| Column | Type | Unit | Holds |
+|---|---|---|---|
+| `year` | integer |  | The year the value is for. |
+| `area_ha` | number | ha | Area. |
+| `aoi_id` | string |  | The area's id at the analytics API: a GADM id without its version suffix (BRA.14 for gadm:BRA.14_1), or the source's id. |
+| `aoi_type` | string |  | The kind of area: admin, protected_area, key_biodiversity_area or indigenous_land. |
+| `name` | string |  | The area's name, added by GNW. |
+
 ## Curated charts
 
 `curated_charts` draws these with `GrasslandsChartGenerator` ([generators/grasslands.py](../generators/grasslands.py)).

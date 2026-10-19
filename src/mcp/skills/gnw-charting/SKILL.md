@@ -1,6 +1,6 @@
 ---
 name: gnw-charting
-description: Chart and describe Global Nature Watch (GNW) data the way GNW does: which chart to draw for each dataset, its colors, the wording to use and avoid, its cautions and citation, and GNW's own curated chart code. Use when charting, summarising or presenting data from the GNW MCP server (pull_data, curated_charts).
+description: Chart and describe Global Nature Watch (GNW) data the way GNW does: which chart to draw for each dataset, its colors, the wording to use and avoid, its cautions and citation, and GNW's own curated chart code, the columns of each dataset's rows, and how to keep an analysis repeatable. Use when analysing, charting, summarising or presenting data from the GNW MCP server (pull_data, curated_charts) or the gnw CLI.
 ---
 
 # Charting GNW data
@@ -24,6 +24,33 @@ catalog and chart code.
    filters, sorts and sums the same rows.
 3. **Present it** as the dataset's "How to present it" says, with the
    wording guide below, the cautions that apply, and the citation.
+
+## Repeatable analysis
+
+Every pull comes with what it takes to repeat it: `pull_data` and
+`curated_charts` return the request sent to the analytics API, the pull's
+provenance, and `script`, a standalone `pull.py` (Python 3.9+, no packages)
+that fetches the same rows into `gnw/pulls/<result_id>/rows.csv`. The `gnw`
+CLI writes these files itself.
+
+- **When you can run code, analyse in code.** Run `pull.py` (or `gnw pull`)
+  and compute every number you report from `rows.csv`: totals, changes,
+  shares, rankings. Each dataset's file lists its columns, types and units,
+  so you can write the code before you see the rows.
+- **Keep it in one script** that starts from the pulls' `rows.csv` files and
+  draws the charts too, so `python pull.py` then `python analysis.py`
+  repeats the whole result.
+- **Never copy numbers** from a tool result into code or into the answer as
+  data; read them from the files.
+- **End the answer with** what was pulled (dataset, areas, dates and
+  options, including a date range the server fitted to the dataset), how to
+  repeat it (the scripts or commands, in order), the cautions that apply,
+  and the citation with the access date filled in.
+- **Without code** (in a chat), quote only numbers a tool returned, and
+  point the user to the result's Reproduce panel, which holds `pull.py`.
+
+`pull.py` warns when the rows it fetches differ from the ones first pulled
+(`rows_sha256`): the data was updated since.
 
 ## Rules for every chart
 

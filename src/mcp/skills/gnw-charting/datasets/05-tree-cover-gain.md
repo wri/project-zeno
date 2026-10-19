@@ -4,6 +4,18 @@ Tree cover gain (2000-2020). Area (ha) where new tree cover over 5 m tall grew, 
 
 Dates: 2000-01-01 to 2020-12-31.
 
+## Columns
+
+The columns of `rows.csv` and of `pull_data`'s rows, as the GNW analytics API returns them.
+
+| Column | Type | Unit | Holds |
+|---|---|---|---|
+| `aoi_id` | string |  | The area's id at the analytics API: a GADM id without its version suffix (BRA.14 for gadm:BRA.14_1), or the source's id. |
+| `aoi_type` | string |  | The kind of area: admin, protected_area, key_biodiversity_area or indigenous_land. |
+| `tree_cover_gain_period` | string |  | The period the gain is cumulative over, e.g. 2000-2020. |
+| `area_ha` | number | ha | Area. |
+| `name` | string |  | The area's name, added by GNW. |
+
 ## Curated charts
 
 `curated_charts` draws these with `TreeCoverGainChartGenerator` ([generators/tree_cover_gain.py](../generators/tree_cover_gain.py)).

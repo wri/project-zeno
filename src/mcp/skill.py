@@ -21,6 +21,8 @@ from src.agent.subagents.analyst.prompts import WORDING_GUIDE
 from src.api.services.charts import base as chart_base
 from src.api.services.charts.base import ChartGenerator
 from src.mcp.charts import find_generator, generator_info
+from src.mcp.columns import COLUMN_NOTES, unit_of
+from src.mcp.columns import load as load_columns
 from src.mcp.datasets import (
     _colors,
     _colors_text,
@@ -36,8 +38,10 @@ _DESCRIPTION = (
     "Chart and describe Global Nature Watch (GNW) data the way GNW does: "
     "which chart to draw for each dataset, its colors, the wording to use "
     "and avoid, its cautions and citation, and GNW's own curated chart "
-    "code. Use when charting, summarising or presenting data from the GNW "
-    "MCP server (pull_data, curated_charts)."
+    "code, the columns of each dataset's rows, and how to keep an analysis "
+    "repeatable. Use when analysing, charting, summarising or presenting "
+    "data from the GNW MCP server (pull_data, curated_charts) or the gnw "
+    "CLI."
 )
 
 _SKILL_BODY = """\
@@ -62,6 +66,33 @@ catalog and chart code.
    filters, sorts and sums the same rows.
 3. **Present it** as the dataset's "How to present it" says, with the
    wording guide below, the cautions that apply, and the citation.
+
+## Repeatable analysis
+
+Every pull comes with what it takes to repeat it: `pull_data` and
+`curated_charts` return the request sent to the analytics API, the pull's
+provenance, and `script`, a standalone `pull.py` (Python 3.9+, no packages)
+that fetches the same rows into `gnw/pulls/<result_id>/rows.csv`. The `gnw`
+CLI writes these files itself.
+
+- **When you can run code, analyse in code.** Run `pull.py` (or `gnw pull`)
+  and compute every number you report from `rows.csv`: totals, changes,
+  shares, rankings. Each dataset's file lists its columns, types and units,
+  so you can write the code before you see the rows.
+- **Keep it in one script** that starts from the pulls' `rows.csv` files and
+  draws the charts too, so `python pull.py` then `python analysis.py`
+  repeats the whole result.
+- **Never copy numbers** from a tool result into code or into the answer as
+  data; read them from the files.
+- **End the answer with** what was pulled (dataset, areas, dates and
+  options, including a date range the server fitted to the dataset), how to
+  repeat it (the scripts or commands, in order), the cautions that apply,
+  and the citation with the access date filled in.
+- **Without code** (in a chat), quote only numbers a tool returned, and
+  point the user to the result's Reproduce panel, which holds `pull.py`.
+
+`pull.py` warns when the rows it fetches differ from the ones first pulled
+(`rows_sha256`): the data was updated since.
 
 ## Rules for every chart
 
@@ -114,6 +145,69 @@ def _section(title: str, text) -> str:
     return f"## {title}\n\n{text}\n" if text else ""
 
 
+def _lower_first(text: str) -> str:
+    text = text.rstrip(".")
+    return text[:1].lower() + text[1:]
+
+
+def _variant_label(name: str) -> str:
+    if name.startswith("context_layer="):
+        return f"With context layer `{name.removeprefix('context_layer=')}`"
+    return f"With `{name}`"
+
+
+def _columns_section(ds: dict) -> str:
+    """The columns of the dataset's rows, as the analytics API returned
+    them, and how its context layers and options change them."""
+    variants = load_columns().get(str(ds["dataset_id"])) or {}
+    default = variants.get("default", {}).get("columns")
+    if not default:
+        return ""
+    lines = [
+        "The columns of `rows.csv` and of `pull_data`'s rows, as the GNW "
+        "analytics API returns them.\n",
+        "| Column | Type | Unit | Holds |",
+        "|---|---|---|---|",
+    ]
+    for column, kind in default.items():
+        lines.append(
+            f"| `{column}` | {kind if kind != 'null' else ''} | "
+            f"{unit_of(column)} | {COLUMN_NOTES.get(column, '')} |"
+        )
+    notes = []
+    for name, variant in variants.items():
+        columns = variant.get("columns")
+        if name == "default" or columns is None:
+            continue
+        changes = []
+        added = [c for c in columns if c not in default]
+        missing = [c for c in default if c not in columns]
+        empty = [
+            c
+            for c, kind in columns.items()
+            if kind == "null" and default.get(c) not in (None, "null")
+        ]
+        if added:
+            changes.append(
+                "adds "
+                + ", ".join(
+                    f"`{c}` ({_lower_first(COLUMN_NOTES.get(c, columns[c]))})"
+                    for c in added
+                )
+            )
+        if missing:
+            changes.append("drops " + ", ".join(f"`{c}`" for c in missing))
+        if empty:
+            changes.append(
+                ", ".join(f"`{c}`" for c in empty) + " can be empty"
+            )
+        if changes:
+            notes.append(f"- {_variant_label(name)}: {'; '.join(changes)}.")
+    if notes:
+        lines += ["", *notes]
+    return _section("Columns", "\n".join(lines))
+
+
 def _generator_file(generator: ChartGenerator) -> str:
     return Path(generator_info(generator)["path"]).name
 
@@ -124,6 +218,7 @@ def _dataset_file(ds: dict) -> str:
         f"# {ds['dataset_name']} (dataset {ds['dataset_id']})\n",
         f"{str(ds.get('selection_card') or '').strip()}\n",
         f"Dates: {ds.get('start_date')} to {ds.get('end_date') or 'today'}.\n",
+        _columns_section(ds),
     ]
     if generator is not None:
         info = generator_info(generator)

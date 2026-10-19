@@ -4,6 +4,19 @@ Forest greenhouse gas net flux (2001-2025). Forest carbon balance at 30 m: green
 
 Dates: 2001-01-01 to 2025-12-31.
 
+## Columns
+
+The columns of `rows.csv` and of `pull_data`'s rows, as the GNW analytics API returns them.
+
+| Column | Type | Unit | Holds |
+|---|---|---|---|
+| `aoi_id` | string |  | The area's id at the analytics API: a GADM id without its version suffix (BRA.14 for gadm:BRA.14_1), or the source's id. |
+| `aoi_type` | string |  | The kind of area: admin, protected_area, key_biodiversity_area or indigenous_land. |
+| `carbon_net_flux_Mg_CO2e` | number | MgCO2e | Net flux: emissions minus removals. Negative is a sink, positive a source. One value for the dataset's whole period. |
+| `carbon_gross_emissions_Mg_CO2e` | number | MgCO2e | Gross emissions from forest disturbance, over the dataset's period. |
+| `carbon_gross_removals_Mg_CO2e` | number | MgCO2e | Gross removals by forest growth, over the dataset's period. |
+| `name` | string |  | The area's name, added by GNW. |
+
 ## Curated charts
 
 `curated_charts` draws these with `ForestFluxChartGenerator` ([generators/forest_flux.py](../generators/forest_flux.py)).
