@@ -1276,6 +1276,9 @@ class FakeAlertsSource:
     async def area_ha_by_src_id(self, aois, start, end):
         return {aoi["src_id"]: 42.0 for aoi in aois}
 
+    async def latest_alert_date(self):
+        return date(2026, 10, 11)
+
 
 @pytest.fixture
 def fake_alerts_source():
@@ -1329,7 +1332,10 @@ async def test_alerts_summary_reports_dashboards_with_alerts_chart(
 
     assert response.status_code == 200
     body = response.json()
-    assert date.fromisoformat(body["end_date"]).weekday() == 5
+    assert (body["start_date"], body["end_date"]) == (
+        "2026-10-05",
+        "2026-10-11",
+    )
     assert body["dashboards"] == {
         with_alerts["id"]: {"integrated_alerts": 42.0, "errors": {}}
     }
@@ -1371,6 +1377,20 @@ async def test_alerts_summary_rejects_a_start_after_the_end(
         [uuid.uuid4()],
         start_date="2026-10-10",
         end_date="2026-10-04",
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_alerts_summary_rejects_one_date_without_the_other(
+    client, auth_override, fake_alerts_source
+):
+    user = await _create_user("alerts-one-date")
+    auth_override(user.id)
+
+    response = await _alerts_summary(
+        client, [uuid.uuid4()], start_date="2026-10-04"
     )
 
     assert response.status_code == 422

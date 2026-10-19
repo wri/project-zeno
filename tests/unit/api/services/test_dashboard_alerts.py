@@ -1,10 +1,12 @@
 from datetime import date
 from uuid import uuid4
 
+import httpx
 import pytest
 
 from src.agent.datasets.handlers.analytics_handler import INTEGRATED_ALERTS_ID
 from src.agent.datasets.handlers.base import DataPullResult, DataSourceHandler
+from src.api.services import dashboard_alerts
 from src.api.services.dashboard_alerts import (
     AlertsUnavailableError,
     AnalyticsAlertsSource,
@@ -28,12 +30,19 @@ PARA = {
 }
 MONDAY = date(2026, 10, 12)
 WEEK = (date(2026, 10, 4), date(2026, 10, 10))
+LATEST_ALERT_DATE = date(2026, 10, 9)
+LATEST_PERIOD = (date(2026, 10, 3), LATEST_ALERT_DATE)
+BASE_URL = "https://analytics.example.com"
+LATEST_URL = BASE_URL + "/v0/land_change/integrated_alerts/latest"
 
 
 class FakeAlertsSource:
-    def __init__(self, area_ha_by_src_id=None, fail=False):
+    def __init__(
+        self, area_ha_by_src_id=None, fail=False, latest=LATEST_ALERT_DATE
+    ):
         self.area_ha = area_ha_by_src_id or {}
         self.fail = fail
+        self.latest = latest
         self.calls = []
 
     async def area_ha_by_src_id(self, aois, start, end):
@@ -41,6 +50,11 @@ class FakeAlertsSource:
         if self.fail:
             raise AlertsUnavailableError("timed out")
         return self.area_ha
+
+    async def latest_alert_date(self):
+        if self.latest is None:
+            raise AlertsUnavailableError("no latest alert date")
+        return self.latest
 
 
 class FakeHandler(DataSourceHandler):
@@ -74,6 +88,29 @@ def _service(source):
     return DashboardAlertsService(source, today=lambda: MONDAY)
 
 
+@pytest.fixture(autouse=True)
+def clear_latest_alert_date_cache():
+    dashboard_alerts._latest_alert_date_cache.clear()
+    yield
+    dashboard_alerts._latest_alert_date_cache.clear()
+
+
+def _latest_source(handler_response):
+    """An analytics source whose HTTP requests go to handler_response."""
+    requests = []
+
+    def handle(request):
+        requests.append(request)
+        return handler_response(request)
+
+    source = AnalyticsAlertsSource(
+        FakeHandler(DataPullResult(success=True, data={}, message="")),
+        BASE_URL,
+        transport=httpx.MockTransport(handle),
+    )
+    return source, requests
+
+
 @pytest.mark.parametrize(
     "today, expected",
     [
@@ -96,8 +133,8 @@ async def test_summarize_reports_every_dashboard_from_one_request():
         {parana: PARANA, also_parana: PARANA, para: PARA}
     )
 
-    assert source.calls == [([PARANA, PARA], *WEEK)]
-    assert (report.start_date, report.end_date) == WEEK
+    assert source.calls == [([PARANA, PARA], *LATEST_PERIOD)]
+    assert (report.start_date, report.end_date) == LATEST_PERIOD
     assert report.dashboards == {
         parana: DashboardAlerts(integrated_alerts=12.5),
         also_parana: DashboardAlerts(integrated_alerts=12.5),
@@ -106,25 +143,37 @@ async def test_summarize_reports_every_dashboard_from_one_request():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "start, end, expected",
-    [
-        (
-            date(2026, 9, 1),
-            date(2026, 9, 30),
-            (date(2026, 9, 1), date(2026, 9, 30)),
-        ),
-        (date(2026, 9, 1), None, (date(2026, 9, 1), WEEK[1])),
-    ],
-    ids=["both-dates", "missing-end-uses-default"],
-)
-async def test_summarize_uses_the_requested_period(start, end, expected):
+async def test_summarize_uses_the_requested_period():
     source = FakeAlertsSource()
+    period = (date(2026, 9, 1), date(2026, 9, 30))
 
-    report = await _service(source).summarize({uuid4(): PARANA}, start, end)
+    report = await _service(source).summarize({uuid4(): PARANA}, *period)
 
-    assert source.calls == [([PARANA], *expected)]
-    assert (report.start_date, report.end_date) == expected
+    assert source.calls == [([PARANA], *period)]
+    assert (report.start_date, report.end_date) == period
+
+
+@pytest.mark.asyncio
+async def test_summarize_falls_back_to_the_latest_full_week():
+    source = FakeAlertsSource(latest=None)
+
+    report = await _service(source).summarize({uuid4(): PARANA})
+
+    assert source.calls == [([PARANA], *WEEK)]
+    assert (report.start_date, report.end_date) == WEEK
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "start, end",
+    [(date(2026, 9, 1), None), (None, date(2026, 9, 30))],
+    ids=["start-only", "end-only"],
+)
+async def test_summarize_rejects_one_date_without_the_other(start, end):
+    with pytest.raises(InvalidPeriodError):
+        await _service(FakeAlertsSource()).summarize(
+            {uuid4(): PARANA}, start, end
+        )
 
 
 @pytest.mark.asyncio
@@ -183,7 +232,7 @@ async def test_analytics_source_sums_area_by_aoi():
     )
     aois = [dict(PARANA), dict(PARA)]
 
-    area_ha = await AnalyticsAlertsSource(handler).area_ha_by_src_id(
+    area_ha = await AnalyticsAlertsSource(handler, BASE_URL).area_ha_by_src_id(
         aois, *WEEK
     )
 
@@ -203,6 +252,45 @@ async def test_analytics_source_raises_when_pull_fails():
     )
 
     with pytest.raises(AlertsUnavailableError, match="timed out"):
-        await AnalyticsAlertsSource(handler).area_ha_by_src_id(
+        await AnalyticsAlertsSource(handler, BASE_URL).area_ha_by_src_id(
             [dict(PARANA)], *WEEK
         )
+
+
+@pytest.mark.asyncio
+async def test_analytics_source_reads_and_caches_the_latest_alert_date():
+    source, requests = _latest_source(
+        lambda request: httpx.Response(
+            200,
+            json={
+                "data": {"alert_date": "2026-10-11", "version": "v20261014"},
+                "status": "success",
+            },
+        )
+    )
+
+    assert await source.latest_alert_date() == date(2026, 10, 11)
+    assert await source.latest_alert_date() == date(2026, 10, 11)
+
+    assert [str(request.url) for request in requests] == [LATEST_URL]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "response",
+    [
+        httpx.Response(503, json={"detail": "No integrated alerts dates"}),
+        httpx.Response(200, json={"data": {}}),
+        httpx.Response(200, text="not json"),
+    ],
+    ids=["error-status", "missing-date", "not-json"],
+)
+async def test_analytics_source_raises_without_a_latest_alert_date(response):
+    source, requests = _latest_source(lambda request: response)
+
+    with pytest.raises(AlertsUnavailableError):
+        await source.latest_alert_date()
+    # A failure is not cached.
+    with pytest.raises(AlertsUnavailableError):
+        await source.latest_alert_date()
+    assert len(requests) == 2

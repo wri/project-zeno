@@ -997,11 +997,17 @@ class DashboardAlertsSummaryRequest(BaseModel):
     dashboard_ids: List[UUID] = Field(min_length=1, max_length=50)
     start_date: Optional[date] = Field(
         default=None,
-        description="Defaults to the start of the latest full alert week.",
+        description=(
+            "Send with end_date, or neither. Defaults to six days before "
+            "the latest alert date."
+        ),
     )
     end_date: Optional[date] = Field(
         default=None,
-        description="Defaults to the end of the latest full alert week.",
+        description=(
+            "Send with start_date, or neither. Defaults to the latest alert "
+            "date."
+        ),
     )
 
 

@@ -1,5 +1,6 @@
 """Integrated alerts area in each dashboard's AOI over a period, by default
-the latest full alert week, which runs Sunday to Saturday."""
+the week ending on the latest alert date. If that date is unavailable, the
+default is the latest full Sunday-to-Saturday week."""
 
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -7,9 +8,13 @@ from datetime import date, timedelta
 from typing import Callable, Iterable, Optional, Protocol
 from uuid import UUID
 
+import cachetools
+import httpx
+
 from src.agent.datasets.handlers.analytics_handler import (
     ANALYTICS_ADMIN_SUBTYPES,
     INTEGRATED_ALERTS_ID,
+    analytics_api_headers,
 )
 from src.agent.datasets.handlers.base import DataSourceHandler
 from src.shared.geocoding_helpers import format_id
@@ -18,6 +23,15 @@ from src.shared.logging_config import get_logger
 logger = get_logger(__name__)
 
 SATURDAY = 5
+# The default period: the latest alert date and the days before it.
+DEFAULT_PERIOD_DAYS = 7
+LATEST_ALERT_DATE_PATH = "/v0/land_change/integrated_alerts/latest"
+LATEST_ALERT_DATE_TIMEOUT_SECONDS = 10.0
+
+# The latest alert date changes at most daily, so keep it for an hour.
+_latest_alert_date_cache: cachetools.TTLCache = cachetools.TTLCache(
+    maxsize=4, ttl=60 * 60
+)
 
 
 class AlertsUnavailableError(Exception):
@@ -48,12 +62,20 @@ class AlertsSource(Protocol):
         """Alert area of each AOI that has alerts."""
         ...
 
+    async def latest_alert_date(self) -> date:
+        """The latest date with any alert."""
+        ...
+
 
 def latest_alert_week(today: date) -> tuple[date, date]:
     """The last Sunday-to-Saturday week that ended before today."""
     days_since_saturday = (today.weekday() - SATURDAY) % 7 or 7
     end = today - timedelta(days=days_since_saturday)
     return end - timedelta(days=6), end
+
+
+def period_ending(end: date) -> tuple[date, date]:
+    return end - timedelta(days=DEFAULT_PERIOD_DAYS - 1), end
 
 
 def supports_alerts(aoi: dict) -> bool:
@@ -88,10 +110,14 @@ class DashboardAlertsService:
         start: Optional[date] = None,
         end: Optional[date] = None,
     ) -> AlertsReport:
-        """Alerts between start and end, which default to the latest full
-        alert week."""
-        default_start, default_end = latest_alert_week(self.today())
-        start, end = start or default_start, end or default_end
+        """Alerts between start and end, which default together to the week
+        ending on the latest alert date."""
+        if (start is None) != (end is None):
+            raise InvalidPeriodError(
+                "Send both start_date and end_date, or neither."
+            )
+        if start is None or end is None:
+            start, end = await self._default_period()
         if start > end:
             raise InvalidPeriodError(f"{start} is after {end}.")
         supported = {
@@ -110,6 +136,15 @@ class DashboardAlertsService:
                 for dashboard_id, aoi in supported.items()
             },
         )
+
+    async def _default_period(self) -> tuple[date, date]:
+        try:
+            return period_ending(await self.source.latest_alert_date())
+        except AlertsUnavailableError as error:
+            logger.warning(
+                "dashboard_alerts_latest_date_unavailable", error=str(error)
+            )
+            return latest_alert_week(self.today())
 
     async def _alerts_by_src_id(
         self, aois: list[dict], start: date, end: date
@@ -139,8 +174,38 @@ def total_area_ha_by_aoi_id(data: dict) -> dict[str, float]:
 
 
 class AnalyticsAlertsSource:
-    def __init__(self, handler: DataSourceHandler):
+    def __init__(
+        self,
+        handler: DataSourceHandler,
+        base_url: str,
+        transport: Optional[httpx.AsyncBaseTransport] = None,
+    ):
         self.handler = handler
+        self.base_url = base_url
+        self.transport = transport
+
+    async def latest_alert_date(self) -> date:
+        url = self.base_url + LATEST_ALERT_DATE_PATH
+        if (cached := _latest_alert_date_cache.get(url)) is not None:
+            return cached
+        try:
+            async with httpx.AsyncClient(
+                timeout=LATEST_ALERT_DATE_TIMEOUT_SECONDS,
+                transport=self.transport,
+            ) as client:
+                response = await client.get(
+                    url, headers=analytics_api_headers()
+                )
+                response.raise_for_status()
+            alert_date = date.fromisoformat(
+                response.json()["data"]["alert_date"]
+            )
+        except (httpx.HTTPError, KeyError, TypeError, ValueError) as error:
+            raise AlertsUnavailableError(
+                f"No latest alert date: {error!r}"
+            ) from error
+        _latest_alert_date_cache[url] = alert_date
+        return alert_date
 
     async def area_ha_by_src_id(
         self, aois: list[dict], start: date, end: date
