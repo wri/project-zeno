@@ -81,6 +81,36 @@ The server offers what the agent's default profile offers. LGMS is hidden:
 it is hidden from the agent too, and its analytics endpoint is the only one
 that needs a token.
 
+### Views
+
+The server gives each tool a view: an HTML page that an
+[MCP Apps](https://modelcontextprotocol.io/specification/draft/extensions/apps)
+host (Claude, ChatGPT) shows in place of the tool's text. The tool's
+`_meta.ui.resourceUri` names its view. When the model calls the tool, the
+host shows the view in a sandboxed iframe and sends it the tool's arguments
+and result. The view draws the `structuredContent`.
+
+| View | Tools | Shows |
+|---|---|---|
+| `ui://gnw/areas.html` | `resolve_areas`, `search_areas` | Area cards. A long selection shows as a list. The candidates of an ambiguous name and the search matches are cards: a click posts the area and its `aoi_id` to the chat. |
+| `ui://gnw/datasets.html` | `list_datasets`, `get_dataset` | Dataset cards. A click calls `get_dataset` through the host and opens the details: dates, cautions, context layers, parameters, colors. |
+| `ui://gnw/data.html` | `pull_data` | The rows as a table, and a chart when the rows are over years or dates. |
+| `ui://gnw/charts.html` | `curated_charts` | One card per chart, with the curated label, a Chart / Table switch, the catalog colors, and links to the generator and the analytics result. |
+| `ui://gnw/code.html` | `get_chart_code` | The generator's source. |
+
+The views use the look of the frontend (`project-zeno-next`): its colors,
+the IBM Plex fonts, and its card and chart patterns (`InfoCard`,
+`WidgetMessage`, `ChartWidget`, `formatCharts`). They draw the charts as SVG
+with no chart library.
+
+Each view is one HTML page. `src/mcp/views/__init__.py` puts the CSS and
+the scripts of `src/mcp/views/` into the page, so the page loads nothing
+except the fonts. Its CSP allows the font hosts only. Without the fonts, the
+page uses the system fonts.
+
+A host that does not support MCP Apps does not use the views. It shows the
+tool's text, as before.
+
 ## Design choices
 
 - **No auth.** Every tool reads public data, so the server needs no user.
@@ -123,6 +153,19 @@ Use the deployed API's URL the same way. To look at the tools without a
 model, run `npx @modelcontextprotocol/inspector` and connect it to the same
 URL.
 
+To see the views, use Claude (claude.ai or Claude Desktop): Settings →
+Connectors → Add custom connector, with the `/mcp` URL. Claude connects
+from its own servers, so it cannot reach `localhost`. To test a local API,
+open a temporary public URL to it, for example with a Cloudflare quick
+tunnel (no account necessary):
+
+```sh
+cloudflared tunnel --url http://localhost:8000
+```
+
+The tunnel makes the full API public while it runs, not only `/mcp`. Stop
+it when you finish.
+
 ## Code
 
 | File | Holds |
@@ -133,9 +176,13 @@ URL.
 | `src/mcp/data.py` | `pull_data`, and `run_pull`, the checked pull both data tools run |
 | `src/mcp/charts.py` | `curated_charts`, `get_chart_code` and the chart code resource |
 | `src/mcp/skill.py`, `src/mcp/skills/gnw-charting/` | The charting skill and its builder |
+| `src/mcp/views/` | The MCP Apps views: the shared CSS and scripts (`bridge.js` for the host protocol, `components.js`, `charts.js`), one script per view, and `__init__.py`, which builds and registers the pages |
 | `src/agent/datasets/pull_checks.py` | The checks both `pull_data` tools run before the API call: hidden dataset, one source and the size limits for the areas (which `pick_aoi` also runs), one area for a curated-only dataset, the date range |
 
 `tests/unit/mcp/` calls the tools through an in-process client.
+`tests/unit/mcp/test_views.py` checks that each tool names a view that the
+server serves, and that each page loads nothing from outside except the
+fonts.
 `tests/unit/agent/datasets/test_analytics_request_snapshot.py` pins the exact
 request the analytics handler sends for every dataset, option and area type.
 That test protects all three callers of the handler.
