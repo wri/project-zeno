@@ -2,9 +2,9 @@
 
 from typing import List
 
-from src.agent.datasets.handlers.analytics_handler import FOREST_CARBON_FLUX_ID
-from src.agent.subagents.analyst.charts import InsightChart
-from src.api.services.charts.base import ChartGenerator
+from _gnw import FOREST_CARBON_FLUX_ID
+from _gnw import InsightChart
+from base import ChartGenerator
 
 
 class ForestFluxChartGenerator(ChartGenerator):

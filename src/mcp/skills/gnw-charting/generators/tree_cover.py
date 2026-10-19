@@ -2,9 +2,9 @@
 
 from typing import List
 
-from src.agent.datasets.handlers.analytics_handler import TREE_COVER_ID
-from src.agent.subagents.analyst.charts import InsightChart
-from src.api.services.charts.base import ChartGenerator, by_area_desc
+from _gnw import TREE_COVER_ID
+from _gnw import InsightChart
+from base import ChartGenerator, by_area_desc
 
 
 class TreeCoverChartGenerator(ChartGenerator):

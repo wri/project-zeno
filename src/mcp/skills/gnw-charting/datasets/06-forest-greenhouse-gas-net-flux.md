@@ -24,6 +24,8 @@ The columns of `rows.csv` and of `pull_data`'s rows, as the GNW analytics API re
 Gross emissions, gross removals and net flux as a diverging bar
 chart, with removals drawn below the axis.
 
+Run it on a pull's rows: `python generators/run.py 6 gnw/pulls/<result_id>/rows.csv charts.json`.
+
 ## How to chart it
 
 GNW's rules for this dataset, written for the code that draws GNW's own charts.

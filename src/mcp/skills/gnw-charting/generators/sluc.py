@@ -3,11 +3,11 @@
 from collections import defaultdict
 from typing import List
 
-from src.agent.datasets.handlers.analytics_handler import (
+from _gnw import (
     SLUC_EMISSION_FACTORS_ID,
 )
-from src.agent.subagents.analyst.charts import InsightChart
-from src.api.services.charts.base import ChartGenerator
+from _gnw import InsightChart
+from base import ChartGenerator
 
 # CO2e is the sum of the other gases, so including it would double-count.
 CO2_EQUIVALENT = "CO2e"

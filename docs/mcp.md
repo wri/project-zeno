@@ -120,6 +120,22 @@ rows, with their types, units and what they hold, and how a context layer
 or option changes them, so a model can write the code before it sees the
 rows.
 
+The skill's `generators/` run outside zeno. The builder copies each curated
+generator with its zeno imports pointed at `generators/_gnw.py`, which it
+writes from zeno's own definitions (`InsightChart`, the dataset ids, the
+English chart titles), and adds `generators/run.py`
+(`src/mcp/skill_files/run.py`):
+
+```sh
+python generators/run.py 4 gnw/pulls/<result_id>/rows.csv charts.json
+```
+
+draws GNW's curated charts from a pull's rows with GNW's code, in the
+analysis itself. It needs numpy. `tests/unit/mcp/test_skill_generators.py`
+runs it on real rows for every dataset (`fixtures/sample_rows.json`) and
+checks its charts equal `build_curated_charts` in English. A generator that
+imports a zeno module with no stand-in fails the build.
+
 The columns come from `src/mcp/columns.json`, captured from the analytics
 API by `src/mcp/columns.py` (one country, each dataset, each context layer).
 Building the skill needs no network. Capture them again when the analytics

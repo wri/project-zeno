@@ -21,7 +21,10 @@ catalog and chart code.
    subset, a different breakdown). Read the dataset's file below first: its
    "How to chart it" rules are GNW's, and they override the general advice
    here. The dataset's curated generator (in `generators/`) shows how GNW
-   filters, sorts and sums the same rows.
+   filters, sorts and sums the same rows, and
+   `python generators/run.py <dataset_id> rows.csv` runs GNW's generator on
+   a pull's rows outside GNW (it needs numpy): the curated charts, made in
+   your own analysis.
 3. **Present it** as the dataset's "How to present it" says, with the
    wording guide below, the cautions that apply, and the citation.
 

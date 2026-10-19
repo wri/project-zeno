@@ -38,6 +38,8 @@ can share a day. Days with no alerts are absent rather than zero — the
 API reports what it detected, and a fabricated zero is a claim about a
 day nobody looked at that way.
 
+Run it on a pull's rows: `python generators/run.py 11 gnw/pulls/<result_id>/rows.csv charts.json`.
+
 ## How to chart it
 
 GNW's rules for this dataset, written for the code that draws GNW's own charts.

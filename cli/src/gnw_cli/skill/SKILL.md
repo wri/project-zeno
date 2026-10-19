@@ -38,6 +38,10 @@ description: Answer questions with Global Nature Watch (GNW) data (forest, tree 
    to `charts.json`: prefer them for the standard view of a dataset. To draw
    other charts, follow the `gnw-charting` skill: the dataset's chart types,
    colors, wording and cautions. Draw them from `analysis.py` too.
+   `python .claude/skills/gnw-charting/generators/run.py <dataset_id>
+   gnw/pulls/<result_id>/rows.csv` runs GNW's own chart code on a pull's
+   rows without the server (needs numpy), so the curated charts can be part
+   of the repeatable analysis.
 
 ## Every answer ends with
 

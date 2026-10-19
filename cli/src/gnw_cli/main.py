@@ -8,6 +8,7 @@ what the script repeats.
 
 import argparse
 import asyncio
+import base64
 import csv
 import json
 import os
@@ -281,7 +282,11 @@ async def skill_install(args, server) -> None:
             [content] = await client.read_resource(uri)
             path = target / "gnw-charting" / uri.removeprefix(SKILL_URI)
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(content.text, encoding="utf-8")
+            # JSON and other non-text types come as base64 blobs.
+            if hasattr(content, "blob"):
+                path.write_bytes(base64.b64decode(content.blob))
+            else:
+                path.write_text(content.text, encoding="utf-8")
             written.append(path)
     cli_skill = resources.files("gnw_cli") / "skill" / "SKILL.md"
     path = target / "gnw-cli" / "SKILL.md"

@@ -12,11 +12,14 @@ fails when the checked-in files no longer match the sources; rebuild with
 
 import difflib
 import inspect
+import json
 import re
 import shutil
 import sys
 from pathlib import Path
 
+from src.agent.datasets.handlers import analytics_handler
+from src.agent.i18n import MESSAGES
 from src.agent.subagents.analyst.code_executors.base import CHART_TYPES
 from src.agent.subagents.analyst.prompts import WORDING_GUIDE
 from src.api.services.charts import base as chart_base
@@ -64,7 +67,10 @@ catalog and chart code.
    subset, a different breakdown). Read the dataset's file below first: its
    "How to chart it" rules are GNW's, and they override the general advice
    here. The dataset's curated generator (in `generators/`) shows how GNW
-   filters, sorts and sums the same rows.
+   filters, sorts and sums the same rows, and
+   `python generators/run.py <dataset_id> rows.csv` runs GNW's generator on
+   a pull's rows outside GNW (it needs numpy): the curated charts, made in
+   your own analysis.
 3. **Present it** as the dataset's "How to present it" says, with the
    wording guide below, the cautions that apply, and the citation.
 
@@ -292,7 +298,9 @@ def _dataset_file(ds: dict) -> str:
                 f"`curated_charts` draws these with `{info['name']}` "
                 f"([generators/{_generator_file(generator)}]"
                 f"(../generators/{_generator_file(generator)})).\n\n"
-                f"{info['description']}",
+                f"{info['description']}\n\n"
+                "Run it on a pull's rows: `python generators/run.py "
+                f"{ds['dataset_id']} gnw/pulls/<result_id>/rows.csv charts.json`.",
             )
         )
     lines += [
@@ -317,6 +325,144 @@ def _dataset_file(ds: dict) -> str:
     return "\n".join(line for line in lines if line).rstrip() + "\n"
 
 
+# Imports of a generator, and what they become in the skill's copy.
+_IMPORTS = {
+    "from src.agent.datasets.handlers.analytics_handler import": "from _gnw import",
+    "from src.agent.subagents.analyst.charts import": "from _gnw import",
+    "from src.api.services.charts.base import": "from base import",
+}
+_ZENO_IMPORT = re.compile(r"^\s*(from|import) src\b", re.MULTILINE)
+SKILL_FILES = Path(__file__).parent / "skill_files"
+
+_GNW = '''"""Stand-ins for the zeno modules GNW's chart generators import, so the
+generators in this folder run outside zeno: InsightChart (the chart spec),
+the dataset ids, and the English chart titles and labels. Written by
+src/mcp/skill.py from zeno's own definitions; do not edit.
+"""
+
+import math
+from dataclasses import asdict, dataclass, field
+from typing import Dict, List, Optional
+
+{ids}
+
+# Message key -> English text, from zeno's src/agent/i18n.py.
+MESSAGES = {messages}
+
+
+def _json_safe(value):
+    """NaN and Inf as None, as zeno's InsightChart stores them."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, dict):
+        return {{key: _json_safe(item) for key, item in value.items()}}
+    if isinstance(value, list):
+        return [_json_safe(item) for item in value]
+    return value
+
+
+@dataclass
+class InsightChart:
+    """A chart spec and the rows it draws: zeno's InsightChart."""
+
+    title: str
+    chart_type: str
+    position: int = 0
+    x_axis: str = ""
+    y_axis: str = ""
+    color_field: str = ""
+    stack_field: str = ""
+    group_field: str = ""
+    series_fields: List[str] = field(default_factory=list)
+    chart_data: List[dict] = field(default_factory=list)
+    insight: str = ""
+    dataset_id: Optional[int] = None
+    color_map: Dict[str, str] = field(default_factory=dict)
+    series_color: Optional[str] = None
+    divergent_colors: Optional[Dict[str, str]] = None
+
+    def __post_init__(self):
+        self.chart_data = [_json_safe(row) for row in self.chart_data]
+
+    def model_dump(self, exclude=()):
+        return {{
+            key: value
+            for key, value in asdict(self).items()
+            if key not in exclude
+        }}
+
+
+def text(key):
+    """A message key's English text; the key itself when it has none."""
+    return MESSAGES.get(key) or key
+
+
+def localise(charts, generator):
+    """Message keys to English text, as zeno's curated.py does."""
+    for chart in charts:
+        chart.title = text(chart.title)
+        for column in generator.label_fields:
+            for row in chart.chart_data:
+                if column in row:
+                    row[column] = text(row[column])
+        if generator.label_series:
+            names = {{key: text(key) for key in chart.series_fields}}
+            if len(set(names.values())) != len(names):
+                raise ValueError(f"Series names are not unique: {{names}}")
+            chart.series_fields = [names[key] for key in chart.series_fields]
+            chart.chart_data = [
+                {{names.get(key, key): value for key, value in row.items()}}
+                for row in chart.chart_data
+            ]
+            chart.color_map = {{
+                names.get(key, key): color
+                for key, color in chart.color_map.items()
+            }}
+'''
+
+
+def _runnable(source: str, name: str) -> str:
+    """A generator's source with its zeno imports pointed at _gnw.py and
+    base.py; fails the build when an import has no stand-in."""
+    for zeno, local in _IMPORTS.items():
+        source = source.replace(zeno, local)
+    if _ZENO_IMPORT.search(source):
+        raise ValueError(
+            f"{name} imports a zeno module with no stand-in in _gnw.py."
+        )
+    return source
+
+
+def _gnw_module() -> str:
+    ids = "\n".join(
+        f"{name} = {value}"
+        for name, value in sorted(vars(analytics_handler).items())
+        if name.endswith("_ID") and isinstance(value, int)
+    )
+    messages = {
+        key: templates["en"].format()
+        for key, templates in MESSAGES.items()
+        if key.startswith("charts.")
+    }
+    return _GNW.format(
+        ids=ids, messages=json.dumps(messages, indent=4, ensure_ascii=False)
+    )
+
+
+def _column_types() -> str:
+    """Each dataset's columns and their types, for run.py to read rows.csv."""
+    types = {
+        dataset_id: {
+            column: kind
+            for variant in variants.values()
+            for column, kind in (variant.get("columns") or {}).items()
+            if kind != "null"
+        }
+        for dataset_id, variants in load_columns().items()
+    }
+    return json.dumps(types, indent=2, ensure_ascii=False) + "\n"
+
+
 def build_skill() -> dict[str, str]:
     """The skill's files, by path inside the skill folder."""
     files: dict[str, str] = {}
@@ -329,14 +475,21 @@ def build_skill() -> dict[str, str]:
         generator = find_generator(ds["dataset_id"])
         if generator is not None:
             module = sys.modules[type(generator).__module__]
-            files[f"generators/{_generator_file(generator)}"] = (
-                inspect.getsource(module)
+            files[f"generators/{_generator_file(generator)}"] = _runnable(
+                inspect.getsource(module), _generator_file(generator)
             )
         rows.append(
             f"| {ds['dataset_id']} | {ds['dataset_name']} | "
             f"{'yes' if generator else 'no'} | [{name}]({name}) |"
         )
-    files["generators/base.py"] = inspect.getsource(chart_base)
+    files["generators/base.py"] = _runnable(
+        inspect.getsource(chart_base), "base.py"
+    )
+    files["generators/_gnw.py"] = _gnw_module()
+    files["generators/column_types.json"] = _column_types()
+    files["generators/run.py"] = (SKILL_FILES / "run.py").read_text(
+        encoding="utf-8"
+    )
 
     frontmatter = (
         f"---\nname: {SKILL_NAME}\ndescription: {_DESCRIPTION}\n---\n\n"

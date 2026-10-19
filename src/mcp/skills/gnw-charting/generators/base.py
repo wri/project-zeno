@@ -5,7 +5,7 @@ from typing import ClassVar, Iterable, List
 
 import numpy as np
 
-from src.agent.subagents.analyst.charts import InsightChart
+from _gnw import InsightChart
 
 
 def column_to_rows(data: dict) -> List[dict]:

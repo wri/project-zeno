@@ -107,7 +107,12 @@ def test_skill_install_writes_both_skills(tmp_path, capsys):
     assert (tmp_path / "gnw-charting" / "SKILL.md").read_text() == (
         SKILL_DIR / "SKILL.md"
     ).read_text()
-    assert (tmp_path / "gnw-charting" / "generators" / "tcl.py").exists()
+    for name in ("tcl.py", "run.py", "_gnw.py", "column_types.json"):
+        installed = tmp_path / "gnw-charting" / "generators" / name
+        assert (
+            installed.read_bytes()
+            == (SKILL_DIR / "generators" / name).read_bytes()
+        )
     assert not (tmp_path / "gnw-charting" / "_manifest").exists()
     assert (
         (tmp_path / "gnw-cli" / "SKILL.md")

@@ -26,6 +26,8 @@ The columns of `rows.csv` and of `pull_data`'s rows, as the GNW analytics API re
 
 Emissions by gas type as a pie, plus emissions by crop as a table.
 
+Run it on a pull's rows: `python generators/run.py 9 gnw/pulls/<result_id>/rows.csv charts.json`.
+
 ## How to chart it
 
 GNW's rules for this dataset, written for the code that draws GNW's own charts: where they say REFUSE, decline that request and say why; `chart_data.csv` is the data of your chart.
