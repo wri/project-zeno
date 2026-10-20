@@ -1,7 +1,7 @@
 """The shared code the MCP server needed changed: the pull checks both
 pull_data tools run, the custom-area switch on `search_aois`, the analytics
-headers without a token, the dataset cards zap now reads from the catalog,
-and the bare `/mcp` path."""
+headers without a token, the canopy cover default, the dataset cards zap
+now reads from the catalog, and the bare `/mcp` path."""
 
 from contextlib import asynccontextmanager
 
@@ -255,6 +255,50 @@ async def test_handler_checks_every_areas_admin_level(monkeypatch):
         )
     assert not result.success
     assert "A locality" in result.message
+
+
+@pytest.mark.parametrize(
+    ("parameters", "sent"),
+    [
+        # No selection: the dataset default, not max(values) (75%).
+        (None, 30),
+        ([{"name": "canopy_cover", "values": [50]}], 50),
+    ],
+)
+async def test_handler_sends_the_default_canopy_cover(
+    monkeypatch, parameters, sent
+):
+    from src.agent.datasets.handlers import analytics_handler
+
+    posted = []
+
+    class RecordingClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        async def post(self, url, headers=None, json=None):
+            posted.append(json)
+            raise analytics_handler.httpx.ConnectError("recorded")
+
+    monkeypatch.setattr(
+        analytics_handler.httpx, "AsyncClient", RecordingClient
+    )
+    dataset = {**TCL, **({"parameters": parameters} if parameters else {})}
+    await analytics_handler.AnalyticsHandler().pull_data(
+        query="",
+        dataset=dataset,
+        start_date="2015-01-01",
+        end_date="2020-12-31",
+        change_over_time_query=False,
+        aois=[{**AREA, "subtype": "country"}],
+    )
+    assert posted[0]["canopy_cover"] == sent
 
 
 def test_every_zap_dataset_has_a_card():
