@@ -10,7 +10,10 @@ name: GOLD on ephemeral environment
 # draft; and by hand for the head of any branch, PR or not:
 #
 #   gh workflow run gold-ephemeral.yaml --ref <branch> \
-#     [-f trials=1] [-f ids="1-030 1-136"] [-f keep_env=true]
+#     [-f trials=1] [-f ids="1-030 1-136"] [-f workers=15] [-f keep_env=true]
+#
+# Concurrent cases default to the GOLD_WORKERS repository variable, else 10;
+# `gh variable set GOLD_WORKERS --body 15` changes it for every trigger.
 #
 # PRs and manual runs build their own image first. Marking a PR ready again
 # re-runs it; so does a manual run on its branch, which also comments on the PR.
@@ -38,6 +41,10 @@ on:
         required: false
         default: ""
         type: string
+      workers:
+        description: Concurrent cases (gold caps it at 20; default GOLD_WORKERS, else 10)
+        required: false
+        type: number
       keep_env:
         description: Leave the environment up afterwards (destroy it by hand)
         required: false
@@ -55,7 +62,8 @@ env:
   GOLD_PASS_THRESHOLD: "90"
 
 jobs:
-  # Decides whether to run, and which commit.
+  # Decides whether to run, and which commit, and checks the secrets the later
+  # jobs need, so a missing one fails here rather than after the deploy.
   eval-needed:
     # Main: only builds from a push that succeeded (not manual dispatches).
     # PRs: non-draft only; fork PRs get no secrets, so they can't deploy.
@@ -72,6 +80,27 @@ jobs:
     outputs:
       sha: ${{ steps.commit.outputs.sha }}
     steps:
+      - name: Check required secrets
+        env:
+          # gold: the agent API token and the LLM judge
+          WRI_BEARER_TOKEN: ${{ secrets.WRI_BEARER_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # build and deploy
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          EPHEMERAL_DB_PASSWORD: ${{ secrets.EPHEMERAL_DB_PASSWORD }}
+          EPHEMERAL_SEED_SNAPSHOT_ID: ${{ vars.EPHEMERAL_SEED_SNAPSHOT_ID }}
+        run: |
+          missing=0
+          for name in WRI_BEARER_TOKEN ANTHROPIC_API_KEY AWS_ACCESS_KEY_ID \
+              AWS_SECRET_ACCESS_KEY EPHEMERAL_DB_PASSWORD EPHEMERAL_SEED_SNAPSHOT_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error title=Missing secret::$name is not set for this repository"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
       - id: commit
         run: echo "sha=${{ github.event.pull_request.head.sha || github.event.workflow_run.head_sha || github.sha }}" >> "$GITHUB_OUTPUT"
 
@@ -120,6 +149,7 @@ jobs:
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       # Manual-run inputs; empty on other triggers.
       TRIALS: ${{ inputs.trials || 3 }}
+      WORKERS: ${{ inputs.workers || vars.GOLD_WORKERS || 10 }}
       IDS: ${{ inputs.ids }}
     steps:
       - name: Checkout
@@ -152,7 +182,7 @@ jobs:
             --api-base-url "$API_BASE_URL" \
             --trials "$TRIALS" \
             "${id_args[@]}" \
-            --workers 10 \
+            --workers "$WORKERS" \
             --build "$SHA" \
             --results-dir ci-results \
             2>&1 | tee gold.log
