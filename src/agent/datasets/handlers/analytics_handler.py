@@ -25,6 +25,8 @@ logger = get_logger(__name__)
 POLL_TIMEOUT_SECONDS = 180
 # Wait between polls when the API sends no (usable) Retry-After.
 POLL_DEFAULT_INTERVAL_SECONDS = 1.0
+# Result payloads can take well over httpx's 5s default to serve.
+ANALYTICS_HTTP_TIMEOUT = httpx.Timeout(10.0, read=60.0)
 
 ADMIN_SUBTYPES = (
     "country",
@@ -576,7 +578,9 @@ class AnalyticsHandler(DataSourceHandler):
             wait = POLL_DEFAULT_INTERVAL_SECONDS
 
             try:
-                async with httpx.AsyncClient() as client:
+                async with httpx.AsyncClient(
+                    timeout=ANALYTICS_HTTP_TIMEOUT
+                ) as client:
                     response = await client.get(
                         resource_link, headers=analytics_api_headers()
                     )
@@ -635,7 +639,7 @@ class AnalyticsHandler(DataSourceHandler):
             )
 
         download_link = data_section["link"]
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=ANALYTICS_HTTP_TIMEOUT) as client:
             response = await client.get(
                 download_link, headers=analytics_api_headers()
             )
@@ -766,7 +770,9 @@ class AnalyticsHandler(DataSourceHandler):
             logger.info(f"Analytics API Request - Headers: {redacted_headers}")
             logger.info(f"Analytics API Request - Payload: {payload}")
 
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(
+                timeout=ANALYTICS_HTTP_TIMEOUT
+            ) as client:
                 response = await client.post(
                     endpoint_url, headers=headers, json=payload
                 )
