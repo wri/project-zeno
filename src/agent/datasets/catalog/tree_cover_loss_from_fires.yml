@@ -1,5 +1,6 @@
 dataset_id: 10
 dataset_name: Tree cover loss due to fires
+selection_card: "Tree cover loss due to fires (2001-2025). Annual tree cover loss at 30 m split into loss caused by fire and loss from all other causes. Can be limited to primary or intact forest. Time step is one year. No emissions data."
 context_layers:
 - value: primary_forest
   description: Shows tree cover loss due to fires within humid tropical primary forests across pan-tropical regions. Default to this layer for general forest loss or deforestation requests when the AOI is within its extent, unless the user explicitly asks for all tree cover, non-primary/secondary forest, plantations, or otherwise indicates they want forest types beyond primary forest.

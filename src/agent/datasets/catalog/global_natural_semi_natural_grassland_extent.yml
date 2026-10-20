@@ -1,5 +1,6 @@
 dataset_id: 2
 dataset_name: Global natural/semi-natural grassland extent
+selection_card: "Natural/semi-natural grassland extent (2000-2022). Annual 30 m maps of natural and semi-natural grassland, which includes native grasslands, shrublands, savannas, steppes and tundra (low vegetation under 3 m). Gives grassland area (ha) for each year from 2000 to 2022 and its gain or loss between years. Does not include cultivated grassland or cropland."
 context_layers: null
 parameters: null
 variables: Natural/Semi-Natural Grassland

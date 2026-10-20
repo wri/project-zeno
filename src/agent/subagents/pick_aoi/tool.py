@@ -23,6 +23,11 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import text
 
 from src.agent.config import AgentSettings
+from src.agent.datasets.pull_checks import (  # noqa: F401 (re-exported)
+    SUBREGION_LIMIT,
+    SUBREGION_LIMIT_ADMIN,
+    refuse_areas,
+)
 from src.agent.i18n import t
 from src.agent.language import DEFAULT_LANGUAGE
 from src.agent.llms import SMALL_MODEL
@@ -59,8 +64,6 @@ from src.shared.logging_config import get_logger
 from src.shared.request_context import current_user_id
 
 RESULT_LIMIT = 10
-SUBREGION_LIMIT_ADMIN = 1000
-SUBREGION_LIMIT = 50
 
 load_dotenv()
 logger = get_logger(__name__)
@@ -116,6 +119,9 @@ async def query_aoi_database(
         user_id=user_id,
         limit=result_limit,
         offset=0,
+        # A caller with no user (the MCP server) searches the reference
+        # areas only; custom areas belong to a user.
+        include_custom=user_id is not None,
     )
 
 
@@ -568,35 +574,10 @@ async def check_aoi_selection(
 ) -> Optional[str]:
     if not aois:
         return await t("pick_aoi.no_matching_aois", language)
-
-    aoi_sources = set([aoi.source for aoi in aois])
-    if len(aoi_sources) > 1:
-        return await t("pick_aoi.multiple_sources", language)
-
-    aoi_source = next(iter(aoi_sources))
-    if aoi_source in {"kba", "wdpa", "landmark", *CONCESSION_SOURCES}:
-        subregion_limit = SUBREGION_LIMIT
-    else:
-        subregion_limit = SUBREGION_LIMIT_ADMIN
-
-    if len(aois) > subregion_limit:
-        # A concession expansion stops one row past the limit, so its true
-        # count is unknown. The message says so, and that no figure across
-        # the area is possible, so the agent does not offer one.
-        if aoi_source in CONCESSION_SOURCES:
-            return await t(
-                "pick_aoi.too_many_concessions",
-                language,
-                limit=subregion_limit,
-            )
-        return await t(
-            "pick_aoi.too_many_subregions",
-            language,
-            count=len(aois),
-            subregion_limit=SUBREGION_LIMIT,
-            subregion_limit_admin=SUBREGION_LIMIT_ADMIN,
-        )
-
+    # The same check every pull runs, so a selection made here can be pulled.
+    refusal = refuse_areas([aoi.model_dump() for aoi in aois])
+    if refusal:
+        return await t(refusal.key, language, **refusal.kwargs)
     return None
 
 
@@ -979,8 +960,14 @@ class Geocoder:
         tool_call_id: Optional[str] = None,
         language: str = DEFAULT_LANGUAGE,
         admin_term: Optional[str] = None,
+        normalized: Optional[bool] = None,
     ) -> Command:
-        """DB step: resolve known place name(s) to AOI geometry."""
+        """DB step: resolve known place name(s) to AOI geometry.
+
+        ``normalized`` overrides the ``AOI_NORMALIZER_ENABLED`` kill switch.
+        The MCP server passes True: with the normaliser off, a model picks
+        among the candidates, and the server runs no model.
+        """
         place_names = [place.place for place in places]
         logger.info(
             f"GEOCODER: lookup places: '{place_names}', "
@@ -994,7 +981,8 @@ class Geocoder:
                 subregion, tool_call_id, language
             )
 
-        normalized = AgentSettings.aoi_normalizer_enabled
+        if normalized is None:
+            normalized = AgentSettings.aoi_normalizer_enabled
         # With a subregion, the caller's `area_of_interest` names the kind of
         # the children ("indigenous lands in Ecuador" comes with the landmark
         # type), not the kind of the parent. Narrowing the parent search to it
