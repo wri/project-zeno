@@ -44,10 +44,9 @@ that can be found at [project-zeno-next](https://github.com/wri/project-zeno-nex
 
 ### Evals
 
-We have an evaluation framework we use to do end-to-end testing of the
-agent on the deployed API. The framework can be found in the [gnw-evals](https://github.com/wri/gnw-evals) repository.
-
-For adding eval cases and running evals locally, see [tests/evals/README.md](tests/evals/README.md).
+End-to-end evals of the agent against a deployed API run in the GOLD regression
+suite, [gnw-gold-evals](https://github.com/wri/gnw-gold-evals). Step-level evals, which
+score a single agent step with an LLM judge, live in [tests/evals/](tests/evals/README.md).
 
 ### STAC
 
