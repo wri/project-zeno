@@ -39,6 +39,36 @@ MAX_SEARCH_RESULTS = 25
 # subregion expansion, so every selection resolve_areas returns can be pulled.
 MAX_AREAS = SUBREGION_LIMIT_ADMIN
 MAX_PLACES = 10
+# Every spelling of a place is its own search query. The agent's model is
+# asked for up to 3; an MCP client is held to that.
+MAX_ALTERNATIVES = 3
+
+
+def _place_field(name: str):
+    return ExtractedPlace.model_fields[name].description
+
+
+class Place(ExtractedPlace):
+    """An `ExtractedPlace` with its lengths capped, because here a client
+    writes it rather than the agent's model."""
+
+    place: str = Field(
+        min_length=1,
+        max_length=MAX_SEARCH_NAME_CHARS,
+        description=_place_field("place"),
+    )
+    canonical: str = Field(
+        default="",
+        max_length=MAX_SEARCH_NAME_CHARS,
+        description=_place_field("canonical"),
+    )
+    alternatives: list[
+        Annotated[str, Field(max_length=MAX_SEARCH_NAME_CHARS)]
+    ] = Field(
+        default_factory=list,
+        max_length=MAX_ALTERNATIVES,
+        description=_place_field("alternatives"),
+    )
 
 
 def format_aoi_id(source: str, src_id: str) -> str:
@@ -86,9 +116,11 @@ async def lookup_areas(aoi_ids: list[str]) -> list[dict]:
     analytics handler takes (`source`, `src_id`, `name`, `subtype`, `bbox`).
 
     Raises ToolError naming every id that has no live area, so a model that
-    invented or mistyped one learns which and where to get a real one.
+    invented or mistyped one learns which and where to get a real one. A
+    repeated id is kept once: the analytics API rejects a request whose
+    feature ids are not unique.
     """
-    pairs = [parse_aoi_id(aoi_id) for aoi_id in aoi_ids]
+    pairs = list(dict.fromkeys(parse_aoi_id(aoi_id) for aoi_id in aoi_ids))
     query = text(
         "SELECT source, source_id AS src_id, name, subtype, bbox "
         "FROM aois "
@@ -109,9 +141,7 @@ async def lookup_areas(aoi_ids: list[str]) -> list[dict]:
             (row["source"], row["src_id"]): row
             for row in result.mappings().all()
         }
-    missing = [
-        aoi_id for aoi_id, pair in zip(aoi_ids, pairs) if pair not in rows
-    ]
+    missing = [format_aoi_id(*pair) for pair in pairs if pair not in rows]
     if missing:
         raise ToolError(
             f"No area found for {', '.join(missing)}. Get area ids from "
@@ -203,7 +233,7 @@ def _area_lines(found: list[dict]) -> str:
 
 async def resolve_areas(
     places: Annotated[
-        list[ExtractedPlace],
+        list[Place],
         Field(
             min_length=1,
             max_length=MAX_PLACES,

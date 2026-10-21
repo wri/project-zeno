@@ -17,12 +17,14 @@ NONE = "none"
 # map layer and that the default profile shows: not 9 (sLUC emission
 # factors, table data with no map layer) and not 12 (LGMS, hidden by
 # default). This set is the rule; a card alone does not put a dataset in
-# zap.
+# zap. A dataset with no card is left out as well, rather than failing the
+# import (and so the app).
 ZAP_EXCLUDED_DATASET_IDS = frozenset({9, 12})
 DATASET_CARDS: dict[int, str] = {
     ds["dataset_id"]: ds["selection_card"]
     for ds in DATASETS
     if ds["dataset_id"] not in ZAP_EXCLUDED_DATASET_IDS
+    and ds.get("selection_card")
 }
 
 DATASET_INSTRUCTIONS = (
