@@ -14,10 +14,12 @@ from src.api.services.charts.base import ChartGenerator
 # from 2021 on. The analytics API rejects an earlier start.
 FIRST_YEAR = 2021
 
-CLASS_COLUMN = "natural_forests_class"
-NATURAL_FOREST_CLASS = "Natural Forest"
-# Plantations and tree crops, and loss outside the 2020 forest classes.
-OTHER_CLASSES = ("Non-natural Forest", "Unknown")
+# The columns of a split row, in ha.
+NATURAL_COLUMN = "natural_forest_area_ha"
+OTHER_COLUMN = "other_tree_cover_area_ha"
+# The two pulls sum the same pixels, natural forest a subset of them, but
+# two float sums can differ in their last digits.
+_RELATIVE_TOLERANCE = 1e-6
 
 NATURAL_SERIES = "charts.label.natural_forest"
 OTHER_SERIES = "charts.label.other_tree_cover"
@@ -36,41 +38,62 @@ SERIES_COLORS = {
 }
 
 
-def split_by_year(rows: Iterable[dict]) -> dict[int, tuple[float, float]]:
-    """Natural forest loss and other loss in ha, by year.
-
-    A row with no class or another class raises: a new class from the
-    analytics API must not pass as other tree cover.
-    """
-    split: dict[int, list[float]] = {}
+def _area_by_year(rows: Iterable[dict]) -> dict[int, float]:
+    totals: dict[int, float] = {}
     for row in rows:
-        forest_class = row.get(CLASS_COLUMN)
-        if forest_class == NATURAL_FOREST_CLASS:
-            index = 0
-        elif forest_class in OTHER_CLASSES:
-            index = 1
-        else:
-            raise ValueError(f"Unknown natural forest class: {forest_class!r}")
-        totals = split.setdefault(int(row["tree_cover_loss_year"]), [0.0, 0.0])
-        totals[index] += row.get("area_ha") or 0.0
-    return {year: (natural, other) for year, (natural, other) in split.items()}
+        year = int(row["tree_cover_loss_year"])
+        totals[year] = totals.get(year, 0.0) + (row.get("area_ha") or 0.0)
+    return totals
+
+
+def split_by_year(
+    natural_rows: Iterable[dict], all_rows: Iterable[dict]
+) -> List[dict]:
+    """One row per year with loss in natural forest and in other tree
+    cover, in ha, from two tree cover loss pulls at the same canopy
+    threshold: one in natural forest, one of all tree cover.
+
+    Other tree cover is all loss minus natural forest loss: plantations and
+    tree crops, and loss outside the 2020 forest classes. More natural
+    forest loss than all loss raises, as the two pulls do not match.
+    """
+    natural = _area_by_year(natural_rows)
+    total = _area_by_year(all_rows)
+    rows = []
+    for year in sorted(natural.keys() | total.keys()):
+        natural_ha, total_ha = natural.get(year, 0.0), total.get(year, 0.0)
+        if natural_ha - total_ha > _RELATIVE_TOLERANCE * max(total_ha, 1.0):
+            raise ValueError(
+                f"Natural forest loss in {year} ({natural_ha} ha) is more "
+                f"than all tree cover loss ({total_ha} ha)."
+            )
+        rows.append(
+            {
+                "tree_cover_loss_year": year,
+                NATURAL_COLUMN: natural_ha,
+                OTHER_COLUMN: max(total_ha - natural_ha, 0.0),
+            }
+        )
+    return rows
 
 
 def natural_forest_totals(rows: Iterable[dict]) -> tuple[float, float]:
-    """Natural forest loss and all loss in ha, over every row."""
-    split = split_by_year(rows).values()
-    natural = sum(natural for natural, _ in split)
-    return natural, natural + sum(other for _, other in split)
+    """Natural forest loss and all loss in ha, over the split rows."""
+    natural = other = 0.0
+    for row in rows:
+        natural += row[NATURAL_COLUMN]
+        other += row[OTHER_COLUMN]
+    return natural, natural + other
 
 
 class TCLNaturalForestChartGenerator(ChartGenerator):
     """Tree cover loss per year as a stacked bar: other tree cover at the
     bottom, natural forest on top.
 
-    It reads the rows of the natural forest breakdown, which only the
-    analysis templates request, so it is not in DETERMINISTIC_GENERATORS:
-    a tree cover loss pull keeps its default chart. Every year of the range
-    gets a row, zero when there was no loss, so the bars line up.
+    It reads the rows of ``split_by_year``, which only the analysis
+    templates make, so it is not in DETERMINISTIC_GENERATORS: a tree cover
+    loss pull keeps its default chart. Every year of the range gets a row,
+    zero when there was no loss, so the bars line up.
     """
 
     dataset_id = TREE_COVER_LOSS_ID
@@ -80,15 +103,15 @@ class TCLNaturalForestChartGenerator(ChartGenerator):
         self._years = range(start_year, end_year + 1)
 
     def generate(self, rows: List[dict]) -> List[InsightChart]:
-        split = split_by_year(rows)
+        by_year = {row["tree_cover_loss_year"]: row for row in rows}
         chart_data = []
-        for year in sorted(set(self._years) | set(split)):
-            natural, other = split.get(year, (0.0, 0.0))
+        for year in sorted(set(self._years) | set(by_year)):
+            row = by_year.get(year, {})
             chart_data.append(
                 {
                     "tree_cover_loss_year": year,
-                    OTHER_SERIES: other,
-                    NATURAL_SERIES: natural,
+                    OTHER_SERIES: row.get(OTHER_COLUMN, 0.0),
+                    NATURAL_SERIES: row.get(NATURAL_COLUMN, 0.0),
                 }
             )
         return [

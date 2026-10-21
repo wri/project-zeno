@@ -16,16 +16,21 @@ To read them, see PR #840 and the git history of
 | Name | Widgets | Args |
 |---|---|---|
 | `nrt-monitoring` | Integrated alerts chart (daily), integrated alerts map layer, Sentinel-2 imagery | `days`: length of the period, counted back from today. Default 14, maximum 365. |
-| `post-2020-forest-loss` | Tree cover loss per year from 2021, split into natural forest and other tree cover (full width); tree cover loss map with the natural forest context layer, for the same years (half width); Sentinel-2 imagery of the last 30 days (half width) | None. The period runs from 2021-01-01 to today; the chart, the map and the section stop at the last year of loss data. |
+| `post-2020-forest-loss` | Tree cover loss per year from 2021 at 10% canopy density, split into natural forest and other tree cover (full width); tree cover loss map at 10% with the natural forest context layer, for the same years (half width); Sentinel-2 imagery of the last 30 days (half width) | None. The period runs from 2021-01-01 to today; the chart, the map and the section stop at the last year of loss data. |
 
 A template uses the first area of the dashboard. Each template has its own
 arguments (`args`). The arguments set the period of the widgets.
 
-`post-2020-forest-loss` pulls tree cover loss grouped by SBTN Natural Lands
-Map class, with no canopy threshold. "Other tree cover" is Non-natural
-Forest plus Unknown. The chart series are the legend names in the user's
-language, and `color_map` is keyed by them. The map config sets `size` and
-`dataset.context_layer`.
+`post-2020-forest-loss` uses a 10% canopy density threshold for the chart
+and the map, the natural forest default of the chat path. The chart makes
+two tree cover loss pulls at 10%: one with the `natural_forest` context layer
+(SBTN Natural Forest only) and one of all tree cover. "Other tree cover" is
+the difference: non-natural forest plus loss outside the 2020 forest
+classes. Two pulls, because the analytics API rejects a canopy threshold
+with its split by natural forest class (`forest_filter="natural_forest"`).
+At 10% the API returns no emissions, and the section shows none. The chart
+series are the legend names in the user's language, and `color_map` is
+keyed by them. The map config sets `size` and `dataset.context_layer`.
 
 ## API
 

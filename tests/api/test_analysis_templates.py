@@ -25,7 +25,7 @@ from src.api.services.analysis_templates.registry import (
 )
 from tests.api.test_dashboards import AUTH, _create_dashboard, _create_user
 from tests.conftest import async_session_maker
-from tests.unit.api.services.test_chart_generators import NATURAL_FOREST_DATA
+from tests.unit.api.analysis_templates.test_builder import _split_pulls
 
 ROWS = {
     "alert_date": ["2026-09-10", "2026-09-12"],
@@ -48,7 +48,8 @@ def _imagery_ok():
 
 
 @contextmanager
-def _sources(pull_ok=True, imagery=None, rows=ROWS):
+def _sources(pull_ok=True, imagery=None, rows=ROWS, pulls=None):
+    """``pulls`` answers each pull by its arguments, in place of ``rows``."""
     pull = DataPullResult(
         success=pull_ok,
         data=rows if pull_ok else None,
@@ -58,7 +59,7 @@ def _sources(pull_ok=True, imagery=None, rows=ROWS):
         patch.object(
             builder.AnalyticsHandler,
             "pull_data",
-            AsyncMock(return_value=pull),
+            AsyncMock(return_value=pull, side_effect=pulls),
         ),
         patch.object(
             builder._IMAGERY_PROVIDER,
@@ -163,7 +164,7 @@ async def test_apply_post_2020_forest_loss(client, auth_override):
     auth_override(user.id)
     dashboard = await _create_dashboard(client)
 
-    with _sources(rows=NATURAL_FOREST_DATA):
+    with _sources(pulls=_split_pulls()):
         response = await _apply(
             client, dashboard["id"], template="post-2020-forest-loss"
         )
@@ -224,7 +225,7 @@ async def test_post_2020_forest_loss_without_imagery_for_a_large_area(
         status="error", message="The area is too large for imagery."
     )
 
-    with _sources(rows=NATURAL_FOREST_DATA, imagery=too_large):
+    with _sources(pulls=_split_pulls(), imagery=too_large):
         response = await _apply(
             client, dashboard["id"], template="post-2020-forest-loss"
         )
