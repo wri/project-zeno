@@ -42,7 +42,7 @@ def _area_by_year(rows: Iterable[dict]) -> dict[int, float]:
     totals: dict[int, float] = {}
     for row in rows:
         year = int(row["tree_cover_loss_year"])
-        totals[year] = totals.get(year, 0.0) + (row.get("area_ha") or 0.0)
+        totals[year] = totals.get(year, 0.0) + row["area_ha"]
     return totals
 
 

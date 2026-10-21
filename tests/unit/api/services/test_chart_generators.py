@@ -101,20 +101,23 @@ def test_sorts_rows_by_year():
 
 
 # --- Tree cover loss split by natural forest -------------------------------
-# Shaped like the two analytics answers for BRA.14.1 at a 10% threshold:
-# tree cover loss with the natural_forest context layer, and all tree cover
-# loss. One row per year, in arbitrary order; 2024 has no rows.
+# Shaped like the two analytics answers for BRA.14.1 at a 10% threshold, as
+# the handler gives them: tree cover loss with the natural_forest context
+# layer, and all tree cover loss. One row per year, in arbitrary order;
+# 2024 has no rows. Below 30% there are no emissions.
 NATURAL_FOREST_DATA = {
     "aoi_id": ["BRA.14.1"] * 4,
     "aoi_type": ["admin"] * 4,
     "tree_cover_loss_year": [2023, 2021, 2025, 2022],
     "area_ha": [1500.0, 900.5, 800.0, 1222.35],
+    "carbon_emissions_MgCO2e": [None] * 4,
 }
 ALL_LOSS_DATA = {
     "aoi_id": ["BRA.14.1"] * 4,
     "aoi_type": ["admin"] * 4,
     "tree_cover_loss_year": [2022, 2021, 2023, 2025],
     "area_ha": [1555.61, 1130.75, 1700.0, 899.5],
+    "carbon_emissions_MgCO2e": [None] * 4,
 }
 SPLIT_ROWS = split_by_year(
     column_to_rows(NATURAL_FOREST_DATA), column_to_rows(ALL_LOSS_DATA)
