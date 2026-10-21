@@ -25,7 +25,7 @@ logger = get_logger(__name__)
 POLL_TIMEOUT_SECONDS = 180
 # Wait between polls when the API sends no (usable) Retry-After.
 POLL_DEFAULT_INTERVAL_SECONDS = 1.0
-# Result payloads can take well over httpx's 5s default to serve.
+# The analytics API can take well over httpx's 5s default to start responding.
 ANALYTICS_HTTP_TIMEOUT = httpx.Timeout(10.0, read=60.0)
 
 ADMIN_SUBTYPES = (

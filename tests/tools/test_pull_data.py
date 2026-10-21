@@ -623,7 +623,7 @@ async def test_pull_data_custom_area(auth_override, client, structlog_context):
 
 
 async def test_fetch_statistics_uses_explicit_timeout(monkeypatch):
-    """Large result payloads outlast httpx's 5s default (PZB-1410)."""
+    """The analytics API can outlast httpx's 5s default (PZB-1410)."""
     seen = {}
 
     class FakeClient:
