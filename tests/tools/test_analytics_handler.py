@@ -313,6 +313,23 @@ async def test_flat_result_enriches_names_and_counts():
     assert enriched["name"] == ["Brazil", "Argentina"]
 
 
+async def test_a_null_column_becomes_a_null_per_row():
+    # Tree cover loss below a 30% canopy threshold, as the API answers it:
+    # no emissions, as one null for the column.
+    raw = {
+        "aoi_id": [format_id("BRA.11_1")] * 2,
+        "tree_cover_loss_year": [2021, 2022],
+        "area_ha": [130451.62, 85800.05],
+        "carbon_emissions_MgCO2e": None,
+    }
+    aois = [{"src_id": "BRA.11_1", "name": "Mato Grosso do Sul"}]
+
+    enriched, count = _count_and_enrich(raw, aois)
+
+    assert count == 2
+    assert enriched["carbon_emissions_MgCO2e"] == [None, None]
+
+
 @pytest.mark.parametrize(
     "subtype", ["municipality", "locality", "neighbourhood"]
 )

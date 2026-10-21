@@ -242,8 +242,17 @@ def merge_lgms_sections(raw_data: dict) -> dict:
 
 
 def _count_and_enrich(raw_data: Any, aois: list[dict]) -> tuple[Any, int]:
-    """Count data points and add AOI names (by ``aoi_id``) to a flat result."""
+    """Count data points and add AOI names (by ``aoi_id``) to a flat result.
+
+    A metric the API does not compute comes as one null for the whole
+    column, for example emissions below a 30% canopy threshold. It becomes
+    a null per row, so that every column has one value per row.
+    """
     count = _first_list_len(raw_data) if isinstance(raw_data, dict) else 0
+    if isinstance(raw_data, dict):
+        for key, value in raw_data.items():
+            if value is None:
+                raw_data[key] = [None] * count
     if isinstance(raw_data, dict) and "aoi_id" in raw_data:
         aois_id_to_name = {
             format_id(item["src_id"]): item.get("name", item["src_id"]).split(
