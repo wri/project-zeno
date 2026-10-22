@@ -44,10 +44,12 @@ that can be found at [project-zeno-next](https://github.com/wri/project-zeno-nex
 
 ### Evals
 
-We have an evaluation framework we use to do end-to-end testing of the
-agent on the deployed API. The framework can be found in the [gnw-evals](https://github.com/wri/gnw-evals) repository.
-
-For adding eval cases and running evals locally, see [tests/evals/README.md](tests/evals/README.md).
+GOLD is our capability regression suite for the agent: versioned cases, a
+harness and a results ledger, living at [evals/gold/](evals/gold/README.md).
+It runs in CI on every push to main and on every PR's first non-draft state
+(`.github/workflows/gold-ephemeral.yaml`), and can also be run against
+staging, prod or a local checkout. See [evals/gold/README.md](evals/gold/README.md)
+for how to add a case or run the set yourself.
 
 ### STAC
 
