@@ -4,10 +4,8 @@ The record format is defined in ``results/README.md``: results key on case
 ``uid`` and ``caseset_version``, checks are tri-state (``1.0`` / ``0.0`` /
 ``None``), and nothing is ever hand-written into the ledger.
 
-The CSV helpers (``check_name_from_column``, ``parse_score``,
-``majority_from_mean``) serve ``tools/ingest_run.py``, which imports legacy
-gnw-evals result CSVs. One naming quirk is handled here, in ``REASON_ALIASES``:
-the score is ``charts_answer_score`` but its reason field is
+One naming quirk is handled here, in ``REASON_ALIASES``: the score is
+``charts_answer_score`` but its reason field is
 ``chart_answer_score_reason``.
 """
 
@@ -23,9 +21,6 @@ PARTIAL_SUFFIX = ".partial.jsonl"
 
 # reason-column stem -> check name (gnw-evals historical inconsistency)
 REASON_ALIASES = {"chart_answer": "charts_answer"}
-
-# score columns that are aggregates or diagnostics, not checks
-NON_CHECK_SCORES = {"overall_score"}
 
 _RUN_ID_RE = re.compile(r"^\d{8}T\d{6}Z_[a-z]+(_[a-z0-9-]+)?$")
 
@@ -43,15 +38,6 @@ REQUIRED_RUN_FIELDS = (
 )
 
 
-def check_name_from_column(column: str) -> str | None:
-    """Map a harness CSV column to a check name, or None if not a check."""
-    if column in NON_CHECK_SCORES or column.endswith("_score_std"):
-        return None
-    if column.endswith("_score"):
-        return column.removesuffix("_score")
-    return None
-
-
 def reason_name_from_column(column: str) -> str | None:
     if column.endswith("_score_reason"):
         stem = column.removesuffix("_score_reason")
@@ -62,17 +48,6 @@ def reason_name_from_column(column: str) -> str | None:
     return None
 
 
-def parse_score(cell: object) -> float | None:
-    """Tri-state parse: empty -> None (not evaluated), else 1.0/0.0."""
-    text = str(cell or "").strip()
-    if not text:
-        return None
-    value = float(text)
-    if value not in (0.0, 1.0):
-        raise ValueError(f"check scores must be binary, got {value!r}")
-    return value
-
-
 def majority(values: list[float | None]) -> float | None:
     """Majority verdict across trials. None if never evaluated; ties fail
     conservatively."""
@@ -81,28 +56,6 @@ def majority(values: list[float | None]) -> float | None:
         return None
     passes = sum(1 for v in evaluated if v == 1.0)
     return 1.0 if passes * 2 > len(evaluated) else 0.0
-
-
-def majority_from_mean(cell: object, num_trials: int) -> float | None:
-    """Majority verdict recovered from a trial-mean score column.
-
-    Multi-trial gnw-evals CSVs write the mean of the per-trial scores into
-    the primary ``*_score`` column, so the pass count is ``mean * trials``.
-    A mean that doesn't correspond to a whole number of passes (e.g. some
-    trials returned None and shrank the denominator) is refused loudly
-    rather than mis-ingested. Ties fail conservatively, as in ``majority``.
-    """
-    text = str(cell or "").strip()
-    if not text:
-        return None
-    mean = float(text)
-    passes = round(mean * num_trials)
-    if not 0 <= passes <= num_trials or abs(mean - passes / num_trials) > 0.005:
-        raise ValueError(
-            f"{mean!r} is not a mean of {num_trials} binary scores — "
-            "were some trials unevaluated? ingest per-trial data instead"
-        )
-    return 1.0 if passes * 2 > num_trials else 0.0
 
 
 def make_run_id(started_utc: str, environment: str, ff: str | None) -> str:

@@ -10,10 +10,9 @@ it. This is only the first step of the after-edit ritual: finish it
 COVERAGE.md.
 
 uids follow the store's `uid_includes_deltas` manifest flag. When it is set
-(cases/v2), each multi-turn case's deltas are hashed into its uid; the frozen
-cases/v1 leaves it unset. `--fix --uid-includes-deltas` turns the flag on for
-a store and rewrites its uids; `--fix` alone keeps whatever the manifest
-records.
+(cases/v2, the current store), each multi-turn case's deltas are hashed
+into its uid. `--fix --uid-includes-deltas` turns the flag on for a store
+and rewrites its uids; `--fix` alone keeps whatever the manifest records.
 """
 
 from __future__ import annotations
@@ -46,7 +45,7 @@ def main() -> int:
         action="store_true",
         help="with --fix: record uid_includes_deltas in this store's manifest "
         "and rehash its multi-turn uids over each turn's deltas (one-way; "
-        "never use on the frozen cases/v1)",
+        "never use on a store whose uids must stay as imported)",
     )
     args = parser.parse_args()
     if args.uid_includes_deltas and not args.fix:

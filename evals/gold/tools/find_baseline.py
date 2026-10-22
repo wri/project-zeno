@@ -4,18 +4,19 @@
 
 Prints the path of the newest run in ``--runs-dir`` that is comparable to the
 given run: same ``environment``, same ``ff`` (unset matches only unset), same
-``num_trials`` and same case store (``caseset``: v1 or v2). Runs from before
-2026-08-04 carry no ``caseset``; their store is unknown, so they never match a
-run that records one. The given run itself is never its own baseline.
-"Newest" is by the run header's ``started`` timestamp.
+``num_trials`` and same case store (``caseset``). Runs from before 2026-08-04
+carry no ``caseset``; their store is unknown, so they never match a run that
+records one. The given run itself is never its own baseline. "Newest" is by
+the run header's ``started`` timestamp.
 
 Exits 1 with a message when no comparable run exists. A diff across a
 differing environment, ``ff``, trial count or case store measures the setup,
 not the release (CLAUDE.md), so the gate must fail loudly rather than fall
 back to whatever run happens to sort last.
 
-In CI the directory holds the committed ledger plus the fresh run, so the
-answer is the newest comparable committed run.
+This is a manual step (the release gate isn't run by CI): point it at the
+committed ledger plus a fresh run you just made, and it answers "which
+committed run do I diff this against?"
 """
 
 from __future__ import annotations
@@ -29,9 +30,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from goldset.ledger import read_run
 
 # caseset is absent (None) on runs that predate the field, and None never
-# equals "v1"/"v2", so an unknown store is never guessed to match. Two such
-# runs can still match each other: cases/v1 was the only store before v2
-# landed on 2026-08-04, the same day the field did.
+# equals a real caseset name, so an unknown store is never guessed to
+# match. Two such runs can still match each other: there was only one
+# store before the field landed on 2026-08-04.
 COMPARABLE_ON = ("environment", "ff", "num_trials", "caseset")
 UNSET_LABEL = {"ff": "unset", "caseset": "unknown"}
 

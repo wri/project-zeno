@@ -388,7 +388,7 @@ def build_run_record(
         "environment": environment,
         "build": args.build,
         "ff": args.ff,
-        "harness": {"repo": "gnw-gold-evals", "sha": _harness_sha()},
+        "harness": {"repo": "project-zeno", "sha": _harness_sha()},
         "judge_model": judge_model_for_backend(judge_backend),
         "num_trials": args.trials,
         "workers": args.workers,

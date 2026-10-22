@@ -52,8 +52,8 @@ def _pull_dataset_reference(statistics: dict[str, Any]) -> str:
 
     Most statistics entries carry an integer ``dataset_id`` alongside
     ``source_url``, ``id``, ``data``, ``start_date`` and ``end_date``; a few do
-    not (see results/campaigns/20260801-pr08.md). Presence is checked by key
-    rather than truthiness, so an id of 0 still counts as present.
+    not. Presence is checked by key rather than truthiness, so an id of 0 still
+    counts as present.
     """
     if "dataset_id" in statistics:
         return normalize_value(statistics.get("dataset_id"))

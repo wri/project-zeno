@@ -6,9 +6,9 @@ Test-name prefixes map to checks: g1 `answered_without_data`, g2
 `pull_source_match`, f2 `chart_produced`.
 
 The `statistics` fixture copies the entry shape seen in 84 staging
-artefacts that carried a data pull (results/campaigns/20260801-pr08.md,
-step 4): `source_url` names the dataset by slug, and `dataset_id` is an int
-present on most entries (81 of 84) but not all.
+artefacts that carried a data pull: `source_url` names the dataset by
+slug, and `dataset_id` is an int present on most entries (81 of 84) but
+not all.
 """
 
 from types import SimpleNamespace

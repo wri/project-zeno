@@ -188,8 +188,8 @@ asserts what query the agent should build. `ground_truth` is purely the
 1. **The selector names the API's column, not the agent's.** The agent renames
    columns in its pandas codeact — 1-076's chart says `loss_area_ha` where the
    API says `area_ha` — so authoring from an artifact's `charts_data` is a trap.
-   Read column names from project-zeno's `src/api/services/charts.py`, or from a
-   raw `source_url` response.
+   Read column names from project-zeno's `src/api/services/charts/` package, or
+   from a raw `source_url` response.
 2. **The metric is often not the obvious column.** 1-046 asks for "tonnes of
    CO2", which is `carbon_emissions_MgCO2e`. Picking `area_ha` would compare
    658,571 against 1,371.15 and report a 99.8% miss as an agent failure.

@@ -14,8 +14,8 @@ matched: a row whose value is null or non-numeric is skipped, as it is under
 every other aggregate. A column with no numeric values at all raises rather
 than counting zero, so ``count`` on a categorical column is not a row count.
 
-Parsed and applied in code, never by a judge — ``docs/specs/PLAN.md`` §6:
-numbers in code, structure and semantics to the judge.
+Parsed and applied in code, never by a judge — CLAUDE.md's working
+agreements: numbers in code, structure and semantics to the judge.
 
 The selector names the **API's** column, not the agent's. The agent renames
 columns in its pandas codeact (1-076's chart says ``loss_area_ha`` where the API

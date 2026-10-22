@@ -553,7 +553,7 @@ Scope · gating · deterministic · `suggested_datasets_evaluator.evaluate_sugge
 **Triage.**
 - A `0.0` here is a case to update, not an agent regression.
 - Do not write new cases against this field. Use `nudge_type: dataset_choice` (`nudge_match`) or `scope: suggest` (`scope_match`).
-- The check stays because the frozen v1 store still has cases that set the field.
+- The check stays because one parked case (`1-085`, `status: not doing`) still sets the field, pending a rewrite onto `nudge_type`/`nudge_options`.
 
 ## Info-only checks
 

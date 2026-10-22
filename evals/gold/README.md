@@ -26,7 +26,7 @@ Definitions only: counts are in [cases/v2/COVERAGE.md](cases/v2/COVERAGE.md), an
 - **CHALLENGE**: a separate evaluation programme that scores answer quality and accuracy. It has no code or docs in this repo.
 - **gnw-evals**: the earlier evaluation harness ([wri/gnw-evals](https://github.com/wri/gnw-evals)) that this harness was ported from, now retired.
 - **harness**: the code here that sends each case to the agent, fetches the final state and scores it (`src/goldset/runner/`, run with `gold run`).
-- **environment**: the agent deployment a run targets: `staging`, `prod` or `local` (`http://localhost:8000`). Recorded on the run and in its run_id.
+- **environment**: the agent deployment a run targets: `staging`, `prod`, `local` (`http://localhost:8000`) or `ephemeral` (a per-commit CI deployment, needs `--api-base-url`). Recorded on the run and in its run_id.
 - <a id="profile"></a>**ff, tool profile**: `ff` (feature flag) is a field in the chat request that picks the agent's tool profile. Leaving it out gives the default profile; `experimental` adds features not yet released to the default. A run records its `ff`, and its run_id ends with it. See [Running the set](#running-the-set).
 - **AOI (area of interest)**: the place a question is about, as the agent resolved it: one or more ids from a boundary source (`aoi_source`), which is `gadm`, `kba`, `wdpa` or `landmark`.
 - **GADM**: the Database of Global Administrative Areas: country, state and district boundaries. Ids look like `BRA.25_1`: a country code, admin-level numbers, then a `_N` suffix that `aoi_id_match` ignores.
@@ -180,7 +180,7 @@ An official run is not finished when its JSON lands; it is finished when someone
    - what to watch on the next run.
 
    `results/recommendations/20260801T093002Z.md` shows the shape.
-4. **Commit** the run JSON, the rendered reports and the recommendations doc together, in one commit.
+4. **Commit** the run JSON and the recommendations doc together, in one commit. Rendered reports are not committed (`results/reports/` is gitignored): they're regenerable from the run JSON, so regenerate them locally whenever you need to look at one.
 
 The `gold-run` skill runs these steps, and the `triage-run` skill helps fill in step 3.
 
@@ -196,7 +196,7 @@ uv run python tools/coverage_doc.py           # regenerate cases/v2/COVERAGE.md
 uv run python tools/audit_cases.py --strict   # depth rule and DON'Ts, as CI runs it
 ```
 
-CI runs `check.py` (without `--fix`) on both stores, `coverage_doc.py --check` and `audit_cases.py --strict`, and fails the PR if a uid or manifest is out of date, COVERAGE.md is stale, or the audit finds a violation ([The audit gate](cases/README.md#the-audit-gate)).
+CI (`.github/workflows/gold-checks.yml`, on every PR and push to main touching `evals/gold/**`) runs `check.py` (without `--fix`), `coverage_doc.py --check` and `audit_cases.py --strict`, and fails the PR if a uid or manifest is out of date, COVERAGE.md is stale, or the audit finds a violation ([The audit gate](cases/README.md#the-audit-gate)).
 
 Editing the query or any expected value gives the case a new uid, so earlier results no longer match it and a `done` case needs verifying again. That is intended: it keeps every score pinned to the content it measured. Say in the PR which cases changed and why; the PR is the only record of the reason.
 
@@ -245,7 +245,7 @@ tools/                    command-line tools over src/goldset (see tools/README.
 templates/                HTML templates for the rendered reports
 tests/                    the test suite; needs no network
 results/runs/             the committed run ledger (contract: results/README.md)
-results/reports/          rendered HTML reports
+results/reports/          rendered HTML reports (gitignored, regenerable)
 results/recommendations/  one action doc per official run
 results/artifacts/        raw agent state per case and trial (gitignored)
 ```
@@ -266,4 +266,4 @@ CI lives at the project-zeno root, not here: `.github/workflows/gold-ephemeral.y
 
 ## Note on this move
 
-This directory was brought over from the standalone `gnw-gold-evals` repo so that changing the agent and fixing the cases it breaks can happen in the same PR, and so `--env local` runs need no separate checkout. The frozen `cases/v1` sheet-import baseline and the retired-bridge tools (`import_sheet.py`, `export_sheet_csv.py`, `export_csv.py`, `ingest_run.py`, `parity.py`, all for moving cases to/from the old Google Sheet or comparing against the retired gnw-evals harness) were left behind as pure legacy; see the original repo if one is ever needed. This copy also does not carry over `.claude/skills/` (kept local to the original repo by choice).
+This directory was brought over from the standalone `gnw-gold-evals` repo so that changing the agent and fixing the cases it breaks can happen in the same PR, and so `--env local` runs need no separate checkout. Deliberately left behind as pure legacy, with nothing here depending on them: the frozen `cases/v1` sheet-import baseline, a handful of bridge tools for moving cases to/from the retired Google Sheet or comparing against the retired gnw-evals harness, and `.claude/skills/` (kept local to the original repo by choice). None of it is needed to run or extend this copy; see the original repo's history if one is ever needed.

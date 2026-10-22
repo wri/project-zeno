@@ -24,7 +24,7 @@ def test_case_file_conforms(path):
 
 
 def test_store_is_populated():
-    assert CASE_FILES, "cases/ is empty — run tools/import_sheet.py"
+    assert CASE_FILES, "cases/ is empty — is cases/v2 missing or the glob wrong?"
 
 
 def _multiturn_case(deltas):

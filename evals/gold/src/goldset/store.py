@@ -33,7 +33,7 @@ from goldset.runner.multiturn import SNAPSHOT_FIELDS
 MANIFEST_NAME = "MANIFEST.json"
 # Per-store identity rule, recorded in MANIFEST.json: when true, multi-turn
 # uids also hash each turn's deltas (see canonical.conversation_uid). Absent
-# means false, which keeps the frozen cases/v1 uids exactly as imported.
+# means false, which leaves deltas out of the uid for that store.
 UID_INCLUDES_DELTAS = "uid_includes_deltas"
 
 _SLUG_RE = re.compile(r"[^a-z0-9-]+")
@@ -253,7 +253,7 @@ def build_manifest(
 ) -> dict:
     """Deterministic manifest: set version + per-case index, sorted by id.
     The ``uid_includes_deltas`` key is written only when true, so a store
-    without the rule (cases/v1) keeps a byte-identical manifest."""
+    without the rule keeps a byte-identical manifest."""
     mismatched = sorted(
         c.id for c in cases if c.uid_includes_deltas != uid_includes_deltas
     )

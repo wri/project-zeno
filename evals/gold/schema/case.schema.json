@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/wri/gnw-gold-evals/schema/case.schema.json",
+  "$id": "https://github.com/wri/project-zeno/evals/gold/schema/case.schema.json",
   "title": "GOLD case",
   "description": "One GOLD case, single-turn (query and expected) or multi-turn (turns). Its uid is a truncated SHA-256 of the case content: the query plus its non-empty expected values or, for a multi-turn case, every turn's query, expected values and, where the store's MANIFEST.json sets uid_includes_deltas (cases/v2), non-empty deltas, in order. Status, group and notes are never hashed. See src/goldset/canonical.py; tools/check.py fails if a stored uid does not match.",
   "type": "object",
@@ -15,7 +15,7 @@
     "uid": {
       "type": "string",
       "pattern": "^[0-9a-f]{16}$",
-      "description": "Content hash of query/queries + expectations. In cases/v2 (MANIFEST.json uid_includes_deltas: true) it also covers each multi-turn turn's non-empty deltas, canonicalised so key and list order never matter; in cases/v1 (flag absent, frozen baseline) deltas do not participate. Changes on every semantic edit; results are keyed on it."
+      "description": "Content hash of query/queries + expectations. When the store's MANIFEST.json sets uid_includes_deltas: true (the current store, cases/v2) it also covers each multi-turn turn's non-empty deltas, canonicalised so key and list order never matter; when the flag is absent/false, deltas do not participate. Changes on every semantic edit; results are keyed on it."
     },
     "status": {
       "type": "string",
@@ -47,7 +47,7 @@
           "expected": { "$ref": "#/$defs/expectations" },
           "deltas": {
             "type": "object",
-            "description": "Turn 2 onwards (ignored on turn 1): how the agent's state should move since the previous turn, scored as the state_delta check. changed: the field must differ from the previous turn. retain: it must stay the same (catches lost context). absent: it must be empty (catches carry-over). Field names are the per-turn state snapshot (SNAPSHOT_FIELDS in src/goldset/runner/multiturn.py). In cases/v2 deltas are part of the uid; in cases/v1 they are not.",
+            "description": "Turn 2 onwards (ignored on turn 1): how the agent's state should move since the previous turn, scored as the state_delta check. changed: the field must differ from the previous turn. retain: it must stay the same (catches lost context). absent: it must be empty (catches carry-over). Field names are the per-turn state snapshot (SNAPSHOT_FIELDS in src/goldset/runner/multiturn.py). In the current store (cases/v2) deltas are part of the uid; a store whose manifest doesn't set uid_includes_deltas leaves them out.",
             "additionalProperties": false,
             "properties": {
               "changed": { "$ref": "#/$defs/fieldList" },

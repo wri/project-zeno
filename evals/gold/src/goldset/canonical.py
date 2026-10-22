@@ -82,12 +82,12 @@ def conversation_uid(
     What else the uid covers depends on the store, via its MANIFEST.json
     ``uid_includes_deltas`` flag (``include_deltas`` here):
 
-    - cases/v1 (flag absent, False): queries + expected only. Delta
-      assertions are scored but do not participate; v1 is a frozen baseline,
-      so its uids stay as imported.
-    - cases/v2 (flag True): each turn's non-empty ``deltas`` participate too,
-      in ``canonical_deltas`` form, so editing a delta assertion mints a new
-      version while reordering its keys or field lists does not.
+    - flag absent/False: queries + expected only. Delta assertions are
+      scored but do not participate in the uid.
+    - flag True (the current store, cases/v2): each turn's non-empty
+      ``deltas`` participate too, in ``canonical_deltas`` form, so editing a
+      delta assertion mints a new version while reordering its keys or
+      field lists does not.
     """
     turn_payloads = []
     for turn in turns:

@@ -3,13 +3,18 @@
 Terms are defined in the [README glossary](../README.md#glossary).
 
 `results/runs/` holds one committed JSON file per run: the long-term record
-GOLD exists to keep. `gold run` writes these files. A couple of the oldest
+GOLD exists to keep. `gold run` writes these files; `harness.repo` names
+which codebase's commit `harness.sha` refers to. A couple of the oldest
 runs here were converted from the earlier gnw-evals harness by a
-since-retired import tool; their `harness.repo` reads `"gnw-evals"` rather
-than `"gnw-gold-evals"`, and they carry the `stale_case`/`drift`/`joined_by`
-fields documented below, which no current tool writes. Raw per-case agent
-state goes to `results/artifacts/` (gitignored), rendered reports to
-`results/reports/`, and the written analysis of each official run to
+since-retired import tool, so their `harness.repo` reads `"gnw-evals"` and
+they carry the `stale_case`/`drift`/`joined_by` fields documented below,
+which no current tool writes. Every other run here predates this suite's
+move into project-zeno, so `harness.repo` reads `"gnw-gold-evals"` and
+`harness.sha` is a commit in that now-separate repo, not this one — `gold
+run` writes `"project-zeno"` and this repo's own sha from here on. Raw
+per-case agent state goes to `results/artifacts/` (gitignored), rendered
+reports to `results/reports/` (gitignored, regenerate with
+`render_html.py`), and the written analysis of each official run to
 `results/recommendations/`.
 
 ## File naming
@@ -30,10 +35,10 @@ Trimmed from `results/runs/20260831T163347Z_prod.json`:
 {
   "run_id": "20260831T163347Z_prod",
   "started": "2026-08-31T16:33:47Z",     // UTC
-  "environment": "prod",                 // staging | prod | local
+  "environment": "prod",                 // staging | prod | local | ephemeral
   "build": "baseline",                   // the --build label (default "unknown")
   "ff": null,                            // agent tool profile; null = default
-  "harness": {"repo": "gnw-gold-evals", "sha": "28941a8"},
+  "harness": {"repo": "gnw-gold-evals", "sha": "28941a8"}, // this run predates the move into project-zeno
   "judge_model": "claude-haiku-4-5",     // or "typesafe/jev-1.13" (--judge-backend)
   "num_trials": 3,
   "workers": 10,                         // concurrency, to trace timeouts to load
@@ -136,8 +141,9 @@ Optional fields, written only when they apply:
   `caseset_version`. Diffs cover only the uids both runs share, so a
   growing case set never shows up as regressions or recoveries (see
   [Comparing two runs](#comparing-two-runs)).
-- <a id="stale-means-stale"></a>**Stale means stale.** Only the legacy
-  importer, `tools/ingest_run.py`, writes `stale_case: true`. A row that
+- <a id="stale-means-stale"></a>**Stale means stale.** `stale_case: true`
+  was written only by the retired gnw-evals import tool, not carried into
+  this copy; it survives on a couple of the oldest committed runs. A row that
   carries a uid joins on that uid alone: if the store no longer holds it,
   the row is stale and is never re-matched through a weaker join, however
   well its query still matches, because that would attach old scores to
@@ -183,9 +189,10 @@ Optional fields, written only when they apply:
   `tools/diff_runs.py` reads it to file data bumps (see
   [Comparing two runs](#comparing-two-runs)), and reads `agent_values` to
   flag a bump that may hide a real agent break.
-- **No fabricated or backfilled runs.** A run file is written by
-  `gold run` (or, for legacy runs, `tools/ingest_run.py`) from real harness
-  output, never by hand.
+- **No fabricated or backfilled runs.** A run file is written by `gold run`
+  from real harness output, never by hand. A couple of the oldest runs here
+  instead came from the retired gnw-evals harness via an import tool not
+  carried into this copy; they're real too, just from a different runner.
 
 ## Comparing two runs
 
@@ -204,7 +211,7 @@ someone else produced:
    count**: a release gate, a baseline, a before-and-after comparison. Read
    `num_trials` in each file. A 1-trial run is a smoke run and is never
    diffed (see [Running the set](../README.md#running-the-set)).
-3. **Same environment** (`staging`, `prod` or `local`, also in the run_id).
+3. **Same environment** (`staging`, `prod`, `local` or `ephemeral`, also in the run_id).
    Environments usually run different agent builds, so a diff across them
    measures the environment.
 
@@ -218,8 +225,10 @@ differs.
 To pick a baseline, `tools/find_baseline.py <new run>` prints the newest
 run in `results/runs/` that meets all three conditions and also loaded the
 same store (`caseset`), and exits non-zero with the reason when none does.
-The CI release gate uses it. Runs from before 2026-08-04 record no
-`caseset`, so they never match.
+The release gate is a manual step (`tools/diff_runs.py --fail-on-regression`,
+run by hand against the run `find_baseline.py` picks — see [The release
+gate](../README.md#the-release-gate)), not something CI runs for you. Runs
+from before 2026-08-04 record no `caseset`, so they never match.
 
 **Why 3 trials.** Two trials of the same run (same build, same cases,
 nothing changed) differ by 18 to 29 spurious regressions. That is more than
