@@ -19,7 +19,10 @@ from src.api.services.alerts_list import (
     UnexpectedAlertsDataError,
     UnsupportedAreaError,
 )
-from src.api.services.dashboard_alerts import AlertsUnavailableError
+from src.api.services.dashboard_alerts import (
+    AlertsUnavailableError,
+    AnalyticsAlertsSource,
+)
 
 TODAY = date(2026, 10, 16)
 BODY = {
@@ -31,9 +34,10 @@ BODY = {
 }
 ALERTS = AlertsList(
     data_to=date(2026, 10, 12),
+    latest_alert_date=date(2026, 10, 13),
     start_date=date(2026, 9, 16),
     end_date=TODAY,
-    new_week=AlertsWeek(date(2026, 10, 4), date(2026, 10, 10)),
+    new_week=AlertsWeek(date(2026, 10, 7), date(2026, 10, 13)),
     rows=[
         AlertDay(date(2026, 10, 9), 12.5, 3.0, new=True),
         AlertDay(date(2026, 9, 20), 1.5, 0.0, new=False),
@@ -95,9 +99,10 @@ def test_lists_the_alert_days():
     assert response.status_code == 200
     assert response.json() == {
         "data_to": "2026-10-12",
+        "latest_alert_date": "2026-10-13",
         "start_date": "2026-09-16",
         "end_date": "2026-10-16",
-        "new_week": {"start_date": "2026-10-04", "end_date": "2026-10-10"},
+        "new_week": {"start_date": "2026-10-07", "end_date": "2026-10-13"},
         "total_area_ha": 17.0,
         "rows": [
             {
@@ -118,9 +123,16 @@ def test_lists_the_alert_days():
     }
 
 
+def test_the_service_reads_the_latest_alert_date_from_the_analytics_api():
+    service = alerts_router.get_alerts_list_service()
+
+    assert isinstance(service.latest, AnalyticsAlertsSource)
+
+
 def test_no_data_in_the_period_is_a_null_data_date():
     empty = AlertsList(
         data_to=None,
+        latest_alert_date=None,
         start_date=date(2026, 9, 16),
         end_date=TODAY,
         new_week=AlertsWeek(date(2026, 10, 4), date(2026, 10, 10)),
@@ -131,7 +143,7 @@ def test_no_data_in_the_period_is_a_null_data_date():
 
     assert response.status_code == 200
     body = response.json()
-    assert body["data_to"] is None
+    assert (body["data_to"], body["latest_alert_date"]) == (None, None)
     assert (body["end_date"], body["rows"]) == ("2026-10-16", [])
 
 

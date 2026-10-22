@@ -10,7 +10,7 @@ import math
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Any, Optional
+from typing import Any, Optional, Protocol
 
 from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import (
@@ -23,7 +23,11 @@ from src.api.schemas import ALERTS_MAX_DAYS
 from src.api.services.dashboard_alerts import (
     AlertsUnavailableError,
     latest_alert_week,
+    period_ending,
 )
+from src.shared.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 # The confidence tiers the list shows, each as a column. Low confidence
 # alerts are left out: they are single detections by one system.
@@ -49,12 +53,19 @@ class InvalidWindowError(ValueError):
     """The requested period is empty or too long."""
 
 
+class LatestAlertDateSource(Protocol):
+    async def latest_alert_date(self) -> date:
+        """The latest date with any alert in the dataset. Raises
+        ``AlertsUnavailableError`` when it cannot be read."""
+        ...
+
+
 @dataclass(frozen=True)
 class AlertDay:
     alert_date: date
     high_ha: float
     highest_ha: float
-    # The day is in the latest full alert week.
+    # The day is in the new week.
     new: bool
 
     @property
@@ -70,13 +81,17 @@ class AlertsWeek:
 
 @dataclass(frozen=True)
 class AlertsList:
-    # The latest alert date in the pulled data, any confidence; None when
-    # the pull returned no rows. Shown as "DATA TO", and the frontend counts
-    # its periods back from it.
+    # The area's latest alert date in the pulled data, any confidence; None
+    # when the pull returned no rows.
     data_to: Optional[date]
+    # The latest alert date in the whole dataset, which the frontend counts
+    # its periods back from; None when it could not be read.
+    latest_alert_date: Optional[date]
     # The period pulled, clamped to the data and to today.
     start_date: date
     end_date: date
+    # The 7 days ending on the latest alert date, or the latest full
+    # Sunday-to-Saturday week when that date could not be read.
     new_week: AlertsWeek
     rows: list[AlertDay]
 
@@ -175,17 +190,37 @@ def alert_days(
 class AlertsListService:
     """One area's alert days over a period, from one analytics pull."""
 
-    def __init__(self, handler: DataSourceHandler):
+    def __init__(
+        self, handler: DataSourceHandler, latest: LatestAlertDateSource
+    ):
         self.handler = handler
+        self.latest = latest
+
+    async def latest_day(self, today: date) -> Optional[date]:
+        """The dataset's latest alert date, at most today. None when it
+        cannot be read; the caller then counts from today."""
+        try:
+            latest = await self.latest.latest_alert_date()
+        except AlertsUnavailableError as error:
+            logger.warning(
+                "alerts_list_latest_date_unavailable", error=str(error)
+            )
+            return None
+        return min(latest, today)
 
     async def window(
-        self, start: Optional[date], end: Optional[date], today: date
+        self,
+        start: Optional[date],
+        end: Optional[date],
+        today: date,
+        latest: Optional[date],
     ) -> tuple[date, date]:
-        """The period to pull. The end defaults to today and is capped at
-        today; the start defaults to 30 days before the end. Both are then
-        clamped to the integrated alerts data. Raises ``InvalidWindowError``
-        for an empty period or one longer than 365 days."""
-        end = min(end or today, today)
+        """The period to pull. The end defaults to the latest alert date,
+        or to today without one, and is capped at today; the start defaults
+        to 30 days before the end. Both are then clamped to the integrated
+        alerts data. Raises ``InvalidWindowError`` for an empty period or
+        one longer than 365 days."""
+        end = min(end or latest or today, today)
         start = start or end - timedelta(days=ALERTS_LIST_DEFAULT_DAYS)
         clamped_start, clamped_end, _ = await revise_date_range(
             start.isoformat(), end.isoformat(), INTEGRATED_ALERTS_ID
@@ -216,12 +251,15 @@ class AlertsListService:
     ) -> AlertsList:
         """The alert days in ``aoi`` (``source``, ``src_id``, ``subtype``).
 
-        ``today`` sets the default period, caps its end and picks the
-        latest alert week, so one request uses one date throughout.
-        ``land_filter`` restricts the alerts to one land class; None is all
-        land. Raises ``UnsupportedAreaError`` or ``InvalidWindowError``
-        before any pull, and ``AlertsUnavailableError`` when the pull fails
-        or its result cannot be read.
+        The default period and the new week end on the dataset's latest
+        alert date, so the list counts back from the same day as the
+        dashboards summary. ``today`` caps the period and stands in for
+        that date when it cannot be read, so one request uses one date
+        throughout. ``land_filter`` restricts the alerts to one land class;
+        None is all land. Raises ``UnsupportedAreaError`` or
+        ``InvalidWindowError`` before any pull, and
+        ``AlertsUnavailableError`` when the pull fails or its result cannot
+        be read.
         """
         # The handler sends no filter for a context layer it does not know,
         # which would silently list alerts on all land.
@@ -238,7 +276,8 @@ class AlertsListService:
                 "protected areas, key biodiversity areas, indigenous lands, "
                 "custom areas and concessions."
             )
-        start, end = await self.window(start, end, today)
+        latest = await self.latest_day(today)
+        start, end = await self.window(start, end, today, latest)
         # Without a land filter the dataset is exactly what AnalyzeService
         # sends, so a template build makes one pull for its chart and list.
         dataset: dict[str, Any] = {"dataset_id": INTEGRATED_ALERTS_ID}
@@ -255,9 +294,10 @@ class AlertsListService:
         )
         if not result.success:
             raise AlertsUnavailableError(result.message)
-        week = latest_alert_week(today)
+        week = period_ending(latest) if latest else latest_alert_week(today)
         return AlertsList(
             data_to=latest_alert_date(result.data),
+            latest_alert_date=latest,
             start_date=start,
             end_date=end,
             new_week=AlertsWeek(*week),

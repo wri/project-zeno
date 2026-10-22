@@ -1106,7 +1106,10 @@ class AlertsListRequest(BaseModel):
     )
     end_date: Optional[date] = Field(
         default=None,
-        description="Defaults to today; a later date is capped at today.",
+        description=(
+            "Defaults to the latest alert date in the dataset, or today "
+            "when that date cannot be read; a later date is capped at today."
+        ),
     )
     land_filter: Optional[AlertsLandFilter] = Field(
         default=None,
@@ -1128,17 +1131,21 @@ class AlertDayResponse(BaseModel):
     high_ha: float = Field(description="High confidence alert area.")
     highest_ha: float = Field(description="Highest confidence alert area.")
     total_ha: float = Field(description="High plus highest.")
-    new: bool = Field(
-        description="The day is in `new_week`, the latest full alert week."
-    )
+    new: bool = Field(description="The day is in `new_week`.")
 
 
 class AlertsListResponse(BaseModel):
     data_to: Optional[date] = Field(
         description=(
-            "The latest alert date in the data for the period, of any "
-            "confidence (low included); null when there is none. It can be "
-            "before `end_date` when the data has not arrived yet."
+            "The area's latest alert date in the period, of any confidence "
+            "(low included); null when there is none."
+        )
+    )
+    latest_alert_date: Optional[date] = Field(
+        description=(
+            "The latest alert date in the whole dataset, which the default "
+            "period and `new_week` end on; null when it could not be read, "
+            "and they then count from today."
         )
     )
     start_date: date = Field(
@@ -1148,7 +1155,11 @@ class AlertsListResponse(BaseModel):
         description="End of the period, clamped to the data and to today."
     )
     new_week: AlertsWeekResponse = Field(
-        description="The latest full alert week, Sunday to Saturday."
+        description=(
+            "The 7 days ending on `latest_alert_date`, as the dashboards "
+            "alerts summary counts them; the latest full Sunday-to-Saturday "
+            "week when that date is null."
+        )
     )
     total_area_ha: float = Field(
         description="High and highest confidence alert area in the period."

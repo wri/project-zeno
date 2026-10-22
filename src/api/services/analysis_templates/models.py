@@ -84,8 +84,8 @@ class NaturalForestLossWidgetSpec(_WidgetSpec):
 class AlertsWidgetSpec(_WidgetSpec):
     """A live list of integrated alert days next to the alerts map of the
     same period. The widget stores the area, the period length and the map
-    layer; the frontend fetches the rows when it shows them. The latest
-    full alert week is a fact for the description."""
+    layer; the frontend fetches the rows when it shows them. The 7 days to
+    the latest alert date are a fact for the description."""
 
     kind: Literal["alerts"] = "alerts"
     # The list is of integrated alerts only. dataset_ids() reads it for the

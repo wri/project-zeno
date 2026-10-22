@@ -19,7 +19,10 @@ from src.api.services.alerts_list import (
     UnexpectedAlertsDataError,
     UnsupportedAreaError,
 )
-from src.api.services.dashboard_alerts import AlertsUnavailableError
+from src.api.services.dashboard_alerts import (
+    AlertsUnavailableError,
+    AnalyticsAlertsSource,
+)
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -39,7 +42,10 @@ ALERTS_UNAVAILABLE_MESSAGE = (
 
 
 def get_alerts_list_service() -> AlertsListService:
-    return AlertsListService(AnalyticsHandler())
+    handler = AnalyticsHandler()
+    return AlertsListService(
+        handler, AnalyticsAlertsSource(handler, handler.BASE_URL)
+    )
 
 
 def get_today() -> date:
@@ -63,12 +69,14 @@ async def list_alerts(
     """Integrated alerts in one area, one row per day with the high and
     highest confidence areas, newest first.
 
-    The period defaults to the 30 days to today. It is clamped to the data
-    and must not be longer than 365 days. Rows in the latest full alert week
-    (Sunday to Saturday) are flagged `new`. `land_filter` restricts the rows
-    and totals to alerts on natural lands or natural forests. `data_to` is
-    the latest alert date in the data, of any confidence, which can be before
-    `end_date`; null when the period has no data.
+    The period defaults to the 30 days to the latest alert date in the
+    dataset (`latest_alert_date`), or to today when that date cannot be
+    read. It is clamped to the data and must not be longer than 365 days.
+    Rows in `new_week`, the 7 days ending on the latest alert date, are
+    flagged `new`. `land_filter` restricts the rows and totals to alerts on
+    natural lands or natural forests. `data_to` is the area's latest alert
+    date in the period, of any confidence; null when the period has no
+    data.
 
     422 when the area type has no alerts analysis or the period is empty or
     too long. 502 with a fixed message when the analytics API fails or does

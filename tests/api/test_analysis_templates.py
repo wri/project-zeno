@@ -23,6 +23,7 @@ from src.api.services.analysis_templates.registry import (
     NrtMonitoringArgs,
     Post2020ForestLossArgs,
 )
+from src.api.services.dashboard_alerts import AlertsUnavailableError
 from tests.api.test_dashboards import AUTH, _create_dashboard, _create_user
 from tests.conftest import async_session_maker
 from tests.unit.api.services.test_chart_generators import NATURAL_FOREST_DATA
@@ -59,6 +60,13 @@ def _sources(pull_ok=True, imagery=None, rows=ROWS):
             builder.AnalyticsHandler,
             "pull_data",
             AsyncMock(return_value=pull),
+        ),
+        # Offline: the alerts list counts from today, as the build does
+        # when the analytics API cannot give its latest alert date.
+        patch.object(
+            builder.AnalyticsAlertsSource,
+            "latest_alert_date",
+            AsyncMock(side_effect=AlertsUnavailableError("offline")),
         ),
         patch.object(
             builder._IMAGERY_PROVIDER,

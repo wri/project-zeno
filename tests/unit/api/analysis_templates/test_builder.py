@@ -37,13 +37,16 @@ from src.api.services.analysis_templates.registry import (
     Post2020ForestLossArgs,
     get_template,
 )
+from src.api.services.dashboard_alerts import AlertsUnavailableError
 from src.api.user_profile_configs.languages import LANGUAGES
 from tests.unit.api.analysis_templates.test_text import _FakeModel
-from tests.unit.api.services.test_alerts_list import FakeHandler
+from tests.unit.api.services.test_alerts_list import FakeHandler, FakeLatest
 from tests.unit.api.services.test_chart_generators import NATURAL_FOREST_DATA
 
 NRT = get_template("nrt-monitoring")
 TODAY = date(2026, 9, 23)
+# A Monday: the alerts list's new week is 15 to 21 September.
+LATEST = date(2026, 9, 21)
 ROWS = {
     "alert_date": ["2026-09-10", "2026-09-10", "2026-09-12"],
     "alert_confidence": ["high", "high", "low"],
@@ -91,10 +94,18 @@ def _imagery():
     )
 
 
-def _patches(pull=None, imagery=None, written=("section-1", ["w1", "w2"])):
-    """Mock the analytics pull, the mosaic search and the database write."""
+def _patches(
+    pull=None,
+    imagery=None,
+    written=("section-1", ["w1", "w2"]),
+    latest=None,
+):
+    """Mock the analytics pull and latest alert date, the mosaic search and
+    the database write."""
+    latest = latest or FakeLatest(LATEST)
     mocks = SimpleNamespace(
         pull=AsyncMock(return_value=pull or _pull()),
+        latest=AsyncMock(side_effect=latest.latest_alert_date),
         imagery=AsyncMock(return_value=imagery or _imagery()),
         write=AsyncMock(return_value=written),
         text=AsyncMock(return_value=("Alerts in Paraná", "What it shows.")),
@@ -112,6 +123,9 @@ def _patches(pull=None, imagery=None, written=("section-1", ["w1", "w2"])):
     stack = [
         patch.object(
             builder.AnalyticsHandler, "pull_data", mocks.pull, create=True
+        ),
+        patch.object(
+            builder.AnalyticsAlertsSource, "latest_alert_date", mocks.latest
         ),
         patch.object(builder._IMAGERY_PROVIDER, "get_imagery", mocks.imagery),
         patch.object(
@@ -412,32 +426,36 @@ async def test_widgets_of_one_build_share_a_pull():
     assert [w.widget_type for w in widgets] == ["insight", "insight"]
 
 
-# TODAY is a Wednesday: the latest full alert week is 13 to 19 September.
+# The list's new week is the 7 days to LATEST, 15 to 21 September.
 WEEK_ROWS = {
     "alert_date": [
         "2026-09-18",
         "2026-09-18",
+        "2026-09-16",
+        "2026-09-16",
         "2026-09-14",
-        "2026-09-14",
-        "2026-09-10",
     ],
     "alert_confidence": ["highest", "low", "high", "highest", "high"],
     "area_ha": [1.0, 9.0, 2.0, 1.0, 4.0],
 }
 WEEK_FACT = (
-    "From 2026-09-13 to 2026-09-19, Paraná had 2 alert day(s) with 4 ha of "
+    "From 2026-09-15 to 2026-09-21, Paraná had 2 alert day(s) with 4 ha of "
     "high and highest confidence integrated alerts."
 )
 NO_ALERTS_FACT = (
     "No high or highest confidence integrated alerts were recorded in "
-    "Paraná from 2026-09-13 to 2026-09-19."
+    "Paraná from 2026-09-15 to 2026-09-21."
 )
 ALERTS = NRT.model_copy(update={"widgets": (AlertsWidgetSpec(),)})
 
 
-async def _apply_alerts(data=WEEK_ROWS, template=ALERTS, **kwargs):
+async def _apply_alerts(
+    data=WEEK_ROWS, template=ALERTS, latest=None, **kwargs
+):
     mocks, stack = _patches(
-        pull=_pull(data=data), written=("section-1", ["w1", "w2"])
+        pull=_pull(data=data),
+        written=("section-1", ["w1", "w2"]),
+        latest=latest,
     )
     await _apply(stack, template=template, **kwargs)
     return mocks
@@ -532,6 +550,20 @@ async def test_no_alerts_in_the_week_is_a_fact():
 
 
 @pytest.mark.asyncio
+async def test_without_a_latest_alert_date_the_fact_is_the_calendar_week():
+    unreadable = FakeLatest(error=AlertsUnavailableError("timed out"))
+
+    mocks = await _apply_alerts(latest=unreadable)
+
+    # TODAY is a Wednesday: the latest full alert week is 13 to 19 September.
+    assert mocks.text.await_args.kwargs["facts"] == [
+        "From 2026-09-13 to 2026-09-19, Paraná had 3 alert day(s) with 8 ha "
+        "of high and highest confidence integrated alerts."
+    ]
+    mocks.write.assert_awaited_once()
+
+
+@pytest.mark.asyncio
 async def test_a_period_that_covers_part_of_the_week_gives_its_own_dates():
     # The analytics API returns the rows of the period it was asked for.
     in_period = {
@@ -544,7 +576,7 @@ async def test_a_period_that_covers_part_of_the_week_gives_its_own_dates():
 
     assert mocks.pull.await_args.kwargs["start_date"] == "2026-09-16"
     assert mocks.text.await_args.kwargs["facts"] == [
-        "From 2026-09-16 to 2026-09-19, Paraná had 1 alert day(s) with 1 ha "
+        "From 2026-09-16 to 2026-09-21, Paraná had 1 alert day(s) with 1 ha "
         "of high and highest confidence integrated alerts."
     ]
 

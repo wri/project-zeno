@@ -1315,8 +1315,8 @@ MESSAGES.update(
             "sw": "Hakuna upotevu wa uoto wa miti uliorekodiwa katika {aoi_name} kuanzia {start_year} hadi {end_year}.",
             "tr": "{start_year}-{end_year} döneminde {aoi_name} bölgesinde ağaç örtüsü kaybı kaydedilmedi.",
         },
-        # Facts of the alerts widget: the latest full alert week, or the part
-        # of it the period covers. The builder formats {area_ha}.
+        # Facts of the alerts widget: the 7 days to the latest alert date, or
+        # the part of them the period covers. The builder formats {area_ha}.
         "analysis_template.alerts.week": {
             "en": "From {start_date} to {end_date}, {aoi_name} had {days} alert day(s) with {area_ha} ha of high and highest confidence integrated alerts.",
             "es": "Del {start_date} al {end_date}, {aoi_name} tuvo {days} día(s) con alertas, con {area_ha} ha de alertas integradas de confianza alta y máxima.",

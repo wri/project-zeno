@@ -4,6 +4,7 @@ from datetime import date
 from typing import get_args
 
 import pytest
+import structlog
 
 from src.agent.datasets.handlers.analytics_handler import (
     INTEGRATED_ALERTS_ID,
@@ -25,6 +26,9 @@ from src.api.services.alerts_list import (
 WEEK = (date(2026, 10, 4), date(2026, 10, 10))
 # A Friday; the latest full alert week is WEEK.
 TODAY = date(2026, 10, 16)
+# A Monday: the 7 days ending on it are not a calendar week.
+LATEST = date(2026, 10, 12)
+LATEST_WEEK = AlertsWeek(date(2026, 10, 6), LATEST)
 PARANA = {
     "source": "gadm",
     "src_id": "BRA.16_1",
@@ -227,29 +231,89 @@ class FakeHandler(DataSourceHandler):
         return self.result
 
 
-async def _list(handler=None, aoi=PARANA, **kwargs):
-    service = AlertsListService(handler or FakeHandler())
+class FakeLatest:
+    """The dataset's latest alert date, or the failure to read it. Shared
+    by the alerts list, endpoint and template builder tests."""
+
+    def __init__(self, latest=LATEST, error=None):
+        self.latest = latest
+        self.error = error
+
+    async def latest_alert_date(self):
+        if self.error:
+            raise self.error
+        return self.latest
+
+
+UNREADABLE = FakeLatest(error=AlertsUnavailableError("No latest alert date"))
+
+
+async def _list(handler=None, aoi=PARANA, latest=None, **kwargs):
+    service = AlertsListService(
+        handler or FakeHandler(), latest or FakeLatest()
+    )
     return await service.list(dict(aoi), today=TODAY, **kwargs)
 
 
 @pytest.mark.asyncio
-async def test_defaults_to_the_30_days_to_today():
+async def test_defaults_to_the_30_days_to_the_latest_alert_date():
     handler = FakeHandler()
 
     alerts = await _list(handler)
 
     (call,) = handler.calls
     assert (call["start_date"], call["end_date"]) == (
+        "2026-09-12",
+        "2026-10-12",
+    )
+    assert (alerts.start_date, alerts.end_date) == (date(2026, 9, 12), LATEST)
+    assert alerts.latest_alert_date == LATEST
+    # The fake pull returns no rows, so the area has no data date.
+    assert alerts.data_to is None
+
+
+@pytest.mark.asyncio
+async def test_the_new_week_is_the_7_days_to_the_latest_alert_date():
+    alerts = await _list(
+        FakeHandler(
+            _rows(
+                ("2026-10-12", "high", 1.0),
+                ("2026-10-06", "high", 2.0),
+                ("2026-10-05", "high", 4.0),
+            )
+        )
+    )
+
+    assert alerts.new_week == LATEST_WEEK
+    assert [row.new for row in alerts.rows] == [True, True, False]
+
+
+@pytest.mark.asyncio
+async def test_without_a_latest_alert_date_it_counts_from_today():
+    handler = FakeHandler()
+
+    with structlog.testing.capture_logs() as logs:
+        alerts = await _list(handler, latest=UNREADABLE)
+
+    (call,) = handler.calls
+    assert (call["start_date"], call["end_date"]) == (
         "2026-09-16",
         "2026-10-16",
     )
-    assert (alerts.start_date, alerts.end_date) == (
-        date(2026, 9, 16),
-        TODAY,
-    )
-    # The fake pull returns no rows, so there is no data date.
-    assert alerts.data_to is None
+    assert alerts.latest_alert_date is None
     assert alerts.new_week == AlertsWeek(*WEEK)
+    (record,) = [
+        r for r in logs if r["event"] == "alerts_list_latest_date_unavailable"
+    ]
+    assert "No latest alert date" in record["error"]
+
+
+@pytest.mark.asyncio
+async def test_a_latest_alert_date_after_today_is_capped_at_today():
+    alerts = await _list(latest=FakeLatest(date(2026, 10, 20)))
+
+    assert alerts.latest_alert_date == TODAY
+    assert alerts.end_date == TODAY
 
 
 @pytest.mark.asyncio
@@ -257,7 +321,7 @@ async def test_pulls_integrated_alerts_once_for_a_copy_of_the_area():
     handler = FakeHandler()
     aoi = dict(PARANA)
 
-    await AlertsListService(handler).list(aoi, today=TODAY)
+    await AlertsListService(handler, FakeLatest()).list(aoi, today=TODAY)
 
     (call,) = handler.calls
     assert call["dataset"] == {"dataset_id": INTEGRATED_ALERTS_ID}
@@ -311,34 +375,34 @@ async def _list_data(*rows):
 async def test_data_to_is_the_latest_alert_date_in_the_data():
     alerts = await _list_data(
         ("2026-10-09", "high", 1.0),
-        ("2026-10-12", "highest", 2.0),
+        ("2026-10-11", "highest", 2.0),
         ("2026-09-20", "high", 3.0),
     )
 
-    # The data stops before the end of the period.
-    assert alerts.data_to == date(2026, 10, 12)
-    assert alerts.end_date == TODAY
+    # The area's data stops before the dataset's latest alert date.
+    assert alerts.data_to == date(2026, 10, 11)
+    assert alerts.end_date == LATEST
 
 
 @pytest.mark.asyncio
 async def test_data_to_counts_low_confidence_alerts():
     alerts = await _list_data(
         ("2026-10-09", "high", 1.0),
-        ("2026-10-14", "low", 2.0),
+        ("2026-10-11", "low", 2.0),
     )
 
-    assert alerts.data_to == date(2026, 10, 14)
+    assert alerts.data_to == date(2026, 10, 11)
     assert [row.alert_date for row in alerts.rows] == [date(2026, 10, 9)]
 
 
 @pytest.mark.asyncio
 async def test_only_low_confidence_alerts_give_a_data_date_and_no_rows():
     alerts = await _list_data(
-        ("2026-10-13", "low", 2.0),
+        ("2026-10-12", "low", 2.0),
         ("2026-10-11", "low", 1.0),
     )
 
-    assert alerts.data_to == date(2026, 10, 13)
+    assert alerts.data_to == date(2026, 10, 12)
     assert alerts.rows == []
     assert alerts.total_area_ha == 0.0
 
@@ -376,16 +440,20 @@ async def test_rows_and_total():
             date(2026, 12, 31),
             ("2026-10-01", "2026-10-16"),
         ),
+        # A template build asks for its own period, which its chart pulls
+        # too, so a given end is kept past the latest alert date.
+        (date(2026, 10, 1), TODAY, ("2026-10-01", "2026-10-16")),
         (
             date(2023, 1, 1),
             date(2023, 12, 31),
             ("2023-12-01", "2023-12-31"),
         ),
         (None, date(2026, 10, 1), ("2026-09-01", "2026-10-01")),
-        (date(2025, 10, 16), None, ("2025-10-16", "2026-10-16")),
+        (date(2025, 10, 12), None, ("2025-10-12", "2026-10-12")),
     ],
     ids=[
         "future-end-capped-at-today",
+        "end-after-the-latest-alert-date-kept",
         "start-before-the-data",
         "start-defaults-to-30-days-before-the-end",
         "exactly-365-days",
@@ -410,7 +478,7 @@ async def test_the_period_is_clamped(start, end, pulled):
         (date(2026, 10, 10), date(2026, 10, 4)),
         (date(2026, 10, 20), None),
         (None, date(2023, 6, 1)),
-        (date(2025, 10, 15), None),
+        (date(2025, 10, 11), None),
     ],
     ids=[
         "start-after-end",

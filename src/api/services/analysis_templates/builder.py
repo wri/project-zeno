@@ -53,6 +53,7 @@ from src.api.services.alerts_list import (
     AlertsList,
     AlertsListService,
     InvalidWindowError,
+    LatestAlertDateSource,
     UnsupportedAreaError,
 )
 from src.api.services.analysis_templates.models import (
@@ -73,7 +74,10 @@ from src.api.services.charts.tcl_natural_forest import (
     TCLNaturalForestChartGenerator,
     natural_forest_totals,
 )
-from src.api.services.dashboard_alerts import AlertsUnavailableError
+from src.api.services.dashboard_alerts import (
+    AlertsUnavailableError,
+    AnalyticsAlertsSource,
+)
 from src.api.services.dashboard_aoi import dashboard_aoi
 from src.api.services.widget_configs import (
     dataset_config,
@@ -170,13 +174,15 @@ class _SharedPulls(DataSourceHandler):
 class BuildContext:
     """What every widget builder reads. ``aoi`` is the dashboard's first
     AOI as a reference dict; a builder must copy it before use. ``handler``
-    is the build's analytics handler, shared by all its builders."""
+    is the build's analytics handler, shared by all its builders, and
+    ``latest_alerts`` reads the integrated alerts' latest date."""
 
     aoi: dict
     start: date
     end: date
     language: str
     handler: DataSourceHandler
+    latest_alerts: LatestAlertDateSource
 
 
 @dataclass
@@ -469,8 +475,9 @@ def _land_overlays(start: str, end: str) -> list[dict]:
 async def _alerts_fact(
     alerts: AlertsList, context: BuildContext
 ) -> Optional[str]:
-    """The alerts of the latest full alert week, over the part of it that
-    the period covers. None when the period and the week do not meet."""
+    """The alerts of the list's new week (the 7 days to the latest alert
+    date), over the part of it that the period covers. None when the
+    period and the week do not meet."""
     week = alerts.new_week
     start = max(week.start_date, alerts.start_date)
     end = min(week.end_date, alerts.end_date)
@@ -502,16 +509,16 @@ async def _build_alerts(
     the alerts layer. The frontend fetches the rows, so none are stored.
 
     The one pull here, shared with an alerts chart in the same build, gives
-    the latest week as a fact for the description and warms the analytics
-    cache for the list's first view.
+    the new week as a fact for the description, so the text and the list's
+    NEW rows name the same days.
     """
     record = _dataset_record(spec.dataset_id)
     try:
         # The service clamps the period to the data as _period does for the
         # chart, so the two pull the same dates. It copies the area.
-        alerts = await AlertsListService(context.handler).list(
-            context.aoi, context.start, context.end, today=context.end
-        )
+        alerts = await AlertsListService(
+            context.handler, context.latest_alerts
+        ).list(context.aoi, context.start, context.end, today=context.end)
     except (UnsupportedAreaError, InvalidWindowError) as error:
         raise WidgetFailedError(str(error)) from error
     except AlertsUnavailableError as error:
@@ -629,12 +636,14 @@ async def apply_template(
             f"Dashboard '{dashboard.name}' has no area. Add an area first."
         )
     start, end = args.period(date.today())
+    analytics = AnalyticsHandler()
     context = BuildContext(
         aoi=aoi,
         start=start,
         end=end,
         language=language or DEFAULT_LANGUAGE,
-        handler=_SharedPulls(AnalyticsHandler()),
+        handler=_SharedPulls(analytics),
+        latest_alerts=AnalyticsAlertsSource(analytics, analytics.BASE_URL),
     )
     logger.info(
         "analysis_template_build_started",
