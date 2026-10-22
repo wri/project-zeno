@@ -78,3 +78,25 @@ async def test_the_budget_is_what_is_left(monkeypatch):
 async def test_curated_only_rows_are_withheld(monkeypatch):
     monkeypatch.setattr(data, "is_curated_only", lambda dataset_id: True)
     assert await rows_text(_rows(3), 4) == data.CURATED_ONLY_DATA_WITHHELD
+
+
+def test_the_heading_names_the_first_areas_and_counts_the_rest():
+    pull = data.Pull(
+        ds={"dataset_name": "Tree cover loss"},
+        areas=[{"name": f"District {i}"} for i in range(700)],
+        start_date="2020-01-01",
+        end_date="2021-12-31",
+        clamped=False,
+        context_layer=None,
+        canopy_cover=None,
+        rows=[],
+        source_url=None,
+        request=None,
+        metadata=None,
+        retrieved_at="2026-10-22T00:00:00Z",
+        rows_sha256="",
+    )
+    heading = pull.heading()
+    assert "District 9;" not in heading
+    assert "District 9 and 690 more" in heading
+    assert "District 10" not in heading

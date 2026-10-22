@@ -306,3 +306,36 @@ async def test_pull_data_refuses_areas_from_two_sources(monkeypatch, pulled):
     assert result.is_error
     assert "multiple sources" in result.content[0].text
     assert pulled == []
+
+
+async def test_lookup_areas_keeps_a_repeated_id_once(monkeypatch):
+    # The analytics API rejects a request whose feature ids repeat.
+    sent = {}
+
+    class _Result:
+        def mappings(self):
+            return self
+
+        def all(self):
+            return [PARA]
+
+    class _Conn:
+        async def execute(self, query, params):
+            sent.update(params)
+            return _Result()
+
+    class _Pool:
+        async def __aenter__(self):
+            return _Conn()
+
+        async def __aexit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(areas, "get_connection_from_pool", _Pool)
+
+    found = await areas.lookup_areas(
+        ["gadm:BRA.14_1", " gadm:BRA.14_1", "gadm:BRA.14_1"]
+    )
+
+    assert sent["ids"] == ["BRA.14_1"]
+    assert [a["src_id"] for a in found] == ["BRA.14_1"]

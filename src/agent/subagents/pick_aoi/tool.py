@@ -250,7 +250,8 @@ async def query_subregion_database(
     selects them by a spatial overlap. A non-GADM parent with an admin
     subregion gets no containment filter at all, so the result holds every
     admin unit of that subtype worldwide. ``check_aoi_selection`` then rejects
-    it as too many subregions. This is a known defect.
+    it as too many subregions. This is a known defect. The query stops at
+    ``SUBREGION_LIMIT_ADMIN + 1`` rows, so the rejection stays cheap.
 
     A concession scope returns at most ``SUBREGION_LIMIT + 1`` rows: a large
     parent overlaps hundreds of thousands of mining claims (Canada), and one
@@ -277,6 +278,7 @@ async def query_subregion_database(
         "subregion_source": subregion_source,
         "subtype": subtype,
     }
+    row_limit = ""
 
     if subregion_source == "gadm":
         # The GADM id holds the hierarchy, so a prefix match gives containment.
@@ -292,8 +294,12 @@ async def query_subregion_database(
             # A non-GADM parent gets no containment filter, only the exclusion of
             # disputed territories. The query then returns every admin unit of
             # the subtype worldwide, and check_aoi_selection rejects the result
-            # as too many subregions. This is a known defect.
+            # as too many subregions. This is a known defect. One row past
+            # the limit is all that check needs, so the query stops there
+            # rather than reading every admin unit in the world.
             gadm_filter = "AND NOT t.is_disputed"
+            row_limit = "LIMIT :row_limit"
+            params["row_limit"] = SUBREGION_LIMIT_ADMIN + 1
         spatial_filter = ""
     else:
         gadm_filter = ""
@@ -324,7 +330,6 @@ async def query_subregion_database(
           ELSE true
       END"""
 
-    row_limit = ""
     if subregion_source in CONCESSION_SOURCES:
         row_limit = "LIMIT :row_limit"
         params["row_limit"] = SUBREGION_LIMIT + 1

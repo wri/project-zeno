@@ -139,3 +139,21 @@ async def test_the_number_of_places_is_bounded(places):
             "resolve_areas", {"places": places}, raise_on_error=False
         )
     assert result.is_error
+
+
+@pytest.mark.parametrize(
+    "place",
+    [
+        {"place": "Para", "alternatives": ["a", "b", "c", "d"]},
+        {"place": "x" * 201},
+        {"place": "Para", "canonical": "x" * 201},
+        {"place": "Para", "alternatives": ["x" * 201]},
+    ],
+)
+async def test_the_spellings_of_a_place_are_bounded(place):
+    # Each spelling is its own query, so a client cannot ask for thousands.
+    async with Client(mcp_server) as client:
+        result = await client.call_tool(
+            "resolve_areas", {"places": [place]}, raise_on_error=False
+        )
+    assert result.is_error

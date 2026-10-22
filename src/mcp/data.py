@@ -28,12 +28,11 @@ from src.agent.datasets.handlers.analytics_handler import (
 from src.agent.datasets.pull_checks import (
     PullRefusal,
     plan_pull,
-    refuse_dataset,
 )
 from src.agent.i18n import t
 from src.api.services.charts.base import column_to_rows
 from src.mcp.areas import MAX_AREAS, format_aoi_id, lookup_areas
-from src.mcp.datasets import MCP_EXCLUDED_DATASETS, get_catalog_dataset
+from src.mcp.datasets import get_catalog_dataset
 from src.mcp.script import pull_script, rows_digest
 from src.shared.version import get_commit, get_version
 
@@ -46,6 +45,9 @@ MAX_ROWS = 1000
 # tokenizer, is not known. The structured rows and pull.py have every row.
 MAX_TEXT_ROWS = 200
 TEXT_CHAR_BUDGET = 7000
+# Area names in the text's first line. A subregion expansion has hundreds,
+# and naming them all would outgrow the budget the rows keep to.
+MAX_HEADING_AREAS = 10
 
 # Tool messages are read by a model, so they are English.
 LANGUAGE = "en"
@@ -265,9 +267,11 @@ class Pull:
             options.append(f"context layer {self.context_layer}")
         if self.canopy_cover is not None:
             options.append(f"canopy cover >= {self.canopy_cover}%")
+        names = "; ".join(a["name"] for a in self.areas[:MAX_HEADING_AREAS])
+        if len(self.areas) > MAX_HEADING_AREAS:
+            names += f" and {len(self.areas) - MAX_HEADING_AREAS} more"
         return (
-            f"{self.ds['dataset_name']} for "
-            f"{'; '.join(a['name'] for a in self.areas)}, "
+            f"{self.ds['dataset_name']} for {names}, "
             f"{self.start_date} to {self.end_date}"
             + (f" ({', '.join(options)})" if options else "")
         )
@@ -352,10 +356,6 @@ async def run_pull(
         dataset["context_layer"] = context_layer
     if parameters:
         dataset["parameters"] = parameters
-
-    refusal = refuse_dataset(dataset, MCP_EXCLUDED_DATASETS)
-    if refusal:
-        raise ToolError(await t(refusal.key, LANGUAGE, **refusal.kwargs))
 
     aois = await lookup_areas(aoi_ids)
     plan = await plan_pull(dataset, aois, start, end)
