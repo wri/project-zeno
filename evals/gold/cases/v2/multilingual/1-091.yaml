@@ -1,0 +1,19 @@
+id: 1-091
+uid: f114e0cca389d316
+status: done
+group: multilingual
+query: Quelle superficie forestière a été perdue au Sénégal en 2022 ?
+expected:
+  aoi_ids: SEN
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  text: Provides good response in the same language as the prompt
+  scope: analyse
+  answer: 289 hectares
+notes:
+  date_scrub: 'W2 2026-08-01: date expectations removed — annual dataset, the agent pulls
+    the full range and slices in code; the answer carries the year'
+  rewrite: 'W3 2026-08-03: added scope and a verified answer (289.11 ha on both completed
+    08-02 trials) — it was the only multilingual row with neither, so it bought no Analysis/Output
+    coverage.'

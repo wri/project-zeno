@@ -1,0 +1,37 @@
+id: 1-115
+uid: 24ca3663de0cb044
+status: not doing
+group: direct
+query: What was the carbon stock change in India's forests in 2024?
+expected:
+  aoi_ids: IND
+  aoi_source: gadm
+  dataset_id: '12'
+  dataset_name: Land GHG Monitoring System (LGMS)
+  scope: analyse
+  text: Explains that carbon-stock changes are not calculated and instead reports gross emissions,
+    gross removals and net flux as the closest available measure
+notes:
+  aoi_type: gadm 0
+  sheet_group: LGMS 4
+  source_tab: gid:0
+  authored: '2026-08-07: from sheet row 1-115 (LGMS 4). LGMS presentation_instructions: on
+    a carbon-stock-change question the agent should explain stock changes are not calculated,
+    then provide the LGMS emissions/removals/net-flux results — so this row expects the redirect
+    explanation AND an analysis.'
+  status_reason: '2026-08-31: not doing while gold runs target the default agent profile —
+    LGMS (dataset 12) is hidden unless ff=experimental, so these cases cannot pass without
+    the flag. Re-admit when runs return to the experimental profile or LGMS joins the default
+    catalog. | prior: todo 2026-08-07: on the 1-trial fill run 20260807T125843Z_staging_experimental
+    the agent instead raised a dataset_choice nudge (options: LGMS, Forest greenhouse gas
+    net flux) — no dataset selected, no pull, actual scope suggest — so dataset_id_match,
+    expected_text_match and scope_match all failed. Expectations kept at the presentation-instruction
+    intent, which the nudge bypasses (those instructions only enter context after selection).
+    One trial cannot separate an always-nudge from the known ~1-in-3 routing nudge: needs
+    a 3-trial ff=experimental run before promoting to ready, or an upstream fix if the nudge
+    is systematic.'
+  curated_only_conflict: '2026-09-16: wri/project-zeno#827 partially contradicts this row.
+    The redirect half (stock changes are not calculated) survives, but the second half - "instead
+    reports gross emissions, gross removals and net flux" - asks for exactly the reporting
+    the curated-only instruction forbids. Split or rewrite the expectation in the same cycle
+    as #827 rather than reading its failure as a regression.'

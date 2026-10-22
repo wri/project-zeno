@@ -1,0 +1,46 @@
+id: 1-124
+uid: f9431156b1b59300
+status: not doing
+group: refusal
+query: Which year had the highest organic soil emissions in Pará, Brazil?
+expected:
+  aoi_ids: BRA.14_1
+  aoi_source: gadm
+  dataset_id: '12'
+  dataset_name: Land GHG Monitoring System (LGMS)
+  chart_type: hierarchical-bar;stacked-bar-with-line
+  text: Says that only the standard charts are available for this dataset instead of naming
+    the year or the figure
+  scope: analyse
+notes:
+  aoi_type: gadm 1
+  authored: '2026-09-16: authored for the curated-charts-only behaviour in wri/project-zeno#827.
+    Covers the figure half of the interpretation ban: the agent still pulls and still shows
+    the standard charts, then declines to read a value or a ranking off them. "Organic soil
+    emissions" routes to LGMS alone (the organic/mineral soil split is LGMS-only) and matches
+    a class the curated charts plot, so a break in the guard surfaces as a stated year, not
+    as a routing miss.'
+  design: 'scope is analyse, not refuse: the refusal is textual and happens after the pull,
+    so the deterministic classifier sees statistics and reports analyse (scope_checks.classify_scope).
+    A row expecting refuse here would fail on healthy behaviour. dataset_id_match and aoi_id_match
+    carry the retrieval half, expected_text_match the decline - the same judged surface 1-114
+    and 1-116 already rely on.'
+  chart_type_rationale: '2026-09-16: chart_type is here as a deterministic anchor, not as
+    a chart-choice assertion (see 1-123 for why the field is safe under curated_only). It
+    exists because the run below showed the judge accepting "there is no organic soil data"
+    as satisfying the decline: a text expectation alone lets a broken pull pass the check
+    that is supposed to measure the refusal. A chart-type expectation fails when no chart
+    was produced, so the row cannot pass unless the charts really were shown.'
+  risk: '2026-09-16: if the agent instead declines up front without pulling, dataset_id_match,
+    scope_match and the text check all fail together on behaviour that is arguably also correct.
+    The pull-then-decline path is what the #827 skill bullet instructs ("call generate_insights
+    once for one area, then only tell the user the charts are shown") and what its author
+    verified live, so the row is pinned to it deliberately. If a 3-trial run shows both paths,
+    widen scope to analyse;refuse rather than dropping the row.'
+  verification: '2026-09-16: local 3-trial run 20260916T125002Z_local_experimental on the PR branch (feat/lgms-curated-charts @423488a1): aoi_id_match and dataset_id_match 1.0 on 3/3 trials - the prompt routes deterministically and raises no dataset nudge. The decline is unverified: the upstream analytics API returned 401 Invalid or expired token on every trial (stale local WRI_BEARER_TOKEN), which project-zeno renders to the user as "No data found", so no charts existed to decline about. expected_text_match scored 1.0 on that broken pull, which is the leniency the chart_type anchor exists to cover - see chart_type_rationale.'
+  status_reason: '2026-09-16: not doing on two counts. (1) Same as 1-112..1-117: LGMS is hidden
+    unless ff=experimental while gold runs target the default profile. (2) The behaviour is
+    unreleased - wri/project-zeno#827 was open at authoring time, and today the agent answers
+    this question with a year and a figure. Re-admit with the other LGMS rows once #827 is
+    deployed and runs carry --ff experimental; promote to done on a 3-trial ff=experimental
+    pass at this uid.'

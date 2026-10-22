@@ -1,0 +1,30 @@
+id: 1-133
+uid: b88bde23a5901295
+status: done
+group: context-layer
+query: How much tree cover loss occurred in no-conversion areas of Ghana in 2023?
+expected:
+  aoi_ids: GHA
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  context_layer: natural_forest
+  answer: 79,885.85 hectares
+  scope: analyse
+notes:
+  aoi_type: gadm 0
+  origin: GNW offline evals sheet, (1) GOLD tab row 112 (sheet test_id 1-111, "Not doing"
+    there), imported 2026-10-09. Sheet context_layer natural_lands mapped to natural_forest
+    (see 1-130).
+  capability: routes EUDR "no-conversion" terminology to natural_forest. The catalog says
+    to use natural_forest for supply chain, EUDR, deforestation-free or no-conversion questions
+    and that it takes precedence over primary_forest. The sheet text ("Selects natural lands
+    via EUDR no-conversion terminology") is graded by context_layer_match instead of a judge.
+  threshold: 'analytics API, staging, 2026-10-09: natural_forest_only + canopy_cover=10 ->
+    79,885.85 ha. Unthresholded 80,189.38 ha (0.38% apart), so this row does not detect the
+    threshold; 1-130 does.'
+  date_scrub: sheet expected 2023-01-01..2023-12-31; dropped per cases/README.md (annual dataset)
+  status_reason: 'verified 2026-10-09: run 20261009T101010Z_staging_experimental (3 trials,
+    ff=experimental) passed every gating check on 3/3 (natural_forest routed from "no-conversion"
+    every trial). The agent''s 80,189 ha is the unthresholded figure, 0.38% from the expected
+    10% figure. charts_answer_judge (info-only) scored 0 on 1 trial.'

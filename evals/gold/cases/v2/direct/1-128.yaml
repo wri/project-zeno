@@ -1,0 +1,31 @@
+id: 1-128
+uid: 60bed919dd513c0d
+status: not doing
+group: direct
+query: Show me greenhouse gas emissions from agriculture in Pará, Brazil.
+expected:
+  aoi_ids: BRA.14_1
+  aoi_source: gadm
+  dataset_id: '12'
+  dataset_name: Land GHG Monitoring System (LGMS)
+  text: Tells the user the map is showing the agriculture emissions layer, and does not say
+    there is no map layer for agricultural emissions
+  scope: analyse
+notes:
+  aoi_type: gadm 1
+  authored: '2026-09-24: authored for wri/project-zeno#830 (LGMS sector map layers) and wri/project-zeno-next#650
+    (multi-layer datasets). Before #830 the agent displayed the agriculture layer while replying
+    "there is currently no direct map layer for agricultural emissions", because pick_dataset
+    told it only the dataset name. #830 adds "Map layers available" and "Map layer displayed"
+    to the tool message and a "(map layer: ...)" line to the session block. This row is that
+    regression: the headline fix of the PR. Pará is the area wri/project-zeno#827 was verified
+    on; agriculture is an LGMS-only signal, so there is no second dataset to nudge between.'
+  design: 'GOLD has no check on dataset.selected_layer, so the layer the selector chose is
+    graded through the reply text, which is exactly the surface the bug appeared on. No answer
+    or class_values: LGMS is curated_only (wri/project-zeno#827) and the agent states no figures.'
+  verification: '2026-09-24: local 3-trial run 20260924T140432Z_local_experimental against project-zeno#830 @22f30682 with project-zeno-next#650 @7d6d05bf, ff=experimental: every implied check (aoi_id_match, dataset_id_match, pull_source_match, scope_match, expected_text_match, chart_well_formed, chart_integrity) 1.0 on 3/3 trials, pull returned 72 data points (no upstream 401). Not yet run against a build without #830, so the row is not yet shown to fail on the old narration.'
+  status_reason: '2026-09-24: not doing on two counts. (1) Same as 1-112..1-117: LGMS is hidden
+    unless ff=experimental while gold runs target the default profile. (2) The behaviour is
+    unreleased: wri/project-zeno#830 was open at authoring time. Re-admit with the other LGMS
+    rows once #830 is deployed and runs carry --ff experimental; promote to done on a 3-trial
+    ff=experimental pass at this uid.'

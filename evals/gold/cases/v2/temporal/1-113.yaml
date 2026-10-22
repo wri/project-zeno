@@ -1,0 +1,42 @@
+id: 1-113
+uid: 426c2d3acd2083ce
+status: not doing
+group: temporal
+query: How much emissions were there from forests in India in 2020?
+expected:
+  aoi_ids: IND
+  aoi_source: gadm
+  dataset_id: '12'
+  dataset_name: Land GHG Monitoring System (LGMS)
+  class_values: tree_loss=51,135,797 MgCO2e
+  text: Reports emissions figures in MgCO2e (tonnes of CO2 equivalent)
+  scope: analyse
+notes:
+  aoi_type: gadm 0
+  sheet_group: LGMS 2
+  source_tab: gid:0
+  authored: '2026-08-07: from sheet row 1-113 (LGMS 2). Pair of 1-112 — same question pinned
+    to a single year (2020), smoke-testing year filtering on the LGMS annual table. No date
+    expectations per the annual-dataset rule.'
+  class_values_provenance: '2026-08-07: 51,135,796.63 MgCO2e is the vegetation/tree_loss 2020
+    gross_emissions_MgCO2e row of the LGMS inventory table, verified in fill run 20260807T125843Z_staging_experimental;
+    the class name uses the table''s underscore form (tree_loss) because class matching is
+    substring containment. Adjacent years are 49.19M (2021) and 44.46M (2019), both >2% away.'
+  no_answer_rationale: 'No expected answer for the same reason as 1-112: the agent''s headline
+    for "forests" is a pandas aggregate (this run: 66,223,680 MgCO2e = tree_loss + trees_remaining_trees,
+    2020) which is not a chart candidate on the pass-through inventory table — the closest
+    candidate was 6.55% off, so an answer expectation would fail charts_answer deterministically.
+    The verified per-class figure lives in class_values instead.'
+  status_reason: '2026-08-31: not doing while gold runs target the default agent profile —
+    LGMS (dataset 12) is hidden unless ff=experimental, so these cases cannot pass without
+    the flag. Re-admit when runs return to the experimental profile or LGMS joins the default
+    catalog. | prior: 2026-08-07: 1-trial fill run 20260807T125843Z_staging_experimental —
+    all gating checks passed at the pre-fill uid (aoi, dataset 12, pull_source, scope analyse).
+    class_values and text added from that run''s verified artifact. Needs a 3-trial ff=experimental
+    pass at the final uid for done.'
+  curated_only_conflict: '2026-09-16: as 1-112 - wri/project-zeno#827 bans stating LGMS figures,
+    so the text expectation here goes with it. The class_values expectation may survive: class_value_match
+    reads records from the last statistics entry as well as from charts_data, and the raw
+    LGMS table keeps its class column, so the verified tree_loss figure can still match even
+    when the agent says nothing. It is info-only either way. Re-verify both against a post-#827
+    run before unparking.'

@@ -1,0 +1,15 @@
+id: 1-073
+uid: 0ab14c56d2159549
+status: done
+group: direct
+query: How much primary forest was lost in the Democratic Republic of Congo since the turn
+  of the century?
+expected:
+  aoi_ids: COD
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  context_layer: primary_forest
+  text: Cautions about start year for primary forest being 2002 not 2001
+notes:
+  date_scrub: 'W2 2026-08-01: date expectations removed — annual dataset, the agent pulls
+    the full range and slices in code; the answer carries the year'

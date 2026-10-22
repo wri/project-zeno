@@ -1,0 +1,25 @@
+id: 1-114
+uid: 8bb4a04e1d9f780a
+status: not doing
+group: refusal
+query: What was the carbon density (or stock) in India's forests in 2024?
+expected:
+  aoi_ids: IND
+  aoi_source: gadm
+  text: Explains that carbon stock or carbon density is not currently in scope / not available
+    as a dataset
+  scope: refuse
+notes:
+  aoi_type: gadm 0
+  sheet_group: LGMS 3
+  source_tab: gid:0
+  authored: '2026-08-07: from sheet row 1-114 (LGMS 3). LGMS presentation_instructions: carbon
+    stock/density questions must be explained as out of scope (may be added later) — the system
+    does not estimate stocks or densities.'
+  status_reason: '2026-08-31: not doing while gold runs target the default agent profile —
+    LGMS (dataset 12) is hidden unless ff=experimental, so these cases cannot pass without
+    the flag. Re-admit when runs return to the experimental profile or LGMS joins the default
+    catalog. | prior: 2026-08-07: 1-trial fill run 20260807T125843Z_staging_experimental —
+    clean pass at this exact uid: aoi_id_match, expected_text_match ("clearly explains that
+    carbon density and carbon stocks are not available as datasets") and scope_match (no pull,
+    no nudge -> none, matching refuse) all 1.0. Needs a 3-trial ff=experimental pass for done.'

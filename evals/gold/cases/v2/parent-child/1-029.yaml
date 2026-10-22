@@ -1,0 +1,17 @@
+id: 1-029
+uid: e373d86ac3bdf70a
+status: done
+group: parent-child
+query: Which state in Indonesia has the most natural peat forest?
+expected:
+  aoi_ids: IDN.6_1;IDN.35_1;IDN.16_1;IDN.24_1;IDN.29_1;IDN.32_1;IDN.10_1;IDN.11_1;IDN.19_1;IDN.33_1;IDN.23_1;IDN.9_1;IDN.1_1;IDN.20_1;IDN.21_1;IDN.17_1;IDN.2_1;IDN.31_1;IDN.5_1;IDN.13_1;IDN.34_1;IDN.18_1;IDN.26_1;IDN.28_1;IDN.3_1;IDN.7_1;IDN.25_1;IDN.30_1;IDN.22_1;IDN.27_1;IDN.8_1;IDN.4_1;IDN.12_1;IDN.14_1
+  aoi_source: gadm
+  dataset_id: '3'
+  dataset_name: SBTN Natural Lands Map
+  answer: Papua
+  scope: analyse
+  class_values: natural peat forest=5.12 million hectares
+notes:
+  aoi_type: gadm 0
+  class_1: natural peat forest
+  value_1: 5.12 million hectares

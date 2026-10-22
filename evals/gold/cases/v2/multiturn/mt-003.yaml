@@ -1,0 +1,25 @@
+id: mt-003
+uid: fd8d8489361a6e5b
+status: ready
+group: multiturn
+turns:
+- query: How much area had high-confidence integrated alerts in Kalimantan, Indonesia in July
+    2024?
+  expected:
+    scope: analyse
+    start_date: '2024-07-01'
+    end_date: '2024-07-31'
+- query: And for August 2024?
+  expected:
+    scope: analyse
+    start_date: '2024-08-01'
+    end_date: '2024-08-31'
+  deltas:
+    changed:
+    - start_date
+    - end_date
+    retain:
+    - dataset_id
+notes:
+  scenario: 'refinement: new window, same dataset (Retrieval)'
+  design: date-scoped alert dataset chosen deliberately - annual TCL date state is documented-unreliable

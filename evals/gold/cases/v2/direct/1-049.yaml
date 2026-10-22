@@ -1,0 +1,20 @@
+id: 1-049
+uid: 7f73ddd1f9e3c884
+status: not doing
+group: direct
+query: How much tree cover was gained between 2010 and 2015 in the Senanga Reserve, Zambia?
+expected:
+  aoi_source: Landmark
+  dataset_id: '5'
+  dataset_name: tree cover gain
+  answer: 1.41 hectares
+  scope: analyse
+notes:
+  aoi_type: Landmark
+  value_1: 1.41 hectares
+  date_scrub: 'W2 2026-08-01: date expectations removed — annual dataset, the agent pulls
+    the full range and slices in code; the answer carries the year'
+  status_reason: 'parked 2026-08-03: answer 1.41 hectares of tree cover gain over 2010-2015
+    for a whole reserve is implausible on its face — likely a unit/scale error in the sheet.
+    Dataset 5 has 5 other active carriers, so nothing is lost. Unpark only if a run reproduces
+    the figure; otherwise delete.'

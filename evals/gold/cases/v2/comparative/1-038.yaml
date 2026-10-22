@@ -1,0 +1,16 @@
+id: 1-038
+uid: 863ba6a140088907
+status: done
+group: comparative
+query: What was the sum total of tree cover loss in Manitoba and Alberta in 2024?
+expected:
+  aoi_ids: CAN.3_1;CAN.1_1
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  answer: 1,206,405.47 hectares
+  scope: analyse
+notes:
+  aoi_type: gadm 1
+  value_1: 193,259.61 hectares
+  value_2: 1,013,145.86 hectares

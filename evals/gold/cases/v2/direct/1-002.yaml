@@ -1,0 +1,35 @@
+id: 1-002
+uid: 33251684549f20a2
+status: done
+group: direct
+query: How much of Sao Paulo was affected by disturbance alerts in the second half of 2024,
+  considering high and highest confidence alerts only?
+expected:
+  aoi_ids: BRA.25_1
+  aoi_source: gadm
+  dataset_id: '11'
+  dataset_name: Integrated alerts
+  start_date: '2024-07-01'
+  end_date: '2024-12-31'
+  answer: 1,299,278 hectares
+  scope: analyse
+notes:
+  status_reason: 'promoted to done 2026-08-04: re-verified at this uid on run 20260803T215155Z
+    (3 trials, ff=experimental) — every evaluated check passed on majority, including agent_answer
+    and charts_answer. That run was later cleared from the ledger in the v2 baseline reset;
+    the record survives in git history.'
+  aoi_type: gadm
+  rewrite: 'W3 2026-08-03 (second pass): dataset_id 11 -> 0;11 and the prompt repaired. Across
+    3 validation trials the agent did three different things: nudged with options [Integrated
+    alerts, DIST-ALERT] (1), routed to DIST-ALERT with a natural_lands layer (2), routed to
+    Integrated alerts (3). The answer is dataset-INDEPENDENT, which is what makes the alternatives
+    sound rather than a fudge: dataset 11 gives 1,297,968.68 ha (0.10% off expected) and dataset
+    0 gives 1,294,914.35 ha (0.34%), both far inside the 2% tolerance, and trial 2 scored
+    agent_answer 1.0 on the DIST-ALERT routing. Prompt fixed in the same edit because the
+    uid churns for dataset_id anyway, so the 1-063 "do not churn for a typo" argument no longer
+    applies — and this row is cases/README.md''s worked example, which was showcasing broken
+    grammar ("was impacted disturbance alerts") and the confidence-tier ambiguity we resolved
+    by pinning high+highest (1,285,021.87 + 12,946.81 = 1,299,278). Residual: the ~1-in-3
+    nudge is a genuine product ambiguity that no wording fixes without naming the dataset,
+    which the rubric forbids — so this row is effectively a third sentinel (plan §8) and passes
+    on majority.'

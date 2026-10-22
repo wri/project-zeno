@@ -1,0 +1,16 @@
+id: 1-050
+uid: 7b6e0b653649793a
+status: done
+group: comparative
+query: 'Which country gained more tree cover between 2015 and 2020: France or Germany?'
+expected:
+  aoi_ids: DEU;FRA
+  aoi_source: gadm
+  dataset_id: '5'
+  dataset_name: tree cover gain
+  answer: France
+  scope: analyse
+notes:
+  aoi_type: gadm 0
+  date_scrub: 'W2 2026-08-01: date expectations removed — annual dataset, the agent pulls
+    the full range and slices in code; the answer carries the year'

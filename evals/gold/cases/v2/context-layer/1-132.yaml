@@ -1,0 +1,39 @@
+id: 1-132
+uid: 769b0c77264acbf0
+status: done
+group: context-layer
+query: How much tree cover loss occurred within natural ecosystems in Cameroon between January
+  2021 and December 2024?
+expected:
+  aoi_ids: CMR
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  context_layer: natural_forest
+  answer: 665,355.90 hectares
+  scope: analyse
+notes:
+  aoi_type: gadm 0
+  origin: GNW offline evals sheet, (1) GOLD tab row 111 (sheet test_id 1-110, "Not doing"
+    there), imported 2026-10-09. Sheet context_layer natural_lands mapped to natural_forest
+    (see 1-130).
+  capability: picks natural_forest rather than primary_forest for a "natural ecosystems" framing.
+    Cameroon sits inside the primary_forest extent, where that layer is the default for forest-loss
+    questions. The sheet expressed this as text ("Selects natural lands, not primary forest,
+    since the query spans multiple non-forest natural classes"); context_layer_match grades
+    it deterministically, so it is not a judged expectation here.
+  rewrite: '2026-10-09: the sheet wording ("within natural ecosystems including forest, grassland,
+    and wetland") drew a dataset_choice nudge on 3/3 in run 20261009T101010Z_staging_experimental:
+    the agent said no single dataset tracks loss across all three, which is defensible since
+    tree cover loss cannot measure grassland or wetland. AJ chose to drop the class list so
+    the row keeps testing natural_forest over primary_forest. The Integrated alerts twin (1-136)
+    keeps the full wording, where natural_lands does cover all three.'
+  threshold: 'analytics API, staging, 2026-10-09: natural_forest_only + canopy_cover=10 ->
+    665,355.90 ha (2021 157,119.05; 2022 140,395.94; 2023 196,248.02; 2024 171,592.89). Unthresholded
+    665,692.91 ha, only 0.05% apart, so this row passes before and after the threshold fix;
+    1-130 carries the threshold.'
+  date_scrub: sheet expected 2021-01-01..2024-12-31; dropped per cases/README.md (annual dataset)
+  status_reason: 'verified 2026-10-09 after the reword: run 20261009T104826Z_staging_experimental
+    (3 trials, ff=experimental) passed every check on 3/3 at this uid, natural_forest every
+    trial. The agent''s 665,693 ha is the unthresholded figure, 0.05% from the expected 10%
+    figure.'

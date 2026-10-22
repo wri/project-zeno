@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/wri/gnw-gold-evals/schema/case.schema.json",
+  "title": "GOLD case",
+  "description": "One GOLD case, single-turn (query and expected) or multi-turn (turns). Its uid is a truncated SHA-256 of the case content: the query plus its non-empty expected values or, for a multi-turn case, every turn's query, expected values and, where the store's MANIFEST.json sets uid_includes_deltas (cases/v2), non-empty deltas, in order. Status, group and notes are never hashed. See src/goldset/canonical.py; tools/check.py fails if a stored uid does not match.",
+  "type": "object",
+  "required": ["id", "uid", "status", "group"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable lineage id (e.g. '1-030', 'mt-001'). Survives edits; identifies the test's intent across versions."
+    },
+    "uid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{16}$",
+      "description": "Content hash of query/queries + expectations. In cases/v2 (MANIFEST.json uid_includes_deltas: true) it also covers each multi-turn turn's non-empty deltas, canonicalised so key and list order never matter; in cases/v1 (flag absent, frozen baseline) deltas do not participate. Changes on every semantic edit; results are keyed on it."
+    },
+    "status": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Lifecycle state, in lower case: ready (not yet verified at the current uid), todo (held by a known blocker), done (verified at the current uid) or not doing (parked, so gold run skips it). What each requires: cases/README.md, Status lifecycle."
+    },
+    "group": {
+      "type": "string",
+      "description": "Capability grouping (test_group); also the case's directory."
+    },
+    "query": {
+      "type": "string",
+      "description": "Single-turn only: the user prompt sent verbatim to the agent."
+    },
+    "expected": {
+      "$ref": "#/$defs/expectations",
+      "description": "Single-turn only: the values the case is graded on, each a string. Every non-empty value is part of the uid; most switch on one or more checks (see the index in src/goldset/evaluators/README.md). What ';' means differs by field: see cases/README.md."
+    },
+    "turns": {
+      "type": "array",
+      "minItems": 2,
+      "description": "Multi-turn only: scripted turns sharing one thread. Turn text must never depend on the agent's previous free text (determinism rule).",
+      "items": {
+        "type": "object",
+        "required": ["query"],
+        "additionalProperties": false,
+        "properties": {
+          "query": { "type": "string", "minLength": 1 },
+          "expected": { "$ref": "#/$defs/expectations" },
+          "deltas": {
+            "type": "object",
+            "description": "Turn 2 onwards (ignored on turn 1): how the agent's state should move since the previous turn, scored as the state_delta check. changed: the field must differ from the previous turn. retain: it must stay the same (catches lost context). absent: it must be empty (catches carry-over). Field names are the per-turn state snapshot (SNAPSHOT_FIELDS in src/goldset/runner/multiturn.py). In cases/v2 deltas are part of the uid; in cases/v1 they are not.",
+            "additionalProperties": false,
+            "properties": {
+              "changed": { "$ref": "#/$defs/fieldList" },
+              "retain": { "$ref": "#/$defs/fieldList" },
+              "absent": { "$ref": "#/$defs/fieldList" }
+            }
+          }
+        }
+      }
+    },
+    "notes": {
+      "type": "object",
+      "description": "Non-scored annotations. Never hashed: triage commentary must not mint a new version.",
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    }
+  },
+  "oneOf": [
+    { "required": ["query", "expected"], "not": { "required": ["turns"] } },
+    { "required": ["turns"], "not": { "required": ["query"] } }
+  ],
+  "$defs": {
+    "expectations": {
+      "type": "object",
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    },
+    "fieldList": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "aoi_ids",
+          "dataset_id",
+          "context_layer",
+          "start_date",
+          "end_date",
+          "suggested_datasets",
+          "nudge_type",
+          "dashboard_id"
+        ]
+      },
+      "$comment": "Must equal SNAPSHOT_FIELDS in src/goldset/runner/multiturn.py; tests/test_schema.py enforces the sync. A typo'd field must fail at authoring time, not silently abstain at runtime."
+    }
+  }
+}

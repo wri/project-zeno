@@ -1,0 +1,38 @@
+id: 1-139
+uid: 3114d208350601e7
+status: todo
+group: context-layer
+query: How much tree cover loss was there in intact forest landscapes inside the oil palm
+  concessions in Kuantan Singingi, Riau, Indonesia, between 2015 and 2020?
+expected:
+  aoi_source: oil_palm
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  context_layer: intact_forest
+  text: Says the intact forest layer cannot be used for concessions, rather than saying no
+    data was found, and gives no figure for intact forest loss
+  scope: refuse;suggest
+notes:
+  authored: '2026-10-15: temporary row for the context-layer branch of the geometry guard
+    in wri/project-zeno#864 (commit c54187f7). The analytics API accepts a concession''s feature
+    collection with intact_forest, but the analysis then fails, so pull_data now stops before
+    the request and appends the reason to its no-data message. Same AOI as 1-138.'
+  catches: Without the guard, the job fails upstream and the agent sees only "No data found
+    for the selected AOIs and dataset Tree cover loss." Without the pull_data.py change, it
+    sees that line with no reason. Either way the text check fails.
+  design: The guard message invites the agent to choose another context layer, so it may rerun
+    without intact_forest. If a 3-trial run shows it doing that and saying so, decide whether
+    that is acceptable; if it is, add analyse to scope and drop context_layer.
+  retire_when: 'The guard is a stopgap for contract 7. When the intact_forest analysis works
+    with a feature collection, the guard comes out: flip this row to scope analyse with a
+    verified answer, or park it.'
+  status_reason: 'todo 2026-10-15: blocked on the concession ingest on staging, as 1-138.
+    Smoke run 20261015T173835Z_staging (1 trial, default profile, not committed): pick_aoi
+    found no concessions and the agent fell back to the Kuantan Singingi district (IDN.24.7_1).
+    pick_dataset chose Tree cover loss with context layer None, although its reasoning said
+    the intact_forest layer filters the loss. The agent then pulled the whole district and
+    reported "57,502 ha of tree cover loss in intact forests within oil palm concessions",
+    a figure with neither filter applied (trace https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/4ebd47ba74061e9666687411f37f52d3).
+    dataset_id_match passed; context_layer_match, text and scope failed. That failure is real
+    and does not depend on #864, so this row should keep failing until it is fixed. Rerun once
+    the concessions are ingested on staging.'

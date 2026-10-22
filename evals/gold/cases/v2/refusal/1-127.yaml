@@ -1,0 +1,52 @@
+id: 1-127
+uid: 4caeed10d6effd61
+status: not doing
+group: refusal
+query: What were global emissions from organic and mineral soils in 2024?
+expected:
+  dataset_id: '12'
+  dataset_name: Land GHG Monitoring System (LGMS)
+  text: Does not give a global figure, and offers either a single area or the standard charts
+    instead
+  scope: refuse;clarify
+notes:
+  authored: '2026-09-16: authored for the curated-charts-only behaviour in wri/project-zeno#827,
+    after asking whether its one-area guard covers a global-totals question. It does, but
+    incidentally: "global" is not an entity pick_aoi can resolve, so the ask expands into
+    254 GADM countries and trips the same len(aois) > 1 branch 1-125 covers. This row exists
+    because that coverage rests on an implementation detail - a real global AOI, or any change
+    that collapses the expansion to a single entity, would walk straight past the guard while
+    every other #827 row kept passing. "Organic and mineral soils" routes to LGMS alone (the
+    soil split is LGMS-only), so the row measures the global ask, not the routing.'
+  design: 'No aoi_ids expectation: the ask resolves to 254 country ids, which is neither pinnable
+    nor meaningful as a set, and the assertion is about what the agent does with them. The
+    text expectation licenses both declines the agent produced across trials, in the 1-089
+    style - "one area at a time, pick a country" and "I cannot state values, only the standard
+    charts are available" are both correct under #827, and a cell demanding one of them flaps
+    by construction. scope carries refuse;clarify because the agent sometimes leaves a country-choice
+    nudge on state (clarify) and sometimes just relays the refusal (none, matching refuse).'
+  no_answer_rationale: 'Deliberately no expected answer, so answered_without_data and web_fallback
+    stay null (they fire only on the derived data-pull expectation, which `answer` sets).
+    That is a real gap on this row: the failure mode it cannot catch deterministically is
+    the agent answering a global total from world knowledge with no pull - the 1-030 shape,
+    and the same platform-level hole 1-116 and 1-117 already document for LGMS, where the
+    dataset''s presentation_instructions never enter context because no dataset is selected.
+    Here a dataset IS selected, so the curated-only session note does reach the model; the
+    judged text expectation is what stands between that and a fabricated figure.'
+  verification: '2026-09-16: local 3-trial run 20260916T131355Z_local_experimental on the
+    PR branch (feat/lgms-curated-charts @423488a1) - a clean pass at the draft uid, and one
+    of only two rows in the set whose behaviour a local run can reach, because everything
+    it asserts happens before the analytics call (the local WRI_BEARER_TOKEN is stale and
+    every pull 401s). dataset_id_match and scope_match 1.0 on 3/3. Observed: pick_aoi resolved
+    254 countries on 3/3; two trials called pull_data and got the one-area refusal verbatim
+    ("only supports analyzing one specific area or country at a time rather than a global
+    total"), one declined from the curated-only instruction without pulling, and one raised
+    a country-choice nudge. The text expectation was widened after that run to license both
+    declines (it scored 2/3 while demanding the one-area phrasing); run 20260916T131714Z_local_experimental
+    at the final uid is 3/3 on all three checks.'
+  status_reason: '2026-09-16: not doing on two counts. (1) Same as 1-112..1-117: LGMS is hidden
+    unless ff=experimental while gold runs target the default profile. (2) The behaviour is
+    unreleased - wri/project-zeno#827 was open at authoring time. Note this row is the least
+    dependent on #827 of the six: the one-area guard is what refuses the pull, so a 3-trial
+    ff=experimental pass is achievable as soon as LGMS is on the default profile. Re-admit
+    with the other LGMS rows; promote to done on a 3-trial ff=experimental pass at this uid.'

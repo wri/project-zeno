@@ -1,0 +1,20 @@
+id: 1-075
+uid: 2b4e103df3c17e7e
+status: done
+group: direct
+query: How much tree cover loss occurred within intact forest landscapes in Sweden between
+  2020 and 2024?
+expected:
+  aoi_ids: SWE
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  context_layer: intact_forest
+  answer: 391.70 hectares
+  scope: analyse
+  aoi_source: gadm
+notes:
+  status_reason: 'unparked 2026-08-04: ''since 2020'' drifts with every data drop, so the
+    window is closed. Added the missing aoi_source. answer restated in hectares for consistency
+    with every other row (was ''3.3 kha'') and pending verification for the closed window.'
+  verified: '2026-08-04 (run 20260803T220705Z): 391.70 ha on 3/3 trials for the closed 2020-2024
+    window. The parked 3.3 kha was wrong.'

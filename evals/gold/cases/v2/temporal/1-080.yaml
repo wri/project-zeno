@@ -1,0 +1,13 @@
+id: 1-080
+uid: 9e3ec4c5af5803c7
+status: done
+group: temporal
+query: Show me deforestation in Brazil
+expected:
+  aoi_ids: BRA
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  context_layer: primary_forest
+  text: Cautions users about loss vs. deforestation but not that the data includes plantations.
+notes:
+  status_reason: Expect map only

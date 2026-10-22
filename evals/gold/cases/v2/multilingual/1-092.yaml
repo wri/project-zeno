@@ -1,0 +1,16 @@
+id: 1-092
+uid: d1c2a4f1b4add263
+status: done
+group: multilingual
+query: Qual foi a área florestal perdida em Portugal em 2022?
+expected:
+  aoi_ids: PRT
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  answer: 46,875 hectares
+  text: Provides good response in the same language as the prompt
+  scope: analyse
+notes:
+  date_scrub: 'W2 2026-08-01: date expectations removed — annual dataset, the agent pulls
+    the full range and slices in code; the answer carries the year'

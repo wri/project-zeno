@@ -1,0 +1,17 @@
+id: 1-052
+uid: 91cb2a767c23fc94
+status: done
+group: direct
+query: Which 5-year period betwween 2000 and 2020 saw Huelva, Spain gain the most tree cover?
+expected:
+  aoi_ids: ESP.1.5_1
+  aoi_source: gadm
+  dataset_id: '5'
+  dataset_name: tree cover gain
+  answer: 2015-2020
+  scope: analyse
+notes:
+  aoi_type: gadm 2
+  value_1: 6,588.34 hectares
+  date_scrub: 'W2 2026-08-01: date expectations removed — annual dataset, the agent pulls
+    the full range and slices in code; the answer carries the year'

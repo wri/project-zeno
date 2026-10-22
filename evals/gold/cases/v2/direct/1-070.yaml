@@ -1,0 +1,23 @@
+id: 1-070
+uid: b00b22aa8fe7903b
+status: done
+group: direct
+query: How much tree cover loss was there in Colombia in 2025?
+expected:
+  aoi_ids: COL
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  answer: 186,034 hectares
+  scope: analyse
+notes:
+  date_scrub: 'W2 2026-08-01: date expectations removed — annual dataset, the agent pulls
+    the full range and slices in code; the answer carries the year'
+  depth: '2026-08-04: answer + scope added to clear a depth violation. 186,034 ha on 6/6 committed
+    trials.'
+  flap: '2026-08-04: answer 186,034 ha (total tree cover loss) is the majority behaviour,
+    2 of 3 trials; the third gave 81,869 ha (primary forest loss). Third row after mt-007
+    and 1-071 showing the same primary-vs-total ambiguity. NOT re-pinned to the primary figure:
+    the 2026-08-04 decision that primary forest is the correct default was made about mt-007
+    specifically, and extending it here would be exactly the kind of inference that produced
+    the mt-007 self-contradiction. Needs an explicit product ruling on what a bare tree cover
+    loss question means.'

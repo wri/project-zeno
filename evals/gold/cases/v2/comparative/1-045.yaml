@@ -1,0 +1,19 @@
+id: 1-045
+uid: 9ffb79b5a677c2ba
+status: done
+group: comparative
+query: 'True or False: In the Rep. of Congo, Bouenza generated more gross greenhouse gas emissions
+  from tree cover loss than Cuvette in 2021?'
+expected:
+  aoi_ids: COG.1_1;COG.4_1
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Forest GHG emissions
+  answer: 'FALSE'
+  scope: analyse
+notes:
+  aoi_type: gadm 1
+  date_scrub: 'W2 2026-08-01: date expectations removed — annual dataset, the agent pulls
+    the full range and slices in code; the answer carries the year'
+  rewrite: 'W1 2026-08-03: named the gas basis; nudged 3/8 before. answer FALSE corroborated
+    by the ledger (Cuvette 2,770,365 vs Bouenza 1,078,505 MgCO2e).'

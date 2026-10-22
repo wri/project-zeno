@@ -1,0 +1,17 @@
+id: mt-001
+uid: f07fd985deb76c61
+status: ready
+group: multiturn
+turns:
+- query: Show me recent integrated alerts in Puri
+  expected:
+    clarification: 'TRUE'
+- query: I mean the Puri district in Odisha, India
+  expected:
+    scope: analyse
+  deltas:
+    changed:
+    - aoi_ids
+notes:
+  scenario: clarify -> resolve (Scope, Retrieval)
+  env_gated: send_nudge absent on prod as of 2026-07-30 (turn 1 clarification is a nudge)

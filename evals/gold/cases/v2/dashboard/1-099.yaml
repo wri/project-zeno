@@ -1,0 +1,23 @@
+id: 1-099
+uid: 954e901dfc103ec9
+status: done
+group: dashboard
+query: Create a dashboard for the canton of Bern, Switzerland and add a satellite imagery
+  map for the first two weeks of July 2025 to it.
+expected:
+  aoi_ids: CHE.6_1
+  aoi_source: gadm
+  dashboard_created: 'TRUE'
+  dashboard_widgets: map
+notes:
+  env_gated: 'requires --ff experimental: dashboard tools live behind the experimental agent
+    tool profile. Without it the agent has no dashboard tool at all and this row scores 0
+    on every trial — indistinguishable from the capability being removed. Separately, dashboards
+    are absent on prod as of 2026-07-30, so a prod zero is also not an agent regression.'
+  rewrite: 'W4 2026-08-03: the case could not pass. Its four checks were perfectly anti-correlated
+    — the city AOI (CHE.6.3.1_1) is too small to intersect a cloud-free Sentinel-2 mosaic
+    so no widget was added (aoi passes, widgets fail), while the canton (CHE.6_1) gets its
+    imagery but fails the AOI pin. Whichever the agent picked, two checks failed. The imagery
+    date was also unpinned, so the outcome depended on cloud cover on the day the run happened.'
+  coverage_debt: This was the ONLY level-3 (city/municipality) AOI expectation in v2. Re-add
+    city-level resolution on a NON-imagery row — imagery is what couples AOI size to failure.

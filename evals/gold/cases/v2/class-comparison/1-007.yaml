@@ -1,0 +1,23 @@
+id: 1-007
+uid: b336cdfe8b3ea20e
+status: not doing
+group: class-comparison
+query: How much peatland was affected by disturbance alerts in Scotland in July 2024?
+expected:
+  aoi_ids: GBR.3_1
+  aoi_source: gadm
+  dataset_id: '0'
+  dataset_name: Global All Ecosystem Disturbance Alerts (DIST-ALERT)
+  start_date: '2024-07-01'
+  end_date: '2024-07-31'
+  scope: analyse
+notes:
+  aoi_type: gadm 1
+  status_reason: 'parked 2026-08-27: DIST-ALERT (dataset 0) removed from agent; case is solely
+    about DIST-ALERT and cannot be answered without it.'
+  rewrite: 'W1 2026-08-03 (second pass): repaired the broken grammar and added scope, then
+    the row still nudged 3/3 — the agent could not tell "disturbance alerts over peatland"
+    from "peatland extent", offering DIST-ALERT vs Global land cover every trial. Naming the
+    alerts phenomenon removes the land-cover reading. dataset_id stays 0: the nudge itself
+    proposes dataset 0 for this question, and integrated alerts (11) was never offered, so
+    single-value routing is still a real test here.'

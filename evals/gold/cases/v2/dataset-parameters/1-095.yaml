@@ -1,0 +1,16 @@
+id: 1-095
+uid: 445b4bb1fae102ed
+status: done
+group: dataset-parameters
+query: Using a 10% canopy threshold, how much tree cover did Finland lose in 2025?
+expected:
+  aoi_ids: FIN
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  dataset_parameters: '[{"name": "canopy_cover", "values": [10]}]'
+  answer: 241,368 hectares
+  scope: analyse
+notes:
+  date_scrub: 'W2 2026-08-01: date expectations removed — annual dataset, the agent pulls
+    the full range and slices in code; the answer carries the year'

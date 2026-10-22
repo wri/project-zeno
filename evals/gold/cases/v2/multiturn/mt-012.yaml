@@ -1,0 +1,54 @@
+id: mt-012
+uid: 6e376cfa37e3d1d0
+status: not doing
+group: multiturn
+turns:
+- query: Break down greenhouse gas emissions and removals in Pará, Brazil by vegetation, soil
+    and agriculture.
+  expected:
+    aoi_ids: BRA.14_1
+    dataset_id: '12'
+    chart_type: hierarchical-bar;stacked-bar-with-line
+    scope: analyse
+- query: Why did soil emissions change between 2016 and 2024?
+  expected:
+    text: Declines to explain what drove the change, saying that only the standard charts
+      are available for this dataset
+  deltas:
+    retain:
+    - aoi_ids
+    - dataset_id
+notes:
+  scenario: '2026-09-16: the narrative half of the interpretation ban (wri/project-zeno#827),
+    which is a different failure mode from the figure ban in 1-124: no number is asked for,
+    so a guard that only suppresses figures would still let the agent narrate a cause. The
+    #827 tool instruction lists "an explanation of the data" among the asks that must be declined.
+    Turn 1 is the 1-123 prompt, the same starting state as mt-010 and mt-011.'
+  design: 'Multi-turn because the single-turn version does not survive contact with the agent
+    - see supersedes below. Splitting the ask means turn 1 routes on wording already measured
+    as deterministic, and the causal question arrives once the charts are on screen, which
+    is also when a user would actually ask it. Turn 2 carries no scope expectation: turn 1''s
+    statistics persist, so the classifier reports analyse whatever turn 2 does. The retain
+    delta keeps the AOI and dataset pinned so a passing row cannot have changed subject.'
+  supersedes: '2026-09-16: replaces the single-turn 1-126 ("Show cropland emissions in Pará,
+    Brazil between 2016 and 2024 and explain what drove the change"), removed in the same
+    PR that added it. Two local 3-trial runs showed the bundled causal clause destabilises
+    routing before the guard is ever reached: 1/3 trials routed to LGMS and pulled, 1/3 balked
+    at the request ("there isn''t a single dataset that provides both cropland emissions and
+    the specific drivers of the change") and offered dataset options without selecting one,
+    and 1/3 returned an empty answer with no tool calls at all. dataset_id_match 1/3 with
+    three separate checks flapping; a row that measures nothing on two trials in three cannot
+    smoke-test a refusal. The bare "Why did X change?" wording behaved the same way, so the
+    fix is the turn split, not the sentence.'
+  verification: '2026-09-16: local 3-trial run 20260916T125526Z_local_experimental on the
+    PR branch (feat/lgms-curated-charts @423488a1): t1.aoi_id_match and t1.dataset_id_match
+    1.0 on 3/3 and t2.state_delta 1.0 on 3/3 - the turn split fixed the instability that retired
+    1-126 (see supersedes). Turn 2''s decline is unverified: the upstream analytics API returned
+    401 Invalid or expired token on every trial (stale local WRI_BEARER_TOKEN), which project-zeno
+    renders to the user as "No data found", so turn 1 produced no charts and turn 2 had nothing
+    to refuse.'
+  status_reason: '2026-09-16: not doing on two counts. (1) Same as 1-112..1-117: LGMS is hidden
+    unless ff=experimental while gold runs target the default profile. (2) The behaviour is
+    unreleased - wri/project-zeno#827 was open at authoring time, and today the agent answers
+    with a causal narrative. Re-admit with the other LGMS rows once #827 is deployed and runs
+    carry --ff experimental; promote to done on a 3-trial ff=experimental pass at this uid.'

@@ -1,0 +1,39 @@
+id: 1-125
+uid: ab11c24d6b51cc52
+status: not doing
+group: comparative
+query: Compare greenhouse gas emissions from soils in Pará and Amazonas, Brazil.
+expected:
+  aoi_ids: BRA.14_1;BRA.4_1
+  aoi_source: gadm
+  dataset_id: '12'
+  dataset_name: Land GHG Monitoring System (LGMS)
+  text: Explains that this data is available for one area at a time and asks the user to choose
+    a single area
+  scope: refuse;clarify
+notes:
+  aoi_type: gadm 1
+  authored: '2026-09-16: authored for the curated-charts-only behaviour in wri/project-zeno#827.
+    Covers the one-area guard in pull_data: a curated_only dataset refuses a multi-area pull,
+    because the curated charts sum every row of a year and two areas would render as one silent
+    total. The refusal lands after pick_aoi and pick_dataset, so both states are still assertable
+    - the row checks that the agent resolved both areas and the dataset and then declined,
+    not that it failed early.'
+  design: 'aoi_ids uses ; as set equality (both areas), while dataset_id ; would mean alternatives
+    - opposite conventions on the same separator, per the evaluator reference. scope carries
+    both classes the guard can produce: the refusal writes no statistics, so the deterministic
+    classifier reports none (matching refuse) when the agent simply relays it, and clarify
+    when it also leaves an AOI nudge on state. The run below observed clarify on 3/3 trials;
+    refuse stays in the expectation because a build that relays the guard without nudging
+    is equally correct and must not fail the row.'
+  risk: '2026-09-16: the guard only covers a single multi-area pull. Nothing stops the agent
+    pulling Pará and then Amazonas in sequence, which yields two single-area insights and
+    scope analyse, failing this row. mt-011 covers that route explicitly. A failure here is
+    a finding to file upstream, not automatically a stale expectation.'
+  verification: '2026-09-16: the only row of the set whose behaviour a local run could reach, because the one-area guard fires in pull_data before the analytics call. Run 20260916T125002Z_local_experimental on the PR branch (feat/lgms-curated-charts @423488a1): aoi_id_match, dataset_id_match, expected_text_match and scope_match all 1.0 on 3/3 trials - a clean pass, the judge citing "explains that data can only be generated for one area at a time and explicitly asks the user to select which state they would like to view first". Observed scope was clarify on 3/3, which is why the expectation carries both classes; an earlier run at the pre-widening uid (20260916T124333Z_local_experimental) failed on scope alone for that reason. So #827''s multi-area guard is verified working; only the default-profile blocker keeps this row parked.'
+  status_reason: '2026-09-16: not doing on two counts. (1) Same as 1-112..1-117: LGMS is hidden
+    unless ff=experimental while gold runs target the default profile. (2) The behaviour is
+    unreleased - wri/project-zeno#827 was open at authoring time, and today the agent pulls
+    both areas and compares them. Re-admit with the other LGMS rows once #827 is deployed
+    and runs carry --ff experimental; promote to done on a 3-trial ff=experimental pass at
+    this uid.'

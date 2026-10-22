@@ -1,0 +1,16 @@
+id: 1-018
+uid: 7bdad9eaabf10663
+status: done
+group: temporal
+query: 'Yes or no: did natural grasslands increase from 2017 to 2022 in Hwange national park,
+  botswana?'
+expected:
+  aoi_source: wdpa
+  dataset_id: '2'
+  dataset_name: Natural/Semi-Natural Grasslands
+  answer: 'no'
+  scope: analyse
+notes:
+  aoi_type: wdpa
+  date_scrub: 'W2 2026-08-01: date expectations removed — annual dataset, the agent pulls
+    the full range and slices in code; the answer carries the year'

@@ -1,0 +1,18 @@
+id: 1-071
+uid: ea82abbf1cd347c2
+status: done
+group: temporal
+query: Show me trends in Tree cover loss for Brazil
+expected:
+  aoi_ids: BRA
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  scope: analyse
+notes:
+  date_scrub: 'W2 2026-08-01: date expectations removed — annual dataset, the agent pulls
+    the full range and slices in code; the answer carries the year'
+  depth: '2026-08-04: scope added for depth; deliberately NO answer. This is the same primary-vs-total
+    ambiguity as mt-007: the agent reports 76.2 million ha (total) on 4 of 6 committed trials
+    and 35.1 million ha (primary forest) on 2. Given the 2026-08-04 decision that primary
+    forest is the correct default, the agent''s majority behaviour here CONTRADICTS mt-007''s
+    — which is the finding, and not something to encode as an expectation.'

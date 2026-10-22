@@ -1,0 +1,16 @@
+id: 1-086
+uid: ae8e62af3bc353ba
+status: done
+group: dataset-suggestion
+query: How much of Indonesia's 2025 tree cover loss was caused by fire?
+expected:
+  aoi_ids: IDN
+  aoi_source: gadm
+  dataset_id: '10'
+  dataset_name: Tree cover loss due to fires
+  scope: analyse
+notes:
+  rewrite: 'W2 2026-08-03: scope suggest -> analyse. The agent never suggests here: 6/6 trials
+    it commits dataset 10 and answers with verified numbers (39,957 ha of 1,161,830 ha, traceability
+    0.00% in both runs). Answering a fully-specified metric query directly is better, not
+    a regression. aoi_ids uppercased for consistency.'

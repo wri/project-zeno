@@ -1,0 +1,15 @@
+id: 1-121
+uid: 49e6011c7b4db2e7
+status: not doing
+group: imagery
+query: Show me alerts and imagery from {last_month} for Zurich, Switzerland.
+expected:
+  aoi_source: gadm
+  dataset_id: 0;11
+  text: Returns Sentinel-2 imagery for the area
+notes:
+  planet_routing: Planet MVP (wri/project-zeno#800) — tests that non-Amazon regions route
+    to Sentinel-2. Planet coverage is limited to the Amazon footprint; Zurich is well outside
+    it. Uses {last_month} template so the prompt stays current without relative-date phrasing.
+  aoi_pending: AOI ID unverified — Zurich may resolve to canton or city level; add aoi_ids
+    after first validation run.

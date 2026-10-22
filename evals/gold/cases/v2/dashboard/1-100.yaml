@@ -1,0 +1,18 @@
+id: 1-100
+uid: 60b6030c1f1d27a0
+status: done
+group: dashboard
+query: Create a dashboard for Brazil with an insight on annual deforestation trends, an explainer
+  text block, and a satellite imagery map
+expected:
+  aoi_ids: BRA
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  dashboard_created: 'TRUE'
+  dashboard_widgets: insight;map;text
+notes:
+  env_gated: 'requires --ff experimental: dashboard tools live behind the experimental agent
+    tool profile. Without it the agent has no dashboard tool at all and this row scores 0
+    on every trial — indistinguishable from the capability being removed. Separately, dashboards
+    are absent on prod as of 2026-07-30, so a prod zero is also not an agent regression.'

@@ -1,0 +1,29 @@
+id: 1-129
+uid: e99ac0c7d7e74b59
+status: not doing
+group: direct
+query: Show me greenhouse gas emissions from livestock in Pará, Brazil.
+expected:
+  aoi_ids: BRA.14_1
+  aoi_source: gadm
+  dataset_id: '12'
+  dataset_name: Land GHG Monitoring System (LGMS)
+  text: Tells the user the map is showing the livestock emissions layer, rather than the combined
+    agriculture layer or the whole-land net flux layer
+  scope: analyse
+notes:
+  aoi_type: gadm 1
+  authored: '2026-09-24: authored for wri/project-zeno#830. LGMS declares five layers in a
+    hierarchy (lgms > lulucf / agriculture > cropland / livestock) and the selector is told
+    to pick the most specific one for the query. 1-128 covers the narration fix; this row
+    covers the hierarchy: a livestock question must land on the livestock layer, not its parent
+    agriculture layer or the lgms default that resolve_selected_layer falls back to on a null
+    or hallucinated name.'
+  design: 'Graded through the reply text because GOLD has no selected_layer check; the text
+    is driven by the "Map layer displayed" line of the pick_dataset tool message, so it follows
+    the selector''s choice. No numeric expectations: LGMS is curated_only.'
+  verification: '2026-09-24: local 3-trial run 20260924T140432Z_local_experimental against project-zeno#830 @22f30682 with project-zeno-next#650 @7d6d05bf, ff=experimental: every implied check (aoi_id_match, dataset_id_match, pull_source_match, scope_match, expected_text_match, chart_well_formed, chart_integrity) 1.0 on 3/3 trials, pull returned 72 data points (no upstream 401). Not yet run against a build without #830, so the row is not yet shown to fail on the old narration.'
+  status_reason: '2026-09-24: not doing, same two counts as 1-128: LGMS is hidden on the default
+    profile, and wri/project-zeno#830 was unreleased at authoring time. Re-admit with the
+    other LGMS rows once #830 is deployed; promote to done on a 3-trial ff=experimental pass
+    at this uid.'

@@ -1,0 +1,27 @@
+id: 1-135
+uid: 6d82092519d275bd
+status: done
+group: context-layer
+query: How many integrated alerts occurred inside natural lands in Indonesia?
+expected:
+  aoi_ids: IDN
+  aoi_source: gadm
+  dataset_id: '11'
+  dataset_name: Integrated alerts
+  context_layer: natural_lands
+  text: States explicitly what period the analysis covers, since none was given in the query
+  scope: analyse
+notes:
+  aoi_type: gadm 0
+  origin: GNW offline evals sheet, (1) GOLD tab row 114 (sheet test_id 1-113, "Not doing"
+    there), imported 2026-10-09.
+  design: 'no answer and no dates, deliberately: with no window the agent pulls from the dataset
+    start to today, so the total grows daily. Routing + text + scope only (1-134 carries the
+    figure).'
+  caveat_dropped: '2026-10-09: the sheet text also asked it to flag the 2020 natural lands
+    baseline. Dropped for the same reason as 1-134 (integrated_alerts.yml does not ask for
+    that caveat); in run 20261009T101010Z_staging_experimental the agent stated the period
+    on 3/3 but gave the caveat on only 2/3.'
+  status_reason: 'verified 2026-10-09 after the caveat drop: run 20261009T104826Z_staging_experimental
+    (3 trials, ff=experimental) passed every check on 3/3 at this uid; the agent stated the
+    window (from 2023-12-01) each time.'

@@ -1,0 +1,47 @@
+id: 1-130
+uid: 3c9c0d75e289d3e6
+status: todo
+group: context-layer
+query: How much tree cover loss occurred inside natural lands in Mato Grosso do Sul, Brazil
+  between January 2021 and December 2024?
+expected:
+  aoi_ids: BRA.11_1
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  context_layer: natural_forest
+  answer: 308,180.27 hectares
+  text: States that natural lands reflect 2020 baseline conditions, and that results after
+    that year may not capture subsequent change
+  scope: analyse
+notes:
+  aoi_type: gadm 1
+  origin: GNW offline evals sheet, (1) GOLD tab row 109 (sheet test_id 1-108, "Not doing"
+    there), imported 2026-10-09. The sheet expected context_layer natural_lands, which does
+    not exist on dataset 4; natural_forest (project-zeno#853) is the SBTN filter on Tree cover
+    loss. The sheet named Mato Grosso but gave BRA.11_1, which is Mato Grosso do Sul in GADM
+    4.1 (Mato Grosso is BRA.12_1); the query now names Mato Grosso do Sul, see aoi_choice.
+  capability: 'the SBTN natural forest filter on Tree cover loss, applied at the 10% canopy
+    threshold. This is the case that detects the threshold: the 10% and unthresholded figures
+    are 7.6% apart here, against 0.05-0.4% for the other natural_forest rows (1-084, 1-132,
+    1-133).'
+  threshold: 'expected figure from the analytics API directly (X-environment staging, 2026-10-09):
+    forest_filter=natural_forest_only, canopy_cover=10 -> 308,180.27 ha (2021 84,068.46; 2022
+    57,486.21; 2023 82,531.68; 2024 84,093.92). project-zeno main sends no canopy_cover with
+    natural_forest (analytics_handler.py; pick_dataset sets canopy_cover 0), which returns
+    331,677.85 ha, so agent_answer fails until that changes. At canopy_cover=10 the API returns
+    no carbon emissions (the carbon model is only valid at 30% and above).'
+  aoi_choice: '2026-10-09, AJ chose Mato Grosso do Sul over Mato Grosso. Run 20261009T101010Z_staging_experimental
+    resolved "Mato Grosso" to BRA.12_1 on 3/3 (correctly), but there the figures barely separate:
+    1,908,111.25 ha at canopy_cover=10 vs 1,949,033.25 ha unthresholded (the agent''s exact
+    answer), 2.1% apart, which a data refresh could pull inside the 2% tolerance. In Mato
+    Grosso do Sul (cerrado and Pantanal, much low-canopy natural forest) the gap is 7.6%.'
+  date_scrub: sheet expected 2021-01-01..2024-12-31; dropped per cases/README.md (annual dataset,
+    the agent pulls the full range and slices in code), the answer carries the window
+  status_reason: 'todo 2026-10-09: blocked on project-zeno applying a 10% canopy threshold
+    with the natural_forest layer (AJ, 2026-10-09: it currently runs natural forest loss unthresholded,
+    which is wrong). Run 20261009T104826Z_staging_experimental (3 trials, ff=experimental)
+    at this uid: AOI (BRA.11_1), dataset, natural_forest, text and scope pass 3/3; only agent_answer
+    and charts_answer fail, because the agent reports 331,678 ha, the unthresholded figure
+    to the hectare (7.62% off). Promote once the fix lands and a 3-trial run passes at this
+    uid.'

@@ -1,0 +1,23 @@
+id: mt-008
+uid: 91cecdd149d9ac47
+status: ready
+group: multiturn
+turns:
+- query: How much tree cover loss did Brazil have in 2022?
+  expected:
+    dataset_id: '4'
+    scope: analyse
+    dashboard_created: 'FALSE'
+- query: Add that to a dashboard
+  expected:
+    dashboard_created: 'TRUE'
+  deltas:
+    retain:
+    - aoi_ids
+    - dataset_id
+notes:
+  scenario: scope escalation (Output, Scope)
+  env_gated: 'requires --ff experimental: dashboard tools live behind the experimental agent
+    tool profile. Without it the agent has no dashboard tool at all and this row scores 0
+    on every trial — indistinguishable from the capability being removed. Separately, dashboards
+    are absent on prod as of 2026-07-30, so a prod zero is also not an agent regression.'

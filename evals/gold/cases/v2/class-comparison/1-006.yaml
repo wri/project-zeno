@@ -1,0 +1,18 @@
+id: 1-006
+uid: 21207fde86bdc738
+status: not doing
+group: class-comparison
+query: What percentage of disturbances in Occitanie (FRA) were due to Crop management in September
+  2024?
+expected:
+  aoi_ids: FRA.11_1
+  aoi_source: gadm
+  dataset_id: '0'
+  dataset_name: Global All Ecosystem Disturbance Alerts (DIST-ALERT)
+  context_layer: driver
+  answer: 8.57%
+  scope: analyse
+notes:
+  aoi_type: gadm 1
+  status_reason: 'parked 2026-08-27: DIST-ALERT (dataset 0) removed from agent; case is solely
+    about DIST-ALERT with driver context layer and cannot be answered without it.'

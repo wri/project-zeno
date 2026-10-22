@@ -1,0 +1,21 @@
+id: 1-093
+uid: 14d2332465d48c5d
+status: done
+group: multilingual
+query: Berapa luas hutan primer yang hilang di Indonesia pada tahun 2022?
+expected:
+  aoi_ids: IDN
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  context_layer: primary_forest
+  answer: 230.003 hektar
+  text: Provides good response in the same language as the prompt
+  scope: analyse
+notes:
+  date_scrub: 'W2 2026-08-01: date expectations removed — annual dataset, the agent pulls
+    the full range and slices in code; the answer carries the year'
+  rewrite: 'W1 2026-08-03: ''hutan primer'' (primary forest) — plain ''hutan'' asks about
+    forest, so pinning context_layer primary_forest was unjustified and the agent flapped
+    between total TCL (885,237.65 ha) and primary-forest loss (230,002.77 ha). Keeps the only
+    multilingual x context-layer row rather than flattening it into a fifth plain-TCL row.'

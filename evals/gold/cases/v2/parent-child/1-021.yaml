@@ -1,0 +1,26 @@
+id: 1-021
+uid: f0a5f23c12a8fea4
+status: done
+group: parent-child
+query: Which comunidad autónoma of Spain (Iberian peninsula only) had the least natural grassland
+  in 2022?
+expected:
+  aoi_ids: ESP.11_1;ESP.1_1;ESP.7_1;ESP.6_1;ESP.5_1;ESP.9_1;ESP.12_1;ESP.15_1;ESP.16_1;ESP.17_1;ESP.13_1;ESP.14_1;ESP.2_1;ESP.3_1;ESP.4_1;ESP.8_1;ESP.10_1;ESP.18_1
+  aoi_source: gadm
+  dataset_id: '2'
+  dataset_name: Natural/Semi-Natural Grasslands
+  answer: Pais Vasco
+  scope: analyse
+notes:
+  status_reason: '2026-09-16: promoted todo -> done. Was parked for "sometimes doesnt count
+    Ceuta y Melilla as an comunidad autonomo" (Iberian peninsula only was added to work
+    around it) — specifically re-verified on aoi_id_match: 0 failures across 42 trials (36
+    from 12 historical 3-trial runs 2026-08-01..2026-09-16, plus a fresh dedicated run
+    20260916T225753Z_staging, 6/6 clean). One unrelated chart_integrity tie (1 fail of 2
+    evaluated trials, run 20260911T000203Z_staging) — chart_integrity is normally ~0.99
+    stable suite-wide, so a single flip here reads as ordinary noise, not a standing issue.'
+  aoi_type: gadm 0
+  date_scrub: 'W2 2026-08-01: date expectations removed — annual dataset, the agent pulls
+    the full range and slices in code; the answer carries the year'
+  rewrite: 'W1 2026-08-03: ''natural grassland'' not bare ''grassland'' — nudged 5/8. Six
+    ''natural grassland'' siblings nudge 0/9 each. Also fixes the ''communidad'' misspelling.'

@@ -1,0 +1,18 @@
+id: 1-048
+uid: 00bb3895326ac32a
+status: done
+group: temporal
+query: 'True or false: in Alto Rio Guama, more tree cover was gained in the period between
+  2000-2010 than 2010-2020'
+expected:
+  aoi_source: wdpa
+  dataset_id: '5'
+  dataset_name: tree cover gain
+  answer: 'TRUE'
+  scope: analyse
+notes:
+  aoi_type: wdpa
+  value_1: 7,266.24 hectares
+  value_2: 1,510.20 hectares
+  date_scrub: 'W2 2026-08-01: date expectations removed — annual dataset, the agent pulls
+    the full range and slices in code; the answer carries the year'

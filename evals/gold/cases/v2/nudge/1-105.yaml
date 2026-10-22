@@ -1,0 +1,13 @@
+id: 1-105
+uid: 1aaeeba8c987a8fc
+status: ready
+group: nudge
+query: Select an area named Puri
+expected:
+  aoi_source: gadm
+  text: Asks the user to choose between Puri in Odisha, India and Puri in Uige, Angola instead
+    of guessing
+  nudge_options: Uíge, Angola;Odisha, India
+  scope: clarify
+notes:
+  env_gated: send_nudge absent on prod as of 2026-07-30 (clarification arrives via aoi_choice)

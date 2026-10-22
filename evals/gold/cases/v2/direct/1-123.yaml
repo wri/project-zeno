@@ -1,0 +1,38 @@
+id: 1-123
+uid: 3d2132cebbe36916
+status: not doing
+group: direct
+query: Break down greenhouse gas emissions and removals in Pará, Brazil by vegetation, soil
+  and agriculture.
+expected:
+  aoi_ids: BRA.14_1
+  aoi_source: gadm
+  dataset_id: '12'
+  dataset_name: Land GHG Monitoring System (LGMS)
+  chart_type: hierarchical-bar;stacked-bar-with-line
+  text: Tells the user the standard charts are shown for the area and gives no emissions figures
+    from them
+  scope: analyse
+notes:
+  aoi_type: gadm 1
+  authored: '2026-09-16: authored for the curated-charts-only behaviour in wri/project-zeno#827.
+    The base capability of that PR: an LGMS pull on one GADM area returns the four curated
+    charts from the deterministic generator, with a fixed narrative and no code-executor run.
+    Prompt routes on the soil/agriculture breakdown, which only LGMS carries (dataset 6 is
+    forest-only), and gives no time period - both DEFAULT routing signals in the LGMS selection_hints
+    - so there is no defensible second dataset to nudge between. Pará is the area the PR author
+    verified live.'
+  design: 'chart_type is the first case in the set to use the field (COVERAGE.md lists it
+    as unused), and it is sound here for the one reason cases/README.md distrusts it: under
+    curated_only the chart spec comes from LGMSChartGenerator, not from an LLM, so the type
+    is deterministic. Alternatives cover both orders the generator has shipped - annual-average
+    first after wri/project-zeno#823, full-detail first before it - so a further reordering
+    cannot flip the check. No expected answer or class_values: the agent is required to state
+    no figures, so every numeric check would fail by design.'
+  verification: '2026-09-16: local 3-trial runs 20260916T124333Z_local_experimental and 20260916T125002Z_local_experimental on the PR branch (feat/lgms-curated-charts @423488a1), same uid in both: aoi_id_match and dataset_id_match 1.0 on 6/6 trials, so the routing this prompt was designed around is deterministic and raises no dataset nudge. Everything past the pull is unverified - the upstream analytics API returned 401 Invalid or expired token on every trial (stale local WRI_BEARER_TOKEN), which project-zeno renders to the user as "No data found", so scope, chart_type and text could not be exercised. chart_type_match 0.0 on every trial is that 401, not a chart bug.'
+  status_reason: '2026-09-16: not doing on two counts. (1) Same as 1-112..1-117: LGMS is hidden
+    unless ff=experimental while gold runs target the default profile. (2) The behaviour is
+    unreleased - wri/project-zeno#827 was open at authoring time, and before it merges the
+    agent interprets LGMS data freely, so the text expectation fails by design. Re-admit with
+    the other LGMS rows once #827 is deployed and runs carry --ff experimental; promote to
+    done on a 3-trial ff=experimental pass at this uid.'

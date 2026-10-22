@@ -1,0 +1,19 @@
+id: 1-005
+uid: 6c8b9a9d674922d2
+status: not doing
+group: parent-child
+query: In what district in Amazonas, Brazil were natural lands most disturbed in Q1 2024?
+expected:
+  aoi_ids: BRA.4.1_2;BRA.4.2_2;BRA.4.3_2;BRA.4.4_2;BRA.4.5_2;BRA.4.6_2;BRA.4.7_2;BRA.4.8_2;BRA.4.10_2;BRA.4.11_2;BRA.4.14_2;BRA.4.15_2;BRA.4.16_2;BRA.4.17_2;BRA.4.18_2;BRA.4.19_2;BRA.4.20_2;BRA.4.21_2;BRA.4.22_2;BRA.4.24_2;BRA.4.25_2;BRA.4.26_2;BRA.4.27_2;BRA.4.28_2;BRA.4.29_2;BRA.4.30_2;BRA.4.31_2;BRA.4.32_2;BRA.4.33_2;BRA.4.34_2;BRA.4.35_2;BRA.4.36_2;BRA.4.37_2;BRA.4.38_2;BRA.4.39_2;BRA.4.40_2;BRA.4.41_2;BRA.4.42_2;BRA.4.43_2;BRA.4.44_2;BRA.4.45_2;BRA.4.47_2;BRA.4.48_2;BRA.4.49_2;BRA.4.50_2;BRA.4.51_2;BRA.4.53_2;BRA.4.54_2;BRA.4.55_2;BRA.4.56_2;BRA.4.57_2;BRA.4.58_2;BRA.4.59_2;BRA.4.60_2;BRA.4.61_2;BRA.4.9_2;BRA.4.12_2;BRA.4.46_2;BRA.4.62_2;BRA.4.13_2;BRA.4.23_2;BRA.4.52_2
+  aoi_source: gadm
+  dataset_id: '0'
+  dataset_name: Global All Ecosystem Disturbance Alerts (DIST-ALERT)
+  context_layer: natural_lands
+  scope: analyse
+notes:
+  aoi_type: gadm 1
+  status_reason: 'parked 2026-08-27: DIST-ALERT (dataset 0) removed from agent; case is solely
+    about DIST-ALERT over natural lands and cannot be answered without it.'
+  rewrite: 'W1 2026-08-03: ''most disturbed'' not ''most at risk'' — the old wording nudged
+    between land cover and disturbance alerts on 3/9. scope added (was a depth violation:
+    3 checks, 1 bucket).'
