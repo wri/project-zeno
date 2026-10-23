@@ -23,6 +23,7 @@ from src.api.services.analysis_templates.registry import (
     NrtMonitoringArgs,
     Post2020ForestLossArgs,
 )
+from src.api.services.dashboard_alerts import AlertsUnavailableError
 from tests.api.test_dashboards import AUTH, _create_dashboard, _create_user
 from tests.conftest import async_session_maker
 from tests.unit.api.services.test_chart_generators import NATURAL_FOREST_DATA
@@ -59,6 +60,13 @@ def _sources(pull_ok=True, imagery=None, rows=ROWS):
             builder.AnalyticsHandler,
             "pull_data",
             AsyncMock(return_value=pull),
+        ),
+        # Offline: the alerts list counts from today, as the build does
+        # when the analytics API cannot give its latest alert date.
+        patch.object(
+            builder.AnalyticsAlertsSource,
+            "latest_alert_date",
+            AsyncMock(side_effect=AlertsUnavailableError("offline")),
         ),
         patch.object(
             builder._IMAGERY_PROVIDER,
@@ -105,7 +113,7 @@ async def test_list_templates(client, auth_override):
             "name": "nrt-monitoring",
             "label": "Near-real-time monitoring",
             "args_schema": NrtMonitoringArgs.model_json_schema(),
-            "widgets": ["chart", "layer", "imagery"],
+            "widgets": ["chart", "alerts", "imagery"],
         },
         {
             "name": "post-2020-forest-loss",
@@ -147,13 +155,27 @@ async def test_apply_template_builds_a_section(client, auth_override):
 
     widgets = body["dashboard"]["widgets"]
     assert [w["id"] for w in widgets] == body["widget_ids"]
-    assert [w["widget_type"] for w in widgets] == ["insight", "map", "map"]
+    assert [w["widget_type"] for w in widgets] == [
+        "insight",
+        "alerts",
+        "map",
+    ]
     assert all(w["section_id"] == body["section_id"] for w in widgets)
     insight = widgets[0]["insight"]
     assert insight["user_id"] == user.id
     assert insight["is_public"] is False
     assert insight["charts"][0]["x_axis"] == "alert_date"
     assert widgets[1]["config"]["dataset"]["dataset_id"] == 11
+    assert widgets[1]["config"]["alerts"] == {
+        "aoi": {
+            "source": "gadm",
+            "src_id": "BRA.16_1",
+            "subtype": "state-province",
+            "name": "Paraná",
+        },
+        "days": 30,
+    }
+    assert widgets[1]["insight"] is None
     assert widgets[2]["config"]["imagery"]["mosaic_id"] == "mosaic-1"
 
 
@@ -260,7 +282,7 @@ async def test_apply_template_goes_after_the_last_section(
         "Recent alerts in Paraná",
     ]
     assert sections[1]["position"] == 1
-    assert sections[1]["template"]["args"] == {"days": 14}
+    assert sections[1]["template"]["args"] == {"days": 30}
 
 
 @pytest.mark.asyncio
