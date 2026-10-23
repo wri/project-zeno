@@ -28,6 +28,8 @@ def _run(verdicts: list[str]) -> dict:
         "run_id": "20261017T120000Z_ephemeral",
         "build": "abc123",
         "num_trials": 3,
+        "workers": 10,
+        "trial_timeout": 900.0,
         "caseset_version": "cs1",
         "results": results,
     }
@@ -100,3 +102,18 @@ def test_shows_the_most_common_error():
 def test_no_error_line_without_errors():
     markdown, _ = ci_summary.render(_run(["pass", "fail"]), 90, None)
     assert "Most common error" not in markdown
+
+
+def test_build_line_shows_workers_and_timeout():
+    markdown, _ = ci_summary.render(_run(["pass"]), 90, None)
+    assert "10 worker(s)" in markdown
+    assert "900s trial timeout" in markdown
+
+
+def test_build_line_tolerates_missing_workers_and_timeout():
+    run = _run(["pass"])
+    del run["workers"]
+    del run["trial_timeout"]
+    markdown, _ = ci_summary.render(run, 90, None)
+    assert "None worker(s)" in markdown
+    assert "n/a trial timeout" in markdown

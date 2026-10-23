@@ -52,6 +52,11 @@ def most_common_error(run: dict) -> tuple[str, int] | None:
     return errors.most_common(1)[0]
 
 
+def _format_timeout(trial_timeout: float | None) -> str:
+    """``900.0`` -> ``900s``; missing on a run record predating this field."""
+    return f"{trial_timeout:g}s" if trial_timeout is not None else "n/a"
+
+
 def _case_list(label: str, ids: list[str]) -> list[str]:
     if not ids:
         return []
@@ -94,7 +99,9 @@ def render(
         f"| {len(by_verdict['error'])} | {len(by_verdict['uncovered'])} |",
         "",
         f"Build `{run.get('build')}` · run `{run['run_id']}` · "
-        f"{run.get('num_trials')} trial(s) · caseset `{run.get('caseset_version')}`",
+        f"{run.get('num_trials')} trial(s) · {run.get('workers')} worker(s) · "
+        f"{_format_timeout(run.get('trial_timeout'))} trial timeout · "
+        f"caseset `{run.get('caseset_version')}`",
         "",
     ]
     common = most_common_error(run)
