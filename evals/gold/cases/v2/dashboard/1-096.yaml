@@ -1,0 +1,9 @@
+id: 1-096
+uid: 1478765e0688e778
+status: done
+group: dashboard
+query: Create a dashboard for brazil
+expected:
+  aoi_ids: BRA
+  aoi_source: gadm
+  dashboard_created: 'TRUE'

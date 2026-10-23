@@ -128,8 +128,7 @@ def _columns(data: Optional[dict]) -> list[list]:
     missing = [column for column in ALERT_COLUMNS if column not in data]
     if missing:
         raise UnexpectedAlertsDataError(
-            f"The integrated alerts result has no {', '.join(missing)} "
-            "column."
+            f"The integrated alerts result has no {', '.join(missing)} column."
         )
     columns = [list(data[column]) for column in ALERT_COLUMNS]
     if len({len(column) for column in columns}) > 1:

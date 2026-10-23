@@ -1,0 +1,46 @@
+id: 1-063
+uid: b67ce54fbd0a6641
+status: done
+group: class-comparison
+query: 'Overall between 2001 and 2025, true or false: logging causes more total tree cover
+  loss than Wildfire in Aveiro, Portugal?'
+expected:
+  aoi_ids: PRT.1_1
+  aoi_source: gadm
+  dataset_id: '8'
+  dataset_name: Tree cover loss by dominant driver
+  answer: 'TRUE'
+  scope: analyse
+notes:
+  aoi_type: gadm 1
+  rewrite: '2026-09-17/18: original wording ("True or False: Logging causes more more tree
+    cover loss than Wildfire...", typo fixed along the way) had a two-way dataset_choice
+    collision — dataset 8 (Tree cover loss by dominant driver, expected) vs dataset 10 (Tree
+    cover loss due to fires) — at 6/39 (~15%) dataset_id_match failures across historical full
+    runs. Dataset 8''s own catalog carries an explicit escape hatch ("IMPORTANT: if a user
+    asks for specific time ranges... do not use this dataset, select Tree cover loss instead"),
+    so with no time period named the agent sometimes hedges toward dataset 10.
+
+    First attempt, a relative date ("In the last 25 years, ..."): backfired to 5/9 (~56%) — a
+    real regression, not noise. The relative phrase does not exactly match the dataset''s fixed
+    2001-2025 window (drifts further every year), so instead of resolving the dataset choice it
+    triggered a *different* nudge: the agent picked dataset 8 correctly but then paused to
+    confirm the date range matched. Exactly the failure mode cases/README.md''s
+    DON''T-use-relative-dates rule warns about.
+
+    Second attempt, an absolute window matching the dataset exactly ("Between 2001 and 2025,
+    ..."): 2/18 (~11%) — directionally better but not statistically distinguishable from the
+    15% baseline (46% chance of being noise).
+
+    Third attempt, added "Overall"/"total" framing on top ("Overall between 2001 and 2025, ...
+    more total tree cover loss..."): 2/27 (~7.4%) combined across three 9-trial batches —
+    roughly half the original rate, but still only ~81% confidence this is a real effect
+    (19% chance of being noise at the original rate), well short of the near-certainty (<0.1%)
+    seen on 1-013/1-015/1-026. The residual failures are the same original two-way nudge,
+    just less frequent.
+
+    Conclusion: a real but partial improvement, not a clean fix — same category as 1-062.
+    Wording alone likely cannot fully close this one; the underlying ambiguity (no time period
+    named, two datasets both plausible) needs either a larger trial count to confirm the
+    residual rate, or a non-wording fix. Kept at status: done since even the partial
+    improvement is worth keeping over the original wording.'

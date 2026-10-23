@@ -1,0 +1,29 @@
+id: mt-009
+uid: effa17a9c754708b
+status: ready
+group: multiturn
+turns:
+- query: Show me Tabatinga municipality in Amazonas, Brazil on the map
+  expected:
+    aoi_ids: BRA.4.56_2
+- query: Now add disturbance alerts to the map for 2026
+  expected:
+    dataset_id: '11'
+    text: the integrated alerts layer is added to the map for 2026
+  deltas:
+    changed:
+    - dataset_id
+    retain:
+    - aoi_ids
+notes:
+  scenario: 'AOI on the map, then a bare current-year layer request (Retrieval) - the exact
+    flow of production trace 099ba22993ccae4e61056626213ee5f0 (2026-09-15), where pick_dataset
+    refused 2026 as "in the future" and the agent claimed alerts stop in "late 2024". Single-turn
+    sibling: 1-122.'
+  design: 'turn 2 is routing-only: "add ... to the map" selects a dataset without a pull,
+    so scope classifies as none on a healthy build (staging probe 2026-09-15). The check that
+    carries the verdict is dataset_id_match (11 vs no dataset), plus the delta that the AOI
+    survives the turn. GADM AOI on purpose: WDPA pulls fail for an unrelated reason (PZB-1406).'
+  status_reason: '2026-09-15 landed as ready; the refusal it targets is stochastic on builds
+    without project-zeno PR #824 (see 1-122 notes and the PR that added this case). Promote
+    to done after a 3-trial pass once #824 is deployed.'

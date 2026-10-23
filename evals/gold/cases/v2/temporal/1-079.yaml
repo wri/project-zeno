@@ -1,0 +1,15 @@
+id: 1-079
+uid: bce4877b54b94b65
+status: done
+group: temporal
+query: What was the peak natural grassland extent in Mongolia between 2000 and 2022?
+expected:
+  aoi_ids: MNG
+  dataset_id: '2'
+  dataset_name: Natural/Semi-Natural Grasslands
+  answer: 80.63 million hectares
+  scope: analyse
+notes:
+  rewrite: 'Fixes two defects — bare ''grassland'' (nudged 2/8) and an open-ended
+    ''peak'' window pinned to a figure that drifts the moment the dataset extends past 2022.
+    Ledger peak is 80,626,410 ha in 2011.'

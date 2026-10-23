@@ -1,0 +1,16 @@
+id: 1-118
+uid: cc887d4637b0c8cb
+status: not doing
+group: imagery
+query: Show me integrated deforestation alerts and imagery for Mirití-Paraná, Amazonas, Colombia.
+expected:
+  aoi_source: gadm
+  dataset_id: 0;11
+  dataset_name: Integrated alerts
+  text: Shows satellite imagery alongside integrated deforestation alerts for the area
+notes:
+  planet_coverage: Planet MVP (wri/project-zeno#800) — tests that the agent calls show_planet_imagery
+    for Amazon alert workflows. Mirití-Paraná is within Planet's test coverage tile (0 N,
+    70 W). If Planet is unavailable or not yet deployed, Sentinel-2 fallback is acceptable.
+  aoi_pending: AOI ID unverified — Mirití-Paraná may resolve to department or municipality
+    level; add aoi_ids after first validation run.

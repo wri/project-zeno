@@ -1,0 +1,287 @@
+{
+  "source": {
+    "repo": "https://github.com/wri/project-zeno.git",
+    "ref": "origin/main",
+    "sha": "69fba963060f162886b8b856f748dc99a1ab60fa",
+    "path": "src/agent/datasets/catalog",
+    "synced": "2026-10-22"
+  },
+  "datasets": [
+    {
+      "dataset_id": "1",
+      "dataset_name": "Global land cover",
+      "parameters": [],
+      "context_layers": [],
+      "instructions": [
+        "prompt_instructions",
+        "selection_hints",
+        "code_instructions",
+        "presentation_instructions"
+      ],
+      "analytics_api_endpoint": "/v0/land_change/land_cover_change/analytics",
+      "content_date": "2015-2024",
+      "content_date_fixed": false,
+      "start_date": "2015-01-01",
+      "end_date": "2024-12-31"
+    },
+    {
+      "dataset_id": "2",
+      "dataset_name": "Global natural/semi-natural grassland extent",
+      "parameters": [],
+      "context_layers": [],
+      "instructions": [
+        "prompt_instructions",
+        "selection_hints",
+        "code_instructions",
+        "presentation_instructions"
+      ],
+      "analytics_api_endpoint": "/v0/land_change/grasslands/analytics",
+      "content_date": "2000-2022, annual",
+      "content_date_fixed": false,
+      "start_date": "2000-01-01",
+      "end_date": "2022-12-31"
+    },
+    {
+      "dataset_id": "3",
+      "dataset_name": "SBTN Natural Lands Map",
+      "parameters": [],
+      "context_layers": [],
+      "instructions": [
+        "prompt_instructions",
+        "selection_hints",
+        "code_instructions",
+        "presentation_instructions"
+      ],
+      "analytics_api_endpoint": "/v0/land_change/natural_lands/analytics",
+      "content_date": "2020",
+      "content_date_fixed": true,
+      "start_date": "2020-01-01",
+      "end_date": "2020-12-31"
+    },
+    {
+      "dataset_id": "4",
+      "dataset_name": "Tree cover loss",
+      "parameters": [
+        {
+          "name": "canopy_cover",
+          "values": [
+            10,
+            15,
+            20,
+            25,
+            30,
+            50,
+            75
+          ]
+        }
+      ],
+      "context_layers": [
+        "primary_forest",
+        "intact_forest",
+        "natural_forest"
+      ],
+      "instructions": [
+        "prompt_instructions",
+        "selection_hints",
+        "code_instructions",
+        "presentation_instructions"
+      ],
+      "analytics_api_endpoint": "/v0/land_change/tree_cover_loss/analytics",
+      "content_date": "2001-2025 annual",
+      "content_date_fixed": false,
+      "start_date": "2001-01-01",
+      "end_date": "2025-12-31"
+    },
+    {
+      "dataset_id": "5",
+      "dataset_name": "Tree cover gain",
+      "parameters": [],
+      "context_layers": [],
+      "instructions": [
+        "prompt_instructions",
+        "selection_hints",
+        "code_instructions",
+        "presentation_instructions"
+      ],
+      "analytics_api_endpoint": "/v0/land_change/tree_cover_gain/analytics",
+      "content_date": "2000-2020 five year intervals",
+      "content_date_fixed": false,
+      "start_date": "2000-01-01",
+      "end_date": "2020-12-31"
+    },
+    {
+      "dataset_id": "6",
+      "dataset_name": "Forest greenhouse gas net flux",
+      "parameters": [
+        {
+          "name": "canopy_cover",
+          "values": [
+            30,
+            50,
+            75
+          ]
+        }
+      ],
+      "context_layers": [],
+      "instructions": [
+        "prompt_instructions",
+        "selection_hints",
+        "code_instructions",
+        "presentation_instructions"
+      ],
+      "analytics_api_endpoint": "/v0/land_change/carbon_flux/analytics",
+      "content_date": "2001-2025",
+      "content_date_fixed": false,
+      "start_date": "2001-01-01",
+      "end_date": "2025-12-31"
+    },
+    {
+      "dataset_id": "7",
+      "dataset_name": "Tree cover",
+      "parameters": [
+        {
+          "name": "canopy_cover",
+          "values": [
+            10,
+            15,
+            20,
+            25,
+            30,
+            50,
+            75
+          ]
+        }
+      ],
+      "context_layers": [
+        "primary_forest"
+      ],
+      "instructions": [
+        "prompt_instructions",
+        "selection_hints",
+        "code_instructions",
+        "presentation_instructions"
+      ],
+      "analytics_api_endpoint": "/v0/land_change/tree_cover/analytics",
+      "content_date": "2000",
+      "content_date_fixed": true,
+      "start_date": "2000-01-01",
+      "end_date": "2000-12-31"
+    },
+    {
+      "dataset_id": "8",
+      "dataset_name": "Tree cover loss by dominant driver",
+      "parameters": [
+        {
+          "name": "canopy_cover",
+          "values": [
+            10,
+            15,
+            20,
+            25,
+            30,
+            50,
+            75
+          ]
+        }
+      ],
+      "context_layers": [],
+      "instructions": [
+        "prompt_instructions",
+        "selection_hints",
+        "code_instructions",
+        "presentation_instructions"
+      ],
+      "analytics_api_endpoint": "/v0/land_change/tree_cover_loss/analytics",
+      "content_date": "2001-2025",
+      "content_date_fixed": true,
+      "start_date": "2001-01-01",
+      "end_date": "2025-12-31"
+    },
+    {
+      "dataset_id": "9",
+      "dataset_name": "Deforestation (sLUC) Emission Factors by Agricultural Crop",
+      "parameters": [],
+      "context_layers": [],
+      "instructions": [
+        "prompt_instructions",
+        "selection_hints",
+        "code_instructions",
+        "presentation_instructions"
+      ],
+      "analytics_api_endpoint": "/v0/land_change/deforestation_luc_emissions_factor/analytics",
+      "content_date": "2020-2024",
+      "content_date_fixed": true,
+      "start_date": "2020-01-01",
+      "end_date": "2024-12-31"
+    },
+    {
+      "dataset_id": "10",
+      "dataset_name": "Tree cover loss due to fires",
+      "parameters": [
+        {
+          "name": "canopy_cover",
+          "values": [
+            10,
+            15,
+            20,
+            25,
+            30,
+            50,
+            75
+          ]
+        }
+      ],
+      "context_layers": [
+        "primary_forest",
+        "intact_forest"
+      ],
+      "instructions": [
+        "prompt_instructions",
+        "selection_hints",
+        "code_instructions",
+        "presentation_instructions"
+      ],
+      "analytics_api_endpoint": "/v0/land_change/tree_cover_loss/analytics",
+      "content_date": "2001-2025 annual",
+      "content_date_fixed": false,
+      "start_date": "2001-01-01",
+      "end_date": "2025-12-31"
+    },
+    {
+      "dataset_id": "11",
+      "dataset_name": "Integrated alerts",
+      "parameters": [],
+      "context_layers": [
+        "natural_lands"
+      ],
+      "instructions": [
+        "prompt_instructions",
+        "selection_hints",
+        "code_instructions",
+        "presentation_instructions"
+      ],
+      "analytics_api_endpoint": "/v0/land_change/integrated_alerts/analytics",
+      "content_date": "1 December 2023 - present",
+      "content_date_fixed": false,
+      "start_date": "2023-12-01",
+      "end_date": null
+    },
+    {
+      "dataset_id": "12",
+      "dataset_name": "Land GHG Monitoring System (LGMS)",
+      "parameters": [],
+      "context_layers": [],
+      "instructions": [
+        "prompt_instructions",
+        "selection_hints",
+        "code_instructions",
+        "presentation_instructions"
+      ],
+      "analytics_api_endpoint": "/v0/land_change/land_ghg_inventory/analytics",
+      "content_date": "2016-2024",
+      "content_date_fixed": false,
+      "start_date": "2016-01-01",
+      "end_date": "2024-12-31"
+    }
+  ]
+}

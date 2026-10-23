@@ -1,0 +1,15 @@
+id: 1-014
+uid: 3c4a5827fdf3cab6
+status: done
+group: temporal
+query: True or False, the largest land cover transition between 2015 and 2024 in California,
+  USA was short vegetation to built-up.
+expected:
+  aoi_ids: USA.5_1
+  aoi_source: gadm
+  dataset_id: '1'
+  dataset_name: Global land cover
+  answer: 'FALSE'
+  scope: analyse
+notes:
+  aoi_type: gadm 1

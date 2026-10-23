@@ -5,10 +5,35 @@ name: Ephemeral Environment
 # Each gets its own ECS service, listener port and database instance, restored
 # from the reference snapshot. The load balancer and cluster are shared.
 #
-# The image must already exist in the registry, which today means the commit is
-# on main.
+# The image must already exist in the registry. docker-build.yml pushes it for
+# every commit on main, and gold-ephemeral.yaml builds it for PRs it evaluates
+# before calling this workflow.
 
+# Two triggers with near-identical inputs: workflow_call (from another
+# workflow, e.g. gold-ephemeral.yaml) and workflow_dispatch (run by hand).
+# Each trigger must declare its own inputs, and they differ on purpose: only
+# dispatch allows a `choice` dropdown for action, only call can return
+# outputs, and a manual run defaults to dry_run while a call does not.
 on:
+  workflow_call:
+    inputs:
+      commit_sha:
+        description: project-zeno commit SHA to deploy (must exist in ECR)
+        required: true
+        type: string
+      action:
+        description: create or destroy
+        required: true
+        type: string
+      dry_run:
+        description: Plan only, do not apply
+        required: false
+        default: false
+        type: boolean
+    outputs:
+      api_base_url:
+        description: Base URL of the created deployment
+        value: ${{ jobs.environment.outputs.api_base_url }}
   workflow_dispatch:
     inputs:
       commit_sha:
@@ -46,6 +71,8 @@ jobs:
     name: ${{ inputs.action }} ${{ inputs.commit_sha }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    outputs:
+      api_base_url: ${{ steps.outputs.outputs.api_base_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -125,7 +152,9 @@ jobs:
         run: |
           set -euo pipefail
           url="${{ steps.outputs.outputs.api_base_url }}/openapi.json"
-          for attempt in $(seq 1 30); do
+          # Migrations and the data-sync container run before uvicorn starts,
+          # which has taken close to 5 minutes, so allow 10.
+          for attempt in $(seq 1 60); do
             if curl -fsS --max-time 10 -o /dev/null "$url"; then
               echo "Healthy after $attempt attempt(s): $url"
               exit 0
@@ -133,6 +162,39 @@ jobs:
             sleep 10
           done
           echo "Environment did not become healthy at $url"
+          exit 1
+
+      # /openapi.json only proves uvicorn is listening. GOLD run #39987873094
+      # showed /api/chat itself — which also needs the agent graph and its DB
+      # checkpointer pool warm — can still 500 for several minutes after that,
+      # right as GOLD opens its full worker count against it. One real chat
+      # call here, before GOLD starts, absorbs that warm-up instead of GOLD's
+      # first wave of requests eating it as errored trials.
+      - name: Warm up /api/chat
+        if: inputs.action == 'create' && inputs.dry_run == false
+        env:
+          WRI_BEARER_TOKEN: ${{ secrets.WRI_BEARER_TOKEN }}
+        run: |
+          set -euo pipefail
+          url="${{ steps.outputs.outputs.api_base_url }}/api/chat"
+          payload='{"query":"hello","user_persona":"Researcher","thread_id":"warmup","user_id":"warmup"}'
+          for attempt in $(seq 1 10); do
+            status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 120 \
+              -X POST "$url" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer $WRI_BEARER_TOKEN" \
+              -d "$payload") || true
+            # curl itself writes 000 via -w on a connect failure or --max-time
+            # timeout, so no separate fallback is needed; `|| true` only stops
+            # that nonzero exit from tripping set -e.
+            if [ "$status" -ge 200 ] && [ "$status" -lt 500 ]; then
+              echo "api/chat responded $status after $attempt attempt(s)"
+              exit 0
+            fi
+            echo "api/chat returned $status, retrying in 15s..."
+            sleep 15
+          done
+          echo "api/chat kept returning 5xx/no response at $url"
           exit 1
 
       # --- destroy --------------------------------------------------------

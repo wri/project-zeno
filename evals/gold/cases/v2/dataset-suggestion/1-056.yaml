@@ -1,0 +1,21 @@
+id: 1-056
+uid: 7a7e8cbd2482b2f4
+status: done
+group: dataset-suggestion
+query: Which Norwegian county (admin level 1) had the most tree cover in 2000?
+expected:
+  aoi_ids: NOR.2_1;NOR.12_1;NOR.6_1;NOR.8_1;NOR.9_1;NOR.17_1;NOR.1_1;NOR.19_1;NOR.4_1;NOR.16_1;NOR.13_1;NOR.14_1;NOR.7_1;NOR.5_1;NOR.3_1;NOR.10_1;NOR.11_1;NOR.15_1;NOR.18_1
+  aoi_source: gadm
+  dataset_id: '7'
+  dataset_name: tree cover
+  scope: analyse
+  answer: Hedmark
+notes:
+  aoi_type: gadm 0
+  value_1: 1.43 million hectares
+  rewrite: 'Two defects. (1) The Tree cover dataset is a year-2000 baseline,
+    so asking for 2010 requested a vintage the data lacks — the agent nudged 5/6 (''2000 baseline
+    instead?'') and analysed 1/6. (2) ''norwegian state'' is not a Norwegian admin term and
+    one trial resolved 438 districts instead of 19 level-1 units. scope suggest -> analyse
+    and answer Hedmark absorbed from parked duplicate 1-081, whose query was byte-identical
+    and which held the correct expectations; 1-081 deleted in the same commit.'

@@ -1,0 +1,14 @@
+id: 1-055
+uid: b8002a1ddf7b76f9
+status: done
+group: direct
+query: What was the net greenhouse gas flux for Las Palmas, Canarias (ESP)?
+expected:
+  aoi_ids: ESP.14.1_1
+  aoi_source: gadm
+  dataset_id: '6'
+  dataset_name: Forest greenhouse gas net flux
+  answer: -286,994 Mg CO2e
+  scope: analyse
+notes:
+  aoi_type: gadm 2

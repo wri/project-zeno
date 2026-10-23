@@ -1,0 +1,29 @@
+id: 1-046
+uid: 20c73adad1bea602
+status: ready
+group: direct
+query: How many tonnes of CO2 was emitted in Ihorombe, Madagascar in 2019 due to tree cover
+  loss?
+expected:
+  aoi_ids: MDG.3.4_1
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Forest GHG emissions
+  ground_truth: sum(carbon_emissions_MgCO2e) WHERE tree_cover_loss_year=2019
+  chart_type: bar
+  scope: analyse
+notes:
+  aoi_type: gadm 2
+  rewrite: 'PZB-1282 2026-09-16: answer -> ground_truth, the first run-time ground-truth case.
+    Retires uid cf98ea5d8d7d7811. The figure 658,571 tonnes was hand-typed against a content_date_fixed:false
+    dataset (4, Tree cover loss), so it drifts with every re-publish; the selector fetches
+    it instead. The case carries no dates by design (annual dataset, cases/README.md DON''T
+    #2), so the request uses the catalog window 2001-2025 and the selector narrows to 2019.
+    chart_type added in the same edit because the uid was being minted anyway: dropping answer
+    also drops chart_produced, and chart_type_match is the better OUTPUT check (it abstains
+    with no chart rather than failing).'
+  status_reason: '2026-09-16: done -> ready. The new uid has never been run. Verified at the
+    OLD uid over five 3-trial runs, and the selector was proven live on 2026-09-14 (run 20260914T205625Z_staging:
+    ground_truth_match 1.0, fetched 658,496.56 MgCO2e, resource 09272a7f, 0.011% from the
+    retired answer) — but that was 1 trial, a smoke signal and not verification. Re-admit
+    to done after a 3-trial --ff experimental run at the new uid.'

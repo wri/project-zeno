@@ -1,0 +1,7 @@
+id: 1-065
+uid: '8229668942233037'
+status: done
+group: metadata
+query: What's the resolution of the tree cover loss data?
+expected:
+  text: resolution of tree cover loss is 30 x 30 meters

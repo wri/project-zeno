@@ -1,0 +1,17 @@
+id: 1-039
+uid: 15954d1359ba5a73
+status: done
+group: comparative
+query: 'Which location in England had the most tree cover loss from 2001 to 2024: Sheffield
+  or Wakefield?'
+expected:
+  aoi_ids: GBR.1.83_1;GBR.1.105_1
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  answer: Sheffield
+  scope: analyse
+notes:
+  aoi_type: gadm 2
+  value_1: 582.8 hectares
+  value_2: 32.1 hectares
