@@ -51,6 +51,9 @@ It runs in CI on every push to main and on every PR's first non-draft state
 staging, prod or a local checkout. See [evals/gold/README.md](evals/gold/README.md)
 for how to add a case or run the set yourself.
 
+Step-level evals, which score a single agent step with an LLM judge, live in
+[tests/evals/](tests/evals/README.md).
+
 ### STAC
 
 We have a set of scripts to ingest STAC data into the eoAPI deployment. The ingestion code
