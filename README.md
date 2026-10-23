@@ -25,6 +25,10 @@ for planning and tool calling.
 
 For detailed technical architecture, see [Agent Architecture Documentation](docs/AGENT_ARCHITECTURE.md).
 
+The API also serves the data tools (find areas, read the dataset catalog,
+pull statistics) as an open MCP server at `/mcp`, with no model inside. See
+[MCP server](docs/mcp.md).
+
 ### Infrastructure
 
 To enable that, the project relies on a set of services being deployed with it.

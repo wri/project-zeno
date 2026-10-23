@@ -1,5 +1,6 @@
 dataset_id: 8
 dataset_name: Tree cover loss by dominant driver
+selection_card: "Tree cover loss by dominant driver (2001-2025). Splits tree cover loss into its direct causes: permanent agriculture, hard commodities (mining, energy), shifting cultivation, logging, wildfire, settlements and infrastructure, other natural disturbances. Gives the area and share of loss for each cause. One total for the whole period; no year-by-year values."
 context_layers: null
 parameters:
 - name: canopy_cover

@@ -1,5 +1,6 @@
 dataset_id: 11
 dataset_name: Integrated alerts
+selection_card: "Integrated alerts (December 2023 to present). Near-real-time alerts of vegetation disturbance, clearing and deforestation at 10 m, updated daily, from the DIST-ALERT, GLAD-L, GLAD-S2 and RADD systems. Gives disturbed area (ha) by alert date and by confidence (low, high, highest = detected by several systems). Covers all vegetation; cannot be split by land cover, ecosystem or cause."
 context_layers:
 - value: natural_lands
   description: Restricts alerts to natural lands from the SBTN Natural Lands Map (2020 baseline), covering all natural ecosystems (natural forests, short vegetation, wetlands, peatlands, water and bare land). "Natural" means an ecosystem resembling what would be present without major human impact, including regenerated and secondary natural ecosystems; it is broader than primary or intact forest and excludes plantations, cropland and built areas. Use this layer when the user asks about alerts on natural lands or natural ecosystems, or for supply chain, EUDR, deforestation-free or no-conversion compliance questions.

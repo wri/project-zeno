@@ -8,13 +8,16 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from src.agent.datasets.curated_only import is_curated_only
-from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import (
     AnalyticsHandler,
     analytics_api_headers,
 )
 from src.agent.datasets.handlers.base import DataPullResult
+from src.agent.datasets.pull_checks import (
+    PullRefusal,
+    plan_pull,
+    refuse_dataset,
+)
 from src.agent.i18n import t
 from src.agent.language import DEFAULT_LANGUAGE
 from src.agent.tool_spec import (
@@ -157,14 +160,10 @@ async def pull_data(
     # Data-layer guard: never pull a dataset the current agent profile hides,
     # even if it reaches this tool by a path that bypassed pick_dataset's
     # candidate filter (re-pick, /analyze, dataset persisted in state).
-    if dataset.get("dataset_name") in bound_availability().excluded_datasets:
+    refusal = refuse_dataset(dataset, bound_availability().excluded_datasets)
+    if refusal:
         return _human_feedback(
-            await t(
-                "pull_data.dataset_not_available",
-                language,
-                dataset_name=dataset["dataset_name"],
-            ),
-            tool_call_id,
+            await t(refusal.key, language, **refusal.kwargs), tool_call_id
         )
 
     if not (state.get("aoi_selection") or {}).get("aois"):
@@ -174,47 +173,20 @@ async def pull_data(
             tool_call_id,
         )
 
-    # A curated-only dataset has no comparison view: its charts add up every
-    # row of a year, so two areas would show as one silent sum.
-    if (
-        is_curated_only(dataset.get("dataset_id"))
-        and len(state["aoi_selection"]["aois"]) > 1
-    ):
-        return _human_feedback(
-            await t(
-                "pull_data.single_area_only",
-                language,
-                dataset_name=dataset.get("dataset_name", ""),
-            ),
-            tool_call_id,
-        )
-
     aoi_names = [a["name"] for a in state["aoi_selection"]["aois"]]
     logger.info(
         f"PULL-DATA-TOOL: AOI: {aoi_names}, Dataset: {dataset.get('dataset_name', '')}, Start Date: {start_date}, End Date: {end_date}"
     )
 
-    effective_start, effective_end, range_clamped = await revise_date_range(
-        start_date,
-        end_date,
-        dataset["dataset_id"],
-        dataset.get("context_layer"),
+    plan = await plan_pull(
+        dataset, state["aoi_selection"]["aois"], start_date, end_date
     )
-    if (end_date is not None and end_date < effective_start) or (
-        start_date is not None and start_date > effective_end
-    ):
+    if isinstance(plan, PullRefusal):
         return _human_feedback(
-            await t(
-                "pull_data.date_out_of_range",
-                language,
-                start_date=start_date,
-                end_date=end_date,
-                dataset_name=dataset["dataset_name"],
-                available_start=effective_start,
-                available_end=effective_end,
-            ),
-            tool_call_id,
+            await t(plan.key, language, **plan.kwargs), tool_call_id
         )
+    effective_start, effective_end = plan.start_date, plan.end_date
+    range_clamped = plan.clamped
 
     tool_messages = []
     result = await data_pull_orchestrator.pull_data(

@@ -285,9 +285,13 @@ def _parse_retry_after(response: httpx.Response, default: float) -> float:
 
 def analytics_api_headers() -> dict[str, str]:
     """Headers for every request to the analytics API — Bearer auth
-    (WRI_BEARER_TOKEN, now required) plus the environment selector. Read at
-    call time so the token isn't captured at import."""
-    return {
+    (WRI_BEARER_TOKEN) plus the environment selector. Read at call time so
+    the token isn't captured at import.
+
+    Without a token the Authorization header is left out: httpx refuses the
+    empty "Bearer " value, and every endpoint but LGMS answers without one.
+    """
+    headers = {
         "Accept": "application/json",
         "Content-Type": "application/json",
         "X-environment": (
@@ -296,8 +300,11 @@ def analytics_api_headers() -> dict[str, str]:
             == "production"
             else "staging"
         ),
-        "Authorization": f"Bearer {os.getenv('WRI_BEARER_TOKEN', '')}",
     }
+    token = os.getenv("WRI_BEARER_TOKEN", "").strip()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    return headers
 
 
 class AnalyticsHandler(DataSourceHandler):
@@ -689,12 +696,18 @@ class AnalyticsHandler(DataSourceHandler):
         change_over_time_query: bool,
         aois: list[dict],
     ) -> DataPullResult:
+        # Every area is checked, not only the first: a caller can send areas
+        # of mixed subtypes (an MCP client lists them by hand).
         # SLUC emission factors are only available for GADM levels 0, 1, and 2
+        sluc_misfit = next(
+            (aoi for aoi in aois if aoi["subtype"] not in SLUC_GADM_LEVELS),
+            None,
+        )
         if (
             dataset.get("dataset_id") == SLUC_EMISSION_FACTORS_ID
-            and aois[0]["subtype"] not in SLUC_GADM_LEVELS
+            and sluc_misfit
         ):
-            msg = f"Can not pull data for aoi {aois[0].get('name', '')}. Subtype {aois[0]['subtype']} not supported for SLUC emission factors data, it is only available for GADM admin areas."
+            msg = f"Can not pull data for aoi {sluc_misfit.get('name', '')}. Subtype {sluc_misfit['subtype']} not supported for SLUC emission factors data, it is only available for GADM admin areas."
             return DataPullResult(
                 success=False,
                 data=None,
@@ -702,14 +715,20 @@ class AnalyticsHandler(DataSourceHandler):
                 data_points_count=0,
                 analytics_api_url=None,
             )
-        if (
-            aois[0]["subtype"] in ADMIN_SUBTYPES
-            and aois[0]["subtype"] not in ANALYTICS_ADMIN_SUBTYPES
-        ):
+        level_misfit = next(
+            (
+                aoi
+                for aoi in aois
+                if aoi["subtype"] in ADMIN_SUBTYPES
+                and aoi["subtype"] not in ANALYTICS_ADMIN_SUBTYPES
+            ),
+            None,
+        )
+        if level_misfit:
             msg = (
-                f"Can not pull data for aoi {aois[0].get('name', '')}. "
+                f"Can not pull data for aoi {level_misfit.get('name', '')}. "
                 f"The GFW Analytics API does not support the "
-                f"{aois[0]['subtype']} level; it takes country, "
+                f"{level_misfit['subtype']} level; it takes country, "
                 "state-province and district-county areas."
             )
             return DataPullResult(
@@ -747,13 +766,16 @@ class AnalyticsHandler(DataSourceHandler):
                 analytics_api_url=None,
             )
         try:
-            # Hydrate selected dataset with full metadata
+            # Hydrate selected dataset with full metadata. The catalog's
+            # `parameters` list every value a parameter accepts, not a
+            # selection: a caller that selects none (/api/analyze, the MCP
+            # server) gets the defaults, not max(values) — 75% canopy cover.
             dataset_full = [
                 ds
                 for ds in DATASETS
                 if ds["dataset_id"] == dataset.get("dataset_id")
             ]
-            dataset = dataset_full[0] | dataset
+            dataset = dataset_full[0] | {"parameters": None} | dataset
 
             # Get the appropriate endpoint URL
             if (
@@ -775,7 +797,14 @@ class AnalyticsHandler(DataSourceHandler):
             )
 
             headers = analytics_api_headers()
-            redacted_headers = {**headers, "Authorization": "Bearer ***"}
+            redacted_headers = {
+                **headers,
+                **(
+                    {"Authorization": "Bearer ***"}
+                    if "Authorization" in headers
+                    else {}
+                ),
+            }
             # Debug logging for payload (bearer token redacted above)
             logger.info(
                 f"Analytics API Request - Dataset: {dataset.get('dataset_name')}"
