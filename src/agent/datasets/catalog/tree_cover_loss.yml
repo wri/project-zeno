@@ -12,7 +12,7 @@ context_layers:
   start_date: '2000-01-01'
 - value: natural_forest
   description: Tree cover loss within natural forests from the SBTN Natural Lands Map (2020 baseline). "Natural forest" resembles what would be present without major human impact, including regenerated and secondary natural forest; it is broader than primary or intact forest and excludes plantations. Use this layer when the user asks about natural forest, or for supply chain, EUDR, deforestation-free or no-conversion compliance questions; it takes precedence over primary_forest in those cases. Only covers loss from 2021 onward. Tree cover loss filtered by natural forest defaults to a >= 10% canopy cover threshold; only set a canopy_cover parameter if the user explicitly asks for a different threshold. GHG emissions are only available at a canopy cover threshold of 30% or greater.
-  tile_url: /raster/collections/natural-lands-v-1-1/tiles/WebMercatorQuad/{z}/{x}/{y}.png?colormap=%7B%222%22%3A%20%5B36%2C%20110%2C%2036%2C%20255%5D%2C%20%225%22%3A%20%5B36%2C%20110%2C%2036%2C%20255%5D%2C%20%228%22%3A%20%5B36%2C%20110%2C%2036%2C%20255%5D%2C%20%229%22%3A%20%5B36%2C%20110%2C%2036%2C%20255%5D%7D&assets=asset&expression=asset%2A%28asset%3C12%29%2A%28asset%3E1%29&asset_as_band=True
+  tile_url: '/raster/collections/natural-lands-v-1-1/tiles/WebMercatorQuad/{z}/{x}/{y}.png?colormap={"2": [36, 110, 36, 255], "5": [36, 110, 36, 255], "8": [36, 110, 36, 255], "9": [36, 110, 36, 255]}&assets=asset&expression=asset*(asset<12)*(asset>1)&asset_as_band=True'
   start_date: '2021-01-01'
 parameters:
 - name: canopy_cover
