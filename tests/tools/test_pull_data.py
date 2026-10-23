@@ -3,10 +3,14 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 
+import httpx
 import pytest
 from sqlalchemy import select
 
 from src.agent.datasets.config import DATASETS
+from src.agent.datasets.handlers.analytics_handler import (
+    ANALYTICS_HTTP_TIMEOUT,
+)
 from src.agent.datasets.handlers.base import DataPullResult
 from src.agent.tools.pull_data import (
     fetch_statistics_from_url,
@@ -616,6 +620,35 @@ async def test_pull_data_custom_area(auth_override, client, structlog_context):
     aoi_id_to_name = statistics[0].get("aoi_id_to_name", {})
     assert aoi_data["name"] == aoi_id_to_name.get(aoi_data["src_id"])
     assert raw_data["land_cover_class"] == ["Built-up"]
+
+
+async def test_fetch_statistics_uses_explicit_timeout(monkeypatch):
+    """The analytics API can outlast httpx's 5s default (PZB-1410)."""
+    seen = {}
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            seen.update(kwargs)
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        async def get(self, url, headers):
+            return httpx.Response(
+                200,
+                json={"data": {"result": {"aoi_id": ["x"]}}},
+                request=httpx.Request("GET", url),
+            )
+
+    monkeypatch.setattr(pull_data_module.httpx, "AsyncClient", FakeClient)
+
+    assert await fetch_statistics_from_url("https://example.test/r") == {
+        "aoi_id": ["x"]
+    }
+    assert seen["timeout"] is ANALYTICS_HTTP_TIMEOUT
 
 
 class TestReviseDateRange:

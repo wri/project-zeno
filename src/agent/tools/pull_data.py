@@ -11,6 +11,7 @@ from langgraph.types import Command
 from src.agent.datasets.curated_only import is_curated_only
 from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import (
+    ANALYTICS_HTTP_TIMEOUT,
     AnalyticsHandler,
     analytics_api_headers,
 )
@@ -37,7 +38,7 @@ async def fetch_statistics_from_url(source_url: str) -> dict:
     ``{"data": {"result": {...}}}``.  Returns the inner ``result`` dict
     so callers never need to deal with the response envelope.
     """
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=ANALYTICS_HTTP_TIMEOUT) as client:
         response = await client.get(
             source_url, headers=analytics_api_headers()
         )
