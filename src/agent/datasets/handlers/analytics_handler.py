@@ -242,8 +242,17 @@ def merge_lgms_sections(raw_data: dict) -> dict:
 
 
 def _count_and_enrich(raw_data: Any, aois: list[dict]) -> tuple[Any, int]:
-    """Count data points and add AOI names (by ``aoi_id``) to a flat result."""
+    """Count data points and add AOI names (by ``aoi_id``) to a flat result.
+
+    A metric the API does not compute comes as one null for the whole
+    column, for example emissions below a 30% canopy threshold. It becomes
+    a null per row, so that every column has one value per row.
+    """
     count = _first_list_len(raw_data) if isinstance(raw_data, dict) else 0
+    if isinstance(raw_data, dict):
+        for key, value in raw_data.items():
+            if value is None:
+                raw_data[key] = [None] * count
     if isinstance(raw_data, dict) and "aoi_id" in raw_data:
         aois_id_to_name = {
             format_id(item["src_id"]): item.get("name", item["src_id"]).split(
@@ -398,26 +407,6 @@ class AnalyticsHandler(DataSourceHandler):
 
         logger.debug(f"dataset: {dataset}")
 
-        # A forest breakdown groups the loss by SBTN natural forest class,
-        # while the natural_forest context layer filters to one class. Only
-        # the analysis templates ask for it; the chat path never sets it.
-        forest_breakdown = dataset.get("forest_breakdown")
-        if forest_breakdown is not None:
-            if forest_breakdown != "natural_forest":
-                raise ValueError(
-                    f"Unknown forest breakdown: {forest_breakdown}"
-                )
-            if dataset.get("dataset_id") != TREE_COVER_LOSS_ID:
-                raise ValueError(
-                    "A natural forest breakdown is only available for tree "
-                    "cover loss."
-                )
-            if dataset.get("context_layer"):
-                raise ValueError(
-                    "A forest breakdown cannot be combined with the "
-                    f"{dataset['context_layer']} context layer."
-                )
-
         payload: dict[str, Any]
         if dataset.get("dataset_id") == INTEGRATED_ALERTS_ID:
             land_filter = None
@@ -459,9 +448,6 @@ class AnalyticsHandler(DataSourceHandler):
 
             elif dataset.get("context_layer") == "natural_forest":
                 forest_filter = "natural_forest_only"
-
-            elif forest_breakdown == "natural_forest":
-                forest_filter = "natural_forest"
             intersections = []
             if dataset.get("dataset_id") == TREE_COVER_LOSS_BY_DRIVER_ID:
                 intersections = ["driver"]
@@ -524,19 +510,13 @@ class AnalyticsHandler(DataSourceHandler):
                 f"Unknown dataset ID: {dataset.get('dataset_id')}"
             )
 
-        # The API rejects a canopy cover threshold with the forest breakdown, which
-        # counts all loss.
-        if (
-            dataset.get("dataset_id")
-            in [
-                TREE_COVER_LOSS_ID,
-                TREE_COVER_ID,
-                TREE_COVER_LOSS_BY_DRIVER_ID,
-                TREE_COVER_LOSS_BY_FIRES_ID,
-                FOREST_CARBON_FLUX_ID,
-            ]
-            and forest_breakdown is None
-        ):
+        if dataset.get("dataset_id") in [
+            TREE_COVER_LOSS_ID,
+            TREE_COVER_ID,
+            TREE_COVER_LOSS_BY_DRIVER_ID,
+            TREE_COVER_LOSS_BY_FIRES_ID,
+            FOREST_CARBON_FLUX_ID,
+        ]:
             natural_forest = dataset.get("context_layer") == "natural_forest"
             canopy_cover: int = (
                 NATURAL_FOREST_DEFAULT_CANOPY_COVER
