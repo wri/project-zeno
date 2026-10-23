@@ -1,81 +1,23 @@
-# Eval datasets
+# Step-level evals
 
-CSV files in this directory are end-to-end evaluation cases run via the [`gnw_evals`](https://github.com/wri/gnw-evals) CLI against the agent API.
+This directory holds step-level evals: each test runs one agent step against a fixed `AgentState` fixture and has an LLM judge score the output against a written rubric. `test_judge_flow.py`, for example, runs `generate_insights` on a GHG net-flux fixture and checks the chart type and the source/sink wording.
 
-## Schema
+- `judge.py`: runs the step (`run_generate_insights`) and the judge (`judge_output`, using `SMALL_MODEL`), returning a `Verdict`.
+- `conftest.py`: fixtures. The database is overridden to no-ops; the LLM calls are real.
+- `fixture_data.py`: the `AgentState` fixtures.
 
-Columns match the GOLD CSV one-to-one. The authoritative schema is the `ExpectedData` pydantic model in [gnw-evals/src/gnw_evals/utils/eval_types.py](https://github.com/wri/gnw-evals/blob/main/src/gnw_evals/utils/eval_types.py).
+## Running
 
-Required:
-- `query` — the user message to send to the agent.
-
-Optional (only evaluated if present):
-- `expected_aoi_ids` — GADM ID(s). Semicolon-separated for alternates.
-- `expected_dataset_id` — dataset numeric ID. Source valid IDs from the dataset catalog YAML configs in `src/agent/datasets/catalog/`.
-- `expected_context_layer` — dataset-specific; `no_selection` to assert an empty selection.
-- `expected_start_date`, `expected_end_date` — `YYYY-MM-DD` or `YYYY`.
-- `expected_answer` — natural-language answer; graded by LLM judge.
-- `expected_text` — substring/semantic-inclusion check on the agent's reply.
-- `expected_clarification` — boolean. Whether the agent should ask for clarification instead of answering.
-
-Metadata:
-- `test_id` — short stable id for the case. Use `smoke-<n>` or `bug-<github-issue-number>`, for example.
-- `status` — `ready` | `skip` | `rerun`. Leave empty for active cases.
-- `test_group` — subdivision tag (e.g. `aoi`, `dataset`, `dates`, `regression`). Filterable from CLI.
-- `priority` — free-text label.
-
-## Adding a case
-
-1. Append a row to `evals.csv`. Use only the columns you need; leave others empty.
-2. Run locally first (see below) and confirm it passes against your branch.
-3. Open a PR. The case will run on the next staging deploy and on every subsequent deploy.
-
-## Running locally
-
-Run these commands from the **project-zeno root directory**.
-
-Set credentials before running:
+These tests call real LLM APIs, so the model keys in your `.env` must be set. No database is needed.
 
 ```bash
-export API_TOKEN=<wri-bearer-token>
-export ANTHROPIC_API_KEY=<your-anthropic-api-key>
-export API_BASE_URL=<your-api-base-url>  # e.g. http://localhost:8000 or https://api.staging.globalnaturewatch.org
+uv run pytest tests/evals
 ```
 
-Full options:
+Each session writes a JSON file with every test's query, tool output, judge prompt, judge response and verdict to `tests/evals/results/` (gitignored).
 
-```
-Usage: gnw_evals [OPTIONS]
+## End-to-end eval cases
 
-Options:
-  --api-base-url TEXT     Base URL for API tests (env var: API_BASE_URL)
-  --api-token TEXT        API token for authentication (env var: API_TOKEN)
-  --sample-size INTEGER   Sample size: 1 means run single test, -1 means run all rows
-  --eval-set              Which eval set to run: gold, location_id, dataset_id,
-                          dataset_interpretation, analysis_results,
-                          analysis_interpretation, guardrail, date_selection, or all
-  --test-file TEXT        Path or URL to test dataset CSV file
-  --test-group-filter     Filter by test_group column
-  --status-filter TEXT    Filter by status column (comma-separated values)
-  --output-filename TEXT  Custom filename (timestamp will be appended)
-  --num-workers INTEGER   Number of parallel workers for test execution
-  --random-seed INTEGER   Random seed for sampling (0 means no random sampling)
-  --offset INTEGER        Offset for getting subset. Ignored if random_seed is not 0
-  --num-trials INTEGER    Number of trials per test for robustness measurement
-  --help                  Show this message and exit.
-```
+End-to-end cases (a question in, the final agent state scored) belong in the GOLD regression suite, [wri/gnw-gold-evals](https://github.com/wri/gnw-gold-evals). Add a feature's acceptance cases there.
 
-The commands below use tag `zeno-evals-v1` from the [gnw-evals](https://github.com/wri/gnw-evals) repo. Update the tag in the commands if a newer version is released.
-
-```bash
-# Filter to one test group with --test-group-filter
-# --sample-size -1 runs all matching rows (default is 5)
-uvx --from "git+https://github.com/wri/gnw-evals@zeno-evals-v1" gnw_evals \
-    --test-file $(pwd)/tests/evals/datasets/evals.csv \
-    --test-group-filter regression \
-    --sample-size -1 \
-    --num-workers 3 \
-    --num-trials 1
-```
-
-Or trigger the `Evals` workflow manually from the GitHub Actions tab.
+The CSV cases that used to live in `tests/evals/datasets/` and ran through the [gnw-evals](https://github.com/wri/gnw-evals) CLI and the `Evals` workflow were retired on 2026-10-21. The workflow had never run, and its pinned gnw-evals tag could not score feature flags, nudges or dashboards. The CSVs remain in git history (`git log -- tests/evals/datasets`) if a case is worth porting to GOLD.
