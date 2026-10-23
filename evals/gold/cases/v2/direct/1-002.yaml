@@ -19,17 +19,6 @@ notes:
     and charts_answer. That run was later cleared from the ledger in the v2 baseline reset;
     the record survives in git history.'
   aoi_type: gadm
-  rewrite: 'W3 2026-08-03 (second pass): dataset_id 11 -> 0;11 and the prompt repaired. Across
-    3 validation trials the agent did three different things: nudged with options [Integrated
-    alerts, DIST-ALERT] (1), routed to DIST-ALERT with a natural_lands layer (2), routed to
-    Integrated alerts (3). The answer is dataset-INDEPENDENT, which is what makes the alternatives
-    sound rather than a fudge: dataset 11 gives 1,297,968.68 ha (0.10% off expected) and dataset
-    0 gives 1,294,914.35 ha (0.34%), both far inside the 2% tolerance, and trial 2 scored
-    agent_answer 1.0 on the DIST-ALERT routing. Prompt fixed in the same edit because the
-    uid churns for dataset_id anyway, so the 1-063 "do not churn for a typo" argument no longer
-    applies — and this row is cases/README.md''s worked example, which was showcasing broken
-    grammar ("was impacted disturbance alerts") and the confidence-tier ambiguity we resolved
-    by pinning high+highest (1,285,021.87 + 12,946.81 = 1,299,278). Residual: the ~1-in-3
-    nudge is a genuine product ambiguity that no wording fixes without naming the dataset,
-    which the rubric forbids — so this row is effectively a third sentinel (plan §8) and passes
-    on majority.'
+  rewrite: 'The prompt''s broken grammar ("was impacted disturbance alerts") was repaired,
+    and the confidence-tier ambiguity resolved by pinning high+highest (1,285,021.87 + 12,946.81
+    = 1,299,278 ha). This row is cases/README.md''s worked example of a good single-turn case.'

@@ -13,7 +13,7 @@ expected:
 notes:
   aoi_type: gadm 0
   value_1: 1.43 million hectares
-  rewrite: 'W2 2026-08-03: two defects. (1) The Tree cover dataset is a year-2000 baseline,
+  rewrite: 'Two defects. (1) The Tree cover dataset is a year-2000 baseline,
     so asking for 2010 requested a vintage the data lacks — the agent nudged 5/6 (''2000 baseline
     instead?'') and analysed 1/6. (2) ''norwegian state'' is not a Norwegian admin term and
     one trial resolved 438 districts instead of 19 level-1 units. scope suggest -> analyse

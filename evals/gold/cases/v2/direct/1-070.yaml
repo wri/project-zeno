@@ -10,8 +10,6 @@ expected:
   answer: 186,034 hectares
   scope: analyse
 notes:
-  date_scrub: 'W2 2026-08-01: date expectations removed — annual dataset, the agent pulls
-    the full range and slices in code; the answer carries the year'
   depth: '2026-08-04: answer + scope added to clear a depth violation. 186,034 ha on 6/6 committed
     trials.'
   flap: '2026-08-04: answer 186,034 ha (total tree cover loss) is the majority behaviour,

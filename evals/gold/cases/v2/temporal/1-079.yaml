@@ -10,6 +10,6 @@ expected:
   answer: 80.63 million hectares
   scope: analyse
 notes:
-  rewrite: 'W1 2026-08-03: fixes two defects — bare ''grassland'' (nudged 2/8) and an open-ended
+  rewrite: 'Fixes two defects — bare ''grassland'' (nudged 2/8) and an open-ended
     ''peak'' window pinned to a figure that drifts the moment the dataset extends past 2022.
     Ledger peak is 80,626,410 ha in 2011.'

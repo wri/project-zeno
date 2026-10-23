@@ -13,6 +13,6 @@ expected:
 notes:
   aoi_type: gadm 0
   value_2: 3,643 hectares
-  rewrite: 'W3 2026-08-03: named the admin level — one trial resolved 568 GADM-2 ids instead
+  rewrite: 'Named the admin level — one trial resolved 568 GADM-2 ids instead
     of the 11 level-1 units. Its chart_integrity flap is the separate upstream mis-join bug
     and is deliberately left failing.'

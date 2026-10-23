@@ -125,26 +125,26 @@ answer-graded column) exercise the other three.
 | 1-085 | not doing | dataset-suggestion | parked 2026-08-03: the most on-charter prompt in the dataset-suggestion group (it explicitly asks for sugge... |
 | 1-088 | not doing | context-layer | parked 2026-08-27: DIST-ALERT (dataset 0) removed from agent; case is solely about DIST-ALERT with natural_... |
 | 1-108 | not doing | direct | PARKED 2026-08-04 on creation, after verification (run 20260803T220705Z). It was authored to repay the leve... |
-| 1-112 | not doing | direct | 2026-08-31: not doing while gold runs target the default agent profile — LGMS (dataset 12) is hidden unless... |
-| 1-113 | not doing | temporal | 2026-08-31: not doing while gold runs target the default agent profile — LGMS (dataset 12) is hidden unless... |
-| 1-114 | not doing | refusal | 2026-08-31: not doing while gold runs target the default agent profile — LGMS (dataset 12) is hidden unless... |
-| 1-115 | not doing | direct | 2026-08-31: not doing while gold runs target the default agent profile — LGMS (dataset 12) is hidden unless... |
-| 1-116 | not doing | refusal | 2026-08-31: not doing while gold runs target the default agent profile — LGMS (dataset 12) is hidden unless... |
-| 1-117 | not doing | dataset-suggestion | 2026-08-31: not doing while gold runs target the default agent profile — LGMS (dataset 12) is hidden unless... |
+| 1-112 | not doing | direct | 2026-08-31: not doing while gold runs target the default profile. Needs a 3-trial ff=lgms pass at the final... |
+| 1-113 | not doing | temporal | 2026-08-31: not doing while gold runs target the default profile. Needs a 3-trial ff=lgms pass at the final... |
+| 1-114 | not doing | refusal | 2026-08-31: not doing while gold runs target the default profile. Needs a 3-trial ff=lgms pass for done. |
+| 1-115 | not doing | direct | 2026-08-31: not doing while gold runs target the default profile. Needs a 3-trial ff=lgms run before promot... |
+| 1-116 | not doing | refusal | 2026-08-31: not doing while gold runs target the default profile. Upstream finding: the credits/offsets ref... |
+| 1-117 | not doing | dataset-suggestion | 2026-08-31: not doing while gold runs target the default profile. Same root cause as 1-116: LGMS presentati... |
 | 1-118 | not doing | imagery | — |
 | 1-119 | not doing | imagery | — |
 | 1-120 | not doing | imagery | — |
 | 1-121 | not doing | imagery | — |
-| 1-123 | not doing | direct | 2026-09-16: not doing on two counts. (1) Same as 1-112..1-117: LGMS is hidden unless ff=experimental while ... |
-| 1-124 | not doing | refusal | 2026-09-16: not doing on two counts. (1) Same as 1-112..1-117: LGMS is hidden unless ff=experimental while ... |
-| 1-125 | not doing | comparative | 2026-09-16: not doing on two counts. (1) Same as 1-112..1-117: LGMS is hidden unless ff=experimental while ... |
-| 1-127 | not doing | refusal | 2026-09-16: not doing on two counts. (1) Same as 1-112..1-117: LGMS is hidden unless ff=experimental while ... |
-| 1-128 | not doing | direct | 2026-09-24: not doing on two counts. (1) Same as 1-112..1-117: LGMS is hidden unless ff=experimental while ... |
-| 1-129 | not doing | direct | 2026-09-24: not doing, same two counts as 1-128: LGMS is hidden on the default profile, and wri/project-zen... |
+| 1-123 | not doing | direct | 2026-09-16: not doing. The behaviour is unreleased - wri/project-zeno#827 was open at authoring time, and b... |
+| 1-124 | not doing | refusal | 2026-09-16: not doing. The behaviour is unreleased - wri/project-zeno#827 was open at authoring time, and t... |
+| 1-125 | not doing | comparative | 2026-09-16: not doing. The behaviour is unreleased - wri/project-zeno#827 was open at authoring time, and t... |
+| 1-127 | not doing | refusal | 2026-09-16: not doing. The behaviour is unreleased - wri/project-zeno#827 was open at authoring time. Note ... |
+| 1-128 | not doing | direct | 2026-09-24: not doing. The behaviour is unreleased: wri/project-zeno#830 was open at authoring time. Re-adm... |
+| 1-129 | not doing | direct | 2026-09-24: not doing, same as 1-128: wri/project-zeno#830 was unreleased at authoring time. Re-admit with ... |
 | mt-007 | not doing | multiturn | 2026-09-23: parked (not doing). Two standing, reproduced issues without a clean fix: T1's primary-forest-vs... |
-| mt-010 | not doing | multiturn | 2026-09-16: not doing on two counts. (1) Same as 1-112..1-117: LGMS is hidden unless ff=experimental while ... |
-| mt-011 | not doing | multiturn | 2026-09-16: not doing on two counts. (1) Same as 1-112..1-117: LGMS is hidden unless ff=experimental while ... |
-| mt-012 | not doing | multiturn | 2026-09-16: not doing on two counts. (1) Same as 1-112..1-117: LGMS is hidden unless ff=experimental while ... |
+| mt-010 | not doing | multiturn | 2026-09-16: not doing. The behaviour is unreleased - wri/project-zeno#827 was open at authoring time, and t... |
+| mt-011 | not doing | multiturn | 2026-09-16: not doing. The behaviour is unreleased - wri/project-zeno#827 was open at authoring time, and t... |
+| mt-012 | not doing | multiturn | 2026-09-16: not doing. The behaviour is unreleased - wri/project-zeno#827 was open at authoring time, and t... |
 | 1-027 | todo | direct | CHART aggregates results, hiding requested class |
 | 1-030 | todo | comparative | Expecting SBTN analysis but using the Blog skill |
 | 1-062 | todo | comparative | 2026-09-16: reinstated aoi_ids and answer (see finding below); held at todo rather than promoted, pending a... |

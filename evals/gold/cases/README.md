@@ -34,10 +34,11 @@ same as any other expected-value edit.
 4. **Environment-honest.** If the capability is missing in some environment
    or [profile](../README.md#profile), the case carries an `env_gated` note
    so its zeros are never read as agent regressions. Today the LGMS dataset
-   (id 12) exists only on the `experimental` profile, so its cases are
-   parked while runs use the default profile. Re-check `env_gated` notes
-   when the environment changes: older notes saying that dashboards or
-   imagery need `--ff experimental` are out of date
+   (id 12) is the only example: it's hidden from the default profile, so
+   its cases are parked while runs use the default profile. Re-check
+   `env_gated` notes whenever a gated capability graduates to the default
+   profile — dashboards, satellite imagery and `send_nudge`-based
+   clarification all did during 2026, and their notes have been removed
    ([Running the set](../README.md#running-the-set)).
 
 ## DOs
@@ -106,11 +107,15 @@ same as any other expected-value edit.
   query that genuinely needs the current period should use a template
   token like `{current_month}` instead — the harness fills it in at run
   time and the uid still hashes consistently (`src/goldset/templates.py`).
-- **DON'T set date expectations on annual datasets** (tree cover loss and
-  the other yearly ones). The agent pulls the full range and slices in
-  code, so the recorded window flips between runs while the answer stays
-  right — let `answer` carry the year instead. Date-scoped datasets
-  (integrated alerts, the `imagery` group) are the exception.
+- **DON'T set `expected.start_date`/`end_date` on annual datasets** (tree
+  cover loss and the other yearly ones). The query itself can still name
+  a year or range; it's only the `expected` field that's off-limits, since
+  an annual dataset always pulls its full range and slices to the requested
+  years in code, so `date_extraction` would check that field against a
+  tool-call window that never matches — let `answer` carry the year
+  instead. Date-scoped datasets (integrated alerts, the `imagery` group)
+  are the exception, since there the tool call does match the requested
+  window.
 - **DON'T stake a verdict on chart choice.** Chart type is the agent's
   least deterministic output — 8 of 19 flaky rows in one 3-trial run were
   chart-type flakes. If it matters, expect alternatives:

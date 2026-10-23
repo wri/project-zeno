@@ -15,7 +15,7 @@ notes:
   status_reason: CHART aggregates results, hiding requested class
   aoi_type: wdpa
   class_1: natural short vegetation
-  rewrite: 'W3 2026-08-03: the prose was right on 7/7 (679.16-679.28 vs 679.17, max drift
+  rewrite: 'The prose was right on 7/7 (679.16-679.28 vs 679.17, max drift
     0.016%) but the chart was a pie of Natural 2,123.93 vs Non-natural 123,810.97, so the
     requested class figure appeared nowhere in it — a verdict staked on chart choice, which
     cases/README.md forbids. Asking for the breakdown forces the class-level chart, as sibling

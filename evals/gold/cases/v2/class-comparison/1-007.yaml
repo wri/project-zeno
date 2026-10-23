@@ -15,7 +15,7 @@ notes:
   aoi_type: gadm 1
   status_reason: 'parked 2026-08-27: DIST-ALERT (dataset 0) removed from agent; case is solely
     about DIST-ALERT and cannot be answered without it.'
-  rewrite: 'W1 2026-08-03 (second pass): repaired the broken grammar and added scope, then
+  rewrite: 'Repaired the broken grammar and added scope, then
     the row still nudged 3/3 — the agent could not tell "disturbance alerts over peatland"
     from "peatland extent", offering DIST-ALERT vs Global land cover every trial. Naming the
     alerts phenomenon removes the land-cover reading. dataset_id stays 0: the nudge itself

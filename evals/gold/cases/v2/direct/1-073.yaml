@@ -10,6 +10,3 @@ expected:
   dataset_name: Tree cover loss
   context_layer: primary_forest
   text: Cautions about start year for primary forest being 2002 not 2001
-notes:
-  date_scrub: 'W2 2026-08-01: date expectations removed — annual dataset, the agent pulls
-    the full range and slices in code; the answer carries the year'

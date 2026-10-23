@@ -44,9 +44,10 @@ notes:
     a country-choice nudge. The text expectation was widened after that run to license both
     declines (it scored 2/3 while demanding the one-area phrasing); run 20260916T131714Z_local_experimental
     at the final uid is 3/3 on all three checks.'
-  status_reason: '2026-09-16: not doing on two counts. (1) Same as 1-112..1-117: LGMS is hidden
-    unless ff=experimental while gold runs target the default profile. (2) The behaviour is
-    unreleased - wri/project-zeno#827 was open at authoring time. Note this row is the least
-    dependent on #827 of the six: the one-area guard is what refuses the pull, so a 3-trial
-    ff=experimental pass is achievable as soon as LGMS is on the default profile. Re-admit
-    with the other LGMS rows; promote to done on a 3-trial ff=experimental pass at this uid.'
+  env_gated: LGMS (dataset 12) is hidden from the default profile; use the `lgms` profile
+    (`--ff lgms`), not `experimental`, to reveal it.
+  status_reason: '2026-09-16: not doing. The behaviour is unreleased - wri/project-zeno#827
+    was open at authoring time. Note this row is the least dependent on #827 of the six: the
+    one-area guard is what refuses the pull, so a 3-trial ff=lgms pass is achievable as soon
+    as LGMS is on the default profile. Re-admit with the other LGMS rows; promote to done on
+    a 3-trial ff=lgms pass at this uid.'

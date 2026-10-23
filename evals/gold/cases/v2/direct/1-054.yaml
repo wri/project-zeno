@@ -15,7 +15,7 @@ expected:
   scope: analyse
 notes:
   aoi_type: gadm 1
-  rewrite: 'W1 2026-08-03: ''deforestation related emissions'' pointed at dataset 4; named
+  rewrite: '''deforestation related emissions'' pointed at dataset 4; named
     the net-flux basis instead. text figure corrected — the old -286,993.68 was 1-055''s Las
     Palmas PROVINCE value pasted into this archipelago row. Verified on run 20260803T195628Z:
     the agent reports -2,793,765 MgCO2e, reconciling with its own chart (gross emissions 1,580,945

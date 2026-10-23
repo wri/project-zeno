@@ -14,5 +14,3 @@ notes:
   aoi_type: gadm 2
   value_1: 51,966
   value_2: 53,549.40
-  date_scrub: 'W2 2026-08-01: date expectations removed — annual dataset, the agent pulls
-    the full range and slices in code; the answer carries the year'

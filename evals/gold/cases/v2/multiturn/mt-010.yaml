@@ -39,9 +39,9 @@ notes:
     or expired token on every trial (stale local WRI_BEARER_TOKEN), which project-zeno renders
     to the user as "No data found", so turn 1 produced no charts and turn 2 had nothing to
     refuse.'
-  status_reason: '2026-09-16: not doing on two counts. (1) Same as 1-112..1-117: LGMS is hidden
-    unless ff=experimental while gold runs target the default profile, and update_insight_display
-    is itself an experimental-profile tool. (2) The behaviour is unreleased - wri/project-zeno#827
-    was open at authoring time, and today the reviser restyles LGMS insights on request. Re-admit
-    with the other LGMS rows once #827 is deployed and runs carry --ff experimental; promote
-    to done on a 3-trial ff=experimental pass at this uid.'
+  env_gated: LGMS (dataset 12) is hidden from the default profile; use the `lgms` profile
+    (`--ff lgms`), not `experimental`, to reveal it.
+  status_reason: '2026-09-16: not doing. The behaviour is unreleased - wri/project-zeno#827
+    was open at authoring time, and today the reviser restyles LGMS insights on request.
+    Re-admit with the other LGMS rows once #827 is deployed; promote to done on a 3-trial
+    ff=lgms pass at this uid.'

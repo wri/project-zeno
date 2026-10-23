@@ -9,8 +9,9 @@ expected:
   nudge_options: Global land cover;SBTN
   scope: suggest
 notes:
-  status_reason: 'validator confirmed working 2026-08-03: nudge_match 6/6 across the 08-01
-    and 08-02 runs; the earlier failure was the pre-migration 07-31 harness'
-  rewrite: 'W2 2026-08-03: scope clarify -> suggest, required by H4 in the same landing —
-    the agent emits a dataset_choice nudge 6/6, and H4 now classifies that as suggest. Without
-    this flip H4 would convert a passing row into a regression.'
+  status_reason: 'confirmed working 2026-08-03: nudge_match 6/6 across the 08-01
+    and 08-02 runs; the 07-31 failure was against an earlier harness build, before scope_match
+    classified a dataset_choice nudge as suggest (see rewrite).'
+  rewrite: 'scope clarify -> suggest: scope_match classifies a dataset_choice nudge as
+    suggest, not clarify, and the agent emits exactly that nudge 6/6. Without this fix the
+    check would convert a passing row into a regression.'

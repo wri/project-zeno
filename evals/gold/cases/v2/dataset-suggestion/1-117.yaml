@@ -17,12 +17,9 @@ notes:
     afforestation/reforestation and can indicate it. The prompt names no AOI, so the defensible
     scopes are clarify (ask for a location) or suggest (offer the dataset route); a straight
     web-knowledge answer is the failure mode.'
-  status_reason: '2026-08-31: not doing while gold runs target the default agent profile —
-    LGMS (dataset 12) is hidden unless ff=experimental, so these cases cannot pass without
-    the flag. Re-admit when runs return to the experimental profile or LGMS joins the default
-    catalog. | prior: todo 2026-08-07: on the 1-trial fill run 20260807T125843Z_staging_experimental
-    the agent answered with a generic web-knowledge essay citing wri.org insight pages — no
-    pull, no nudge, no clarification (actual scope none), and no statement that mitigation
-    potential is not calculated. Same root cause as 1-116: LGMS presentation_instructions
-    never enter context when no dataset is selected. Promote to ready only after a 3-trial
-    ff=experimental run shows the expected redirect behaviour.'
+  env_gated: LGMS (dataset 12) is hidden from the default profile; use the `lgms` profile
+    (`--ff lgms`), not `experimental`, to reveal it.
+  status_reason: '2026-08-31: not doing while gold runs target the default profile. Same
+    root cause as 1-116: LGMS presentation_instructions never enter context when no dataset
+    is selected. Promote to ready only after a 3-trial ff=lgms run shows the expected redirect
+    behaviour.'

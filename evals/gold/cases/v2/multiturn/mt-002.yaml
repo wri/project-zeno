@@ -14,4 +14,3 @@ turns:
     - aoi_ids
 notes:
   scenario: nudge -> accept; T1 mirrors case 1-105
-  env_gated: send_nudge absent on prod as of 2026-07-30

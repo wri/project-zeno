@@ -20,7 +20,5 @@ notes:
     evaluated trials, run 20260911T000203Z_staging) — chart_integrity is normally ~0.99
     stable suite-wide, so a single flip here reads as ordinary noise, not a standing issue.'
   aoi_type: gadm 0
-  date_scrub: 'W2 2026-08-01: date expectations removed — annual dataset, the agent pulls
-    the full range and slices in code; the answer carries the year'
-  rewrite: 'W1 2026-08-03: ''natural grassland'' not bare ''grassland'' — nudged 5/8. Six
+  rewrite: '''natural grassland'' not bare ''grassland'' — nudged 5/8. Six
     ''natural grassland'' siblings nudge 0/9 each. Also fixes the ''communidad'' misspelling.'

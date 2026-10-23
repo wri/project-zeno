@@ -13,10 +13,7 @@ expected:
 notes:
   aoi_type: wdpa
   value_1: 248,965 MgCO2e in 2003
-  date_scrub: 'W2 2026-08-01: date expectations removed — annual dataset, the agent pulls
-    the full range and slices in code; the answer carries the year'
-  status_reason: 'unparked 2026-08-04: query and window were already closed and deterministic.
-    dataset_name corrected — id 4 is Tree cover loss; there is no ''Forest GHG emissions''
-    registry id, emissions ride on dataset 4. answer 2007 pending verification.'
+  rewrite: 'dataset_name corrected — id 4 is Tree cover loss; there is no ''Forest GHG emissions''
+    registry id, emissions ride on dataset 4.'
   verified: '2026-08-04 (run 20260803T220705Z): 2003 on 3/3 trials. The parked answer 2007
     was wrong.'

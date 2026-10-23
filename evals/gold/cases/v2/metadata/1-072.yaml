@@ -8,8 +8,6 @@ expected:
   dataset_name: Tree cover loss
   text: States the final year of the tree cover loss time series
 notes:
-  status_reason: Expected a clarification; agent answered directly. Re-read the thread - either
-    the agent improved or the expectation is stale.
   rewrite: '2026-08-04: two DON''Ts at once. ''most recent year'' is relative-date phrasing
     paired with a non-routing expectation, and ''Confirms 2025'' pins a value that drifts
     with every data drop. Rephrased to remove the relative-date wording and to assert the

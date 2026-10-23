@@ -14,4 +14,3 @@ turns:
     - aoi_ids
 notes:
   scenario: clarify -> resolve (Scope, Retrieval)
-  env_gated: send_nudge absent on prod as of 2026-07-30 (turn 1 clarification is a nudge)

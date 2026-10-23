@@ -23,7 +23,6 @@ notes:
   threshold: 'analytics API, staging, 2026-10-09: natural_forest_only + canopy_cover=10 ->
     79,885.85 ha. Unthresholded 80,189.38 ha (0.38% apart), so this row does not detect the
     threshold; 1-130 does.'
-  date_scrub: sheet expected 2023-01-01..2023-12-31; dropped per cases/README.md (annual dataset)
   status_reason: 'verified 2026-10-09: run 20261009T101010Z_staging_experimental (3 trials,
     ff=experimental) passed every gating check on 3/3 (natural_forest routed from "no-conversion"
     every trial). The agent''s 80,189 ha is the unthresholded figure, 0.38% from the expected

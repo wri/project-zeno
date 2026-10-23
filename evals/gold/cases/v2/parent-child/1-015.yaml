@@ -16,7 +16,7 @@ notes:
   aoi_type: gadm 1
   class_1: short vegetation
   value_1: 53,498 hectares
-  rewrite: 'W1 2026-08-03: named it as a land COVER CLASS — the recorded nudge is a real collision
+  rewrite: 'Named it as a land COVER CLASS — the recorded nudge is a real collision
     (Global land cover ''short vegetation'' vs SBTN ''natural short vegetation''). class_values
     corroborated: Powys 53,497.625 ha.
 

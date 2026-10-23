@@ -11,11 +11,6 @@ expected:
   scope: analyse
   answer: Northern Ireland
 notes:
-  status_reason: 'unparked 2026-08-04: ''Which country in the UK'' with aoi_ids GBR could
-    never match — aoi_id_match is set-equality and cannot express ''GBR or its children'',
-    while the agent selects the four constituents. Now lists them, the pattern 1-056 and 1-021
-    already use. Says ''natural grassland'' per the metric-precision rule. The four ids need
-    confirming against a run''s actual_id, and an answer minting, before this goes to done.'
   aoi_type: gadm 0
   aoi_drop: '2026-08-04: aoi_ids DROPPED rather than enumerated. Verification showed England
     resolving as GBR.1_1, GBR.1.100_1 or a 5-district set across 3 trials, and aoi_id_match

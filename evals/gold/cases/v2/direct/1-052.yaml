@@ -13,5 +13,3 @@ expected:
 notes:
   aoi_type: gadm 2
   value_1: 6,588.34 hectares
-  date_scrub: 'W2 2026-08-01: date expectations removed — annual dataset, the agent pulls
-    the full range and slices in code; the answer carries the year'

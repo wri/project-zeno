@@ -12,8 +12,6 @@ expected:
   scope: analyse
   answer: 289 hectares
 notes:
-  date_scrub: 'W2 2026-08-01: date expectations removed — annual dataset, the agent pulls
-    the full range and slices in code; the answer carries the year'
-  rewrite: 'W3 2026-08-03: added scope and a verified answer (289.11 ha on both completed
+  rewrite: 'Added scope and a verified answer (289.11 ha on both completed
     08-02 trials) — it was the only multilingual row with neither, so it bought no Analysis/Output
     coverage.'

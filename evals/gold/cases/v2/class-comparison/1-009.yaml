@@ -13,7 +13,7 @@ expected:
   scope: analyse
 notes:
   aoi_type: gadm 2
-  rewrite: 'W3 2026-08-03: answer re-pinned from 4.00%, a self-authored fragility — the agent
+  rewrite: 'Answer re-pinned from 4.00%, a self-authored fragility — the agent
     reports 3.93% every trial (chart candidate 3.92834%), which is a 1.79% relative difference
     clearing a 2% tolerance by 0.2 points. One data refresh would tip a passing row to a hard
     failure with nothing changed. New margin 0.04%.'

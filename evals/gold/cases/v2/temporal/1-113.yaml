@@ -27,13 +27,10 @@ notes:
     2020) which is not a chart candidate on the pass-through inventory table — the closest
     candidate was 6.55% off, so an answer expectation would fail charts_answer deterministically.
     The verified per-class figure lives in class_values instead.'
-  status_reason: '2026-08-31: not doing while gold runs target the default agent profile —
-    LGMS (dataset 12) is hidden unless ff=experimental, so these cases cannot pass without
-    the flag. Re-admit when runs return to the experimental profile or LGMS joins the default
-    catalog. | prior: 2026-08-07: 1-trial fill run 20260807T125843Z_staging_experimental —
-    all gating checks passed at the pre-fill uid (aoi, dataset 12, pull_source, scope analyse).
-    class_values and text added from that run''s verified artifact. Needs a 3-trial ff=experimental
-    pass at the final uid for done.'
+  env_gated: LGMS (dataset 12) is hidden from the default profile; use the `lgms` profile
+    (`--ff lgms`), not `experimental`, to reveal it.
+  status_reason: '2026-08-31: not doing while gold runs target the default profile. Needs
+    a 3-trial ff=lgms pass at the final uid for done.'
   curated_only_conflict: '2026-09-16: as 1-112 - wri/project-zeno#827 bans stating LGMS figures,
     so the text expectation here goes with it. The class_values expectation may survive: class_value_match
     reads records from the last statistics entry as well as from charts_data, and the raw

@@ -11,7 +11,7 @@ expected:
   scope: analyse
 notes:
   aoi_type: kba
-  rewrite: 'W1 2026-08-03: named the gas basis (nudged 3/9 and disagreed on routing silently).
+  rewrite: 'Named the gas basis (nudged 3/9 and disagreed on routing silently).
     dataset_name corrected: id 4 is Tree cover loss — emissions ride on it; there is no ''Forest
     GHG emissions'' registry id. scope added so the row implies >=2 buckets (it was a depth
     violation).'

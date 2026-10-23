@@ -12,9 +12,8 @@ expected:
   nudge_options: Tree cover loss by dominant driver;sLUC
 notes:
   aoi_type: gadm 0
-  surface_move: 'W2 2026-08-03: expectations moved off suggested_datasets (populated in 0
+  rewrite: 'Expectations moved off suggested_datasets (populated in 0
     of 1,298 retained trials — project-zeno#770 moved suggestion onto the nudge surface) and
     onto nudge_type/nudge_options. Every trial''s observed option set was already a subset
     of the old expected ids, so the expectation was right all along; only the surface moved.
-    DIST-ALERT is included because the agent offers it on 4/6 trials; the fact that it has
-    no 2017 coverage is an upstream quality issue, not something GOLD should flap on.'
+    DIST-ALERT was dropped from nudge_options when it was removed from the agent.'

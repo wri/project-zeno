@@ -9,5 +9,3 @@ expected:
   dataset_name: Tree cover loss
   context_layer: primary_forest
   text: Cautions users about loss vs. deforestation but not that the data includes plantations.
-notes:
-  status_reason: Expect map only

@@ -11,7 +11,7 @@ expected:
   end_date: '2025-04-30'
   scope: analyse
 notes:
-  status_reason: 'Unparked by PR-09 H7: dataset_id accepts alternatives (0;11 both defensible).
-    The disputed answer expectation (26.95 ha vs 21,073 ha, dataset-dependent) is dropped
-    until the dataset family is settled.'
+  status_reason: 'dataset_id pinned to 11 (Integrated alerts) following DIST-ALERT''s removal
+    from the agent. The disputed answer expectation (26.95 ha vs 21,073 ha, dataset-dependent)
+    is dropped until re-verified against Integrated alerts alone.'
   aoi_type: Landmark

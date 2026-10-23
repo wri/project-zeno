@@ -13,9 +13,7 @@ expected:
   scope: analyse
 notes:
   aoi_type: gadm 0
-  date_scrub: 'W2 2026-08-01: date expectations removed — annual dataset, the agent pulls
-    the full range and slices in code; the answer carries the year'
-  rewrite: 'W1 2026-08-03: named the gas basis (gross emissions from tree cover loss) — the
+  rewrite: 'Named the gas basis (gross emissions from tree cover loss) — the
     old wording nudged between datasets 4 and 6 on 5/8 trials. ''region'' not ''state'': GADM
     level 1 for NZL is regions, as the agent''s own nudge said. answer Waikato is provisional
     pending a run that actually analyses.'

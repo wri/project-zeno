@@ -17,7 +17,7 @@ notes:
   aoi_type: gadm 0
   value_1: -323451481 MgCO₂e
   value_2: -55.4 million MgCO₂e
-  rewrite: 'W1 2026-08-03: spelled out ''net forest greenhouse gas flux''; the abbreviation
+  rewrite: 'Spelled out ''net forest greenhouse gas flux''; the abbreviation
     nudged 1/7. Sibling 1-055 spells it out and never nudges.'
   status_reason: '2026-09-16: promoted todo -> done. Stable under the default profile: 13 of
     13 recent full runs (2026-09-10..2026-09-16, default profile, no --ff) pass cleanly,

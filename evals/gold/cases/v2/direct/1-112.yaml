@@ -24,13 +24,10 @@ notes:
     inventory table — a computed aggregate is never a chart candidate, so any numeric answer
     expectation fails charts_answer deterministically (closest candidate this run was 55%
     off). The text expectation carries the presentation-instruction surface instead.'
-  status_reason: '2026-08-31: not doing while gold runs target the default agent profile —
-    LGMS (dataset 12) is hidden unless ff=experimental, so these cases cannot pass without
-    the flag. Re-admit when runs return to the experimental profile or LGMS joins the default
-    catalog. | prior: 2026-08-07: 1-trial fill run 20260807T125843Z_staging_experimental —
-    every gating check passed at this uid before the text expectation was added (aoi, dataset
-    12, pull_source, scope analyse; answer_traceability 0.0 is info-only and structural, see
-    no_answer_rationale). Needs a 3-trial ff=experimental pass at the final uid for done.'
+  env_gated: LGMS (dataset 12) is hidden from the default profile; use the `lgms` profile
+    (`--ff lgms`), not `experimental`, to reveal it.
+  status_reason: '2026-08-31: not doing while gold runs target the default profile. Needs
+    a 3-trial ff=lgms pass at the final uid for done.'
   curated_only_conflict: '2026-09-16: wri/project-zeno#827 (open at writing) makes LGMS a
     curated-charts-only dataset: the agent shows the four standard charts and is instructed
     to state no figures from them. This row''s text expectation ("Reports emissions figures

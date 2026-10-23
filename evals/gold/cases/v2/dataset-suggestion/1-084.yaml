@@ -16,12 +16,6 @@ notes:
   aoi_type: gadm 0
   value_2: 70,485,772.62 MgCO2e (emissions the agent reports alongside the area figure; not
     asserted in expected since the query only asks about loss, not emissions)
-  surface_move: 'W2 2026-08-03: expectations moved off suggested_datasets (populated in 0
-    of 1,298 retained trials — project-zeno#770 moved suggestion onto the nudge surface) and
-    onto nudge_type/nudge_options. Every trial''s observed option set was already a subset
-    of the old expected ids, so the expectation was right all along; only the surface moved.
-    Token ''grassland'' is singular deliberately: the agent''s option reads ''Global natural/semi-natural
-    grassland extent''. Superseded 2026-10-08 — see rewrite below.'
   rewrite: '2026-10-08: project-zeno#853 (2026-10-06) added a natural_forest context layer
     to the Tree cover loss dataset (SBTN Natural Lands Map-based, loss from 2021 onward only),
     created specifically to give "natural forest" queries an unambiguous, non-nudging target.

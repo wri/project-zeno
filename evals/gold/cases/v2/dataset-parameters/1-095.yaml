@@ -11,6 +11,3 @@ expected:
   dataset_parameters: '[{"name": "canopy_cover", "values": [10]}]'
   answer: 241,368 hectares
   scope: analyse
-notes:
-  date_scrub: 'W2 2026-08-01: date expectations removed — annual dataset, the agent pulls
-    the full range and slices in code; the answer carries the year'

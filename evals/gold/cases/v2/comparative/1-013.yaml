@@ -16,8 +16,6 @@ notes:
   class_1: cropland
   value_2: 374,000 km² (37.4 million ha) — was 924,000 km², which is Nigeria's land area,
     not its cropland
-  date_scrub: 'W2 2026-08-01: date expectations removed — annual dataset, the agent pulls
-    the full range and slices in code; the answer carries the year'
   rewrite: '2026-09-17: prefixed "Looking at land cover composition, " — the mirror-image
     technique to 1-026/1-031, but pulling the other direction: those lean on SBTN''s own
     natural/non-natural framing to route TO SBTN; this leans on Global Land Cover''s own

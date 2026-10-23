@@ -11,6 +11,3 @@ expected:
   answer: 611,900 hectares
   text: Provides good response in the same language as the prompt
   scope: analyse
-notes:
-  date_scrub: 'W2 2026-08-01: date expectations removed — annual dataset, the agent pulls
-    the full range and slices in code; the answer carries the year'

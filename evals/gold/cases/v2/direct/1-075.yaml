@@ -13,8 +13,8 @@ expected:
   scope: analyse
   aoi_source: gadm
 notes:
-  status_reason: 'unparked 2026-08-04: ''since 2020'' drifts with every data drop, so the
-    window is closed. Added the missing aoi_source. answer restated in hectares for consistency
-    with every other row (was ''3.3 kha'') and pending verification for the closed window.'
+  rewrite: '''since 2020'' drifts with every data drop, so the window is closed. Added the
+    missing aoi_source. answer restated in hectares for consistency with every other row
+    (was ''3.3 kha'').'
   verified: '2026-08-04 (run 20260803T220705Z): 391.70 ha on 3/3 trials for the closed 2020-2024
     window. The parked 3.3 kha was wrong.'
