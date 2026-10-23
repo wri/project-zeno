@@ -139,14 +139,14 @@ def _columns(data: Optional[dict]) -> list[list]:
     return columns
 
 
-def latest_alert_date(data: Optional[dict]) -> Optional[date]:
+def get_data_to(data: Optional[dict]) -> Optional[date]:
     """The most recent alert date in the result, of any confidence tier: a
     low confidence alert is data arriving too. None for an empty result."""
     dates, _, _ = _columns(data)
     return max((_parse_date(value) for value in dates), default=None)
 
 
-def alert_days(
+def get_daily_alerts(
     data: Optional[dict], new_week: tuple[date, date]
 ) -> list[AlertDay]:
     """One row per day with high or highest confidence alerts, newest first.
@@ -196,7 +196,7 @@ class AlertsListService:
         self.handler = handler
         self.latest = latest
 
-    async def latest_day(self, today: date) -> Optional[date]:
+    async def resolve_latest_alert_date(self, today: date) -> Optional[date]:
         """The dataset's latest alert date, at most today. None when it
         cannot be read; the caller then counts from today."""
         try:
@@ -276,7 +276,7 @@ class AlertsListService:
                 "protected areas, key biodiversity areas, indigenous lands, "
                 "custom areas and concessions."
             )
-        latest = await self.latest_day(today)
+        latest = await self.resolve_latest_alert_date(today)
         start, end = await self.window(start, end, today, latest)
         # Without a land filter the dataset is exactly what AnalyzeService
         # sends, so a template build makes one pull for its chart and list.
@@ -296,10 +296,10 @@ class AlertsListService:
             raise AlertsUnavailableError(result.message)
         week = period_ending(latest) if latest else latest_alert_week(today)
         return AlertsList(
-            data_to=latest_alert_date(result.data),
+            data_to=get_data_to(result.data),
             latest_alert_date=latest,
             start_date=start,
             end_date=end,
             new_week=AlertsWeek(*week),
-            rows=alert_days(result.data, week),
+            rows=get_daily_alerts(result.data, week),
         )

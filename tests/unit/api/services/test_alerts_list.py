@@ -20,7 +20,7 @@ from src.api.services.alerts_list import (
     InvalidWindowError,
     UnexpectedAlertsDataError,
     UnsupportedAreaError,
-    alert_days,
+    get_daily_alerts,
 )
 
 WEEK = (date(2026, 10, 4), date(2026, 10, 10))
@@ -52,14 +52,14 @@ def test_one_row_per_day_newest_first_with_tiers_as_columns():
         ("2026-10-09", "highest", 3.0),
     )
 
-    assert alert_days(data, WEEK) == [
+    assert get_daily_alerts(data, WEEK) == [
         AlertDay(date(2026, 10, 9), 12.5, 3.0, new=True),
         AlertDay(date(2026, 10, 2), 1.5, 0.0, new=False),
     ]
 
 
 def test_a_tier_with_no_alerts_on_a_day_is_zero():
-    (day,) = alert_days(_rows(("2026-10-09", "highest", 2.0)), WEEK)
+    (day,) = get_daily_alerts(_rows(("2026-10-09", "highest", 2.0)), WEEK)
 
     assert (day.high_ha, day.highest_ha, day.total_ha) == (0.0, 2.0, 2.0)
 
@@ -72,7 +72,7 @@ def test_rows_that_repeat_a_day_and_tier_are_summed():
         ("2026-10-09", "highest", 0.25),
     )
 
-    (day,) = alert_days(data, WEEK)
+    (day,) = get_daily_alerts(data, WEEK)
 
     assert (day.high_ha, day.highest_ha, day.total_ha) == (3.5, 0.75, 4.25)
 
@@ -80,7 +80,7 @@ def test_rows_that_repeat_a_day_and_tier_are_summed():
 def test_sums_do_not_drift():
     data = _rows(*[("2026-10-09", "high", 0.1)] * 10)
 
-    (day,) = alert_days(data, WEEK)
+    (day,) = get_daily_alerts(data, WEEK)
 
     assert day.high_ha == 1.0
 
@@ -92,7 +92,7 @@ def test_low_confidence_is_left_out():
         ("2026-10-08", "low", 5.0),
     )
 
-    (day,) = alert_days(data, WEEK)
+    (day,) = get_daily_alerts(data, WEEK)
 
     assert day.alert_date == date(2026, 10, 9)
     assert day.total_ha == 2.0
@@ -105,7 +105,7 @@ def test_a_missing_area_counts_as_zero():
         ("2026-10-08", "highest", None),
     )
 
-    assert alert_days(data, WEEK) == [
+    assert get_daily_alerts(data, WEEK) == [
         AlertDay(date(2026, 10, 9), 2.0, 0.0, new=True)
     ]
 
@@ -120,7 +120,7 @@ def test_a_missing_area_counts_as_zero():
     ],
 )
 def test_new_means_inside_the_latest_alert_week(day, new):
-    (row,) = alert_days(_rows((day, "high", 1.0)), WEEK)
+    (row,) = get_daily_alerts(_rows((day, "high", 1.0)), WEEK)
 
     assert row.new is new
 
@@ -133,7 +133,7 @@ def test_other_columns_are_ignored():
         "name": ["Paraná"],
     }
 
-    (day,) = alert_days(data, WEEK)
+    (day,) = get_daily_alerts(data, WEEK)
 
     assert day.alert_date == date(2026, 10, 9)
 
@@ -142,7 +142,7 @@ def test_the_result_is_not_changed():
     data = _rows(("2026-10-09", "high", 1.0), ("2026-10-09", "low", 2.0))
     before = copy.deepcopy(data)
 
-    alert_days(data, WEEK)
+    get_daily_alerts(data, WEEK)
 
     assert data == before
 
@@ -153,7 +153,7 @@ def test_the_result_is_not_changed():
     ids=["none", "empty-dict", "empty-columns", "other-empty-columns"],
 )
 def test_an_empty_result_has_no_rows(data):
-    assert alert_days(data, WEEK) == []
+    assert get_daily_alerts(data, WEEK) == []
 
 
 @pytest.mark.parametrize(
@@ -185,7 +185,7 @@ def test_an_empty_result_has_no_rows(data):
 )
 def test_a_result_it_cannot_read_raises(data, problem):
     with pytest.raises(UnexpectedAlertsDataError, match=problem):
-        alert_days(data, WEEK)
+        get_daily_alerts(data, WEEK)
 
 
 class FakeHandler(DataSourceHandler):
