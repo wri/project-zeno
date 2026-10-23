@@ -8,6 +8,7 @@ import gzip
 import json
 import time
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import anyio
 import httpx
@@ -128,6 +129,63 @@ async def test_result_maps_to_ledger_entry(patched_client, tmp_path):
     assert entry["checks"]["nudge_match"] is None
     assert "overall" not in entry["checks"]
     assert entry["latency_s"] is not None
+
+
+def _chat_status_sequence(monkeypatch, statuses: list[int]) -> list[int]:
+    """Patch AsyncClient so /api/chat answers with each status in turn (then
+    repeats the last) and /threads/state always succeeds; no real sleep."""
+    import goldset.runner.api as api_module
+
+    monkeypatch.setattr(api_module.anyio, "sleep", AsyncMock())
+    calls: list[int] = []
+    real_client = httpx.AsyncClient
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/chat":
+            status = statuses[min(len(calls), len(statuses) - 1)]
+            calls.append(status)
+            if status >= 500:
+                return httpx.Response(status, text="boom")
+            if status >= 400:
+                return httpx.Response(status, text="bad request")
+            lines = [json.dumps({"node": "agent", "update": "{}"})]
+            return httpx.Response(200, text="\n".join(lines))
+        if request.url.path.startswith("/api/threads/"):
+            return httpx.Response(200, json={"state": json.dumps(STATE)})
+        raise AssertionError(f"unexpected request: {request.url}")
+
+    def fake_client(**kwargs):
+        kwargs.pop("timeout", None)
+        return real_client(transport=httpx.MockTransport(handler))
+
+    monkeypatch.setattr(httpx, "AsyncClient", fake_client)
+    return calls
+
+
+@pytest.mark.anyio
+async def test_retries_transient_5xx_then_succeeds(monkeypatch):
+    calls = _chat_status_sequence(monkeypatch, [500, 200])
+    result, _ = await _run(None)
+    assert result.error is None
+    assert calls == [500, 200]
+
+
+@pytest.mark.anyio
+async def test_does_not_retry_4xx(monkeypatch):
+    calls = _chat_status_sequence(monkeypatch, [400])
+    result, _ = await _run(None)
+    assert result.error is not None
+    assert calls == [400]
+
+
+@pytest.mark.anyio
+async def test_exhausts_retries_on_persistent_5xx(monkeypatch):
+    from goldset.runner.api import TRANSIENT_CHAT_RETRIES
+
+    calls = _chat_status_sequence(monkeypatch, [500])
+    result, _ = await _run(None)
+    assert result.error is not None
+    assert len(calls) == TRANSIENT_CHAT_RETRIES + 1
 
 
 def test_run_record_names_its_caseset():

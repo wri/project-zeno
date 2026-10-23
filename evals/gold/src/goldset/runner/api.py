@@ -20,6 +20,24 @@ from goldset.eval_types import ExpectedData, TestResult
 from goldset.runner.artifacts import build_artifact
 from goldset.runner.base import BaseTestRunner
 
+# A 5xx or a dropped connection on /api/chat is retried a couple of times.
+# deploy-ephemeral.yaml warms up /api/chat itself before GOLD starts, but that
+# is a best effort, not a guarantee the agent graph and its DB pool are warm
+# for every request after it — this is the remaining safety net. merge_trials
+# keeps an error from any one trial (see cli.py), so a single transient
+# failure would otherwise mark the whole case ERROR even if its other trials
+# pass cleanly.
+TRANSIENT_CHAT_RETRIES = 2
+TRANSIENT_CHAT_RETRY_DELAY_SECONDS = 5.0
+
+
+def _is_transient_chat_error(error: BaseException) -> bool:
+    """5xx and dropped-connection errors are worth retrying; nothing else is
+    (a 4xx or a wall-clock timeout means retrying would not help)."""
+    if isinstance(error, httpx.HTTPStatusError):
+        return error.response.status_code >= 500
+    return isinstance(error, httpx.TransportError)
+
 
 class APITestRunner(BaseTestRunner):
     """Test runner for API endpoint execution."""
@@ -137,11 +155,9 @@ class APITestRunner(BaseTestRunner):
         start_time = time.time()
 
         try:
-            # Read the whole stream before fetching state: the thread state is
-            # only final once the stream closes.
-            responses = []
-            trace_id = None
-
+            # The thread state is only final once the stream closes, so it is
+            # read in full before fetching state (responses/trace_id are reset
+            # per attempt in the retry loop below).
             payload = {
                 "query": query,
                 "user_persona": "Researcher",
@@ -162,25 +178,39 @@ class APITestRunner(BaseTestRunner):
             # via the handler below.
             with anyio.fail_after(self.wall_clock_limit):
                 async with httpx.AsyncClient(timeout=240.0) as client:
-                    async with client.stream(
-                        "POST",
-                        f"{self.api_base_url}/api/chat",
-                        json=payload,
-                        headers=headers,
-                    ) as response:
-                        response.raise_for_status()
+                    for attempt in range(TRANSIENT_CHAT_RETRIES + 1):
+                        responses = []
+                        trace_id = None
+                        try:
+                            async with client.stream(
+                                "POST",
+                                f"{self.api_base_url}/api/chat",
+                                json=payload,
+                                headers=headers,
+                            ) as response:
+                                response.raise_for_status()
 
-                        async for line in response.aiter_lines():
-                            if line.strip():
-                                stream_data = json.loads(line)
-                                responses.append(stream_data)
+                                async for line in response.aiter_lines():
+                                    if line.strip():
+                                        stream_data = json.loads(line)
+                                        responses.append(stream_data)
 
-                                if stream_data.get("node") == "trace_info":
-                                    update_data = json.loads(
-                                        stream_data.get("update", "{}"),
-                                    )
-                                    trace_id = update_data.get("trace_id")
-                                    trace_url = update_data.get("trace_url")
+                                        if stream_data.get("node") == "trace_info":
+                                            update_data = json.loads(
+                                                stream_data.get("update", "{}"),
+                                            )
+                                            trace_id = update_data.get("trace_id")
+                                            trace_url = update_data.get("trace_url")
+                            break
+                        except (httpx.HTTPStatusError, httpx.TransportError) as error:
+                            retries_left = TRANSIENT_CHAT_RETRIES - attempt
+                            if not _is_transient_chat_error(error) or retries_left <= 0:
+                                raise
+                            print(
+                                f"Warning: transient /api/chat error, "
+                                f"{retries_left} retry(ies) left: {error}"
+                            )
+                            await anyio.sleep(TRANSIENT_CHAT_RETRY_DELAY_SECONDS)
 
                     state_response = await client.get(
                         f"{self.api_base_url}/api/threads/{thread_id}/state",

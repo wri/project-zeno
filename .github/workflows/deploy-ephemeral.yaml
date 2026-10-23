@@ -164,6 +164,39 @@ jobs:
           echo "Environment did not become healthy at $url"
           exit 1
 
+      # /openapi.json only proves uvicorn is listening. GOLD run #39987873094
+      # showed /api/chat itself — which also needs the agent graph and its DB
+      # checkpointer pool warm — can still 500 for several minutes after that,
+      # right as GOLD opens its full worker count against it. One real chat
+      # call here, before GOLD starts, absorbs that warm-up instead of GOLD's
+      # first wave of requests eating it as errored trials.
+      - name: Warm up /api/chat
+        if: inputs.action == 'create' && inputs.dry_run == false
+        env:
+          WRI_BEARER_TOKEN: ${{ secrets.WRI_BEARER_TOKEN }}
+        run: |
+          set -euo pipefail
+          url="${{ steps.outputs.outputs.api_base_url }}/api/chat"
+          payload='{"query":"hello","user_persona":"Researcher","thread_id":"warmup","user_id":"warmup"}'
+          for attempt in $(seq 1 10); do
+            status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 120 \
+              -X POST "$url" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer $WRI_BEARER_TOKEN" \
+              -d "$payload") || true
+            # curl itself writes 000 via -w on a connect failure or --max-time
+            # timeout, so no separate fallback is needed; `|| true` only stops
+            # that nonzero exit from tripping set -e.
+            if [ "$status" -ge 200 ] && [ "$status" -lt 500 ]; then
+              echo "api/chat responded $status after $attempt attempt(s)"
+              exit 0
+            fi
+            echo "api/chat returned $status, retrying in 15s..."
+            sleep 15
+          done
+          echo "api/chat kept returning 5xx/no response at $url"
+          exit 1
+
       # --- destroy --------------------------------------------------------
 
       - name: Terraform destroy

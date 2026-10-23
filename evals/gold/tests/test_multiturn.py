@@ -2,13 +2,14 @@
 conversation against a stateful mocked API."""
 
 import json
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
 
 from goldset.canonical import conversation_uid
 from goldset.cli import result_to_entry
-from goldset.runner.api import APITestRunner
+from goldset.runner.api import TRANSIENT_CHAT_RETRIES, APITestRunner
 from goldset.runner.multiturn import (
     evaluate_deltas,
     flatten_turn_checks,
@@ -310,6 +311,7 @@ def first_turn_fails_transport(monkeypatch):
         return real_client(transport=httpx.MockTransport(handler))
 
     monkeypatch.setattr(httpx, "AsyncClient", fake_client)
+    monkeypatch.setattr("goldset.runner.api.anyio.sleep", AsyncMock())
     return seen
 
 
@@ -321,7 +323,8 @@ async def test_errored_turn_aborts_conversation(first_turn_fails_transport):
     runner = APITestRunner(api_base_url="https://api.example", api_token="tok")
     entry = await run_conversation(runner, CASE, result_to_entry)
 
-    assert first_turn_fails_transport["chats"] == 1  # turn 2 never sent
+    # turn 1 exhausts its transient-5xx retries before erroring; turn 2 never sent
+    assert first_turn_fails_transport["chats"] == TRANSIENT_CHAT_RETRIES + 1
     assert entry["error"].startswith("t1:")
     assert not any(name.startswith("t2.") for name in entry["checks"])
     assert "t2.state_delta" not in entry["checks"]
