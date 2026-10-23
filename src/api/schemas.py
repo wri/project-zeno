@@ -1126,7 +1126,7 @@ class AlertsWeekResponse(BaseModel):
     end_date: date
 
 
-class AlertDayResponse(BaseModel):
+class DailyAlertResponse(BaseModel):
     alert_date: date
     high_ha: float = Field(description="High confidence alert area.")
     highest_ha: float = Field(description="Highest confidence alert area.")
@@ -1164,7 +1164,7 @@ class AlertsListResponse(BaseModel):
     total_area_ha: float = Field(
         description="High and highest confidence alert area in the period."
     )
-    rows: List[AlertDayResponse] = Field(
+    rows: List[DailyAlertResponse] = Field(
         description=(
             "One row per day with high or highest confidence alerts, "
             "newest first. Low confidence alerts are left out."

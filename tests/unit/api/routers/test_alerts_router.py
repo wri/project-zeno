@@ -12,9 +12,9 @@ from src.api.auth.dependencies import require_auth
 from src.api.routers import alerts as alerts_router
 from src.api.schemas import UserModel
 from src.api.services.alerts_list import (
-    AlertDay,
     AlertsList,
     AlertsWeek,
+    DailyAlert,
     InvalidWindowError,
     UnexpectedAlertsDataError,
     UnsupportedAreaError,
@@ -39,8 +39,8 @@ ALERTS = AlertsList(
     end_date=TODAY,
     new_week=AlertsWeek(date(2026, 10, 7), date(2026, 10, 13)),
     rows=[
-        AlertDay(date(2026, 10, 9), 12.5, 3.0, new=True),
-        AlertDay(date(2026, 9, 20), 1.5, 0.0, new=False),
+        DailyAlert(date(2026, 10, 9), 12.5, 3.0, new=True),
+        DailyAlert(date(2026, 9, 20), 1.5, 0.0, new=False),
     ],
 )
 UPSTREAM = "Failed to pull ... payload: {'aoi': ...}, response: secret"

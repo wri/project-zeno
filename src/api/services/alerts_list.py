@@ -61,7 +61,7 @@ class LatestAlertDateSource(Protocol):
 
 
 @dataclass(frozen=True)
-class AlertDay:
+class DailyAlert:
     alert_date: date
     high_ha: float
     highest_ha: float
@@ -93,7 +93,7 @@ class AlertsList:
     # The 7 days ending on the latest alert date, or the latest full
     # Sunday-to-Saturday week when that date could not be read.
     new_week: AlertsWeek
-    rows: list[AlertDay]
+    rows: list[DailyAlert]
 
     @property
     def total_area_ha(self) -> float:
@@ -148,7 +148,7 @@ def get_data_to(data: Optional[dict]) -> Optional[date]:
 
 def get_daily_alerts(
     data: Optional[dict], new_week: tuple[date, date]
-) -> list[AlertDay]:
+) -> list[DailyAlert]:
     """One row per day with high or highest confidence alerts, newest first.
 
     ``data`` is the column-oriented analytics result; it is not changed.
@@ -177,7 +177,7 @@ def get_daily_alerts(
         if high_ha + highest_ha == 0:
             continue
         days.append(
-            AlertDay(
+            DailyAlert(
                 alert_date=day,
                 high_ha=high_ha,
                 highest_ha=highest_ha,
