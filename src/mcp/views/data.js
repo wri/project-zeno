@@ -2,7 +2,8 @@
 // are a series over years or dates, and the pull's areas, dates, options
 // and provenance.
 
-const TIME_KEY = /(^|_)(year|date)$/i;
+// Column names of measures, as the analytics API names them.
+const MEASURE_KEY = /(^|_)(area|ha|value|count|alerts?|emissions?|flux|loss|gain|tco2e?|mgco2e?)(_|$)/i;
 
 /** A bar or line chart spec for rows over time, or null. */
 function quickChart(rows, data) {
@@ -10,9 +11,12 @@ function quickChart(rows, data) {
   const columns = columnsOf(rows).filter((key) => !ID_COLUMNS.has(key));
   const x = columns.find((key) => TIME_KEY.test(key));
   if (!x) return null;
-  const value = columns.find(
+  const numeric = columns.filter(
     (key) => key !== x && key !== "name" && rows.every((row) => row[key] === null || isNumeric(row[key]))
   );
+  // A measure (an area, a count, an amount) over a numeric dimension such as
+  // a threshold or a class code, which comes first in some results.
+  const value = numeric.find((key) => MEASURE_KEY.test(key)) || numeric[0];
   if (!value) return null;
   const points = new Set(rows.map((row) => row[x])).size;
   return {
@@ -30,7 +34,7 @@ function render(data, args) {
   const rows = data.rows || [];
   const chartSpec = quickChart(rows, data);
   let body;
-  if (!rows.length && data.row_count) {
+  if (data.withheld) {
     body = note("info", "The rows of this dataset are shown as curated charts only. Use curated_charts.");
   } else if (!rows.length) {
     body = h("div", { class: "empty" }, "The pull returned no rows.");

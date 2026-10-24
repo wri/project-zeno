@@ -63,10 +63,21 @@ function areaCard(area, { onPick } = {}) {
     card.setAttribute("tabindex", "0");
     card.setAttribute("aria-label", `Use ${area.name}`);
     card.append(h("span", { class: "arrow" }, icon("arrowRight", 18)));
+    // One message per card: a double click, or a click while the message is
+    // on its way or after it went, must not post it again.
+    let busy = false;
+    let sent = false;
     const pick = async () => {
-      const sent = await onPick(area);
+      if (busy || sent) return;
+      busy = true;
+      try {
+        sent = await onPick(area);
+      } finally {
+        busy = false;
+      }
       if (sent) {
         card.classList.add("sent");
+        card.setAttribute("aria-disabled", "true");
         card.querySelector(".arrow").replaceChildren(icon("check", 18));
       }
     };
@@ -158,8 +169,9 @@ function renderResolve(data, args, result) {
       children: note("info", resultText(result) || "No area was selected."),
     });
   }
-  // The geocoder's notes follow the list: places it could not match.
-  const notes = resultText(result).split("\n\n").slice(1).join("\n\n").trim();
+  // The geocoder's notes: places it could not match, and the closest
+  // stored names for them.
+  const notes = data.notes;
   return panel({
     iconName: "polygon",
     title: data.selection_name,

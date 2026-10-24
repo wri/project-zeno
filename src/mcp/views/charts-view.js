@@ -3,7 +3,9 @@
 // pull it comes from.
 
 function chartCard(chart, data) {
-  const withheld = !(chart.chart_data || []).length;
+  // The server says when it held the values back; an empty chart is empty.
+  const withheld = Boolean(data.withheld);
+  const empty = !withheld && !(chart.chart_data || []).length;
   return panel({
     iconName: chart.chart_type === "pie" ? "chartPie" : chart.chart_type === "table" ? "table" : "chartBar",
     title: chart.title,
@@ -11,7 +13,9 @@ function chartCard(chart, data) {
       curatedCaption(),
       withheld
         ? note("info", "GNW shows this chart's values in its own app only.")
-        : chartWithTable(chart),
+        : empty
+          ? h("div", { class: "empty" }, "No data to chart for these dates and areas.")
+          : chartWithTable(chart),
     ],
   });
 }

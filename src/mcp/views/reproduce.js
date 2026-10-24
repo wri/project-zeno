@@ -36,7 +36,7 @@ function codeBlock(source) {
 }
 
 // The keys of a result that are data or views of it, not its provenance.
-const NOT_PROVENANCE = new Set(["rows", "charts", "script", "row_count", "rows_truncated", "curated", "request"]);
+const NOT_PROVENANCE = new Set(["rows", "charts", "script", "row_count", "rows_truncated", "curated", "withheld", "request"]);
 
 function provenanceOf(data) {
   return Object.fromEntries(Object.entries(data).filter(([key]) => !NOT_PROVENANCE.has(key)));

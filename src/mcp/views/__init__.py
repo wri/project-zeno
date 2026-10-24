@@ -20,6 +20,7 @@ from fastmcp.apps.config import (
     UI_MIME_TYPE,
     AppConfig,
     ResourceCSP,
+    ResourcePermissions,
     app_config_to_meta_dict,
 )
 from fastmcp.resources import TextResource
@@ -54,6 +55,7 @@ VIEW_CSP = ResourceCSP(
         "https://fonts.gstatic.com",
     ]
 )
+VIEW_PERMISSIONS = ResourcePermissions(clipboard_write={})
 
 _PAGE = """<!doctype html>
 <html lang="en">
@@ -105,7 +107,12 @@ def register_views(server: FastMCP) -> None:
     """Serve every view as a `ui://gnw/<name>.html` resource."""
     meta = {
         "ui": app_config_to_meta_dict(
-            AppConfig(csp=VIEW_CSP, prefers_border=False)
+            AppConfig(
+                csp=VIEW_CSP,
+                # The Reproduce panel's Copy buttons write to the clipboard.
+                permissions=VIEW_PERMISSIONS,
+                prefers_border=False,
+            )
         )
     }
     for name, (title, _) in VIEWS.items():

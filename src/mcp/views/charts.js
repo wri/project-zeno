@@ -60,12 +60,28 @@ function distinct(values) {
   return out;
 }
 
+// A column over time: its values are put in order on the x axis.
+const TIME_KEY = /(^|_)(year|date)$/i;
+
+/** The x categories in order: numbers and dates ascending, so a series
+ * whose first area starts later than another's still runs left to right;
+ * anything else in the order the rows give it. */
+function orderCategories(categories, x) {
+  if (categories.every((value) => isNumeric(value))) {
+    return [...categories].sort((a, b) => Number(a) - Number(b));
+  }
+  if (TIME_KEY.test(x)) {
+    return [...categories].sort((a, b) => String(a).localeCompare(String(b)));
+  }
+  return categories;
+}
+
 /** Turn a chart spec into categories and series of values per category. */
 function cartesianModel(spec) {
   const rows = spec.chart_data || [];
   const type = spec.chart_type;
   const x = spec.x_axis || columnsOf(rows)[0];
-  const categories = distinct(rows.map((row) => row[x]));
+  const categories = orderCategories(distinct(rows.map((row) => row[x])), x);
   const repeatsX = categories.length < rows.length;
   const names = distinct(rows.map((row) => row.name));
   // One series per value of the stack/group/colour field; several areas

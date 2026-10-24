@@ -70,3 +70,10 @@ def test_a_view_script_parses(name, tmp_path):
         ["node", "--check", str(path)], capture_output=True, text=True
     )
     assert result.returncode == 0, result.stderr
+
+
+async def test_a_view_may_write_to_the_clipboard():
+    # The Reproduce panel's Copy buttons.
+    async with Client(mcp_server) as client:
+        [content] = await client.read_resource(view_uri("data"))
+    assert content.meta["ui"]["permissions"] == {"clipboardWrite": {}}

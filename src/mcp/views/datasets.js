@@ -1,12 +1,15 @@
 // list_datasets and get_dataset: the catalog as DatasetCards, and one
 // dataset's details with its coverage, options, colors and cautions.
 
+// The text fields of get_dataset, as collapsed sections, in the order its
+// text gives them.
 const DETAIL_SECTIONS = [
-  ["description", "Description", false],
-  ["presentation_instructions", "How to present it", false],
-  ["methodology", "Methodology", false],
-  ["citation", "Citation", false],
-  ["license", "License", false],
+  ["description", "Description"],
+  ["methodology", "Methodology"],
+  ["presentation_instructions", "How to present it"],
+  ["code_instructions", "How to chart it"],
+  ["citation", "Citation"],
+  ["license", "License"],
 ];
 
 function datasetCard(ds, onOpen) {
@@ -66,17 +69,23 @@ function renderList(data) {
   const datasets = data.datasets || [];
   const root = h("div", { style: { display: "flex", flexDirection: "column", gap: "12px" } });
   const detail = h("div", {});
+  // The latest click: an answer for an earlier one that comes in late is
+  // dropped, so the panel always shows the dataset clicked last.
+  let latest = 0;
   const open = async (ds, card) => {
+    const request = ++latest;
     detail.replaceChildren(loading(`Reading ${ds.dataset_name}…`));
     detail.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
     try {
       const result = await Bridge.callTool("get_dataset", { dataset_id: ds.dataset_id });
+      if (request !== latest) return;
       detail.replaceChildren(
         result.isError
           ? note("error", resultText(result))
           : renderDetail(result.structuredContent || {})
       );
     } catch {
+      if (request !== latest) return;
       // The host does not proxy tool calls: ask in the chat instead.
       detail.replaceChildren();
       const sent = await Bridge.sendMessage(`Tell me about dataset ${ds.dataset_id}, ${ds.dataset_name}.`);
@@ -193,8 +202,8 @@ function renderDetail(ds) {
         true
       ),
       section("Colors", colorSwatches(ds.colors)),
-      DETAIL_SECTIONS.map(([key, title, open]) =>
-        section(title, ds[key] && h("p", { class: "prose" }, ds[key]), open)
+      DETAIL_SECTIONS.map(([key, title]) =>
+        section(title, ds[key] && h("p", { class: "prose" }, ds[key]))
       ),
     ],
   });

@@ -4,10 +4,13 @@
 // host to open links and to post messages to the chat.
 const Bridge = (() => {
   const PROTOCOL_VERSION = "2026-01-26";
+  const METHOD_NOT_FOUND = -32601;
   const pending = new Map();
   const handlers = {};
   let nextId = 1;
   let hostContext = {};
+  // What the host answered ui/initialize with; null when no host answered.
+  let hostCapabilities = null;
 
   function post(message) {
     window.parent.postMessage({ jsonrpc: "2.0", ...message }, "*");
@@ -36,7 +39,11 @@ const Bridge = (() => {
       const waiter = pending.get(message.id);
       if (!waiter) return;
       pending.delete(message.id);
-      if (message.error) waiter.reject(new Error(message.error.message));
+      if (message.error) {
+        const error = new Error(message.error.message);
+        error.code = message.error.code;
+        waiter.reject(error);
+      }
       else waiter.resolve(message.result);
       return;
     }
@@ -92,6 +99,7 @@ const Bridge = (() => {
         appInfo: { name: "gnw-views", version: "1.0.0" },
         appCapabilities: {},
       });
+      hostCapabilities = result?.hostCapabilities || {};
       applyContext(result?.hostContext || {});
     } catch (error) {
       console.warn("MCP Apps host did not answer ui/initialize", error);
@@ -100,12 +108,19 @@ const Bridge = (() => {
     watchSize();
   }
 
-  /** Open a link through the host; the sandbox may block window.open. */
+  /**
+   * Open a link through the host; the sandbox may block window.open. Only
+   * a page with no host, or a host without ui/open-link, falls back to
+   * window.open: a host that refused (the user declined) or is still
+   * waiting on a confirmation must not see the link opened anyway.
+   */
   async function openLink(url) {
+    const fallback = () => window.open(url, "_blank", "noopener");
+    if (!hostCapabilities) return fallback();
     try {
       await request("ui/open-link", { url });
-    } catch {
-      window.open(url, "_blank", "noopener");
+    } catch (error) {
+      if (error.code === METHOD_NOT_FOUND) fallback();
     }
   }
 
