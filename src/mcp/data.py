@@ -9,7 +9,7 @@ because a model given a handle and no numbers invents them.
 import csv
 import io
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, timezone
 from types import SimpleNamespace
 from typing import Annotated, Optional
 
@@ -33,14 +33,16 @@ from src.agent.i18n import t
 from src.api.services.charts.base import column_to_rows
 from src.mcp.areas import MAX_AREAS, format_aoi_id, lookup_areas
 from src.mcp.datasets import get_catalog_dataset
+from src.mcp.script import pull_script, rows_digest
+from src.shared.version import get_commit, get_version
 
 # Rows in the structured result.
 MAX_ROWS = 1000
 # The text shows the rows as CSV when there are at most MAX_TEXT_ROWS of them
-# and the CSV fits in TEXT_CHAR_BUDGET characters (about 2,000 tokens).
-# Otherwise it shows per-column stats. Characters, not tokens: the client's
-# model, and so its tokenizer, is not known. The structured rows have every
-# row, up to MAX_ROWS.
+# and the CSV fits in TEXT_CHAR_BUDGET characters (about 2,000 tokens; one
+# budget for all the charts of curated_charts). Otherwise it shows
+# per-column stats. Characters, not tokens: the client's model, and so its
+# tokenizer, is not known. The structured rows and pull.py have every row.
 MAX_TEXT_ROWS = 200
 TEXT_CHAR_BUDGET = 7000
 # Area names in the text's first line. A subregion expansion has hundreds,
@@ -163,8 +165,8 @@ async def rows_text(
         return stats
     return (
         f"{stats}\nThese {len(rows)} rows are too large to show here: the "
-        "structured result holds them. Do not estimate a value this "
-        "summary does not give."
+        "structured result and its script (pull.py) hold all of them. Do "
+        "not estimate a value this summary does not give."
     )
 
 
@@ -185,7 +187,7 @@ def rows_csv(rows: list[dict], skip=()) -> str:
     return out.getvalue().rstrip("\n")
 
 
-# The arguments of a pull.
+# The arguments of a pull, shared by pull_data and curated_charts.
 AoiIds = Annotated[
     list[str],
     Field(
@@ -252,6 +254,12 @@ class Pull:
     canopy_cover: Optional[int]
     rows: list[dict]
     source_url: Optional[str]
+    # The request sent to the analytics API, as AnalyticsHandler recorded it,
+    # and the metadata the API answered with.
+    request: Optional[dict]
+    metadata: Optional[dict]
+    retrieved_at: str
+    rows_sha256: str
 
     def heading(self) -> str:
         options = []
@@ -284,6 +292,11 @@ class Pull:
             "date_range_clamped": self.clamped,
             "context_layer": self.context_layer,
             "canopy_cover": self.canopy_cover,
+            "request": self.request,
+            "analytics_metadata": self.metadata,
+            "retrieved_at": self.retrieved_at,
+            "rows_sha256": self.rows_sha256,
+            "server": {"version": get_version(), "commit": get_commit()},
         }
 
 
@@ -292,8 +305,19 @@ def citation_line(ds: dict) -> str:
 
 
 ROUNDED_NOTE = (
-    "Values are rounded here; the structured rows have full precision."
+    "Values are rounded here; the structured rows and pull.py have full "
+    "precision."
 )
+
+
+def script_note(pull: Pull) -> list[str]:
+    if not pull.request:
+        return []
+    return [
+        "The structured result holds the request sent to the analytics API "
+        "and `script`, a standalone pull.py that replays it and writes the "
+        "rows to a CSV file."
+    ]
 
 
 def clamp_note(pull: Pull, start_date, end_date) -> list[str]:
@@ -375,6 +399,10 @@ async def run_pull(
         canopy_cover=canopy_cover,
         rows=rows,
         source_url=result.analytics_api_url,
+        request=result.analytics_api_request,
+        metadata=result.analytics_api_metadata,
+        retrieved_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        rows_sha256=rows_digest(rows),
     )
 
 
@@ -410,6 +438,7 @@ async def pull_data(
         await rows_text(rows, pull.ds["dataset_id"]),
         ROUNDED_NOTE,
         citation_line(pull.ds),
+        *script_note(pull),
         "Quote only numbers shown here. Read the cautions with get_dataset "
         "before interpreting them.",
     ]
@@ -425,5 +454,6 @@ async def pull_data(
                 else rows[:MAX_ROWS]
             ),
             "rows_truncated": len(rows) > MAX_ROWS,
+            "script": pull_script(pull),
         },
     )

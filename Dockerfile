@@ -70,3 +70,9 @@ sys.exit(0)" && exit 0; \
     sleep 15; \
     done; \
     exit 1
+
+# The commit this image is built from: the MCP server links each curated
+# chart to its generator's code at this commit. Last, so a new commit does
+# not rebuild the layers above.
+ARG GIT_SHA=""
+ENV GIT_SHA=$GIT_SHA

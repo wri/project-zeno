@@ -91,6 +91,10 @@ def test_the_heading_names_the_first_areas_and_counts_the_rest():
         canopy_cover=None,
         rows=[],
         source_url=None,
+        request=None,
+        metadata=None,
+        retrieved_at="2026-10-22T00:00:00Z",
+        rows_sha256="",
     )
     heading = pull.heading()
     assert "District 9;" not in heading
