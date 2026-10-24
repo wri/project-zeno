@@ -157,3 +157,23 @@ async def test_the_spellings_of_a_place_are_bounded(place):
             "resolve_areas", {"places": [place]}, raise_on_error=False
         )
     assert result.is_error
+
+
+async def test_the_notes_on_unmatched_places_are_structured(monkeypatch):
+    # The view reads them here, not by parsing the text.
+    _patch_search(monkeypatch, {"Para, Brazil": [PARA]})
+
+    result = await _resolve(
+        {"places": [{"place": "Para, Brazil"}, {"place": "Atlantis"}]}
+    )
+
+    structured = result.structured_content
+    assert [a["aoi_id"] for a in structured["areas"]] == ["gadm:BRA.14_1"]
+    assert "Atlantis" in structured["notes"]
+    assert structured["notes"] in result.content[0].text
+
+
+async def test_a_full_match_has_no_notes(monkeypatch):
+    _patch_search(monkeypatch, {"Para, Brazil": [PARA]})
+    result = await _resolve({"places": [{"place": "Para, Brazil"}]})
+    assert result.structured_content["notes"] is None

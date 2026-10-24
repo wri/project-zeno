@@ -168,6 +168,43 @@ The server offers what the agent's default profile offers. LGMS is hidden:
 it is hidden from the agent too, and its analytics endpoint is the only one
 that needs a token.
 
+### Views
+
+The server gives each tool a view: an HTML page that an
+[MCP Apps](https://modelcontextprotocol.io/specification/draft/extensions/apps)
+host (Claude, ChatGPT) shows in place of the tool's text. The tool's
+`_meta.ui.resourceUri` names its view. When the model calls the tool, the
+host shows the view in a sandboxed iframe and sends it the tool's arguments
+and result. The view draws the `structuredContent`.
+
+| View | Tools | Shows |
+|---|---|---|
+| `ui://gnw/areas.html` | `resolve_areas`, `search_areas` | Area cards. A long selection shows as a list. The candidates of an ambiguous name and the search matches are cards: a click posts the area and its `aoi_id` to the chat. |
+| `ui://gnw/datasets.html` | `list_datasets`, `get_dataset` | Dataset cards. A click calls `get_dataset` through the host and opens the details: dates, cautions, context layers, parameters, colors. |
+| `ui://gnw/data.html` | `pull_data` | The rows as a table, and a quick-look chart, labelled as not a GNW chart, when the rows are over years or dates. The Reproduce panel. |
+| `ui://gnw/charts.html` | `curated_charts` | One card per chart, with the curated label, a Chart / Table switch, the catalog colors, and links to the generator and the analytics result. The Reproduce panel. |
+| `ui://gnw/code.html` | `get_chart_code` | The generator's source. |
+
+The views use the look of the frontend (`project-zeno-next`): its colors,
+the IBM Plex fonts, and its card and chart patterns (`InfoCard`,
+`WidgetMessage`, `ChartWidget`, `formatCharts`). They draw the charts as SVG
+with no chart library.
+
+Each view is one HTML page. `src/mcp/views/__init__.py` puts the CSS and
+the scripts of `src/mcp/views/` into the page, so the page loads nothing
+except the fonts. Its CSP allows the font hosts only. Without the fonts, the
+page uses the system fonts.
+
+The data and chart views end with a **Reproduce** panel, closed until the
+user opens it. Its tabs show `pull.py`, the request and the pull's
+provenance, each with a copy button; when the host's sandbox blocks the
+clipboard, the button selects the text instead. The footer gives the date
+the data was retrieved. The panel is how a chat user takes a result out of
+the chat and runs it again (see Replaying a pull).
+
+A host that does not support MCP Apps does not use the views. It shows the
+tool's text, as before.
+
 ## Design choices
 
 - **No auth.** Every tool reads public data, so the server needs no user.
@@ -211,7 +248,7 @@ Use the deployed API's URL the same way. To look at the tools without a
 model, run `npx @modelcontextprotocol/inspector` and connect it to the same
 URL.
 
-To try it in Claude (claude.ai or Claude Desktop): Settings →
+To see the views, use Claude (claude.ai or Claude Desktop): Settings →
 Connectors → Add custom connector, with the `/mcp` URL. Claude connects
 from its own servers, so it cannot reach `localhost`. To test a local API,
 open a temporary public URL to it, for example with a Cloudflare quick
@@ -226,7 +263,7 @@ it when you finish.
 
 ## The gnw CLI, for coding agents
 
-Chat clients use the server. Coding agents (Claude Code,
+Chat clients use the server and its views. Coding agents (Claude Code,
 Codex, Gemini CLI) can use `gnw` instead, a command line client in `cli/`:
 
 ```sh
@@ -266,9 +303,13 @@ in-process server.
 | `cli/` | The `gnw` CLI and its `gnw-cli` skill |
 | `src/mcp/charts.py` | `curated_charts`, `get_chart_code` and the chart code resource |
 | `src/mcp/skill.py`, `src/mcp/skills/gnw-charting/` | The charting skill and its builder |
+| `src/mcp/views/` | The MCP Apps views: the shared CSS and scripts (`bridge.js` for the host protocol, `components.js`, `charts.js`, `reproduce.js` for the Reproduce panel), one script per view, and `__init__.py`, which builds and registers the pages |
 | `src/agent/datasets/pull_checks.py` | The checks both `pull_data` tools run before the API call: hidden dataset, one source and the size limits for the areas (which `pick_aoi` also runs), one area for a curated-only dataset, the date range |
 
 `tests/unit/mcp/` calls the tools through an in-process client.
+`tests/unit/mcp/test_views.py` checks that each tool names a view that the
+server serves, and that each page loads nothing from outside except the
+fonts.
 `tests/unit/agent/datasets/test_analytics_request_snapshot.py` pins the exact
 request the analytics handler sends for every dataset, option and area type.
 That test protects all three callers of the handler.
@@ -306,7 +347,7 @@ insight can be saved, shared and shown in GNW like the agent's insights. The des
 
 - `get_statistics(result_id)`: page through results larger than the 1000 rows
   `pull_data` returns. Clients that run code already have every row through
-  `pull.py`; this is for chat clients.
+  `pull.py`; this is for chat clients and views.
 - **Data versions.** Neither the catalog nor the analytics API names a
   dataset's version (Hansen GFC v1.13 appears only in a tile URL and the
   cautions). A `data_version` in the catalog, or in the analytics
@@ -328,7 +369,8 @@ insight can be saved, shared and shown in GNW like the agent's insights. The des
 
 Each result should link to the same view in the GNW app: the area, the
 dataset, the dates and the options, so a user can see in the interface what
-a chat or a script showed. This needs a URL format for that state from the frontend
+a chat or a script showed, and the views can offer "Open in GNW" next to
+Reproduce. This needs a URL format for that state from the frontend
 (`project-zeno-next`), which does not exist yet.
 
 ### Later
