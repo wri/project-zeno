@@ -7,7 +7,7 @@ curated_charts runs, with their imports pointed at _gnw.py instead of
 zeno. This prints the charts as JSON, or writes them to the file you name:
 one object per chart, with its title, type, axes and rows, as
 curated_charts returns them before it adds the catalog colors (the
-dataset's file in the skill lists those). Needs Python 3.9+ and numpy.
+dataset's file in the skill lists those). Needs Python 3.10+ and numpy.
 """
 
 import csv

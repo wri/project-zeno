@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from pathlib import Path
 from pprint import pformat
 from textwrap import fill
 from typing import TYPE_CHECKING, Optional
@@ -48,7 +49,9 @@ writes what the API returns to a folder:
 It needs Python 3.9 or later and nothing else. It warns when the rows
 differ from the ones the MCP server returned (the data was updated), or
 when the API files the request under an id other than {result_id} (it
-reads the request differently).
+reads the request differently). Changed rows never overwrite a folder's
+rows.csv: they go to rows.changed.csv and provenance.changed.json, so the
+rows an analysis was built on stay to compare with.
 
 {citation}
 """
@@ -60,6 +63,7 @@ import os
 import shutil
 import sys
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -106,16 +110,23 @@ def fetch():
     link = answer["data"]["link"]
     deadline = time.monotonic() + TIMEOUT_SECONDS
     while True:
-        answer, retry_after = call("GET", link)
+        retry_after = None
+        try:
+            answer, retry_after = call("GET", link)
+        except (OSError, ValueError):
+            # A failed poll (an HTTP error, a dropped connection, a broken
+            # answer) is tried again until the deadline, as the server does.
+            answer = {{}}
         job = answer.get("data") or {{}}
         status = job.get("status")
         if status in ("success", "saved"):
             return link, job["result"]
         if status in ("failed", "error"):
             sys.exit(f"The analytics API failed: {{job.get('message')}}")
-        if time.monotonic() > deadline:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
             sys.exit(f"Timed out waiting for {{link}}")
-        time.sleep(wait_seconds(retry_after))
+        time.sleep(min(wait_seconds(retry_after), remaining))
 
 
 def to_rows(result):
@@ -178,10 +189,20 @@ def main():
     rows = to_rows(result)
     result_id = link.rstrip("/").rsplit("/", 1)[-1]
     digest = rows_digest(rows)
-    if digest != PROVENANCE["rows_sha256"]:
+    changed = digest != PROVENANCE["rows_sha256"]
+    # Keep the rows an analysis was built on: changed rows go beside them.
+    keep = changed and (folder / "rows.csv").exists()
+    suffix = ".changed" if keep else ""
+    if changed:
         print(
             "Warning: the rows differ from the ones the MCP server returned "
-            f"on {{PROVENANCE['retrieved_at']}}. The data may have been updated.",
+            f"on {{PROVENANCE['retrieved_at']}}. The data may have been updated."
+            + (
+                f" The new rows are in {{folder / 'rows.changed.csv'}}; "
+                "rows.csv is unchanged."
+                if keep
+                else ""
+            ),
             file=sys.stderr,
         )
     if PROVENANCE["result_id"] and result_id != PROVENANCE["result_id"]:
@@ -192,7 +213,8 @@ def main():
         )
 
     folder.mkdir(parents=True, exist_ok=True)
-    write_csv(rows, folder / "rows.csv")
+    rows_path = folder / f"rows{{suffix}}.csv"
+    write_csv(rows, rows_path)
     write_json(REQUEST, folder / "request.json")
     write_json(
         {{
@@ -202,12 +224,12 @@ def main():
             "replayed_source_url": link,
             "replayed_rows_sha256": digest,
         }},
-        folder / "provenance.json",
+        folder / f"provenance{{suffix}}.json",
     )
     script = Path(__file__).resolve()
     if script != (folder / "pull.py").resolve():
         shutil.copyfile(script, folder / "pull.py")
-    print(f"{{len(rows)}} rows written to {{folder / 'rows.csv'}}")
+    print(f"{{len(rows)}} rows written to {{rows_path}}")
 
 
 if __name__ == "__main__":
@@ -268,3 +290,35 @@ def pull_script(pull: Pull) -> Optional[str]:
         provenance=_literal(provenance),
         area_names=_literal(area_names),
     )
+
+
+# The gnw CLI runs a server's pull.py only when it matches this template
+# (cli/src/gnw_cli/check.py), so the CLI ships a copy rendered with no data.
+# test_script fails while the copy is stale.
+CLI_TEMPLATE = (
+    Path(__file__).resolve().parents[2]
+    / "cli"
+    / "src"
+    / "gnw_cli"
+    / "pull_template.txt"
+)
+
+
+def cli_template() -> str:
+    """The template as the CLI checks scripts against it: no data."""
+    return _TEMPLATE.format(
+        heading="",
+        version="",
+        retrieved_at="",
+        folder="gnw/pulls/latest",
+        result_id="latest",
+        citation="",
+        request=_literal({}),
+        provenance=_literal({}),
+        area_names=_literal({}),
+    )
+
+
+if __name__ == "__main__":
+    CLI_TEMPLATE.write_text(cli_template(), encoding="utf-8")
+    print(f"Wrote {CLI_TEMPLATE}")

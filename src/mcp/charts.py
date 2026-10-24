@@ -12,7 +12,6 @@ involved.
 import inspect
 import sys
 from pathlib import Path
-from typing import Optional
 
 from fastmcp.exceptions import ToolError
 from fastmcp.tools.base import ToolResult
@@ -28,7 +27,7 @@ from src.agent.subagents.analyst.charts.color_resolver import (
 )
 from src.api.services.charts.base import ChartGenerator
 from src.api.services.charts.curated import build_curated_charts
-from src.api.services.charts.registry import DETERMINISTIC_GENERATORS
+from src.api.services.charts.registry import find_generator
 from src.mcp.data import (
     LANGUAGE,
     ROUNDED_NOTE,
@@ -46,7 +45,7 @@ from src.mcp.data import (
     run_pull,
     script_note,
 )
-from src.mcp.datasets import get_catalog_dataset
+from src.mcp.datasets import available_datasets, get_catalog_dataset
 from src.mcp.script import pull_script
 from src.shared.version import get_commit
 
@@ -54,16 +53,13 @@ REPO_URL = "https://github.com/wri/project-zeno/blob"
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-def find_generator(dataset_id: int) -> Optional[ChartGenerator]:
-    return next(
-        (g for g in DETERMINISTIC_GENERATORS if g.can_handle(dataset_id)),
-        None,
-    )
-
-
 def curated_dataset_ids() -> set[int]:
     """The datasets with a curated chart generator."""
-    return {generator.dataset_id for generator in DETERMINISTIC_GENERATORS}
+    return {
+        ds["dataset_id"]
+        for ds in available_datasets()
+        if find_generator(ds["dataset_id"])
+    }
 
 
 def _generator_path(generator: ChartGenerator) -> str:
@@ -165,7 +161,11 @@ async def _chart_text(
         lines.append(f"The rows of chart {same.position + 1}.")
     else:
         text = await rows_text(
-            chart.chart_data, chart.dataset_id or 0, budget=budget
+            chart.chart_data,
+            chart.dataset_id or 0,
+            budget=budget,
+            where="The chart's chart_data in the structured result holds "
+            "all of them.",
         )
         lines.append(text)
         used = len(text)

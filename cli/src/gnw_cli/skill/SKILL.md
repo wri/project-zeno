@@ -57,7 +57,9 @@ description: Answer questions with Global Nature Watch (GNW) data (forest, tree 
 
 `gnw replay` runs every `pull.py` again. It reports each pull whose rows
 differ from the ones first pulled (the data was updated) and exits with an
-error when any did.
+error when any did. The new rows go to `rows.changed.csv`; `rows.csv` keeps
+the rows the analysis was built on, so compare the two before you update an
+answer.
 
 ## Options
 

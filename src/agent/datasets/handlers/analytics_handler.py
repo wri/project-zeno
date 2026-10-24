@@ -680,7 +680,11 @@ class AnalyticsHandler(DataSourceHandler):
         message_detail = f"Found {data_points_count} data points"
         analytics_url = result["data"]["link"]
 
+        # Provenance only: a shape the API never sent before must not fail
+        # the pull, so anything but an object is dropped.
         metadata = data["data"].get("metadata")
+        if not isinstance(metadata, dict):
+            metadata = None
         return (
             raw_data,
             data_points_count,

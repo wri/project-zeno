@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 from fastmcp import Client
 
+import src.api.services.charts.registry as registry
 import src.mcp.charts as charts
 import src.mcp.data as data
 from src.agent.datasets.handlers.base import DataPullResult
@@ -129,9 +130,9 @@ async def test_a_dataset_without_curated_charts_is_refused(
     monkeypatch, pull_returns
 ):
     monkeypatch.setattr(
-        charts,
+        registry,
         "DETERMINISTIC_GENERATORS",
-        [g for g in charts.DETERMINISTIC_GENERATORS if g.dataset_id != 7],
+        [g for g in registry.DETERMINISTIC_GENERATORS if g.dataset_id != 7],
     )
     result = await _call(
         "curated_charts", {"aoi_ids": ["gadm:BRA.14_1"], "dataset_id": 7}

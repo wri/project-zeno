@@ -45,6 +45,9 @@ class StubApi:
     def __init__(self, result_id: str = "df747c81"):
         self.result_id = result_id
         self.result = RESULT
+        self.metadata = METADATA
+        # Polls of the result link that fail (503) before one succeeds.
+        self.failed_polls = 0
         self.requests: list[dict] = []
         stub = self
 
@@ -81,13 +84,17 @@ class StubApi:
 
             def do_GET(self):
                 stub.requests.append({"method": "GET", "path": self.path})
+                if stub.failed_polls:
+                    stub.failed_polls -= 1
+                    self.send_error(503)
+                    return
                 self._answer(
                     {
                         "status": "success",
                         "data": {
                             "status": "saved",
                             "result": stub.result,
-                            "metadata": METADATA,
+                            "metadata": stub.metadata,
                         },
                     }
                 )
