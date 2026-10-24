@@ -20,6 +20,8 @@ from pathlib import Path
 
 from fastmcp import Client
 
+from gnw_cli.check import is_gnw_script
+
 DEFAULT_SERVER = "https://api.globalnaturewatch.org/mcp"
 DEFAULT_OUT = "gnw"
 SKILL_URI = "skill://gnw-charting/"
@@ -63,6 +65,15 @@ def _pull_arguments(args) -> dict:
     return arguments
 
 
+def _inside(base: Path, name: str) -> Path:
+    """`base / name`, for a name the server sent; refused when it would
+    leave `base` (a `..`, an absolute path)."""
+    path = base / name
+    if base.resolve() not in path.resolve().parents:
+        raise CliError(f"The server sent a path outside {base}: {name!r}.")
+    return path
+
+
 def _write_pull(structured: dict, out: Path) -> Path:
     """Write the pull's folder by running its pull.py, and return it."""
     script = structured.get("script")
@@ -71,7 +82,14 @@ def _write_pull(structured: dict, out: Path) -> Path:
             "The server returned no pull.py for this pull, so it cannot be "
             "written to files."
         )
-    folder = out / "pulls" / (structured.get("result_id") or "latest")
+    if not is_gnw_script(script):
+        raise CliError(
+            "The server's pull.py is not GNW's pull.py template, so it was "
+            "not run. Check the server URL (--server, $GNW_MCP_URL)."
+        )
+    folder = _inside(
+        out / "pulls", str(structured.get("result_id") or "latest")
+    )
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / "pull.py"
     path.write_text(script, encoding="utf-8")
@@ -280,7 +298,9 @@ async def skill_install(args, server) -> None:
             if not uri.startswith(SKILL_URI) or uri.endswith("/_manifest"):
                 continue
             [content] = await client.read_resource(uri)
-            path = target / "gnw-charting" / uri.removeprefix(SKILL_URI)
+            path = _inside(
+                target / "gnw-charting", uri.removeprefix(SKILL_URI)
+            )
             path.parent.mkdir(parents=True, exist_ok=True)
             # JSON and other non-text types come as base64 blobs.
             if hasattr(content, "blob"):

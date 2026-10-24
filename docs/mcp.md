@@ -240,7 +240,12 @@ logic. What it adds is files: `gnw pull` and `gnw charts` write the pull to
 `gnw/pulls/<result_id>/` by running the pull's `pull.py`, print a summary
 (heading, row count, columns, how to repeat it) instead of the rows, and
 record the command in `gnw/manifest.json`. `gnw replay` runs every
-`pull.py` again and fails when a pull's rows changed. `gnw skill install`
+`pull.py` again and fails when a pull's rows changed; the changed rows go to
+`rows.changed.csv`, beside the `rows.csv` an analysis was built on. The CLI
+runs a server's `pull.py` only when it is GNW's template with nothing but
+its data filled in (`cli/src/gnw_cli/check.py`, against
+`pull_template.txt`, which `uv run python -m src.mcp.script` rebuilds), and
+writes no file outside its folders. `gnw skill install`
 writes the server's `gnw-charting` skill and the CLI's own `gnw-cli` skill
 (`cli/src/gnw_cli/skill/SKILL.md`: the workflow, analysis in code, and what
 every answer ends with) into `.claude/skills`.

@@ -17,7 +17,7 @@ from src.agent.datasets.handlers.analytics_handler import AnalyticsHandler
 from src.agent.datasets.handlers.base import DataPullResult
 from src.api.services.charts.base import column_to_rows
 from src.mcp.charts import find_generator, generator_info
-from src.mcp.script import rows_digest
+from src.mcp.script import CLI_TEMPLATE, cli_template, rows_digest
 from src.mcp.server import mcp_server
 from src.shared.version import get_version
 from tests.unit.mcp.analytics_stub import BODY, METADATA, PARA, RESULT
@@ -199,3 +199,73 @@ async def test_the_handler_records_the_request_without_the_token(
         "body": sent["body"],
     }
     assert result.analytics_api_metadata == METADATA
+
+
+async def test_a_replay_keeps_the_rows_it_was_built_on(
+    replayable_pull, api, tmp_path
+):
+    result = await _pull()
+    script = result.structured_content["script"]
+    folder = tmp_path / "out"
+    _run(script, tmp_path, str(folder))
+    original = (folder / "rows.csv").read_text()
+
+    api.result = {**RESULT, "area_ha": [693512.76, 805620.13]}
+    run = _run(script, tmp_path, str(folder))
+
+    assert run.returncode == 0, run.stderr
+    assert "rows.changed.csv" in run.stderr
+    assert (folder / "rows.csv").read_text() == original
+    assert (folder / "rows.changed.csv").read_text() != original
+    provenance = json.loads((folder / "provenance.json").read_text())
+    assert provenance["replayed_rows_sha256"] == provenance["rows_sha256"]
+    changed = json.loads((folder / "provenance.changed.json").read_text())
+    assert changed["replayed_rows_sha256"] != changed["rows_sha256"]
+
+
+async def test_the_script_polls_again_after_a_failed_poll(
+    replayable_pull, api, tmp_path
+):
+    result = await _pull()
+    api.failed_polls = 2
+
+    run = _run(
+        result.structured_content["script"], tmp_path, str(tmp_path / "out")
+    )
+
+    assert run.returncode == 0, run.stderr
+    assert run.stderr == ""
+    assert [r["method"] for r in api.requests[-3:]] == ["GET"] * 3
+
+
+async def test_a_curated_only_pull_has_no_request_or_script(
+    monkeypatch, replayable_pull
+):
+    monkeypatch.setattr(data, "is_curated_only", lambda dataset_id: True)
+    result = await _pull()
+    structured = result.structured_content
+    assert structured["script"] is None
+    assert structured["request"] is None
+    assert structured["rows"] == []
+
+
+def test_the_cli_ships_the_current_template():
+    assert CLI_TEMPLATE.read_text(encoding="utf-8") == cli_template(), (
+        "Rebuild it: uv run python -m src.mcp.script"
+    )
+
+
+async def test_metadata_of_another_shape_does_not_fail_the_pull(api):
+    api.metadata = ["not", "an", "object"]
+    handler = AnalyticsHandler()
+    handler.BASE_URL = api.url
+    result = await handler.pull_data(
+        query="",
+        dataset={"dataset_id": 4, "dataset_name": "Tree cover loss"},
+        start_date="2020-01-01",
+        end_date="2021-12-31",
+        change_over_time_query=False,
+        aois=[dict(PARA)],
+    )
+    assert result.success, result.message
+    assert result.analytics_api_metadata is None

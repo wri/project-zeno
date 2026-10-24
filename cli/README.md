@@ -19,7 +19,8 @@ A pull lands in `gnw/pulls/<result_id>/`: `rows.csv`, `request.json`,
 `provenance.json` and `pull.py`, the standalone script that fetches the
 same rows again. The CLI writes the folder by running that script, so what
 is on disk is what the script repeats. `gnw replay` runs every script again
-and reports the pulls whose rows changed.
+and reports the pulls whose rows changed, writing their new rows to
+`rows.changed.csv` and leaving `rows.csv` as it was.
 
 Every command calls a tool of the GNW MCP server (`src/mcp/` in this
 repository); the CLI holds no GNW logic of its own. Point it at another

@@ -145,11 +145,15 @@ def text_csv(rows: list[dict]) -> str:
 
 
 async def rows_text(
-    rows: list[dict], dataset_id: int, budget: int = TEXT_CHAR_BUDGET
+    rows: list[dict],
+    dataset_id: int,
+    budget: int = TEXT_CHAR_BUDGET,
+    where: Optional[str] = None,
 ) -> str:
     """The rows as rounded CSV when there are at most MAX_TEXT_ROWS and the
     CSV fits in `budget` characters; else per-column stats, the view the
-    agent gets of a large series, and where the rows are."""
+    agent gets of a large series, and `where` the rows are (by default,
+    where a pull's rows are)."""
     from src.agent.tools.inspect_view_context import format_chart_data
 
     if is_curated_only(dataset_id):
@@ -163,10 +167,16 @@ async def rows_text(
     )
     if not rows:
         return stats
+    if where is None:
+        where = (
+            "The structured result and pull.py hold all of them."
+            if len(rows) <= MAX_ROWS
+            else f"The structured result holds the first {MAX_ROWS}; "
+            "pull.py writes all of them."
+        )
     return (
-        f"{stats}\nThese {len(rows)} rows are too large to show here: the "
-        "structured result and its script (pull.py) hold all of them. Do "
-        "not estimate a value this summary does not give."
+        f"{stats}\nThese {len(rows)} rows are too large to show here. "
+        f"{where} Do not estimate a value this summary does not give."
     )
 
 
@@ -399,7 +409,13 @@ async def run_pull(
         canopy_cover=canopy_cover,
         rows=rows,
         source_url=result.analytics_api_url,
-        request=result.analytics_api_request,
+        # A replayable request would hand out the rows a curated-only
+        # dataset withholds, so it gets neither a request nor a pull.py.
+        request=(
+            None
+            if is_curated_only(ds["dataset_id"])
+            else result.analytics_api_request
+        ),
         metadata=result.analytics_api_metadata,
         retrieved_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
         rows_sha256=rows_digest(rows),

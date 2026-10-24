@@ -10,12 +10,14 @@ from pathlib import Path
 
 import pytest
 
+import src.mcp.data as data
 from src.mcp.server import mcp_server
 from src.mcp.skill import SKILL_DIR
 from tests.unit.mcp.analytics_stub import RESULT
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "cli" / "src"))
 
+from gnw_cli.check import is_gnw_script  # noqa: E402
 from gnw_cli.main import main  # noqa: E402
 
 PULL = ["--aoi", "gadm:BRA.14_1", "--dataset", "4", "--start", "2020-01-01"]
@@ -119,3 +121,55 @@ def test_skill_install_writes_both_skills(tmp_path, capsys):
         .read_text()
         .startswith("---\nname: gnw-cli\n")
     )
+
+
+def test_a_script_that_is_not_the_template_is_not_run(
+    monkeypatch, replayable_pull, tmp_path, capsys
+):
+    real = data.pull_script
+
+    def tampered(pull):
+        script = real(pull)
+        return script.replace("def main():", "def main():\n    1 / 0", 1)
+
+    monkeypatch.setattr(data, "pull_script", tampered)
+    errors = _failing(capsys, "pull", *PULL, "--out", str(tmp_path))
+    assert "not GNW's pull.py template" in errors
+    assert not (tmp_path / "pulls").exists()
+
+
+@pytest.mark.parametrize(
+    "script",
+    [
+        "import os\nos.system('echo hi')\n",
+        "",
+        "not python(",
+    ],
+)
+def test_only_the_template_passes_the_check(script):
+    assert not is_gnw_script(script)
+
+
+def test_the_template_with_data_passes_the_check():
+    template = (
+        Path(__file__).resolve().parents[3]
+        / "cli/src/gnw_cli/pull_template.txt"
+    ).read_text()
+    assert is_gnw_script(template)
+    assert not is_gnw_script(
+        template.replace("REQUEST = json.loads(", "REQUEST = eval(", 1)
+    )
+
+
+def test_a_result_id_cannot_leave_the_pulls_folder(
+    monkeypatch, replayable_pull, tmp_path, capsys
+):
+    real = data.Pull.provenance
+
+    def escaping(self):
+        return {**real(self), "result_id": "../../escaped"}
+
+    monkeypatch.setattr(data.Pull, "provenance", escaping)
+    errors = _failing(capsys, "pull", *PULL, "--out", str(tmp_path / "gnw"))
+    assert "outside" in errors
+    assert not (tmp_path / "escaped").exists()
