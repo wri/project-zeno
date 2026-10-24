@@ -39,6 +39,8 @@ async def test_server_offers_the_read_only_tools():
         "list_datasets",
         "get_dataset",
         "pull_data",
+        "curated_charts",
+        "get_chart_code",
     ]
     assert all(tool.annotations.read_only_hint for tool in tools)
 
@@ -52,6 +54,8 @@ async def test_list_datasets_hides_lgms_and_describes_every_dataset():
     assert 12 not in [ds["dataset_id"] for ds in datasets]
     assert "LGMS" not in result.content[0].text
     assert all(ds["card"] for ds in datasets)
+    curated = {ds["dataset_id"] for ds in datasets if ds["curated_charts"]}
+    assert {1, 4, 8} <= curated
 
 
 async def test_get_dataset_gives_the_options_pull_data_accepts():

@@ -91,8 +91,20 @@ def test_the_heading_names_the_first_areas_and_counts_the_rest():
         canopy_cover=None,
         rows=[],
         source_url=None,
+        request=None,
+        metadata=None,
+        retrieved_at="2026-10-22T00:00:00Z",
+        rows_sha256="",
     )
     heading = pull.heading()
     assert "District 9;" not in heading
     assert "District 9 and 690 more" in heading
     assert "District 10" not in heading
+
+
+async def test_the_text_says_where_the_rows_are():
+    text = await rows_text(_rows(MAX_TEXT_ROWS + 1), 4)
+    assert "The structured result and pull.py hold all of them." in text
+
+    text = await rows_text(_rows(data.MAX_ROWS + 1), 4)
+    assert f"holds the first {data.MAX_ROWS}; pull.py writes all" in text

@@ -1,6 +1,6 @@
 """The ordered list of chart generators `AnalyzeService` picks from."""
 
-from typing import List
+from typing import List, Optional
 
 from src.api.services.charts.base import ChartGenerator
 from src.api.services.charts.forest_flux import ForestFluxChartGenerator
@@ -34,3 +34,12 @@ DETERMINISTIC_GENERATORS: List[ChartGenerator] = [
     TreeCoverChartGenerator(),
     TreeCoverGainChartGenerator(),
 ]
+
+
+def find_generator(dataset_id: int) -> Optional[ChartGenerator]:
+    """The generator that draws `dataset_id`'s curated charts, if any: the
+    one test of whether a dataset has curated charts."""
+    return next(
+        (g for g in DETERMINISTIC_GENERATORS if g.can_handle(dataset_id)),
+        None,
+    )
