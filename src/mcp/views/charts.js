@@ -27,6 +27,17 @@ const CHART_HEIGHT = 260;
 const MAX_LINE_DOTS = 14;
 const STACKED_TYPES = new Set(["stacked-bar", "stacked-bar-with-line", "area"]);
 
+let measureContext = null;
+
+/** The width of a tick label in the chart font; the estimate when the
+ * canvas is unavailable. */
+function textWidth(text) {
+  measureContext = measureContext || document.createElement("canvas").getContext("2d");
+  if (!measureContext) return text.length * CHAR_PX;
+  measureContext.font = `${TICK_FONT_PX}px ${getComputedStyle(document.body).fontFamily}`;
+  return measureContext.measureText(text).width;
+}
+
 function niceStep(range, count) {
   const raw = range / Math.max(count, 1);
   const power = Math.pow(10, Math.floor(Math.log10(raw || 1)));
@@ -215,8 +226,8 @@ function drawCartesian(container, model, width, animate) {
   const yMax = ticks[ticks.length - 1];
   const yTitle = toAxisLabel(model.yKey);
   const xTitle = toAxisLabel(model.x);
-  const longestY = Math.max(...ticks.map((t) => formatCompact(t, model.yKey).length));
-  const left = Math.ceil(longestY * CHAR_PX + TICK_MARGIN + (yTitle ? TITLE_BAND : 0));
+  const widestY = Math.max(...ticks.map((t) => textWidth(formatCompact(t, model.yKey))));
+  const left = Math.ceil(widestY + TICK_MARGIN + (yTitle ? TITLE_BAND : 0));
   const right = 8;
   const plotW = Math.max(40, width - left - right);
   const band = plotW / Math.max(categories.length, 1);
