@@ -642,7 +642,7 @@ function chartWithTable(spec, { tableRows } = {}) {
   show(false);
   return h(
     "div",
-    { style: { display: "flex", flexDirection: "column", gap: "8px" } },
+    { class: "stack sm" },
     h("div", { class: "toolbar" }, h("div", { class: "segmented", role: "group", "aria-label": "Visualization format" }, chartButton, tableButton)),
     body
   );

@@ -31,6 +31,11 @@
   --warning-border: #ffd8a8;
   --error-bg: #fff0ee;
   --error-fg: #b42318;
+  --error-border: #fda29b;
+  --on-primary: #ffffff;
+  --code-kw: #a626a4;
+  --code-str: #50a14f;
+  --code-def: #4078f2;
   --grid: #e1e2e6;
   --tooltip-bg: #ffffff;
   --shadow: 0 4px 16px rgba(19, 23, 26, 0.12);
@@ -64,6 +69,11 @@
   --warning-border: #5c3b0b;
   --error-bg: #2d0f0b;
   --error-fg: #ff8a7a;
+  --error-border: #7a271a;
+  --on-primary: #02070b;
+  --code-kw: #c678dd;
+  --code-str: #98c379;
+  --code-def: #61afef;
   --grid: #282d33;
   --tooltip-bg: #13171a;
   --shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
@@ -97,6 +107,30 @@ body {
   padding: 2px;
 }
 
+/* A column of blocks: 12px apart, or 8px (.sm) and 6px (.xs). */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.stack.sm {
+  gap: 8px;
+}
+
+.stack.xs {
+  gap: 6px;
+}
+
+.stack.start {
+  align-items: flex-start;
+}
+
+.spacer {
+  flex: 1;
+}
+
 a,
 .link {
   color: var(--link);
@@ -126,6 +160,9 @@ a,
   position: absolute;
   width: 1px;
   height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
@@ -165,10 +202,6 @@ a,
   flex-shrink: 0;
 }
 
-.panel-header .spacer {
-  flex: 1;
-}
-
 .panel-body {
   display: flex;
   flex-direction: column;
@@ -193,6 +226,15 @@ a,
 
 .eyebrow.curated svg {
   color: var(--curated);
+}
+
+/* The type labels of InfoCard: areas in blue, data in green. */
+.eyebrow.area {
+  color: var(--label-area);
+}
+
+.eyebrow.data {
+  color: var(--label-data);
 }
 
 .count {
@@ -270,7 +312,7 @@ a,
 .note.error {
   background: var(--error-bg);
   color: var(--error-fg);
-  border: 1px solid var(--error-fg);
+  border: 1px solid var(--error-border);
 }
 
 .note.info {
@@ -326,13 +368,13 @@ a,
   border-radius: 0;
 }
 
-.segmented .btn[aria-pressed="true"] {
-  background: var(--primary);
-  color: #ffffff;
+.segmented .btn + .btn {
+  border-left: 1px solid var(--border);
 }
 
-:root[data-theme="dark"] .segmented .btn[aria-pressed="true"] {
-  color: #02070b;
+.segmented .btn[aria-pressed="true"] {
+  background: var(--primary);
+  color: var(--on-primary);
 }
 
 .footer {
@@ -457,6 +499,29 @@ a,
   -webkit-box-orient: vertical;
 }
 
+/* DatasetCard: the card grows with its two lines of text. */
+.card.tall {
+  height: auto;
+  min-height: 80px;
+  align-items: stretch;
+}
+
+.card.tall .thumb {
+  height: auto;
+  min-height: 80px;
+}
+
+.card.tall .card-text {
+  padding: 8px 36px 8px 16px;
+}
+
+.thumb-id {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 18px;
+  color: var(--fg-muted);
+}
+
 .badge-warn {
   color: var(--warning-fg);
 }
@@ -464,6 +529,7 @@ a,
 /* ---- Compact list (many areas) ------------------------------------------ */
 
 .rows {
+  align-self: stretch;
   border: 1px solid var(--border-soft);
   border-radius: 4px;
   overflow: hidden;
@@ -815,7 +881,8 @@ details.section[open] > summary::before {
   color: var(--fg-muted);
 }
 
-.option-list code {
+.option-list code,
+.muted code {
   font-family: var(--font-mono);
   font-size: 11px;
   padding: 0 4px;
@@ -874,11 +941,11 @@ details.section[open] > summary::before {
 }
 
 .code .kw {
-  color: #a626a4;
+  color: var(--code-kw);
 }
 
 .code .str {
-  color: #50a14f;
+  color: var(--code-str);
 }
 
 .code .com {
@@ -887,19 +954,7 @@ details.section[open] > summary::before {
 }
 
 .code .def {
-  color: #4078f2;
-}
-
-:root[data-theme="dark"] .code .kw {
-  color: #c678dd;
-}
-
-:root[data-theme="dark"] .code .str {
-  color: #98c379;
-}
-
-:root[data-theme="dark"] .code .def {
-  color: #61afef;
+  color: var(--code-def);
 }
 
 /* ---- Reproduce (details panel) ------------------------------------------ */
@@ -933,13 +988,6 @@ details.section[open] > summary::before {
   outline-offset: -2px;
 }
 
-.muted code {
-  font-size: 11.5px;
-  padding: 0 3px;
-  border-radius: 3px;
-  background: var(--bg-subtle);
-}
-
 .empty {
   padding: 16px;
   text-align: center;
@@ -962,7 +1010,12 @@ details.section[open] > summary::before {
   border-radius: 4px;
   background: linear-gradient(90deg, var(--bg-subtle) 25%, var(--bg-muted) 50%, var(--bg-subtle) 75%);
   background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton {
+    animation: shimmer 1.5s infinite;
+  }
 }
 
 @keyframes shimmer {
@@ -972,4 +1025,34 @@ details.section[open] > summary::before {
   100% {
     background-position-x: -100%;
   }
+}
+
+/* ---- Brand footer: GNW and its partners --------------------------------- */
+
+.brand {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 10px 4px 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 16px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+}
+
+.brand .logos {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.brand .logos .logo {
+  display: block;
+  width: auto;
+  height: 22px;
+  color: var(--fg-muted);
 }

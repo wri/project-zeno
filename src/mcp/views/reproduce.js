@@ -116,7 +116,7 @@ function reproducePanel(data) {
         "div",
         { class: "toolbar" },
         h("div", { class: "segmented", role: "group", "aria-label": "Reproduce" }, buttons),
-        h("span", { class: "spacer", style: { flex: "1" } }),
+        h("span", { class: "spacer" }),
         copyButton(
           () => current[1](),
           () => body.querySelector("pre")

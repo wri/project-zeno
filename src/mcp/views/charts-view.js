@@ -25,11 +25,11 @@ function render(data, args) {
   const generator = data.generator || {};
   return h(
     "div",
-    { style: { display: "flex", flexDirection: "column", gap: "12px" } },
+    { class: "stack" },
     h(
       "div",
-      { style: { display: "flex", flexDirection: "column", gap: "6px" } },
-      h("span", { class: "eyebrow", style: { color: "var(--label-data)" } }, data.dataset_name),
+      { class: "stack xs" },
+      h("span", { class: "eyebrow data" }, data.dataset_name),
       pullMeta(data),
       clampNote(data, args)
     ),

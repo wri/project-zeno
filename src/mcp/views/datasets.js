@@ -20,24 +20,23 @@ function datasetCard(ds, onOpen) {
   const card = h(
     "div",
     {
-      class: "card",
+      class: "card tall",
       role: "button",
       tabindex: 0,
       "aria-label": `Show ${ds.dataset_name}`,
       title: ds.card,
-      style: { height: "auto", minHeight: "80px", alignItems: "stretch" },
     },
     h(
       "div",
-      { class: "thumb", style: { height: "auto", minHeight: "80px" } },
-      h("span", { class: "num", style: { fontSize: "18px", color: "var(--fg-muted)" } }, ds.dataset_id)
+      { class: "thumb" },
+      h("span", { class: "thumb-id" }, ds.dataset_id)
     ),
     h(
       "div",
-      { class: "card-text", style: { padding: "8px 36px 8px 16px" } },
+      { class: "card-text" },
       h(
         "span",
-        { class: "eyebrow", style: { color: "var(--label-data)" } },
+        { class: "eyebrow data" },
         "Data",
         ds.curated_charts && h("span", { class: "muted" }, " · curated charts")
       ),
@@ -67,7 +66,7 @@ function cardSummary(ds) {
 
 function renderList(data) {
   const datasets = data.datasets || [];
-  const root = h("div", { style: { display: "flex", flexDirection: "column", gap: "12px" } });
+  const root = h("div", { class: "stack" });
   const detail = h("div", {});
   // The latest click: an answer for an earlier one that comes in late is
   // dropped, so the panel always shows the dataset clicked last.

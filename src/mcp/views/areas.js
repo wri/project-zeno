@@ -40,7 +40,7 @@ function areaCard(area, { onPick } = {}) {
     { class: "card-text" },
     h(
       "span",
-      { class: "eyebrow", style: { color: "var(--label-area)" } },
+      { class: "eyebrow area" },
       SOURCE_LABELS[area.source] || area.source
     ),
     h("span", { class: "card-title", title: area.name }, area.name),
@@ -93,7 +93,7 @@ function areaCard(area, { onPick } = {}) {
 }
 
 function areaList(areas) {
-  const list = h("div", { class: "rows", role: "list", style: { alignSelf: "stretch" } });
+  const list = h("div", { class: "rows", role: "list" });
   const fill = (count) =>
     list.replaceChildren(
       ...areas.slice(0, count).map((area) =>
@@ -116,7 +116,7 @@ function areaList(areas) {
     fill(areas.length);
     more.remove();
   });
-  return h("div", { style: { display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-start" } }, list, more);
+  return h("div", { class: "stack sm start" }, list, more);
 }
 
 function areasBlock(areas, options) {

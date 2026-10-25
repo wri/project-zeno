@@ -10,6 +10,7 @@ from fastmcp import Client
 
 from src.mcp.server import mcp_server
 from src.mcp.views import (
+    LOGOS,
     SHARED_SCRIPTS,
     TOOL_VIEWS,
     UI_MIME_TYPE,
@@ -49,7 +50,7 @@ async def test_a_view_is_served_with_its_csp():
 def test_a_view_inlines_its_css_and_scripts(name):
     page = render_view(name)
     _, script = VIEWS[name]
-    for filename in ("base.css", *SHARED_SCRIPTS, script):
+    for filename in ("base.css", *SHARED_SCRIPTS, script, *LOGOS):
         # Each source is in the page, so the view needs no fetch of its own.
         assert (VIEW_DIR / filename).read_text().strip()[-200:] in page
     # The sandboxed iframe loads nothing but the fonts its CSP allows.

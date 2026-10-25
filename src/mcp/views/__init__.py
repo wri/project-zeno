@@ -8,8 +8,9 @@ cards, dataset cards, tables and the curated charts. A host without the
 extension ignores the metadata and shows the tool's text, as before.
 
 Each view is one self-contained HTML document: the shared CSS and scripts
-in this folder are inlined, so the view needs no network except the IBM
-Plex fonts, which its CSP allows and which fall back to system fonts.
+in this folder, and the WRI and Land & Carbon Lab logos of its footer, are
+inlined, so the view needs no network except the IBM Plex fonts, which its
+CSP allows and which fall back to system fonts.
 """
 
 from functools import cache
@@ -28,6 +29,10 @@ from fastmcp.resources import TextResource
 VIEW_DIR = Path(__file__).parent
 
 SHARED_SCRIPTS = ("bridge.js", "components.js", "charts.js", "reproduce.js")
+
+# The partners of the footer, as inline SVG: their dark text takes the
+# theme's color (currentColor), and WRI's yellow mark keeps its own.
+LOGOS = ("logos/wri.svg", "logos/lcl.svg")
 
 # View name → (title, script).
 VIEWS = {
@@ -69,6 +74,12 @@ _PAGE = """<!doctype html>
 </head>
 <body>
 <main id="app"></main>
+<footer class="brand">
+<span>Global Nature Watch</span>
+<span class="logos">
+{logos}
+</span>
+</footer>
 <script>
 {script}
 </script>
@@ -93,6 +104,7 @@ def render_view(name: str) -> str:
     return _PAGE.format(
         title=title,
         css=_read("base.css"),
+        logos="\n".join(_read(filename).strip() for filename in LOGOS),
         script="\n".join(scripts),
     )
 

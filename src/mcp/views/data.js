@@ -68,7 +68,7 @@ function render(data, args) {
   });
   return h(
     "div",
-    { style: { display: "flex", flexDirection: "column", gap: "12px" } },
+    { class: "stack" },
     dataPanel,
     reproducePanel(data)
   );
