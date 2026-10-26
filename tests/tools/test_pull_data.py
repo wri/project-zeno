@@ -8,9 +8,6 @@ import pytest
 from sqlalchemy import select
 
 from src.agent.datasets.config import DATASETS
-from src.agent.datasets.handlers.analytics_handler import (
-    ANALYTICS_HTTP_TIMEOUT,
-)
 from src.agent.datasets.handlers.base import DataPullResult
 from src.agent.tools.pull_data import (
     fetch_statistics_from_url,
@@ -622,14 +619,10 @@ async def test_pull_data_custom_area(auth_override, client, structlog_context):
     assert raw_data["land_cover_class"] == ["Built-up"]
 
 
-async def test_fetch_statistics_uses_explicit_timeout(monkeypatch):
-    """The analytics API can outlast httpx's 5s default (PZB-1410)."""
-    seen = {}
+def _flaky_client(failures: int, calls: list):
+    """An AsyncClient whose first `failures` GETs time out."""
 
     class FakeClient:
-        def __init__(self, **kwargs):
-            seen.update(kwargs)
-
         async def __aenter__(self):
             return self
 
@@ -637,18 +630,51 @@ async def test_fetch_statistics_uses_explicit_timeout(monkeypatch):
             return False
 
         async def get(self, url, headers):
+            calls.append(url)
+            if len(calls) <= failures:
+                raise httpx.ReadTimeout("stalled")
             return httpx.Response(
                 200,
                 json={"data": {"result": {"aoi_id": ["x"]}}},
                 request=httpx.Request("GET", url),
             )
 
-    monkeypatch.setattr(pull_data_module.httpx, "AsyncClient", FakeClient)
+    return FakeClient
+
+
+async def test_fetch_statistics_retries_with_backoff(monkeypatch):
+    """A stalled analytics API is retried, not surfaced (PZB-1410)."""
+    calls, delays = [], []
+    monkeypatch.setattr(
+        pull_data_module.httpx, "AsyncClient", _flaky_client(2, calls)
+    )
+
+    async def fake_sleep(delay):
+        delays.append(delay)
+
+    monkeypatch.setattr(pull_data_module.asyncio, "sleep", fake_sleep)
 
     assert await fetch_statistics_from_url("https://example.test/r") == {
         "aoi_id": ["x"]
     }
-    assert seen["timeout"] is ANALYTICS_HTTP_TIMEOUT
+    assert len(calls) == 3
+    assert delays == [1.0, 2.0]
+
+
+async def test_fetch_statistics_gives_up_after_max_retries(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        pull_data_module.httpx, "AsyncClient", _flaky_client(99, calls)
+    )
+
+    async def fake_sleep(delay):
+        pass
+
+    monkeypatch.setattr(pull_data_module.asyncio, "sleep", fake_sleep)
+
+    with pytest.raises(httpx.ReadTimeout):
+        await fetch_statistics_from_url("https://example.test/r")
+    assert len(calls) == pull_data_module.FETCH_MAX_RETRIES + 1
 
 
 class TestReviseDateRange:
