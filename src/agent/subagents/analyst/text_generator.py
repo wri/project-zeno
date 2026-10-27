@@ -18,9 +18,11 @@ from pydantic import BaseModel, Field
 
 from src.agent.language import DEFAULT_LANGUAGE, language_name
 from src.agent.llms import SMALL_MODEL
+from src.agent.subagents.analyst.ascii_sanitizer import AsciiSanitizer
 from src.agent.subagents.analyst.charts.model import InsightChart
 from src.agent.subagents.analyst.prompts import WORDING_GUIDE
 from src.shared.logging_config import get_logger
+from src.shared.text_sanitize import strip_control_chars
 
 logger = get_logger(__name__)
 
@@ -93,9 +95,7 @@ class InsightTextGenerator:
         charts_block = "\n".join(
             c.model_dump_json(exclude={"insight"}) for c in charts
         )
-        inputs = {
-            "wording_guide": WORDING_GUIDE,
-            "language": language_name(language),
+        data = {
             "query": query or "(none provided)",
             "executor_context": executor_context or "(none)",
             "cautions": dataset.get(
@@ -106,7 +106,34 @@ class InsightTextGenerator:
             ),
             "charts": charts_block,
         }
-        result: InsightText = await self._chain.ainvoke(inputs, config=config)
+        # Gemini Flash sometimes writes a control character in place of an
+        # accented one ("Piau\x00" for "Piauí"). Keep non-ASCII words out of
+        # the prompt so the model never has to copy them, and put the original
+        # words back in what it returns. The system prompt (wording guide and
+        # language name) is deliberately left alone.
+        sanitizer = AsciiSanitizer.for_texts(*data.values())
+        inputs = {
+            "wording_guide": WORDING_GUIDE,
+            "language": language_name(language),
+            **{key: sanitizer.sanitize(value) for key, value in data.items()},
+        }
+        raw: InsightText = await self._chain.ainvoke(inputs, config=config)
+        # Anything still corrupt after the restore is a character the model
+        # wrote on its own. Strip it here so the text the agent and the user
+        # see is the same text that gets stored.
+        result = InsightText(
+            primary_insight=strip_control_chars(
+                sanitizer.restore(raw.primary_insight),
+                field="text_stage.primary_insight",
+            ),
+            follow_up_suggestions=[
+                strip_control_chars(
+                    sanitizer.restore(s),
+                    field="text_stage.follow_up_suggestion",
+                )
+                for s in raw.follow_up_suggestions
+            ],
+        )
         logger.info(
             f"Generated insight text ({len(result.primary_insight)} chars, "
             f"{len(result.follow_up_suggestions)} follow-ups)"
