@@ -896,7 +896,11 @@ async def test_text_widget_is_the_note_in_the_users_language():
 
     (widget,) = mocks.write.await_args.kwargs["widgets"]
     assert widget.widget_type == "text"
-    assert widget.config == {"text": NOTE["es"], "size": "double"}
+    assert widget.config == {
+        "text": NOTE["es"],
+        "source": "template",
+        "size": "double",
+    }
     assert widget.insight is None
     # The text model sees the note, on one line, so the description need
     # not repeat it.

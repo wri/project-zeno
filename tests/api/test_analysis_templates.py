@@ -289,6 +289,8 @@ async def test_apply_forest_loss_drivers(client, auth_override):
         "Tree cover loss by dominant driver"
     )
     assert note["config"]["text"].startswith("**How to read this section**")
+    # Fixed copy: the frontend captions it as curated, not AI-assisted.
+    assert note["config"]["source"] == "template"
 
 
 @pytest.mark.asyncio

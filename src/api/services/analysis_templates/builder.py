@@ -603,7 +603,11 @@ async def _build_text(
     if not text.strip():
         raise WidgetFailedError(f"The text '{spec.text_key}' is missing.")
     return BuiltWidget(
-        widget=SectionWidget(widget_type="text", config={"text": text}),
+        widget=SectionWidget(
+            widget_type="text",
+            # Fixed copy, not AI output: the frontend captions it as curated.
+            config={"text": text, "source": "template"},
+        ),
         # On one line, so the note stays one item of the prompt's list.
         summary=f"fixed text: {' '.join(text.split())}",
     )

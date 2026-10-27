@@ -188,7 +188,8 @@ You do not have to write code if the template uses the widget kinds `chart`,
 `natural_forest_loss`, `layer`, `imagery` and `text`. A layer widget can set a
 `context_layer`; every widget can set its `size`. A text widget shows the
 markdown of its `text_key` in the user's language, for example how to read
-the charts. The text model sees the note, so `description_rules` can tell it
+the charts; its config carries `source: "template"`, so the frontend
+captions it as curated rather than AI-assisted. The text model sees the note, so `description_rules` can tell it
 not to repeat it. A template can set `description_rules` for a longer
 description. For a new widget kind, add a
 spec class to `models.py` and a builder function to `builder.py`.
