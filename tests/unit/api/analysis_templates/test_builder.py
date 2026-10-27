@@ -13,6 +13,7 @@ import pytest
 from src.agent.datasets.handlers.analytics_handler import (
     INTEGRATED_ALERTS_ID,
     INTEGRATED_ALERTS_LAND_FILTERS,
+    TREE_COVER_LOSS_BY_DRIVER_ID,
     TREE_COVER_LOSS_ID,
 )
 from src.agent.datasets.handlers.base import DataPullResult
@@ -990,3 +991,137 @@ async def test_post_2020_fallback_states_the_share_then_the_caveats():
         f"{SHARE_FACT} The SBTN Natural Lands Map is a 2020 baseline"
     )
     assert "30%" in result.description
+
+
+FOREST_LOSS_DRIVERS = get_template("forest-loss-drivers")
+LOSS = {
+    "tree_cover_loss_year": [2001, 2002, 2003],
+    "area_ha": [1000.0, 2500.4, 1500.0],
+    "carbon_emissions_MgCO2e": [1.0, 2.0, 3.0],
+}
+DRIVERS = {
+    "tree_cover_loss_driver": [
+        "Permanent agriculture",
+        "Logging",
+        "Unknown",
+    ],
+    "area_ha": [3000.0, 1000.0, 500.0],
+}
+LOSS_FACTS = [
+    "From 2001 to 2025, Paraná lost 5\u202f000 ha of tree cover.",
+    "The most tree cover loss was in 2002, with 2\u202f500 ha.",
+    "The leading driver was Permanent agriculture: 75% of the loss with a "
+    "known driver (3\u202f000 ha of 4\u202f000 ha).",
+]
+
+
+async def _apply_forest_loss_drivers(loss=LOSS, drivers=DRIVERS):
+    # A model that records its prompt, then fails, so the section gets the
+    # fallback text.
+    model = _FakeModel(RuntimeError("no model in unit tests"))
+    mocks, stack = _patches(written=("section-1", ["w1", "w2", "w3", "w4"]))
+
+    async def pull(**kwargs):
+        if kwargs["dataset"]["dataset_id"] == TREE_COVER_LOSS_BY_DRIVER_ID:
+            return _pull(data=drivers)
+        return _pull(data=loss)
+
+    async def _text(*args, **kwargs):
+        return await text.generate_section_text(*args, model=model, **kwargs)
+
+    mocks.pull.side_effect = pull
+    mocks.text.side_effect = _text
+    result = await _apply(stack, template=FOREST_LOSS_DRIVERS)
+    return result, mocks, model
+
+
+@pytest.mark.asyncio
+async def test_forest_loss_drivers_builds_its_four_widgets():
+    result, mocks, _ = await _apply_forest_loss_drivers()
+
+    assert result.warnings == []
+    kwargs = mocks.write.await_args.kwargs
+    loss, drivers, layer, note = kwargs["widgets"]
+    # Annual loss only, without the emissions chart.
+    (loss_chart,) = loss.insight.charts
+    assert (loss_chart.dataset_id, loss_chart.y_axis) == (
+        TREE_COVER_LOSS_ID,
+        "area_ha",
+    )
+    assert "size" not in loss.config
+    (pie,) = drivers.insight.charts
+    assert pie.chart_type == "pie"
+    assert [row["tree_cover_loss_driver"] for row in pie.chart_data] == [
+        "Permanent agriculture",
+        "Logging",
+    ]
+    # The pie and the map share a row; the note takes the full width.
+    assert drivers.config["size"] == layer.config["size"] == "single"
+    dataset = layer.config["dataset"]
+    assert dataset["dataset_id"] == TREE_COVER_LOSS_ID
+    assert dataset["context_layer"] is None
+    assert (dataset["start_date"], dataset["end_date"]) == (
+        "2001-01-01",
+        "2025-12-31",
+    )
+    assert note.widget_type == "text"
+    assert note.config["size"] == "double"
+    assert note.config["text"].startswith("**How to read this section**")
+    assert (
+        kwargs["template"]["start_date"],
+        kwargs["template"]["end_date"],
+    ) == ("2001-01-01", "2025-12-31")
+
+
+@pytest.mark.asyncio
+async def test_forest_loss_drivers_pulls_loss_and_drivers_for_the_period():
+    _, mocks, _ = await _apply_forest_loss_drivers()
+
+    pulls = {
+        call.kwargs["dataset"]["dataset_id"]: call.kwargs
+        for call in mocks.pull.await_args_list
+    }
+    assert set(pulls) == {TREE_COVER_LOSS_ID, TREE_COVER_LOSS_BY_DRIVER_ID}
+    for pull in pulls.values():
+        assert (pull["start_date"], pull["end_date"]) == (
+            "2001-01-01",
+            "2025-12-31",
+        )
+
+
+@pytest.mark.asyncio
+async def test_forest_loss_drivers_prompt_has_the_facts_and_the_note():
+    _, mocks, model = await _apply_forest_loss_drivers()
+
+    assert mocks.text.await_args.kwargs["facts"] == LOSS_FACTS
+    for fact in LOSS_FACTS:
+        assert f"- {fact}" in model.inputs
+    assert "- fixed text: **How to read this section** Tree cover loss" in (
+        model.inputs
+    )
+    assert "do not repeat its explanations" in model.inputs
+
+
+@pytest.mark.asyncio
+async def test_forest_loss_drivers_fallback_gives_the_facts_first():
+    result, _, _ = await _apply_forest_loss_drivers()
+
+    assert result.title == "Tree cover loss and drivers in Paraná"
+    assert result.description.startswith(" ".join(LOSS_FACTS))
+    assert result.description.endswith(
+        "Tree cover loss is not the same as deforestation."
+    )
+
+
+@pytest.mark.asyncio
+async def test_forest_loss_drivers_with_no_loss_drops_the_pie():
+    result, mocks, _ = await _apply_forest_loss_drivers(loss={}, drivers={})
+
+    assert result.warnings == [
+        "No chart is available for Tree cover loss by dominant driver."
+    ]
+    widgets = mocks.write.await_args.kwargs["widgets"]
+    assert [w.widget_type for w in widgets] == ["insight", "map", "text"]
+    assert mocks.text.await_args.kwargs["facts"] == [
+        "No tree cover loss was recorded in Paraná from 2001 to 2025."
+    ]

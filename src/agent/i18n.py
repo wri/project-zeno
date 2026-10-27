@@ -1568,6 +1568,338 @@ MESSAGES.update(
                 "kaybı ormansızlaşma ile aynı şey değildir."
             ),
         },
+        "analysis_template.forest_loss_drivers.label": {
+            "en": "Forest loss and its drivers",
+            "es": "Pérdida forestal y sus causas",
+            "fr": "Perte forestière et ses facteurs",
+            "pt": "Perda florestal e seus fatores",
+            "id": "Kehilangan hutan dan pemicunya",
+            "de": "Waldverlust und seine Ursachen",
+            "it": "Perdita forestale e i suoi fattori",
+            "nl": "Bosverlies en de oorzaken ervan",
+            "ru": "Потеря лесов и её причины",
+            "zh": "森林损失及其驱动因素",
+            "ar": "فقدان الغابات ومسبباته",
+            "hi": "वन हानि और उसके कारक",
+            "vi": "Mất rừng và các nguyên nhân",
+            "sw": "Upotevu wa misitu na vichocheo vyake",
+            "tr": "Orman kaybı ve etkenleri",
+        },
+        "analysis_template.forest_loss_drivers.title": {
+            "en": "Tree cover loss and drivers in {aoi_name}",
+            "es": "Pérdida de cobertura arbórea y sus causas en {aoi_name}",
+            "fr": "Perte de couvert arboré et ses facteurs à {aoi_name}",
+            "pt": "Perda de cobertura arbórea e seus fatores em {aoi_name}",
+            "id": "Kehilangan tutupan pohon dan pemicunya di {aoi_name}",
+            "de": "Baumbestandsverlust und Ursachen in {aoi_name}",
+            "it": "Perdita di copertura arborea e fattori a {aoi_name}",
+            "nl": "Verlies aan boomkroonbedekking en oorzaken in {aoi_name}",
+            "ru": "Потеря древесного покрова и её причины: {aoi_name}",
+            "zh": "{aoi_name}的树木覆盖损失及其驱动因素",
+            "ar": "فقدان الغطاء الشجري ومسبباته في {aoi_name}",
+            "hi": "{aoi_name} में वृक्ष आवरण हानि और उसके कारक",
+            "vi": "Mất độ che phủ cây và nguyên nhân tại {aoi_name}",
+            "sw": "Upotevu wa uoto wa miti na vichocheo vyake katika {aoi_name}",
+            "tr": "{aoi_name} için ağaç örtüsü kaybı ve etkenleri",
+        },
+        "analysis_template.forest_loss_drivers.description": {
+            "en": "Tree cover loss per year, the dominant drivers of the loss and a map of where it happened. Tree cover loss is not the same as deforestation.",
+            "es": (
+                "Pérdida de cobertura arbórea por año, las causas "
+                "dominantes de la pérdida y un mapa de dónde se produjo. "
+                "La pérdida de cobertura arbórea no es lo mismo que la "
+                "deforestación."
+            ),
+            "fr": (
+                "La perte de couvert arboré par an, les facteurs "
+                "dominants de la perte et une carte des endroits où elle "
+                "a eu lieu. La perte de couvert arboré n'est pas la même "
+                "chose que la déforestation."
+            ),
+            "pt": "Perda de cobertura arbórea por ano, os fatores dominantes da perda e um mapa de onde ela ocorreu. Perda de cobertura arbórea não é o mesmo que desmatamento.",
+            "id": "Kehilangan tutupan pohon per tahun, pemicu dominan kehilangan tersebut, dan peta lokasi terjadinya. Kehilangan tutupan pohon tidak sama dengan deforestasi.",
+            "de": "Baumbestandsverlust pro Jahr, die dominanten Ursachen des Verlusts und eine Karte, wo er stattfand. Baumbestandsverlust ist nicht dasselbe wie Entwaldung.",
+            "it": (
+                "La perdita di copertura arborea per anno, i fattori "
+                "dominanti della perdita e una mappa di dove è avvenuta. "
+                "La perdita di copertura arborea non equivale alla "
+                "deforestazione."
+            ),
+            "nl": (
+                "Verlies aan boomkroonbedekking per jaar, de dominante "
+                "oorzaken van het verlies en een kaart van waar het "
+                "plaatsvond. Verlies aan boomkroonbedekking is niet "
+                "hetzelfde als ontbossing."
+            ),
+            "ru": "Потеря древесного покрова по годам, основные причины потери и карта мест, где она произошла. Потеря древесного покрова не равнозначна обезлесению.",
+            "zh": "按年份的树木覆盖损失、损失的主要驱动因素以及损失发生位置的地图。树木覆盖损失不等同于毁林。",
+            "ar": "فقدان الغطاء الشجري سنويًا، والمسببات الرئيسية للفقدان، وخريطة لمواقع حدوثه. فقدان الغطاء الشجري ليس هو نفسه إزالة الغابات.",
+            "hi": "प्रति वर्ष वृक्ष आवरण हानि, हानि के प्रमुख कारक और यह कहाँ हुई इसका मानचित्र। वृक्ष आवरण हानि वनों की कटाई के समान नहीं है।",
+            "vi": "Mất độ che phủ cây theo năm, các nguyên nhân chính gây mất và bản đồ nơi xảy ra. Mất độ che phủ cây không đồng nghĩa với phá rừng.",
+            "sw": "Upotevu wa uoto wa miti kwa mwaka, vichocheo vikuu vya upotevu huo na ramani ya mahali ulipotokea. Upotevu wa uoto wa miti si sawa na ukataji wa misitu.",
+            "tr": "Yıllara göre ağaç örtüsü kaybı, kaybın baskın etkenleri ve nerede gerçekleştiğini gösteren bir harita. Ağaç örtüsü kaybı ormansızlaşma ile aynı şey değildir.",
+        },
+        # Facts of the forest-loss-drivers template, from its charts. The
+        # builder formats {total} and {value} in hectares.
+        "analysis_template.forest_loss_drivers.total": {
+            "en": "From {start_year} to {end_year}, {aoi_name} lost {total} ha of tree cover.",
+            "es": "De {start_year} a {end_year}, {aoi_name} perdió {total} ha de cobertura arbórea.",
+            "fr": "De {start_year} à {end_year}, {aoi_name} a perdu {total} ha de couvert arboré.",
+            "pt": "De {start_year} a {end_year}, {aoi_name} perdeu {total} ha de cobertura arbórea.",
+            "id": "Dari {start_year} hingga {end_year}, {aoi_name} kehilangan {total} ha tutupan pohon.",
+            "de": "Von {start_year} bis {end_year} verlor {aoi_name} {total} ha Baumbestand.",
+            "it": "Dal {start_year} al {end_year}, {aoi_name} ha perso {total} ha di copertura arborea.",
+            "nl": "Van {start_year} tot {end_year} verloor {aoi_name} {total} ha boomkroonbedekking.",
+            "ru": "С {start_year} по {end_year} год потеря древесного покрова в {aoi_name} составила {total} га.",
+            "zh": "{start_year}年至{end_year}年，{aoi_name}损失了{total}公顷树木覆盖。",
+            "ar": "من {start_year} إلى {end_year}، فقدت {aoi_name} {total} هكتار من الغطاء الشجري.",
+            "hi": "{start_year} से {end_year} तक, {aoi_name} ने {total} हेक्टेयर वृक्ष आवरण खोया।",
+            "vi": "Từ {start_year} đến {end_year}, {aoi_name} đã mất {total} ha độ che phủ cây.",
+            "sw": "Kuanzia {start_year} hadi {end_year}, {aoi_name} ilipoteza hekta {total} za uoto wa miti.",
+            "tr": "{start_year}-{end_year} döneminde {aoi_name} {total} ha ağaç örtüsü kaybetti.",
+        },
+        "analysis_template.forest_loss_drivers.peak": {
+            "en": "The most tree cover loss was in {category}, with {value} ha.",
+            "es": "La mayor pérdida de cobertura arbórea se produjo en {category}, con {value} ha.",
+            "fr": "La perte de couvert arboré la plus élevée a eu lieu en {category}, avec {value} ha.",
+            "pt": "A maior perda de cobertura arbórea ocorreu em {category}, com {value} ha.",
+            "id": "Kehilangan tutupan pohon terbesar terjadi pada {category}, seluas {value} ha.",
+            "de": "Der höchste Baumbestandsverlust war {category} mit {value} ha.",
+            "it": "La perdita di copertura arborea più elevata è stata nel {category}, con {value} ha.",
+            "nl": "Het meeste verlies aan boomkroonbedekking was in {category}, met {value} ha.",
+            "ru": "Наибольшая потеря древесного покрова пришлась на {category} год: {value} га.",
+            "zh": "树木覆盖损失最多的年份是{category}年，为{value}公顷。",
+            "ar": "كان أكبر فقدان للغطاء الشجري في عام {category}، بمساحة {value} هكتار.",
+            "hi": "सबसे अधिक वृक्ष आवरण हानि {category} में हुई, {value} हेक्टेयर।",
+            "vi": "Mất độ che phủ cây nhiều nhất vào năm {category}, với {value} ha.",
+            "sw": "Upotevu mkubwa zaidi wa uoto wa miti ulikuwa mwaka {category}, hekta {value}.",
+            "tr": "En fazla ağaç örtüsü kaybı {value} ha ile {category} yılında yaşandı.",
+        },
+        "analysis_template.forest_loss_drivers.top_driver": {
+            "en": "The leading driver was {category}: {share} of the loss with a known driver ({value} ha of {total} ha).",
+            "es": "La causa principal fue {category}: el {share} de la pérdida con causa conocida ({value} ha de {total} ha).",
+            "fr": "Le facteur principal était {category} : {share} de la perte dont le facteur est connu ({value} ha sur {total} ha).",
+            "pt": "O fator principal foi {category}: {share} da perda com fator conhecido ({value} ha de {total} ha).",
+            "id": "Pemicu utamanya adalah {category}: {share} dari kehilangan dengan pemicu yang diketahui ({value} ha dari {total} ha).",
+            "de": "Die Hauptursache war {category}: {share} des Verlusts mit bekannter Ursache ({value} ha von {total} ha).",
+            "it": "Il fattore principale è stato {category}: il {share} della perdita con fattore noto ({value} ha su {total} ha).",
+            "nl": "De belangrijkste oorzaak was {category}: {share} van het verlies met een bekende oorzaak ({value} ha van {total} ha).",
+            "ru": "Основная причина: {category}, {share} потерь с известной причиной ({value} га из {total} га).",
+            "zh": "主要驱动因素是{category}：占已知驱动因素损失的{share}（{total}公顷中的{value}公顷）。",
+            "ar": "كان المسبب الرئيسي هو {category}: {share} من الفقدان المعروف مسببه ({value} هكتار من أصل {total} هكتار).",
+            "hi": "प्रमुख कारक {category} था: ज्ञात कारक वाली हानि का {share} ({total} हेक्टेयर में से {value} हेक्टेयर)।",
+            "vi": "Nguyên nhân hàng đầu là {category}: {share} diện tích mất có nguyên nhân đã biết ({value} ha trên {total} ha).",
+            "sw": "Kichocheo kikuu kilikuwa {category}: {share} ya upotevu wenye kichocheo kinachojulikana (hekta {value} kati ya hekta {total}).",
+            "tr": "Başlıca etken {category} oldu: etkeni bilinen kaybın {share} kadarı ({total} ha alanın {value} ha kadarı).",
+        },
+        # The text widget of the forest-loss-drivers template: markdown,
+        # no placeholders.
+        "analysis_template.forest_loss_drivers.note": {
+            "en": (
+                "**How to read this section**\n\n"
+                "Tree cover loss is the removal of tree canopy for any "
+                "reason, including harvesting, fire, disease and storms. "
+                "It is not the same as deforestation: it includes "
+                "plantation harvests, and the data does not track "
+                "regrowth.\n\n"
+                "Loss is counted where tree canopy covered at least 30% "
+                "of the land in 2000.\n\n"
+                "Drivers are mapped at about 1 km: each cell shows the "
+                "dominant driver of its loss from 2001 to 2025, not the "
+                "cause of each event, so the split in a small area is "
+                "coarse."
+            ),
+            "es": (
+                "**Cómo leer esta sección**\n\n"
+                "La pérdida de cobertura arbórea es la eliminación del "
+                "dosel arbóreo por cualquier motivo, incluidos la "
+                "cosecha, los incendios, las enfermedades y las "
+                "tormentas. No es lo mismo que la deforestación: incluye "
+                "la cosecha de plantaciones, y los datos no registran la "
+                "regeneración.\n\n"
+                "La pérdida se cuenta donde el dosel arbóreo cubría al "
+                "menos el 30 % del terreno en 2000.\n\n"
+                "Las causas se cartografían a cerca de 1 km: cada celda "
+                "muestra la causa dominante de su pérdida de 2001 a 2025, "
+                "no la causa de cada evento, por lo que la división en un "
+                "área pequeña es aproximada."
+            ),
+            "fr": (
+                "**Comment lire cette section**\n\n"
+                "La perte de couvert arboré est la disparition du couvert "
+                "arboré pour quelque raison que ce soit, y compris la "
+                "récolte, les incendies, les maladies et les tempêtes. Ce "
+                "n'est pas la même chose que la déforestation : elle "
+                "comprend la récolte des plantations, et les données ne "
+                "suivent pas la repousse.\n\n"
+                "La perte est comptée là où le couvert arboré couvrait au "
+                "moins 30 % du sol en 2000.\n\n"
+                "Les facteurs sont cartographiés à environ 1 km : chaque "
+                "cellule indique le facteur dominant de sa perte de 2001 "
+                "à 2025, et non la cause de chaque événement ; la "
+                "répartition dans une petite zone est donc approximative."
+            ),
+            "pt": (
+                "**Como ler esta seção**\n\n"
+                "A perda de cobertura arbórea é a remoção do dossel "
+                "arbóreo por qualquer motivo, incluindo colheita, "
+                "incêndios, doenças e tempestades. Não é o mesmo que "
+                "desmatamento: inclui a colheita de plantações, e os "
+                "dados não acompanham a regeneração.\n\n"
+                "A perda é contada onde o dossel arbóreo cobria pelo "
+                "menos 30% do terreno em 2000.\n\n"
+                "Os fatores são mapeados a cerca de 1 km: cada célula "
+                "mostra o fator dominante da sua perda de 2001 a 2025, "
+                "não a causa de cada evento, por isso a divisão em uma "
+                "área pequena é aproximada."
+            ),
+            "id": (
+                "**Cara membaca bagian ini**\n\n"
+                "Kehilangan tutupan pohon adalah hilangnya kanopi pohon "
+                "karena alasan apa pun, termasuk pemanenan, kebakaran, "
+                "penyakit, dan badai. Ini tidak sama dengan deforestasi: "
+                "termasuk pemanenan hutan tanaman, dan data tidak melacak "
+                "pertumbuhan kembali.\n\n"
+                "Kehilangan dihitung di tempat kanopi pohon menutupi "
+                "setidaknya 30% lahan pada tahun 2000.\n\n"
+                "Pemicu dipetakan pada resolusi sekitar 1 km: setiap sel "
+                "menunjukkan pemicu dominan kehilangannya dari 2001 "
+                "hingga 2025, bukan penyebab setiap kejadian, sehingga "
+                "pembagian di area kecil bersifat kasar."
+            ),
+            "de": (
+                "**So lesen Sie diesen Abschnitt**\n\n"
+                "Baumbestandsverlust ist der Verlust des Kronendachs aus "
+                "beliebigem Grund, etwa durch Holzernte, Feuer, "
+                "Krankheiten und Stürme. Er ist nicht dasselbe wie "
+                "Entwaldung: Er umfasst die Ernte von Plantagen, und die "
+                "Daten erfassen kein Nachwachsen.\n\n"
+                "Verlust wird gezählt, wo das Kronendach im Jahr 2000 "
+                "mindestens 30 % der Fläche bedeckte.\n\n"
+                "Die Ursachen sind in Zellen von etwa 1 km kartiert: Jede "
+                "Zelle zeigt die dominante Ursache ihres Verlusts von "
+                "2001 bis 2025, nicht die Ursache jedes einzelnen "
+                "Ereignisses. In einem kleinen Gebiet ist die Aufteilung "
+                "daher grob."
+            ),
+            "it": (
+                "**Come leggere questa sezione**\n\n"
+                "La perdita di copertura arborea è la rimozione della "
+                "chioma degli alberi per qualsiasi motivo, inclusi "
+                "raccolta, incendi, malattie e tempeste. Non equivale "
+                "alla deforestazione: include la raccolta nelle "
+                "piantagioni, e i dati non tengono traccia della "
+                "ricrescita.\n\n"
+                "La perdita è conteggiata dove la chioma degli alberi "
+                "copriva almeno il 30% del terreno nel 2000.\n\n"
+                "I fattori sono mappati a circa 1 km: ogni cella mostra "
+                "il fattore dominante della sua perdita dal 2001 al 2025, "
+                "non la causa di ogni evento, quindi in un'area piccola "
+                "la ripartizione è approssimativa."
+            ),
+            "nl": (
+                "**Zo leest u deze sectie**\n\n"
+                "Verlies aan boomkroonbedekking is het verdwijnen van het "
+                "bladerdak om welke reden dan ook, waaronder houtoogst, "
+                "brand, ziekte en stormen. Het is niet hetzelfde als "
+                "ontbossing: het omvat de oogst van plantages, en de "
+                "gegevens volgen geen hergroei.\n\n"
+                "Verlies wordt geteld waar het bladerdak in 2000 ten "
+                "minste 30% van het land bedekte.\n\n"
+                "Oorzaken zijn in kaart gebracht op ongeveer 1 km: elke "
+                "cel toont de dominante oorzaak van het verlies van 2001 "
+                "tot 2025, niet de oorzaak van elke gebeurtenis, dus in "
+                "een klein gebied is de verdeling grof."
+            ),
+            "ru": (
+                "**Как читать этот раздел**\n\n"
+                "Потеря древесного покрова означает исчезновение полога "
+                "деревьев по любой причине, включая рубки, пожары, "
+                "болезни и бури. Это не то же самое, что обезлесение: "
+                "сюда входит заготовка древесины на плантациях, а данные "
+                "не отслеживают восстановление.\n\n"
+                "Потеря учитывается там, где в 2000 году полог деревьев "
+                "покрывал не менее 30% площади.\n\n"
+                "Причины картированы с разрешением около 1 км: каждая "
+                "ячейка показывает основную причину потерь в ней с 2001 "
+                "по 2025 год, а не причину каждого события, поэтому для "
+                "небольшой территории распределение приблизительное."
+            ),
+            "zh": (
+                "**如何阅读本部分**\n\n"
+                "树木覆盖损失是指因任何原因造成的树冠消失，包括采伐、火灾、病害和风暴。它不等同于毁林：其中包括人工林采伐，且数据不追踪再生情况。\n\n"
+                "损失的统计范围为2000年树冠覆盖度至少达到30%的土地。\n\n"
+                "驱动因素按约1公里的网格绘制：每个网格显示其2001年至2025年损失的主要驱动因素，而非每次事件的原因，因此小区域内的划分较为粗略。"
+            ),
+            "ar": (
+                "**كيفية قراءة هذا القسم**\n\n"
+                "فقدان الغطاء الشجري هو إزالة ظلة الأشجار لأي سبب، بما في "
+                "ذلك الحصاد والحرائق والأمراض والعواصف. وهو ليس نفس إزالة "
+                "الغابات: فهو يشمل حصاد المزارع الشجرية، ولا تتتبع "
+                "البيانات إعادة النمو.\n\n"
+                "يُحتسب الفقدان حيث كانت ظلة الأشجار تغطي 30% على الأقل "
+                "من الأرض في عام 2000.\n\n"
+                "رُسمت المسببات على خرائط بدقة تقارب 1 كم: تُظهر كل خلية "
+                "المسبب الرئيسي للفقدان فيها من 2001 إلى 2025، وليس سبب "
+                "كل حدث، لذا يكون التقسيم في المناطق الصغيرة تقريبيًا."
+            ),
+            "hi": (
+                "**इस खंड को कैसे पढ़ें**\n\n"
+                "वृक्ष आवरण हानि किसी भी कारण से वृक्ष छत्र का हटना है, "
+                "जिसमें कटाई, आग, रोग और तूफ़ान शामिल हैं। यह वनों की "
+                "कटाई के समान नहीं है: इसमें बागानों की कटाई शामिल है, और "
+                "डेटा पुनर्वृद्धि को ट्रैक नहीं करता।\n\n"
+                "हानि वहाँ गिनी जाती है जहाँ 2000 में वृक्ष छत्र ने कम से "
+                "कम 30% भूमि को ढका था।\n\n"
+                "कारकों का मानचित्रण लगभग 1 किमी पर किया गया है: प्रत्येक "
+                "सेल 2001 से 2025 तक अपनी हानि का प्रमुख कारक दिखाता है, "
+                "हर घटना का कारण नहीं, इसलिए छोटे क्षेत्र में विभाजन मोटा "
+                "होता है।"
+            ),
+            "vi": (
+                "**Cách đọc phần này**\n\n"
+                "Mất độ che phủ cây là việc tán cây bị mất vì bất kỳ lý "
+                "do nào, bao gồm khai thác, cháy, dịch bệnh và bão. Điều "
+                "này không đồng nghĩa với phá rừng: nó bao gồm cả khai "
+                "thác rừng trồng, và dữ liệu không theo dõi việc tái "
+                "sinh.\n\n"
+                "Diện tích mất được tính ở những nơi tán cây che phủ ít "
+                "nhất 30% diện tích đất vào năm 2000.\n\n"
+                "Nguyên nhân được lập bản đồ ở độ phân giải khoảng 1 km: "
+                "mỗi ô cho thấy nguyên nhân chính gây mất độ che phủ "
+                "trong ô đó từ 2001 đến 2025, không phải nguyên nhân của "
+                "từng sự kiện, vì vậy việc phân chia ở khu vực nhỏ chỉ "
+                "mang tính tương đối."
+            ),
+            "sw": (
+                "**Jinsi ya kusoma sehemu hii**\n\n"
+                "Upotevu wa uoto wa miti ni kuondolewa kwa mwavuli wa "
+                "miti kwa sababu yoyote, ikiwemo uvunaji, moto, magonjwa "
+                "na dhoruba. Si sawa na ukataji wa misitu: unajumuisha "
+                "uvunaji wa mashamba ya miti, na data haifuatilii uotaji "
+                "upya.\n\n"
+                "Upotevu huhesabiwa mahali ambapo mwavuli wa miti "
+                "ulifunika angalau 30% ya ardhi mwaka 2000.\n\n"
+                "Vichocheo vimechorwa kwenye ramani kwa takriban kilomita "
+                "1: kila seli inaonyesha kichocheo kikuu cha upotevu wake "
+                "kuanzia 2001 hadi 2025, si chanzo cha kila tukio, hivyo "
+                "mgawanyo katika eneo dogo ni wa jumla."
+            ),
+            "tr": (
+                "**Bu bölüm nasıl okunur**\n\n"
+                "Ağaç örtüsü kaybı, hasat, yangın, hastalık ve fırtınalar "
+                "dahil herhangi bir nedenle ağaç tacının ortadan "
+                "kalkmasıdır. Ormansızlaşma ile aynı şey değildir: "
+                "plantasyon hasatlarını da içerir ve veriler yeniden "
+                "büyümeyi izlemez.\n\n"
+                "Kayıp, 2000 yılında ağaç tacının arazinin en az %30'unu "
+                "kapladığı yerlerde sayılır.\n\n"
+                "Etkenler yaklaşık 1 km çözünürlükte haritalanmıştır: her "
+                "hücre, 2001-2025 dönemindeki kaybının baskın etkenini "
+                "gösterir, her olayın nedenini değil; bu nedenle küçük "
+                "bir alandaki dağılım kabadır."
+            ),
+        },
     }
 )
 
