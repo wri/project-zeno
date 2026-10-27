@@ -1,3 +1,4 @@
+import httpx
 import pytest
 
 
@@ -181,3 +182,77 @@ async def test_list_rejects_out_of_range_paging(auth_override, client):
     for query in ("limit=0", "limit=101", "offset=-1"):
         res = await client.get(f"/api/custom_areas?{query}", headers=AUTH)
         assert res.status_code == 422, query
+
+
+@pytest.mark.asyncio
+async def test_create_syncs_dissolved_area_to_store(
+    auth_override, client, custom_aoi_store
+):
+    auth_override("test-user-wri")
+    area_id = await _create(client, "Synced")
+
+    [[aoi]] = custom_aoi_store.saved
+    assert aoi["id"] == area_id
+    assert aoi["name"] == "Synced"
+    assert aoi["user_id"] == "test-user-wri"
+    assert aoi["email"] == "admin@wri.org"
+    assert aoi["geometry"]["type"] == "MultiPolygon"
+
+
+@pytest.mark.asyncio
+async def test_upload_syncs_every_area_in_one_save(
+    auth_override, client, custom_aoi_store
+):
+    auth_override("test-user-wri")
+    content = (
+        "name,geom\n"
+        'A,"POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))"\n'
+        'B,"POLYGON((2 2, 2 3, 3 3, 3 2, 2 2))"\n'
+    )
+    res = await client.post(
+        "/api/custom_areas/upload",
+        files={"file": ("areas.csv", content, "text/csv")},
+        headers=AUTH,
+    )
+    assert res.status_code == 200, res.text
+
+    [aois] = custom_aoi_store.saved
+    assert {aoi["name"] for aoi in aois} == {"A", "B"}
+
+
+@pytest.mark.asyncio
+async def test_rename_resyncs_area(auth_override, client, custom_aoi_store):
+    auth_override("test-user-wri")
+    area_id = await _create(client, "Old")
+
+    res = await client.patch(
+        f"/api/custom_areas/{area_id}", json={"name": "New"}, headers=AUTH
+    )
+    assert res.status_code == 200
+
+    [aoi] = custom_aoi_store.saved[-1]
+    assert (aoi["id"], aoi["name"]) == (area_id, "New")
+
+
+@pytest.mark.asyncio
+async def test_delete_removes_area_from_store(
+    auth_override, client, custom_aoi_store
+):
+    auth_override("test-user-wri")
+    area_id = await _create(client, "Doomed")
+
+    res = await client.delete(f"/api/custom_areas/{area_id}", headers=AUTH)
+    assert res.status_code == 204
+    assert custom_aoi_store.deleted == [area_id]
+
+
+@pytest.mark.asyncio
+async def test_store_failure_does_not_fail_request(
+    auth_override, client, custom_aoi_store
+):
+    auth_override("test-user-wri")
+    custom_aoi_store.error = httpx.ConnectError("down")
+
+    area_id = await _create(client, "Unsynced")
+    res = await client.delete(f"/api/custom_areas/{area_id}", headers=AUTH)
+    assert res.status_code == 204
