@@ -6,7 +6,7 @@ import pytest
 
 from src.agent.i18n import MESSAGES
 from src.agent.subagents.analyst.charts import InsightChart
-from src.api.services.analysis_templates.facts import chart_fact
+from src.api.services.analysis_templates.facts import chart_facts
 from src.api.services.analysis_templates.models import ChartFact
 
 SENTENCES = {
@@ -42,15 +42,21 @@ LOSS = _chart(
 
 
 async def _fact(kind, chart, empty_key=None):
+    """The one fact's sentence, or None when it gives none."""
     with patch.dict(MESSAGES, SENTENCES):
-        return await chart_fact(
-            ChartFact(kind=kind, text_key=f"test.{kind}", empty_key=empty_key),
+        sentences = await chart_facts(
+            [
+                ChartFact(
+                    kind=kind, text_key=f"test.{kind}", empty_key=empty_key
+                )
+            ],
             chart,
             aoi_name="Paraná",
             start="2021-01-01",
             end="2023-12-31",
             language="en",
         )
+    return sentences[0] if sentences else None
 
 
 async def test_total_is_the_sum_of_the_areas_over_the_period():

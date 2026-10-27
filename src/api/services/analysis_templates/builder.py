@@ -57,7 +57,7 @@ from src.api.services.alerts_list import (
     UnsupportedAreaError,
 )
 from src.api.services.analysis_templates.facts import (
-    chart_fact,
+    chart_facts,
     hectares,
     percent,
 )
@@ -238,8 +238,8 @@ async def _curated_charts(
     generators: Sequence[ChartGenerator] = DETERMINISTIC_GENERATORS,
     titles: Optional[Sequence[str]] = None,
     **options,
-) -> tuple[list[InsightChart], DataPullResult]:
-    """The dataset's curated charts for the period, and the pull they were
+) -> tuple[list[InsightChart], list[dict]]:
+    """The dataset's curated charts for the period, and the rows they were
     built from. ``titles`` keeps the charts with those title keys.
     ``options`` go to ``AnalyzeService.analyze``."""
     record = _dataset_record(dataset_id)
@@ -251,7 +251,6 @@ async def _curated_charts(
         dataset_id=dataset_id,
         start_date=start,
         end_date=end,
-        language=context.language,
         **options,
     )
     if not result.data.success:
@@ -269,7 +268,7 @@ async def _curated_charts(
         raise WidgetFailedError(
             f"No chart is available for {record['dataset_name']}."
         )
-    return charts, result.data
+    return charts, rows
 
 
 async def _build_chart(
@@ -280,18 +279,14 @@ async def _build_chart(
     charts, _ = await _curated_charts(
         spec.dataset_id, context, start, end, titles=spec.charts
     )
-    facts = []
-    for fact in spec.facts:
-        sentence = await chart_fact(
-            fact,
-            charts[0],
-            aoi_name=context.aoi["name"],
-            start=start,
-            end=end,
-            language=context.language,
-        )
-        if sentence is not None:
-            facts.append(sentence)
+    facts = await chart_facts(
+        spec.facts,
+        charts[0],
+        aoi_name=context.aoi["name"],
+        start=start,
+        end=end,
+        language=context.language,
+    )
     return BuiltWidget(
         widget=SectionWidget(
             widget_type="insight",
@@ -377,7 +372,7 @@ async def _build_natural_forest_loss(
     record = _dataset_record(spec.dataset_id)
     start, end = await _period(spec.dataset_id, context, "natural_forest")
     try:
-        charts, pull = await _curated_charts(
+        charts, rows = await _curated_charts(
             spec.dataset_id,
             context,
             start,
@@ -385,9 +380,7 @@ async def _build_natural_forest_loss(
             [TCLNaturalForestChartGenerator(int(start[:4]), int(end[:4]))],
             forest_breakdown="natural_forest",
         )
-        natural_ha, total_ha = natural_forest_totals(
-            column_to_rows(pull.data) if pull.data else []
-        )
+        natural_ha, total_ha = natural_forest_totals(rows)
     except ValueError as error:
         raise WidgetFailedError(
             f"Unexpected {record['dataset_name']} data for "

@@ -9,6 +9,7 @@ from src.api.services.charts.base import ChartGenerator
 
 # The annual loss bars take the colour of the tree cover loss map layer.
 LOSS_COLOR = PALETTES[TREE_COVER_LOSS_ID]["series_color"]
+assert LOSS_COLOR is not None
 
 
 class TCLChartGenerator(ChartGenerator):

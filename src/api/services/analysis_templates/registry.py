@@ -5,6 +5,7 @@ from typing import Optional
 
 from pydantic import Field
 
+from src.agent.datasets.config import DATASETS
 from src.agent.datasets.handlers.analytics_handler import (
     INTEGRATED_ALERTS_ID,
     TREE_COVER_LOSS_BY_DRIVER_ID,
@@ -45,11 +46,20 @@ class Post2020ForestLossArgs(TemplateArgs):
         return date(FIRST_YEAR, 1, 1), today
 
 
+# The first day of tree cover loss data, from the catalog.
+TREE_COVER_LOSS_START = date.fromisoformat(
+    next(
+        d["start_date"]
+        for d in DATASETS
+        if d["dataset_id"] == TREE_COVER_LOSS_ID
+    )
+)
+
+
 class ForestLossDriversArgs(TemplateArgs):
     def period(self, today: date) -> tuple[date, date]:
-        # From the first year of tree cover loss data. The widgets clamp the
-        # end to the last year (2025).
-        return date(2001, 1, 1), today
+        # The widgets clamp the end to the last year of loss data.
+        return TREE_COVER_LOSS_START, today
 
 
 NRT_MONITORING_RULES = (

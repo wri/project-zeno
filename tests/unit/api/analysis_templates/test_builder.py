@@ -222,29 +222,32 @@ async def test_layer_with_a_context_layer_and_a_size():
     assert dataset["tile_url"].endswith("&start_year=2021&end_year=2025")
 
 
+async def _apply_loss_chart(spec, loss):
+    """Build a template of the one tree cover loss chart ``spec``, from
+    2021, with ``loss`` as the pulled rows."""
+    template = NRT.model_copy(
+        update={"args_model": Post2020ForestLossArgs, "widgets": (spec,)}
+    )
+    mocks, stack = _patches(
+        pull=_pull(data=loss), written=("section-1", ["w1"])
+    )
+    await _apply(stack, template=template)
+    return mocks
+
+
 @pytest.mark.asyncio
 async def test_chart_widget_keeps_only_the_named_charts():
-    template = NRT.model_copy(
-        update={
-            "args_model": Post2020ForestLossArgs,
-            "widgets": (
-                ChartWidgetSpec(
-                    dataset_id=TREE_COVER_LOSS_ID,
-                    charts=("charts.tcl.annual_loss",),
-                ),
-            ),
-        }
-    )
     loss = {
         "tree_cover_loss_year": [2021, 2022],
         "area_ha": [10.0, 20.0],
         "carbon_emissions_MgCO2e": [1.0, 2.0],
     }
-    mocks, stack = _patches(
-        pull=_pull(data=loss), written=("section-1", ["w1"])
+    mocks = await _apply_loss_chart(
+        ChartWidgetSpec(
+            dataset_id=TREE_COVER_LOSS_ID, charts=("charts.tcl.annual_loss",)
+        ),
+        loss,
     )
-
-    await _apply(stack, template=template)
 
     (widget,) = mocks.write.await_args.kwargs["widgets"]
     # Tree cover loss makes two charts; the emissions chart is left out.
@@ -254,32 +257,22 @@ async def test_chart_widget_keeps_only_the_named_charts():
 
 @pytest.mark.asyncio
 async def test_chart_widget_facts_go_to_the_text_model_in_order():
-    template = NRT.model_copy(
-        update={
-            "args_model": Post2020ForestLossArgs,
-            "widgets": (
-                ChartWidgetSpec(
-                    dataset_id=TREE_COVER_LOSS_ID,
-                    charts=("charts.tcl.annual_loss",),
-                    facts=(
-                        ChartFact(kind="peak", text_key="test.peak"),
-                        ChartFact(kind="total", text_key="test.total"),
-                    ),
-                ),
-            ),
-        }
+    spec = ChartWidgetSpec(
+        dataset_id=TREE_COVER_LOSS_ID,
+        charts=("charts.tcl.annual_loss",),
+        facts=(
+            ChartFact(kind="peak", text_key="test.peak"),
+            ChartFact(kind="total", text_key="test.total"),
+        ),
     )
     loss = {"tree_cover_loss_year": [2021, 2022], "area_ha": [10.0, 20.0]}
-    mocks, stack = _patches(
-        pull=_pull(data=loss), written=("section-1", ["w1"])
-    )
     sentences = {
         "test.peak": {"en": "Peak {category}."},
         "test.total": {"en": "{total} ha from {start_year} to {end_year}."},
     }
 
     with patch.dict(MESSAGES, sentences):
-        await _apply(stack, template=template)
+        mocks = await _apply_loss_chart(spec, loss)
 
     # The period is clamped to the end of the loss data.
     assert mocks.text.await_args.kwargs["facts"] == [
@@ -922,19 +915,24 @@ async def test_a_missing_note_writes_nothing():
 POST_2020 = get_template("post-2020-forest-loss")
 
 
-async def _apply_post_2020():
-    # A model that records its prompt, then fails, so the section gets the
-    # fallback text.
+def _with_fallback_text(mocks):
+    """A text model that records its prompt, then fails, so the section
+    gets the fallback text."""
     model = _FakeModel(RuntimeError("no model in unit tests"))
-    mocks, stack = _patches(
-        pull=_pull(data=NATURAL_FOREST_DATA),
-        written=("section-1", ["w1", "w2", "w3"]),
-    )
 
     async def _text(*args, **kwargs):
         return await text.generate_section_text(*args, model=model, **kwargs)
 
     mocks.text.side_effect = _text
+    return model
+
+
+async def _apply_post_2020():
+    mocks, stack = _patches(
+        pull=_pull(data=NATURAL_FOREST_DATA),
+        written=("section-1", ["w1", "w2", "w3"]),
+    )
+    model = _with_fallback_text(mocks)
     result = await _apply(stack, template=POST_2020)
     return result, mocks, model
 
@@ -1020,9 +1018,6 @@ LOSS_FACTS = [
 
 
 async def _apply_forest_loss_drivers(loss=LOSS, drivers=DRIVERS):
-    # A model that records its prompt, then fails, so the section gets the
-    # fallback text.
-    model = _FakeModel(RuntimeError("no model in unit tests"))
     mocks, stack = _patches(written=("section-1", ["w1", "w2", "w3", "w4"]))
 
     async def pull(**kwargs):
@@ -1030,11 +1025,8 @@ async def _apply_forest_loss_drivers(loss=LOSS, drivers=DRIVERS):
             return _pull(data=drivers)
         return _pull(data=loss)
 
-    async def _text(*args, **kwargs):
-        return await text.generate_section_text(*args, model=model, **kwargs)
-
     mocks.pull.side_effect = pull
-    mocks.text.side_effect = _text
+    model = _with_fallback_text(mocks)
     result = await _apply(stack, template=FOREST_LOSS_DRIVERS)
     return result, mocks, model
 

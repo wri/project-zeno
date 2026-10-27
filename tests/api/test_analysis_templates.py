@@ -24,6 +24,8 @@ from src.api.services.analysis_templates.registry import (
     NrtMonitoringArgs,
     Post2020ForestLossArgs,
 )
+from src.api.services.charts.tcl import LOSS_COLOR
+from src.api.services.charts.tcl_by_driver import DRIVER_COLORS
 from src.api.services.dashboard_alerts import AlertsUnavailableError
 from tests.api.test_dashboards import AUTH, _create_dashboard, _create_user
 from tests.conftest import async_session_maker
@@ -276,12 +278,12 @@ async def test_apply_forest_loss_drivers(client, auth_override):
         "map",
     ]
     loss, drivers, note, layer = widgets
-    # Each chart takes the colours of its map layer.
+    # The map layers' chart colours survive the round trip.
     (bars,) = loss["insight"]["charts"]
-    assert bars["series_color"] == "#DC6C9A"
+    assert bars["series_color"] == LOSS_COLOR
     (pie,) = drivers["insight"]["charts"]
     assert pie["chart_type"] == "pie"
-    assert pie["color_map"] == {"Logging": "#52A44E"}
+    assert pie["color_map"] == {"Logging": DRIVER_COLORS["logging"]}
     assert drivers["config"] == {"size": "single"}
     assert note["config"]["size"] == "single"
     assert "size" not in layer["config"]

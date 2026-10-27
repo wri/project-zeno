@@ -5,11 +5,12 @@ widget's facts read its first chart, whose y axis is an area in hectares.
 """
 
 import math
-from typing import Any, Optional
+from typing import Any, Sequence
 
 from src.agent.i18n import t
 from src.agent.subagents.analyst.charts import InsightChart
 from src.api.services.analysis_templates.models import ChartFact
+from src.api.services.charts.base import by_area_desc
 
 
 def hectares(value: float) -> str:
@@ -37,53 +38,55 @@ def _label(value: Any) -> str:
     return str(value)
 
 
-def _areas(chart: InsightChart) -> list[tuple[str, float]]:
-    """(x value, area) for each row with an area, in chart order."""
-    if chart.y_axis != "area_ha":
-        raise ValueError(
-            f"Chart facts read areas in hectares, not '{chart.y_axis}'."
-        )
-    return [
-        (_label(row[chart.x_axis]), float(row["area_ha"]))
-        for row in chart.chart_data
-        if row.get("area_ha")
-    ]
-
-
-def _values(kind: str, areas: list[tuple[str, float]]) -> Optional[dict]:
-    """The figures of one fact, formatted; None when there is no area."""
-    total = math.fsum(area for _, area in areas)
-    if total <= 0:
-        return None
+def _values(kind: str, x_axis: str, rows: list[dict]) -> dict:
+    """The figures of one fact over rows with an area, largest first."""
+    total = math.fsum(row["area_ha"] for row in rows)
     if kind == "total":
         return {"total": hectares(total)}
-    # The first of equal areas, in chart order: the earlier year.
-    category, value = max(areas, key=lambda item: item[1])
-    values = {"category": category, "value": hectares(value)}
+    # by_area_desc keeps chart order among equal areas: the earlier year.
+    top = rows[0]
+    values = {
+        "category": _label(top[x_axis]),
+        "value": hectares(top["area_ha"]),
+    }
     if kind == "top_share":
-        values |= {"share": percent(value, total), "total": hectares(total)}
+        values |= {
+            "share": percent(top["area_ha"], total),
+            "total": hectares(total),
+        }
     return values
 
 
-async def chart_fact(
-    fact: ChartFact,
+async def chart_facts(
+    facts: Sequence[ChartFact],
     chart: InsightChart,
     *,
     aoi_name: str,
     start: str,
     end: str,
     language: str,
-) -> Optional[str]:
-    """The fact's sentence in ``language``, its empty sentence when the
-    chart has no area, or None when it has no empty sentence."""
+) -> list[str]:
+    """The facts' sentences in ``language``, in order. With no area, a
+    fact gives its empty sentence, or nothing when it has none."""
+    if not facts:
+        return []
+    if chart.y_axis != "area_ha":
+        raise ValueError(
+            f"Chart facts read areas in hectares, not '{chart.y_axis}'."
+        )
+    rows = by_area_desc(chart.chart_data)
     common = {
         "aoi_name": aoi_name,
         "start_year": start[:4],
         "end_year": end[:4],
     }
-    values = _values(fact.kind, _areas(chart))
-    if values is None:
-        if fact.empty_key is None:
-            return None
-        return await t(fact.empty_key, language, **common)
-    return await t(fact.text_key, language, **common, **values)
+    sentences = []
+    for fact in facts:
+        if rows:
+            values = _values(fact.kind, chart.x_axis, rows)
+            sentences.append(
+                await t(fact.text_key, language, **common, **values)
+            )
+        elif fact.empty_key is not None:
+            sentences.append(await t(fact.empty_key, language, **common))
+    return sentences

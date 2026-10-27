@@ -9,6 +9,7 @@ from src.agent.datasets.handlers.analytics_handler import (
 from src.agent.datasets.palette import PALETTES
 from src.agent.subagents.analyst.charts import InsightChart
 from src.api.services.charts.base import ChartGenerator
+from src.api.services.charts.tcl import LOSS_COLOR
 
 # The SBTN Natural Lands Map is a 2020 baseline, so the split covers loss
 # from 2021 on. The analytics API rejects an earlier start.
@@ -28,11 +29,9 @@ _NATURAL_FOREST_COLOR = next(
     for category in PALETTES[NATURAL_LANDS_ID]["categories"]
     if category["slug"] == "natural_forests"
 )
-_TREE_COVER_LOSS_COLOR = PALETTES[TREE_COVER_LOSS_ID]["series_color"]
-assert _TREE_COVER_LOSS_COLOR is not None
 SERIES_COLORS = {
     NATURAL_SERIES: _NATURAL_FOREST_COLOR,
-    OTHER_SERIES: _TREE_COVER_LOSS_COLOR,
+    OTHER_SERIES: LOSS_COLOR,
 }
 
 
