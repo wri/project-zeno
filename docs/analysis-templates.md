@@ -61,7 +61,8 @@ language, and `color_map` is keyed by them. The map config sets `size` and
 The `label` is in the user's language. `args_schema` is the JSON schema of
 the template arguments. Use it to make the form: it gives each argument, its
 default and its limits. `widgets` gives the widget kinds: `chart`,
-`natural_forest_loss` (a chart), `layer` or `imagery`.
+`natural_forest_loss` (a chart), `layer`, `imagery` or `text` (a fixed
+note).
 
 ### Apply a template
 
@@ -169,16 +170,20 @@ section by hand for all other requests.
 3. Add the three i18n keys (label, fallback title, fallback description) to
    `src/agent/i18n.py`. The fallback text can use `{aoi_name}`,
    `{start_date}` and `{end_date}`. The widget facts go before the fallback
-   description.
+   description. A text widget needs one more key, its note, which takes no
+   placeholders.
 4. Run `tests/unit/api/analysis_templates/test_templates.py`. It checks that
    each chart dataset has a curated chart generator, that each layer dataset
    has a tile layer, that the i18n keys exist and that the default arguments
    are valid.
 
 You do not have to write code if the template uses the widget kinds `chart`,
-`natural_forest_loss`, `layer` and `imagery`. A layer widget can set a
-`context_layer`; every widget can set its `size`. A template can set
-`description_rules` for a longer description. For a new widget kind, add a
+`natural_forest_loss`, `layer`, `imagery` and `text`. A layer widget can set a
+`context_layer`; every widget can set its `size`. A text widget shows the
+markdown of its `text_key` in the user's language, for example how to read
+the charts. The text model sees the note, so `description_rules` can tell it
+not to repeat it. A template can set `description_rules` for a longer
+description. For a new widget kind, add a
 spec class to `models.py` and a builder function to `builder.py`.
 
 ## Limits
