@@ -128,6 +128,47 @@ def test_tcl_by_driver_excludes_unknown():
     ]
 
 
+# The driver labels the analytics API returns, with both spellings of the
+# settlements class.
+UPSTREAM_DRIVERS = [
+    "Permanent agriculture",
+    "Hard commodities",
+    "Shifting cultivation",
+    "Logging",
+    "Wildfire",
+    "Settlements and infrastructure",
+    "Settlements & Infrastructure",
+    "Other natural disturbances",
+]
+
+
+def test_tcl_by_driver_slices_take_the_driver_map_layer_colours():
+    rows = [
+        {"tree_cover_loss_driver": label, "area_ha": 10.0 + index}
+        for index, label in enumerate(UPSTREAM_DRIVERS)
+    ]
+    chart = TCLByDriverChartGenerator().generate(rows)[0]
+
+    # Keyed by the label in the data, which the frontend pie looks up.
+    assert set(chart.color_map) == set(UPSTREAM_DRIVERS)
+    assert chart.color_map["Permanent agriculture"] == "#E39D29"
+    assert (
+        chart.color_map["Settlements and infrastructure"]
+        == chart.color_map["Settlements & Infrastructure"]
+        == "#A354A0"
+    )
+
+
+def test_tcl_by_driver_without_a_colour_leaves_the_slice_out_of_the_map():
+    rows = [
+        {"tree_cover_loss_driver": "Logging", "area_ha": 2.0},
+        {"tree_cover_loss_driver": "Asteroid", "area_ha": 1.0},
+    ]
+    chart = TCLByDriverChartGenerator().generate(rows)[0]
+
+    assert chart.color_map == {"Logging": "#52A44E"}
+
+
 def test_sluc_totals_emissions_by_gas_and_crop():
     rows = [
         {"crop_type": "Banana", "gas_type": "CH4", "emissions_tCO2e": 11.9},

@@ -63,6 +63,13 @@ def test_loss_chart_is_bar_with_correct_axes():
     assert chart.to_orm_kwargs()["y_axis"] == "area_ha"
 
 
+def test_loss_bars_take_the_colour_of_the_loss_map_layer():
+    loss, emissions = TCLChartGenerator().generate(TCL_ROWS)
+    # The catalog series_color the map legend shows for tree cover loss.
+    assert loss.to_frontend_dict()["seriesColor"] == "#DC6C9A"
+    assert emissions.series_color is None
+
+
 def test_emissions_chart_is_separate_bar_with_correct_axes():
     chart = TCLChartGenerator().generate(TCL_ROWS)[1]
     fe = chart.to_frontend_dict()

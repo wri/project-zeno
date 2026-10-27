@@ -276,9 +276,12 @@ async def test_apply_forest_loss_drivers(client, auth_override):
         "text",
     ]
     loss, drivers, layer, note = widgets
-    assert len(loss["insight"]["charts"]) == 1
+    # Each chart takes the colours of its map layer.
+    (bars,) = loss["insight"]["charts"]
+    assert bars["series_color"] == "#DC6C9A"
     (pie,) = drivers["insight"]["charts"]
     assert pie["chart_type"] == "pie"
+    assert pie["color_map"] == {"Logging": "#52A44E"}
     assert drivers["config"] == {"size": "single"}
     assert layer["config"]["size"] == "single"
     assert note["config"]["size"] == "double"
