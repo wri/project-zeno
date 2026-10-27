@@ -17,6 +17,8 @@ from src.api.repositories.subscription_repository import (
     get_subscription_repository,
 )
 from src.api.services.subscription import (
+    AoiType,
+    Dataset,
     Subscription,
     SubscriptionRepository,
 )
@@ -1140,8 +1142,9 @@ async def test_ff_allowed_for_admin(client, auth_override, admin_user_factory):
 SUBSCRIPTION = Subscription(
     subscription_id=UUID("00000000-0000-0000-0000-000000000001"),
     dashboard_id=UUID("00000000-0000-0000-0000-000000000002"),
-    aoi_id=UUID("00000000-0000-0000-0000-000000000003"),
-    dataset_id=4,
+    aoi_type=AoiType.ADMIN,
+    aoi_id="BRA.1",
+    dataset=Dataset.INTEGRATED_ALERTS,
 )
 
 
@@ -1191,7 +1194,8 @@ async def test_list_subscriptions_returns_active_subscriptions(
         {
             "subscription_id": "00000000-0000-0000-0000-000000000001",
             "dashboard_id": "00000000-0000-0000-0000-000000000002",
-            "aoi_id": "00000000-0000-0000-0000-000000000003",
-            "dataset_id": 4,
+            "aoi_type": "admin",
+            "aoi_id": "BRA.1",
+            "dataset": "integrated_alerts",
         }
     ]
