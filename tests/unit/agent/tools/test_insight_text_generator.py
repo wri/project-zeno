@@ -6,6 +6,7 @@ honors the wording guide.
 """
 
 import pytest
+import structlog.testing
 
 from src.agent.subagents.analyst.charts.model import InsightChart
 from src.agent.subagents.analyst.text_generator import (
@@ -111,3 +112,95 @@ async def test_config_is_forwarded_to_chain(generator):
     cfg = {"callbacks": ["x"]}
     await gen.generate(CHARTS, DATASET, query="q", config=cfg)
     assert fake.last_config == cfg
+
+
+# --- non-ASCII words are kept out of the prompt ---------------------------
+
+
+class _EchoChain(_FakeChain):
+    """Answers with the sanitized stand-ins it was given, as a model that
+    copies names from the prompt would."""
+
+    async def ainvoke(self, inputs, config=None):
+        self.last_inputs = inputs
+        return InsightText(
+            primary_insight="Piaui lost 3,600 ha; Sao Paulo lost 10 ha.",
+            follow_up_suggestions=["Why did Piaui change?"],
+        )
+
+
+@pytest.mark.asyncio
+async def test_non_ascii_words_are_sanitized_in_prompt_and_restored():
+    gen = InsightTextGenerator.__new__(InsightTextGenerator)
+    gen._chain = chain = _EchoChain()
+    charts = [
+        InsightChart(
+            position=0,
+            title="Perda de cobertura em Piauí",
+            chart_type="bar",
+            x_axis="year",
+            y_axis="area_ha",
+            chart_data=[{"year": 2020, "area_ha": 1.0}],
+        )
+    ]
+
+    result = await gen.generate(
+        charts,
+        {"cautions": "Dados de São Paulo são estimativas."},
+        query="Perda em Piauí",
+        executor_context="Piauí: 3,600 ha",
+    )
+
+    sent = chain.last_inputs
+    for field in ("query", "executor_context", "cautions", "charts"):
+        assert sent[field].isascii(), field
+    assert "Piaui" in sent["query"]
+    assert "Sao Paulo" in sent["cautions"]
+    assert (
+        result.primary_insight == "Piauí lost 3,600 ha; São Paulo lost 10 ha."
+    )
+    assert result.follow_up_suggestions == ["Why did Piauí change?"]
+
+
+@pytest.mark.asyncio
+async def test_system_prompt_inputs_are_not_sanitized(generator):
+    gen, fake = generator
+    await gen.generate(CHARTS, DATASET, query="Perda em Piauí", language="pt")
+    # The language name tells the model what to write in; it must stay intact.
+    assert fake.last_inputs["language"] == "Português"
+
+
+class _GlitchedChain(_FakeChain):
+    """A model that writes control characters on its own, with no accented
+    word in the prompt to blame (e.g. a Portuguese narrative)."""
+
+    async def ainvoke(self, inputs, config=None):
+        self.last_inputs = inputs
+        return InsightText(
+            primary_insight="A previs\x03o para o Piau\x00 melhorou.",
+            follow_up_suggestions=["Compare com Maranh\x03o."],
+        )
+
+
+@pytest.mark.asyncio
+async def test_control_characters_the_model_writes_itself_are_stripped():
+    gen = InsightTextGenerator.__new__(InsightTextGenerator)
+    gen._chain = _GlitchedChain()
+
+    with structlog.testing.capture_logs() as logs:
+        result = await gen.generate(
+            CHARTS, DATASET, query="Loss?", language="pt"
+        )
+
+    assert result.primary_insight == "A previso para o Piau melhorou."
+    assert result.follow_up_suggestions == ["Compare com Maranho."]
+    # Stripping is logged, tagged with the field it happened in, so a rise in
+    # model-written control characters shows up in the logs.
+    stripped = [
+        log for log in logs if log["event"] == "control_chars_stripped"
+    ]
+    assert [(log["log_level"], log["field"]) for log in stripped] == [
+        ("warning", "text_stage.primary_insight"),
+        ("warning", "text_stage.follow_up_suggestion"),
+    ]
+    assert all(log["count"] >= 1 and log["codepoints"] for log in stripped)
