@@ -1,0 +1,14 @@
+id: 1-024
+uid: e3d6ad96ca778daf
+status: done
+group: comparative
+query: which county in the state of Salto, Uruguay had the least natural grassland in 2001?
+expected:
+  aoi_ids: URY.15.2_2;URY.15.3_2;URY.15.4_2;URY.15.5_2;URY.15.6_2;URY.15.7_2;URY.15.1_2
+  aoi_source: gadm
+  dataset_id: '2'
+  dataset_name: Natural/Semi-Natural Grasslands
+  answer: San Antonio
+  scope: analyse
+notes:
+  aoi_type: gadm 1

@@ -1,0 +1,37 @@
+id: 1-015
+uid: 2c40cfd206ff2757
+status: done
+group: parent-child
+query: Looking at general land cover composition across all vegetation types, which Welsh
+  county had the most land in the short vegetation land cover class in 2024?
+expected:
+  aoi_ids: GBR.4.1_1;GBR.4.2_1;GBR.4.3_1;GBR.4.4_1;GBR.4.5_1;GBR.4.6_1;GBR.4.7_1;GBR.4.8_1;GBR.4.9_1;GBR.4.10_1;GBR.4.11_1;GBR.4.12_1;GBR.4.13_1;GBR.4.14_1;GBR.4.15_1;GBR.4.16_1;GBR.4.17_1;GBR.4.18_1;GBR.4.19_1;GBR.4.20_1;GBR.4.21_1;GBR.4.22_1
+  aoi_source: gadm
+  dataset_id: '1'
+  dataset_name: Global land cover
+  answer: Powys
+  scope: analyse
+  class_values: short vegetation=53,498 hectares
+notes:
+  aoi_type: gadm 1
+  class_1: short vegetation
+  value_1: 53,498 hectares
+  rewrite: 'Named it as a land COVER CLASS — the recorded nudge is a real collision
+    (Global land cover ''short vegetation'' vs SBTN ''natural short vegetation''). class_values
+    corroborated: Powys 53,497.625 ha.
+
+    2026-09-17: that fix was incomplete — this is a three-way collision, not two-way. Live
+    testing showed the agent nudging among "Global land cover", "SBTN Natural Lands Map", AND
+    "Global natural/semi-natural grassland extent" (self-described in its own catalog as
+    "NOT for cultivated grasslands, croplands, or open shrublands — use Global Land Cover for
+    those" — i.e. a narrower dataset that also plausibly answers "short vegetation"). Old
+    wording: 15/36 dataset_id_match failures (~42%) across historical full runs. First
+    attempt, prefixing "Looking at land cover composition, " (the same technique that fully
+    fixed 1-013/1-026): only addressed the SBTN side, 3/9 fresh trials still failed
+    (~33%, within noise of the baseline — no real effect, all three still nudged). Second
+    attempt, prefixing "Looking at general land cover composition across all vegetation
+    types, " (added "across all vegetation types" to also rule out the grassland-only
+    dataset): 17/18 across two 9-trial batches (~94%), a real improvement (at the old 42%
+    rate, ≤1 failure in 18 trials would happen <0.1% of the time by chance) though not fully
+    clean — the one residual failure was the same three-way nudge recurring at a much lower
+    rate, in line with cases/README.md''s documented ~1.2% floor for precisely-worded rows.'

@@ -1,0 +1,15 @@
+id: 1-120
+uid: 0658d8517285c63a
+status: not doing
+group: imagery
+query: Show me alerts and imagery from June 2026 for Tabatinga, Amazonas, Brazil.
+expected:
+  aoi_source: gadm
+  dataset_id: 0;11
+  dataset_name: Integrated alerts
+  text: Returns satellite imagery covering June 2026
+notes:
+  planet_routing: Planet MVP (wri/project-zeno#800) — tests that a historical month in the
+    Amazon routes to show_planet_imagery. Planet publishes one mosaic per calendar month through
+    the last complete month, so June 2026 should be available.
+  aoi_pending: AOI ID unverified — add aoi_ids after first validation run.

@@ -1,0 +1,36 @@
+id: 1-042
+uid: 98a07007f57e6829
+status: done
+group: direct
+query: For the Vale do Javari indigenous land, Brazil, what was the total of the annual carbon
+  emissions due to deforestation for each year from 2010 through 2018.
+expected:
+  aoi_source: Landmark
+  dataset_id: '4'
+  dataset_name: Forest GHG emissions
+  scope: analyse
+notes:
+  aoi_type: Landmark
+  depth: '2026-08-04: scope added for depth; deliberately NO answer. The agent reports two
+    different totals for this query across committed trials — 2,294.15 MgCO2e and 1,385.49
+    MgCO2e, a ~40% spread — so no figure is defensible yet. Filed upstream instead.'
+  dataset_name_fix: id 4 is Tree cover loss; 'Forest GHG emissions' is not a registry name.
+    Emissions ride on dataset 4.
+  rewrite: '2026-09-18: original wording ("What was the total carbon emissions due to
+    deforestation ... between 2010 and 2018?") had a real dataset_choice nudge toward dataset
+    6 (Forest greenhouse gas net flux) instead of the expected dataset 4 (Tree cover loss) —
+    14/27 (~52%) dataset_id_match failures across default-profile runs 2026-09-10..2026-09-18,
+    the highest baseline rate found this session. Root cause confirmed against dataset 6''s
+    own catalog selection_hints: it explicitly recommends itself "for any non-admin AOI
+    (protected areas, KBAs, landmark, custom areas)" — matching this case''s Landmark AOI —
+    even though it structurally cannot answer a sub-range like "between 2010 and 2018" (fixed
+    2001-2025 cumulative-only). Dataset 6''s hints also say "for annual tree cover loss or
+    emissions timeseries, use Tree Cover Loss dataset" — the cue used to steer the rewording.
+
+    New wording ("For the Vale do Javari indigenous land, Brazil, what was the total of the
+    annual carbon emissions due to deforestation for each year from 2010 through 2018."):
+    3/18 (~17%) dataset_id_match failures across two fresh 9-trial batches
+    (20260918T023855Z_staging, 20260918T024712Z_staging) — a real, strong improvement (0.24%
+    chance of being noise at the 52% baseline rate) but not a clean fix; residual failures are
+    the same dataset 6 vs 4 nudge, just much less frequent. Same category as 1-062/1-063 —
+    partial, not clean.'

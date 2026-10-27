@@ -1,0 +1,30 @@
+id: 1-137
+uid: 9237ca294507119f
+status: done
+group: context-layer
+query: How many integrated alerts were recorded in no-conversion areas of Ghana in 2024?
+expected:
+  aoi_ids: GHA
+  aoi_source: gadm
+  dataset_id: '11'
+  dataset_name: Integrated alerts
+  context_layer: natural_lands
+  start_date: '2024-01-01'
+  end_date: '2024-12-31'
+  answer: 253,839.30 hectares
+  scope: analyse
+notes:
+  aoi_type: gadm 0
+  origin: GNW offline evals sheet, (1) GOLD tab row 116 (sheet test_id 1-115, "Not doing"
+    there), imported 2026-10-09.
+  rewrite: 'sheet year 2023 moved to 2024: Integrated alerts starts 2023-12-01, so 2023 holds
+    only one month of data (AJ, 2026-10-09).'
+  capability: routes EUDR "no-conversion" terminology to natural_lands. The sheet text ("Selects
+    natural lands via EUDR no-conversion terminology") is graded by context_layer_match instead
+    of a judge.
+  figures: 'analytics API, staging, 2026-10-09, land_filter=natural_lands: 253,839.30 ha (high
+    250,411.35; highest 3,406.80; low 21.15). Unfiltered 665,813.53 ha.'
+  status_reason: 'verified 2026-10-09: run 20261009T101010Z_staging_experimental (3 trials,
+    ff=experimental) passed every gating check on 3/3, figure exact (253,839.30 ha). charts_answer_judge
+    (info-only) scored 0 on 3/3 because the judge read "no-conversion areas" as a different
+    layer from natural_lands; the deterministic charts_answer passed.'

@@ -1,0 +1,16 @@
+id: 1-028
+uid: 74480949fc017432
+status: not doing
+group: direct
+query: In the Kurtjar People territory in Australia, what percentage of land is non-natural?
+expected:
+  aoi_source: Landmark
+  dataset_id: '3'
+  dataset_name: SBTN Natural Lands Map
+  answer: 2.10%
+  scope: analyse
+notes:
+  aoi_type: Landmark
+  status_reason: 'parked 2026-08-03: percentage answer (2.10%) and Landmark AOI resolution
+    both unverified here, and the row has never run in this repo. Probe once with --id 1-028,
+    then unpark or delete with the outcome recorded. Landmark has 5 other active carriers.'

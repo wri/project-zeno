@@ -1,0 +1,15 @@
+id: 1-022
+uid: 50b52979fd6325df
+status: done
+group: temporal
+query: In which year between 2001 and 2022 did Bolivia have the least natural grasssland coverage?
+expected:
+  aoi_ids: BOL
+  aoi_source: gadm
+  dataset_id: '2'
+  dataset_name: Natural/Semi-Natural Grasslands
+  answer: '2013'
+  scope: analyse
+notes:
+  aoi_type: gadm 0
+  value_1: 15.99 million hectares

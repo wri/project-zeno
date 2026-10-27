@@ -1,0 +1,17 @@
+id: 1-004
+uid: 989821bd935975d6
+status: done
+group: comparative
+query: Which country had more area affected by high confidence disturbance alerts in November
+  2025, Australia or Brazil?
+expected:
+  aoi_ids: BRA;AUS
+  aoi_source: gadm
+  dataset_id: '11'
+  dataset_name: Integrated alerts
+  start_date: '2025-11-01'
+  end_date: '2025-11-30'
+  answer: Brazil
+  scope: analyse
+notes:
+  aoi_type: gadm 0

@@ -1,0 +1,48 @@
+id: 1-062
+uid: 6bc5b10a4a3f4284
+status: todo
+group: comparative
+query: Which US state lost more forest due to wildfires? Washington or Oregon?
+expected:
+  aoi_ids: USA.48_1;USA.38_1
+  aoi_source: gadm
+  dataset_id: 8;10
+  answer: Washington;Oregon
+  scope: analyse
+notes:
+  status_reason: '2026-09-16: reinstated aoi_ids and answer (see finding below); held at todo
+    rather than promoted, pending a fresh 3-trial verification run at this uid — the finding''s
+    ~12% nudge rate means data_pull_exists/chart_produced/answered_without_data (dormant until
+    now, since they require answer to be set) will start gating on this row, and that residual
+    flakiness hasn''t been measured against the new expectations yet.'
+  aoi_type: gadm 1
+  finding: '2026-09-16 (25 trials sampled across 8 runs, 2026-09-10..2026-09-16, uid fadcd8afac449e11):
+    the answer is genuinely dataset/context-layer-dependent, not agent noise on a single true
+    answer. With dataset 10 (Tree cover loss due to fires) and context_layer=intact_forest,
+    Washington wins by ~8x (164,471 ha vs 20,923 ha, e.g. run 20260916T215733Z_staging). With
+    the same dataset and no context-layer restriction (all forest, not just intact), Oregon
+    wins clearly (~898,120-915,958 ha vs ~529,348-550,053 ha, e.g. run 20260911T012756Z_staging).
+    Split across the sample: 13 Washington, 8 Oregon, 3 nudges (dataset_choice between "Tree
+    cover loss due to fires" and "Tree cover loss by dominant driver" — the dataset_id 8;10
+    alternatives already on this case), 1 unclassified. Hence answer: Washington;Oregon rather
+    than picking one.
+
+    Tried rewording to "lost more overall forest" (hypothesis: "overall" would push the agent
+    off the ambiguous dataset_choice nudge). Tested 15 fresh trials: nudge 2/15 (~13%), statistically
+    the same as the original wording''s 3/25 (~12%) — an initial 0/6 clean batch was just
+    a lucky short streak, not a real effect; a following 9-trial batch put it right back to
+    baseline (2/9). WA/OR split among the 13 answered trials (9 WA, 4 OR) also stayed live,
+    so the reword converged nothing. Reverted to the original wording — no measured benefit
+    for an extra word.
+
+    Also found while reading those nudge trials: agent_answer scores 1.0 on both nudges in
+    the 15-trial reword sample, even though the agent never answered — every nudge response
+    opens with "I''ve selected Washington and Oregon for comparison" before asking which dataset
+    to use, and since expected answer is literally Washington;Oregon (the same two names),
+    the semantic judge matches on both names being mentioned rather than on an actual comparative
+    claim being made. This doesn''t corrupt the row verdict — dataset_id_match, scope_match,
+    data_pull_exists, chart_produced and answered_without_data all still correctly fail on
+    a nudge — but agent_answer specifically cannot be read as "it answered" for this case;
+    a pass there is not meaningful in isolation. Likely a structural risk of any ;-alternative
+    answer whose values are exactly the two entities a comparative query always names regardless
+    of whether it resolves the comparison.'

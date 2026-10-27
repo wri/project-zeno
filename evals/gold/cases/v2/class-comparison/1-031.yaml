@@ -1,0 +1,40 @@
+id: 1-031
+uid: 43c1fe0c65332041
+status: done
+group: class-comparison
+query: Distinguishing natural from non-natural land cover, and keeping mangroves as a class
+  separate from natural forest, whats the second largest natural land class by area in Cogo,
+  Eq. Guinea?
+expected:
+  aoi_ids: GNQ.6.3_1
+  aoi_source: gadm
+  dataset_id: '3'
+  dataset_name: SBTN Natural Lands Map
+  answer: mangroves
+  text: States mangroves and includes 15,444 hectares
+  scope: analyse
+  class_values: mangroves=15,444 hectares
+notes:
+  aoi_type: gadm 2
+  class_1: mangroves
+  value_1: 15,444 hectares
+  rewrite: '2026-09-16: the original query ("Whats the second largest natural land class by
+    area in Cogo, Eq. Guinea?") failed because SBTNs yaml file hard-codes "if a
+    user asks about natural forests, combine natural forest, mangrove, natural wetland forest,
+    and natural peat forest into one class" in its prompt/code/presentation instructions,
+    so the agent folded mangroves into
+    natural forest and answered natural water as the second-largest class instead. Reworded to
+    "Distinguishing natural from non-natural land cover, and keeping mangroves as a class
+    separate from natural forest, whats the second largest natural land class by area in Cogo,
+    Eq. Guinea?" This leans on SBTN''s own natural/non-natural framing to route correctly, and
+    names the specific classes (mangroves, natural forest) not to merge, which is concrete
+    enough to override the dataset''s built-in aggregation instruction. Verified 3/3 trials
+    (see status_reason). Known caveat: this still names "mangroves" directly, i.e. the expected
+    answer, to countermand that instruction. Rejected an alternative that also passed
+    that instead named the dataset directly ("Keeping all SBTN
+    Natural Lands categories separate (not aggregating natural forest classes), whats the
+    second largest natural land class by area in Cogo, Eq. Guinea?"), based on
+    cases/README.md''s DON''T name the dataset by product name'
+  status_reason: 're-verified 2026-09-16 after query rewrite (run 20260916T184912Z_staging_experimental,
+    ff=experimental): 3/3 trials pass — dataset_id_match, agent_answer, expected_text_match,
+    data_pull_exists all 1.0 every trial.'

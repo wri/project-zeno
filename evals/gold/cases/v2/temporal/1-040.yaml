@@ -1,0 +1,17 @@
+id: 1-040
+uid: f5f18132c4662d74
+status: done
+group: temporal
+query: How much gross greenhouse gas emissions from tree cover loss occurred in the North
+  Baikal wetlands KBA in 2024?
+expected:
+  aoi_source: kba
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  scope: analyse
+notes:
+  aoi_type: kba
+  rewrite: 'Named the gas basis (nudged 3/9 and disagreed on routing silently).
+    dataset_name corrected: id 4 is Tree cover loss — emissions ride on it; there is no ''Forest
+    GHG emissions'' registry id. scope added so the row implies >=2 buckets (it was a depth
+    violation).'

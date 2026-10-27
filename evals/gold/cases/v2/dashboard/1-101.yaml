@@ -1,0 +1,19 @@
+id: 1-101
+uid: 15954ef596fb8fd3
+status: done
+group: dashboard
+query: Create a dashboard for Paraná, Brazil with an insight on annual tree cover loss, a
+  second insight on tree cover loss in primary forests, an explainer text block, and a Tree
+  Cover Loss dataset map layer.
+expected:
+  aoi_ids: BRA.16_1
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  dashboard_created: 'TRUE'
+  dashboard_widgets: insight;insight;map;text
+notes:
+  rewrite: '''two insights on deforestation'' never said what the second one
+    was, so one insight is a defensible reading — the agent produced two on 3/6 trials and
+    one on the other 3, same build. Naming both makes the count deterministic and removes
+    the dataset ambiguity behind its 1/6 dataset_id flap. Expectations unchanged.'

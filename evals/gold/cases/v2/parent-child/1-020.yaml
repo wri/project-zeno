@@ -1,0 +1,20 @@
+id: 1-020
+uid: 040a04675f98f126
+status: done
+group: parent-child
+query: Which of the four countries of the United Kingdom (England, Northern Ireland, Scotland,
+  Wales) had the least natural grassland in 2022?
+expected:
+  aoi_source: gadm
+  dataset_id: '2'
+  dataset_name: Natural/Semi-Natural Grasslands
+  scope: analyse
+  answer: Northern Ireland
+notes:
+  aoi_type: gadm 0
+  aoi_drop: '2026-08-04: aoi_ids DROPPED rather than enumerated. Verification showed England
+    resolving as GBR.1_1, GBR.1.100_1 or a 5-district set across 3 trials, and aoi_id_match
+    is set-equality so no single pin can express that. The ANSWER is rock stable though —
+    Northern Ireland, 14,019 ha, on 3/3 — so the row tests routing + analysis without staking
+    a verdict on an AOI resolution the agent varies. This is the honest version of the fix
+    its original park note asked for.'

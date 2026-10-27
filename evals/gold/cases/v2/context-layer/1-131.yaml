@@ -1,0 +1,31 @@
+id: 1-131
+uid: 74df5e6d4419d99f
+status: done
+group: context-layer
+query: How much tree cover loss occurred inside natural lands in Mato Grosso, Brazil?
+expected:
+  aoi_ids: BRA.12_1
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  context_layer: natural_forest
+  text: States that natural lands reflect 2020 baseline conditions, and explicitly states
+    the period the analysis covers (loss from 2021 onward), since no dates were given in the
+    query
+  scope: analyse
+notes:
+  aoi_type: gadm 1
+  origin: GNW offline evals sheet, (1) GOLD tab row 110 (sheet test_id 1-109, "Not doing"
+    there), imported 2026-10-09. Sheet context_layer natural_lands mapped to natural_forest
+    (see 1-130). Sheet text said "(full dataset range)"; with natural_forest the range starts
+    in 2021, not 2001, so the text names that instead. The sheet's aoi id BRA.11_1 is Mato
+    Grosso do Sul in GADM 4.1; corrected to BRA.12_1 (Mato Grosso), which the agent resolved
+    on 3/3 in run 20261009T101010Z_staging_experimental.
+  capability: the dateless sibling of 1-130 — with no window given, the agent must say what
+    period it analysed, and the natural_forest layer clamps that to 2021 onward
+  design: 'no answer, deliberately: the window is open-ended, so the total moves with every
+    annual Tree cover loss release (2021-2025 on 2026-10-09: 354,864.79 ha at canopy_cover=10,
+    383,703.64 ha unthresholded). Routing + text + scope only.'
+  status_reason: 'verified 2026-10-09: run 20261009T104826Z_staging_experimental (3 trials,
+    ff=experimental) passed every check on 3/3 at this uid; the agent stated the 2021-2025
+    window and the 2020 baseline each time.'

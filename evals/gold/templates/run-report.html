@@ -1,0 +1,507 @@
+<!-- GOLD run report skeleton, written for a non-technical reader.
+
+     Reusable three ways:
+     1. tools/render_html.py injects a payload into the RUN_PAYLOAD script
+        tag below and writes a standalone file per run.
+     2. tools/render_html.py --all injects every ledger run at once; a
+        dropdown (newest first, human-readable datetime) switches between
+        them, and the URL hash deep-links a specific run.
+     3. Opened raw (placeholder intact), it shows a drop zone: drop any
+        results/runs/<id>.json onto it to render locally, no server.
+        Dropping more files adds them to the dropdown in every mode.
+
+     Accessibility notes: every percentage is printed as text (meters are
+     decorative, aria-hidden); status never rides on colour alone (glyph +
+     word + count on every tile); explainers are <details> blocks, so they
+     are keyboard- and screen-reader-reachable, unlike title tooltips;
+     dark mode selects its own surface and inks rather than inverting. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GOLD run report</title>
+<script id="run-payload" type="application/json">__RUN_PAYLOAD__</script>
+<style>
+  :root {
+    --surface: #ffffff; --panel: #f6f7f9; --line: #dfe3e8;
+    --ink: #1a2028; --ink-2: #4d5765; --ink-3: #7c8592;
+    --accent: #2a63c4; --accent-soft: #dbe7fb;
+    --good-bg: #e7f4ec; --good-ink: #175c34;
+    --bad-bg: #fbe9e7; --bad-ink: #942d20;
+    --warn-bg: #fdf3dc; --warn-ink: #7a5512;
+    --mute-bg: #eef0f3; --mute-ink: #4d5765;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface: #14181d; --panel: #1c2229; --line: #313a44;
+      --ink: #eceff2; --ink-2: #b3bac4; --ink-3: #838d99;
+      --accent: #7aa7e8; --accent-soft: #24344d;
+      --good-bg: #1d3327; --good-ink: #8fd2a7;
+      --bad-bg: #3d2320; --bad-ink: #eba79b;
+      --warn-bg: #3a3120; --warn-ink: #e0bc75;
+      --mute-bg: #232a32; --mute-ink: #b3bac4;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font: 16px/1.55 -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--surface); color: var(--ink);
+    max-width: 980px; margin: 0 auto; padding: 32px 20px 80px;
+  }
+  h1 { font-size: 23px; margin-bottom: 4px; }
+  h2 { font-size: 17px; margin: 34px 0 6px; }
+  .sub { color: var(--ink-2); font-size: 14px; margin-bottom: 10px; }
+  .meta { color: var(--ink-2); font-size: 13px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+           gap: 10px; margin: 20px 0 6px; }
+  .tile { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px;
+          background: var(--panel); }
+  .tile .n { font-size: 27px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .tile .pct { font-size: 15px; font-weight: 600; }
+  .tile .l { font-size: 13px; color: var(--ink-2); }
+  .tile.good { background: var(--good-bg); } .tile.good .n { color: var(--good-ink); }
+  .tile.bad  { background: var(--bad-bg);  } .tile.bad  .n { color: var(--bad-ink); }
+  .tile.warn { background: var(--warn-bg); } .tile.warn .n { color: var(--warn-ink); }
+  .tile.mute { background: var(--mute-bg); } .tile.mute .n { color: var(--mute-ink); }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line);
+           vertical-align: top; }
+  th { color: var(--ink-2); font-size: 12.5px; font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums;
+                   white-space: nowrap; }
+  .pctbig { font-weight: 650; font-size: 16px; }
+  .frac { color: var(--ink-3); font-size: 12.5px; }
+  .meter { height: 10px; border-radius: 5px; background: var(--mute-bg);
+           overflow: hidden; min-width: 140px; margin-top: 4px; }
+  .meter > i { display: block; height: 100%; border-radius: 5px;
+               background: var(--accent); }
+  .mono { font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; }
+  .chip { display: inline-block; padding: 1px 8px; border-radius: 9px;
+          font-size: 12.5px; background: var(--bad-bg); color: var(--bad-ink);
+          margin: 1px 4px 1px 0; }
+  .chip.info { background: var(--accent-soft); color: var(--accent); }
+  .chip.flaky { background: var(--warn-bg); color: var(--warn-ink); }
+  .badge { display: inline-block; padding: 0 6px; border-radius: 4px;
+           font: 600 11px/1.7 ui-monospace, Menlo, monospace;
+           letter-spacing: .06em; text-transform: uppercase;
+           background: var(--accent-soft); color: var(--accent);
+           vertical-align: 2px; margin-right: 6px; }
+  details.help { border-left: 3px solid var(--accent); background: var(--panel);
+                 border-radius: 0 8px 8px 0; padding: 8px 14px; margin: 10px 0;
+                 font-size: 14px; color: var(--ink-2); }
+  details.help > summary { cursor: pointer; color: var(--accent);
+                           font-weight: 600; font-size: 14px; }
+  details.help > summary:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px; }
+  details.help p, details.help li { margin: 6px 0; }
+  .reason { color: var(--ink-2); font-size: 13.5px; margin: 4px 0 4px 16px; }
+  .prompt { font-size: 14.5px; margin: 2px 0 1px; }
+  table.evm { margin: 8px 0 4px; font-size: 13px; width: auto; min-width: 60%; }
+  table.evm th, table.evm td { padding: 4px 10px 4px 0; border-bottom: 1px dotted var(--line); }
+  #runbar { margin: 0 0 16px; }
+  #runbar label { font-size: 13px; color: var(--ink-2); }
+  #runbar select { max-width: 100%; margin-left: 6px; padding: 5px 8px;
+                   font: 13px ui-monospace, Menlo, monospace;
+                   background: var(--panel); color: var(--ink);
+                   border: 1px solid var(--line); border-radius: 8px; }
+  #loadmsg { color: var(--bad-ink); font-size: 13px; margin: 0 0 10px; }
+  .hidden { display: none; }
+  #drop { border: 2px dashed var(--line); border-radius: 12px; padding: 60px 20px;
+          text-align: center; color: var(--ink-2); margin-top: 40px; }
+  footer { margin-top: 44px; color: var(--ink-3); font-size: 12.5px;
+           border-top: 1px solid var(--line); padding-top: 12px; }
+</style>
+<div id="runbar" class="hidden"><label>viewing run
+  <select id="runsel"></select></label></div>
+<p id="loadmsg" class="hidden"></p>
+<div id="app"></div>
+<script>
+"use strict";
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const pct = (num, den) => den ? Math.round(100 * num / den) + "%" : "—";
+const baseName = n => n.replace(/^t\d+\./, "");
+
+// Plain-language names for the five stages, in pipeline order.
+const BUCKET_INFO = {
+  retrieval:   ["Understanding the question", "Did it pick the right place, dataset and time period the user asked about?"],
+  analysis:    ["Doing the maths", "Did it fetch real data and compute the right numbers from it?"],
+  explanation: ["Explaining honestly", "Does the written answer match the data it actually retrieved and shows?"],
+  output:      ["Presenting results", "Are the charts and dashboards well-formed and the right kind?"],
+  scope:       ["Doing the right amount", "Did it answer, suggest, ask for clarification, or refuse — whichever was appropriate?"],
+};
+
+function verdictOf(entry, infoOnly) {
+  if (entry.error || (entry.judge_errors || []).length) return "error";
+  const scored = Object.entries(entry.checks || {})
+    .filter(([n, v]) => v !== null && !infoOnly.includes(baseName(n)));
+  if (!scored.length) return "uncovered";
+  return scored.some(([, v]) => v === 0) ? "fail" : "pass";
+}
+
+// Which checks gave different results across this row's repeats?
+function flappedChecks(entry) {
+  const trials = entry.trials || [];
+  if (trials.length < 2) return [];
+  return Object.keys(entry.checks || {}).filter(name => {
+    const seen = new Set(trials.map(t => t.checks?.[name]));
+    return seen.size > 1;
+  });
+}
+
+// Re-score a plain checks map (one trial's worth) without entry-level
+// error context: good enough for spread-between-repeats estimates.
+function checksVerdict(checks, infoOnly) {
+  const scored = Object.entries(checks || {})
+    .filter(([n, v]) => v !== null && !infoOnly.includes(baseName(n)));
+  if (!scored.length) return "uncovered";
+  return scored.some(([, v]) => v === 0) ? "fail" : "pass";
+}
+
+// "± N pts": sample std (n-1) of a rate across repeats, in percentage
+// points. Population std would understate instability at 2-3 repeats.
+function spreadPts(rates) {
+  if (rates.length < 2) return null;
+  const mean = rates.reduce((a, b) => a + b, 0) / rates.length;
+  const variance =
+    rates.reduce((a, r) => a + (r - mean) ** 2, 0) / (rates.length - 1);
+  return Math.sqrt(variance) * 100;
+}
+
+function trialChecks(entry, k) {
+  return entry.trials?.[k]?.checks ?? entry.checks;
+}
+
+// Pass-rate spread across repeats: score every question with only trial
+// k's results, k times over.
+function overallSpread(entries, trials, infoOnly) {
+  if (trials < 2 || !entries.some(e => e.trials)) return null;
+  const rates = [];
+  for (let k = 0; k < trials; k++) {
+    const pass = entries.filter(
+      e => checksVerdict(trialChecks(e, k), infoOnly) === "pass").length;
+    rates.push(pass / entries.length);
+  }
+  return spreadPts(rates);
+}
+
+// Per-bucket dedicated pass-share spread across repeats.
+function bucketSpread(entries, trials, infoOnly, dedicatedMap, bucket) {
+  if (trials < 2 || !entries.some(e => e.trials)) return null;
+  const rates = [];
+  for (let k = 0; k < trials; k++) {
+    let passed = 0, evaluated = 0;
+    for (const entry of entries) {
+      for (const [name, value] of Object.entries(trialChecks(entry, k) || {})) {
+        if (value === null || infoOnly.includes(baseName(name))) continue;
+        if (dedicatedMap[baseName(name)] !== bucket) continue;
+        evaluated += 1; passed += value === 1 ? 1 : 0;
+      }
+    }
+    if (evaluated) rates.push(passed / evaluated);
+  }
+  return rates.length === trials ? spreadPts(rates) : null;
+}
+
+const fmtSpread = pts => pts == null ? ""
+  : ` <span class="frac">± ${pts < 0.05 ? "0" : pts.toFixed(1)} pts between repeats</span>`;
+
+function trialTally(entry, name) {
+  const trials = entry.trials || [];
+  if (trials.length < 2) return "";
+  const fails = trials.filter(t => t.checks?.[name] === 0).length;
+  return fails === trials.length
+    ? ` — failed every time (${fails}/${trials.length})`
+    : ` — failed ${fails} of ${trials.length} repeats`;
+}
+
+// Which expectation field(s) does each check grade? Used to show
+// "expected vs measured" beside a failure.
+const CHECK_EXPECTED_FIELDS = {
+  aoi_id_match: ["aoi_ids"], dataset_id_match: ["dataset_id"],
+  dataset_parameter_match: ["dataset_parameters"],
+  context_layer_match: ["context_layer"],
+  date_extraction: ["start_date", "end_date"],
+  date_coverage: ["start_date", "end_date"],
+  agent_answer: ["answer"], charts_answer: ["answer"],
+  expected_text_match: ["text"], clarification_requested: ["clarification"],
+  suggested_datasets_match: ["suggested_datasets"],
+  nudge_match: ["nudge_type", "nudge_options"],
+  chart_type_match: ["chart_type"], scope_match: ["scope"],
+  class_value_match: ["class_values"],
+  dashboard_created: ["dashboard_created"],
+  dashboard_aoi_match: ["aoi_ids"],
+  dashboard_widgets_match: ["dashboard_widgets"],
+};
+
+function expectedFor(check, context) {
+  if (!context) return "";
+  const turnMatch = check.match(/^t(\d+)\./);
+  const expected = turnMatch
+    ? (context.turns?.[Number(turnMatch[1]) - 1]?.expected || {})
+    : (context.expected || {});
+  const fields = CHECK_EXPECTED_FIELDS[baseName(check)] || [];
+  return fields.map(f => expected[f]).filter(Boolean).join(" → ");
+}
+
+function expectedVsMeasured(entry, context, failedNames) {
+  const actuals = entry.actuals || {};
+  const rows = failedNames.map(name => {
+    const want = expectedFor(name, context);
+    const got = actuals[name];
+    if (!want && !got) return "";
+    return `<tr><td class="mono">${esc(baseName(name))}</td>
+      <td>${esc(want) || "<i>—</i>"}</td>
+      <td>${got != null ? esc(got) : "<i>not recorded this run</i>"}</td></tr>`;
+  }).filter(Boolean).join("");
+  return rows ? `<table class="evm">
+    <tr><th>check</th><th>expected</th><th>measured</th></tr>${rows}</table>` : "";
+}
+
+function render(payload) {
+  const run = payload.run, infoOnly = payload.info_only || ["date_coverage"];
+  const buckets = run.buckets || {};
+  const verdicts = buckets.verdicts || {};
+  const entries = run.results || [];
+  const total = buckets.rows_total ?? entries.length;
+  const trials = run.num_trials || 1;
+  const latencies = entries.map(e => e.latency_s).filter(v => v != null);
+  const avgLat = latencies.length
+    ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length) : null;
+  const flappingRows = trials > 1
+    ? entries.filter(e => flappedChecks(e).length).length : null;
+
+  const howScoring = `
+    <details class="help"><summary>How scoring works</summary>
+      <p>Every question in the test set carries <b>expectations</b> — the
+      place it should identify, the dataset it should use, the figure it
+      should report, and so on. Each expectation becomes a <b>check</b>
+      that either passes ✓ or fails ✕ after the AI answers. Checks with no
+      expectation on that question simply don't apply.</p>
+      <p>Most checks are <b>exact rules</b> computed by code (is the
+      dataset ID the expected one?). A few are graded by a separate
+      <b>AI judge</b> (does this paragraph say what we expected?) — those
+      are held to stricter stability standards before they count.</p>
+      <p>A question <b>passes</b> only if every check that applies to it
+      passes. There is no partial credit — this is a smoke test, and the
+      question it answers is "did anything break?", not "how good was
+      it?". Checks marked <i>diagnostic only</i> are recorded for
+      engineers but never affect pass/fail.</p>
+      ${trials > 1 ? `<p>This run asked every question <b>${trials}
+      times</b>. A check's overall result is the majority across repeats,
+      and a question whose results <i>changed between repeats</i> is
+      flagged as unstable — instability usually means the AI behaves
+      differently on identical input, which matters as much as a failure.
+      The small <b>± figures</b> are the spread of that rate when each
+      repeat is scored on its own — a large ± means the headline depends
+      on which repeat you happened to get.</p>` : ""}
+    </details>`;
+
+  const passSpread = overallSpread(entries, trials, infoOnly);
+  const tiles = `
+    <div class="tiles">
+      <div class="tile good"><div class="n">✓ ${pct(verdicts.pass ?? 0, total)}</div>
+        <div class="l">passed all checks (${verdicts.pass ?? "?"} of ${total})${
+          passSpread != null ? `<br>±${passSpread < 0.05 ? "0" : passSpread.toFixed(1)} pts between repeats` : ""}</div></div>
+      <div class="tile bad"><div class="n">✕ ${pct(verdicts.fail ?? 0, total)}</div>
+        <div class="l">failed a check (${verdicts.fail ?? "?"} of ${total})</div></div>
+      <div class="tile warn"><div class="n">⚠ ${verdicts.error ?? 0}</div>
+        <div class="l">errored — a tooling problem, not the AI's answer</div></div>
+      <div class="tile mute"><div class="n">○ ${verdicts.uncovered ?? 0}</div>
+        <div class="l">had nothing to check (needs expectations added)</div></div>
+      ${flappingRows != null ? `
+      <div class="tile ${flappingRows ? "warn" : "good"}">
+        <div class="n">${flappingRows ? "⚠" : "✓"} ${pct(flappingRows, total)}</div>
+        <div class="l">unstable: answered differently between the ${trials} repeats
+        (${flappingRows} of ${total})</div></div>` : ""}
+      ${avgLat != null ? `<div class="tile"><div class="n">${avgLat}s</div>
+        <div class="l">average time to answer</div></div>` : ""}
+    </div>
+    ${flappingRows ? `<p class="sub">⚠ Instability matters: ${flappingRows}
+      question(s) got different results on identical repeats, so a
+      single-run pass on those rows is luck, not reliability.</p>` : ""}`;
+
+  const bucketRows = Object.keys(BUCKET_INFO).map(name => {
+    const b = buckets[name];
+    if (!b) return "";
+    const d = b.dedicated || {}, s = b.shared || {};
+    const unmeasured = !d.evaluated && !s.evaluated;
+    const [label, blurb] = BUCKET_INFO[name];
+    const main = unmeasured
+      ? `<span class="chip info">not measured yet</span>`
+      : `<span class="pctbig">${pct(d.passed, d.evaluated)}</span>${
+           fmtSpread(bucketSpread(entries, trials, infoOnly,
+                                  payload.dedicated_map || {}, name))}
+         <span class="frac">${d.evaluated ? `${d.passed}/${d.evaluated} checks` : "no specific checks"}</span>
+         ${d.evaluated ? `<div class="meter" aria-hidden="true">
+           <i style="width:${(100 * d.passed / d.evaluated).toFixed(1)}%"></i></div>` : ""}`;
+    return `<tr>
+      <td><span class="badge">${esc(name)}</span><strong>${label}</strong><br>
+        <span class="frac">${blurb}</span></td>
+      <td>${main}</td>
+      <td class="num">${s.evaluated ? `${pct(s.passed, s.evaluated)}
+        <span class="frac">${s.passed}/${s.evaluated}</span>` : "—"}</td>
+      <td class="num">${b.rows_covered} of ${total}</td></tr>`;
+  }).join("");
+
+  const contexts = payload.cases || {};
+  const failing = entries.filter(e => verdictOf(e, infoOnly) === "fail");
+  const failingRows = failing.map(e => {
+    const context = contexts[e.uid];
+    const flapped = new Set(flappedChecks(e));
+    const failedNames = Object.entries(e.checks)
+      .filter(([, v]) => v === 0).map(([n]) => n);
+    const chips = failedNames.map(n => {
+        const info = infoOnly.includes(baseName(n));
+        return `<span class="chip${info ? " info" : ""}">${esc(n)}${
+          info ? " (diagnostic only)" : esc(trialTally(e, n))}</span>`;
+      }).join("");
+    const unstable = flapped.size
+      ? `<span class="chip flaky">unstable across repeats</span>` : "";
+    const promptLine = context
+      ? `<div class="prompt">“${esc(context.query)}”${
+          context.turns ? ` <span class="frac">(+${context.turns.length - 1} follow-up turn(s))</span>` : ""}</div>
+         <div class="frac">group: ${esc(context.group)} · status: ${esc(context.status || "?")}${
+          context.scope ? ` · expected behaviour: ${esc(context.scope)}` : ""}</div>`
+      : `<div class="frac">prompt unavailable — case no longer in the store</div>`;
+    const evm = expectedVsMeasured(e, context,
+      failedNames.filter(n => !infoOnly.includes(baseName(n))));
+    const reasons = Object.entries(e.reasons || {})
+      .map(([c, r]) => `<div class="reason"><b>${esc(c)}</b>: ${esc(r)}</div>`).join("");
+    // Linkify only http(s) URLs; anything else (e.g. javascript:) would be
+    // a live link in a report meant to be shared standalone.
+    const trace = !e.trace_url ? ""
+      : /^https?:\/\//i.test(e.trace_url)
+        ? ` · <a href="${esc(e.trace_url)}">full conversation trace</a>`
+        : ` · trace: ${esc(e.trace_url)}`;
+    return `<tr><td class="mono">${esc(e.id)}</td>
+      <td>${promptLine}${chips}${unstable}${evm}${reasons
+        ? `<details><summary>why it failed, in the grader's words${trace}</summary>${reasons}</details>`
+        : trace}</td></tr>`;
+  }).join("");
+
+  const errored = entries.filter(e => verdictOf(e, infoOnly) === "error")
+    .map(e => `<tr><td class="mono">${esc(e.id)}</td>
+      <td>${esc(e.error || `judge errors: ${(e.judge_errors || []).join(", ")}`)}</td></tr>`)
+    .join("");
+
+  document.getElementById("app").innerHTML = `
+    <h1>GOLD run report</h1>
+    <div class="meta">A pre-release smoke test of the Global Nature Watch AI:
+      the same fixed set of questions every release, so a drop means
+      something broke.<br>
+      Environment <b>${esc(run.environment)}</b> · build ${esc(run.build)}
+      · ${trials} repeat(s) per question
+      ${run.methodology_note ? `<br>Note for this run: ${esc(run.methodology_note)}` : ""}</div>
+    ${howScoring}
+    ${tiles}
+    <h2>Where problems occur — the five stages of an answer</h2>
+    <div class="sub">Each check belongs to a stage, so a failure points at
+      what to fix. Percentages are checks passed within that stage.</div>
+    <details class="help"><summary>What do the columns mean?</summary>
+      <p><b>Specific checks</b> pin a failure to exactly this stage.
+      <b>Shared checks</b> are graded questions whose failure could belong
+      to either of two stages (e.g. a wrong final figure could be bad
+      maths or a bad explanation) — shown separately so the specific
+      percentages stay trustworthy.</p>
+      <p><b>Questions covered</b> is how many of the ${total} questions
+      have at least one check in this stage — a high pass rate over few
+      questions is weaker evidence than one over many.</p></details>
+    <table>
+      <tr><th>stage</th><th>specific checks passed</th>
+        <th class="num">shared checks</th><th class="num">questions covered</th></tr>
+      ${bucketRows}</table>
+    <h2>Questions that failed (${failing.length})</h2>
+    <div class="sub">"Failed every time" is a solid signal; "failed some
+      repeats" and "unstable" point at inconsistency rather than a fixed
+      bug. Diagnostic-only checks are listed but never count.</div>
+    <table><tr><th>question</th><th>what failed, and why</th></tr>
+      ${failingRows || "<tr><td colspan=2>none 🎉</td></tr>"}</table>
+    ${errored ? `<h2>Errored — tooling problems, not AI answers</h2>
+      <div class="sub">Fix the test tooling before reading these as
+        failures of the AI.</div>
+      <table><tr><th>question</th><th>cause</th></tr>${errored}</table>` : ""}
+    <footer>Technical details: run <span class="mono">${esc(run.run_id)}</span>
+      · question-set version <span class="mono">${esc(run.caseset_version)}</span>
+      (results are only comparable between runs with the same version)
+      · judge model ${esc(run.judge_model)}
+      · diagnostic-only checks: ${infoOnly.map(esc).join(", ") || "none"}
+      · generated ${esc(payload.generated || "locally")}.</footer>`;
+}
+
+/* ---------- run selection: the payload carries one run or many ---------- */
+let SHARED = { info_only: ["date_coverage"], dedicated_map: {}, cases: {},
+               generated: "locally" };
+let RUNS = [];   // newest first
+
+function fmtWhen(run) {
+  const m = (run.run_id || "").match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/);
+  const iso = run.started || (m ? `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}Z` : "");
+  const d = new Date(iso);
+  return isNaN(d) ? (run.run_id || "unknown run")
+    : d.toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric",
+        hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "UTC" }) + " UTC";
+}
+
+function labelFor(run) {
+  return [fmtWhen(run), run.environment,
+          run.ff ? `ff ${run.ff}` : null,
+          `${(run.results || []).length} case(s) × ${run.num_trials || 1} trial(s)`,
+          run.build]
+    .filter(Boolean).join(" · ");
+}
+
+function refreshPicker(selectedId) {
+  document.getElementById("runbar").classList.toggle("hidden", RUNS.length < 2);
+  document.getElementById("runsel").innerHTML = RUNS.map(r =>
+    `<option value="${esc(r.run_id)}"${r.run_id === selectedId ? " selected" : ""}>${
+      esc(labelFor(r))}</option>`).join("");
+}
+
+function addRun(run) {
+  if (!run || !run.run_id) throw new Error("no run_id — not a ledger run record");
+  RUNS = [...RUNS.filter(r => r.run_id !== run.run_id), run].sort((a, b) =>
+    String(b.started || b.run_id).localeCompare(String(a.started || a.run_id)));
+}
+
+function show(runId) {
+  const run = RUNS.find(r => r.run_id === runId) || RUNS[0];
+  if (!run) return;
+  refreshPicker(run.run_id);
+  document.getElementById("loadmsg").classList.add("hidden");
+  try { history.replaceState(null, "", `#${run.run_id}`); } catch (e) {}
+  render({ ...SHARED, run });
+}
+
+document.getElementById("runsel").addEventListener("change", e => show(e.target.value));
+document.addEventListener("dragover", e => e.preventDefault());
+document.addEventListener("drop", e => {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  file.text().then(text => {
+    const run = JSON.parse(text);
+    addRun(run);
+    show(run.run_id);
+  }).catch(err => {
+    const msg = document.getElementById("loadmsg");
+    msg.textContent = `Could not read that file as a run JSON: ${err.message}`;
+    msg.classList.remove("hidden");
+  });
+});
+
+const raw = document.getElementById("run-payload").textContent.trim();
+if (raw && !raw.startsWith("__RUN_")) {
+  const payload = JSON.parse(raw);
+  const { run, runs, ...rest } = payload;
+  SHARED = { ...SHARED, ...rest };
+  for (const r of (runs || (run ? [run] : []))) addRun(r);
+}
+if (RUNS.length) {
+  const fromHash = decodeURIComponent(location.hash.slice(1));
+  show(RUNS.some(r => r.run_id === fromHash) ? fromHash : RUNS[0].run_id);
+} else {
+  document.getElementById("app").innerHTML =
+    `<h1>GOLD run report</h1>
+     <div id="drop">Drop a <span class="mono">results/runs/&lt;run_id&gt;.json</span>
+       file here to render it — drop more to compare via the dropdown.</div>`;
+}
+</script>

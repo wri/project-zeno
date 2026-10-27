@@ -1,0 +1,38 @@
+id: 1-053
+uid: 7a45e7b8b2e1d0e1
+status: done
+group: comparative
+query: 'True or False: the UK has a lower net forest greenhouse gas flux than the Rep. of
+  Ireland?'
+expected:
+  aoi_ids: GBR;IRL
+  aoi_source: gadm
+  dataset_id: '6'
+  dataset_name: Forest greenhouse gas net flux
+  answer: 'TRUE'
+  text: States that both are carbon sinks and the statement is True, the UK does have a lower
+    flux.
+  scope: analyse
+notes:
+  aoi_type: gadm 0
+  value_1: -323451481 MgCO₂e
+  value_2: -55.4 million MgCO₂e
+  rewrite: 'Spelled out ''net forest greenhouse gas flux''; the abbreviation
+    nudged 1/7. Sibling 1-055 spells it out and never nudges.'
+  status_reason: '2026-09-16: promoted todo -> done. Stable under the default profile: 13 of
+    13 recent full runs (2026-09-10..2026-09-16, default profile, no --ff) pass cleanly,
+    agent_answer 1.0 every trial. The one earlier failure (run 20260910T205713Z_staging_experimental,
+    all 3 trials) is fully explained and does not recur under the default profile — see finding.'
+  finding: '2026-09-16: the 20260910T205713Z_staging_experimental failure reproduces
+    deterministically under --ff experimental (9/9 fresh trials, run 20260916T234924Z_staging_experimental)
+    and is entirely a profile artifact, not agent flakiness. --ff experimental unhides LGMS
+    (dataset 12), which becomes a second plausible dataset for any "net GHG flux" comparison
+    alongside the expected dataset 6 (Forest greenhouse gas net flux) — the agent nudges
+    every time under that profile ("I need to know which dataset you would like to use: Land
+    GHG Monitoring System (LGMS), or Forest greenhouse gas net flux"). Under the default
+    profile LGMS does not exist, so there is nothing to nudge on and dataset 6 is selected
+    directly. Same root cause as why the six LGMS cases (1-112..1-117) stay parked while runs
+    target the default profile — 1-053 is not an LGMS case, but LGMS''s mere presence under
+    --ff experimental makes this otherwise-unambiguous query ambiguous. Verify this case
+    against the default profile only; a --ff experimental run will reliably nudge and is not
+    a regression.'

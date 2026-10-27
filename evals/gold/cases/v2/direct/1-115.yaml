@@ -1,0 +1,30 @@
+id: 1-115
+uid: 24ca3663de0cb044
+status: not doing
+group: direct
+query: What was the carbon stock change in India's forests in 2024?
+expected:
+  aoi_ids: IND
+  aoi_source: gadm
+  dataset_id: '12'
+  dataset_name: Land GHG Monitoring System (LGMS)
+  scope: analyse
+  text: Explains that carbon-stock changes are not calculated and instead reports gross emissions,
+    gross removals and net flux as the closest available measure
+notes:
+  aoi_type: gadm 0
+  sheet_group: LGMS 4
+  source_tab: gid:0
+  authored: '2026-08-07: from sheet row 1-115 (LGMS 4). LGMS presentation_instructions: on
+    a carbon-stock-change question the agent should explain stock changes are not calculated,
+    then provide the LGMS emissions/removals/net-flux results — so this row expects the redirect
+    explanation AND an analysis.'
+  env_gated: LGMS (dataset 12) is hidden from the default profile; use the `lgms` profile
+    (`--ff lgms`), not `experimental`, to reveal it.
+  status_reason: '2026-08-31: not doing while gold runs target the default profile. Needs
+    a 3-trial ff=lgms run before promoting to ready.'
+  curated_only_conflict: '2026-09-16: wri/project-zeno#827 partially contradicts this row.
+    The redirect half (stock changes are not calculated) survives, but the second half - "instead
+    reports gross emissions, gross removals and net flux" - asks for exactly the reporting
+    the curated-only instruction forbids. Split or rewrite the expectation in the same cycle
+    as #827 rather than reading its failure as a regression.'

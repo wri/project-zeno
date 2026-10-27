@@ -1,0 +1,34 @@
+id: 1-026
+uid: 12080066c6e4f3d4
+status: done
+group: class-comparison
+query: Distinguishing natural from non-natural land cover, whats the second largest natural
+  land class in the Plaine de Villefagnan key biodiversity area in FRA?
+expected:
+  aoi_source: kba
+  dataset_id: '3'
+  dataset_name: SBTN Natural Lands Map
+  answer: natural short vegetation
+  scope: analyse
+notes:
+  aoi_type: kba
+  rewrite: '2026-09-17: prefixed "Distinguishing natural from non-natural land cover, " —
+    same technique validated on 1-031 (routes to SBTN via its own natural/non-natural framing
+    instead of naming it, per cases/README.md''s DON''T-name-the-dataset rule). Old wording
+    ("Whats the second largest natural land class...") nudged/misrouted to Global Land Cover
+    at 14/36 dataset_id_match failures (~39%) across historical full runs. New wording: 0/18
+    failures across two independent 9-trial batches (runs 20260917T003645Z_staging and 20260917T004435Z_staging)
+    — dataset_id_match, agent_answer, data_pull_exists, scope_match all 1.0 every trial. At
+    the old 39% rate, 0/18 by chance would be <0.1%; this is a real fix, not a lucky streak
+    (contrast 1-062''s reword, which looked clean at 0/6 then reverted to baseline at 2/9
+    more).'
+  aoi_name_fix: '2026-10-08: the 2026-10-08 regression (0/18 clean -> 11/12 failing, see
+    results/recommendations/20261008T165349Z.md item 1) traced to the KBA''s registry name
+    changing out from under the query, not an agent bug — the agent could no longer resolve
+    "Plaine du Villefagnan" because the real name is "Plaine de Villefagnan" (du -> de).
+    Corrected the query; dataset_id_match/data_pull_exists/agent_answer back to passing on
+    8 of 9 trials (run 20261008T192446Z_staging). Residual: 1 trial picked a different dataset
+    (dataset_id_match/pull_source_match, rare — not the old near-total breakage), 1 trial
+    flaked chart_produced (known ~8.6% baseline noise), and charts_answer_judge/answer_traceability
+    co-flagged on 4 of 9 trials — both are INFO_ONLY and do not gate the verdict, but the
+    rate is worth a later look.'
