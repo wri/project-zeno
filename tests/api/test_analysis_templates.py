@@ -126,7 +126,7 @@ async def test_list_templates(client, auth_override):
             "name": "forest-loss-drivers",
             "label": "Forest loss and its drivers",
             "args_schema": ForestLossDriversArgs.model_json_schema(),
-            "widgets": ["chart", "chart", "layer", "text"],
+            "widgets": ["chart", "chart", "text", "layer"],
         },
     ]
 
@@ -272,10 +272,10 @@ async def test_apply_forest_loss_drivers(client, auth_override):
     assert [w["widget_type"] for w in widgets] == [
         "insight",
         "insight",
-        "map",
         "text",
+        "map",
     ]
-    loss, drivers, layer, note = widgets
+    loss, drivers, note, layer = widgets
     # Each chart takes the colours of its map layer.
     (bars,) = loss["insight"]["charts"]
     assert bars["series_color"] == "#DC6C9A"
@@ -283,8 +283,11 @@ async def test_apply_forest_loss_drivers(client, auth_override):
     assert pie["chart_type"] == "pie"
     assert pie["color_map"] == {"Logging": "#52A44E"}
     assert drivers["config"] == {"size": "single"}
-    assert layer["config"]["size"] == "single"
-    assert note["config"]["size"] == "double"
+    assert note["config"]["size"] == "single"
+    assert "size" not in layer["config"]
+    assert layer["config"]["dataset"]["dataset_name"] == (
+        "Tree cover loss by dominant driver"
+    )
     assert note["config"]["text"].startswith("**How to read this section**")
 
 

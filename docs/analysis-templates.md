@@ -17,7 +17,7 @@ To read them, see PR #840 and the git history of
 |---|---|---|
 | `nrt-monitoring` | Integrated alerts chart (daily), integrated alerts map layer, Sentinel-2 imagery | `days`: length of the period, counted back from today. Default 14, maximum 365. |
 | `post-2020-forest-loss` | Tree cover loss per year from 2021, split into natural forest and other tree cover (full width); tree cover loss map with the natural forest context layer, for the same years (half width); Sentinel-2 imagery of the last 30 days (half width) | None. The period runs from 2021-01-01 to today; the chart, the map and the section stop at the last year of loss data. |
-| `forest-loss-drivers` | Tree cover loss per year (full width); tree cover loss by dominant driver, a pie without "Unknown" (half width, optional); tree cover loss map (half width); a fixed note on how to read the section (full width) | None. The period runs from 2001-01-01 to today; the widgets and the section stop at the last year of loss data. |
+| `forest-loss-drivers` | Tree cover loss per year (full width); tree cover loss by dominant driver, a pie without "Unknown" (half width, optional), beside a fixed note on how to read the section (half width); tree cover loss by dominant driver map (full width) | None. The period runs from 2001-01-01 to today; the widgets and the section stop at the last year of loss data. |
 
 A template uses the first area of the dashboard. Each template has its own
 arguments (`args`). The arguments set the period of the widgets.

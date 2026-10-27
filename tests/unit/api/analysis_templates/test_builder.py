@@ -1041,7 +1041,7 @@ async def test_forest_loss_drivers_builds_its_four_widgets():
 
     assert result.warnings == []
     kwargs = mocks.write.await_args.kwargs
-    loss, drivers, layer, note = kwargs["widgets"]
+    loss, drivers, note, layer = kwargs["widgets"]
     # Annual loss only, without the emissions chart.
     (loss_chart,) = loss.insight.charts
     assert (loss_chart.dataset_id, loss_chart.y_axis) == (
@@ -1055,17 +1055,18 @@ async def test_forest_loss_drivers_builds_its_four_widgets():
         "Permanent agriculture",
         "Logging",
     ]
-    # The pie and the map share a row; the note takes the full width.
-    assert drivers.config["size"] == layer.config["size"] == "single"
+    # The pie and the note share the row under the loss chart; the map
+    # comes last at the full width.
+    assert drivers.config["size"] == note.config["size"] == "single"
+    assert "size" not in layer.config
     dataset = layer.config["dataset"]
-    assert dataset["dataset_id"] == TREE_COVER_LOSS_ID
+    assert dataset["dataset_id"] == TREE_COVER_LOSS_BY_DRIVER_ID
     assert dataset["context_layer"] is None
     assert (dataset["start_date"], dataset["end_date"]) == (
         "2001-01-01",
         "2025-12-31",
     )
     assert note.widget_type == "text"
-    assert note.config["size"] == "double"
     assert note.config["text"].startswith("**How to read this section**")
     assert (
         kwargs["template"]["start_date"],
@@ -1121,7 +1122,7 @@ async def test_forest_loss_drivers_with_no_loss_drops_the_pie():
         "No chart is available for Tree cover loss by dominant driver."
     ]
     widgets = mocks.write.await_args.kwargs["widgets"]
-    assert [w.widget_type for w in widgets] == ["insight", "map", "text"]
+    assert [w.widget_type for w in widgets] == ["insight", "text", "map"]
     assert mocks.text.await_args.kwargs["facts"] == [
         "No tree cover loss was recorded in Paraná from 2001 to 2025."
     ]

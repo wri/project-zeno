@@ -178,11 +178,14 @@ TEMPLATES: tuple[AnalysisTemplate, ...] = (
                 required=False,
                 size="single",
             ),
-            LayerWidgetSpec(dataset_id=TREE_COVER_LOSS_ID, size="single"),
+            # Half width each, the pie and the note share the row under the
+            # loss chart.
             TextWidgetSpec(
                 text_key="analysis_template.forest_loss_drivers.note",
-                size="double",
+                size="single",
             ),
+            # Last, at the full width a map takes by default.
+            LayerWidgetSpec(dataset_id=TREE_COVER_LOSS_BY_DRIVER_ID),
         ),
     ),
 )
