@@ -49,6 +49,12 @@ def test_chart_widget_has_a_curated_generator(template, widget):
     )
 
 
+@pytest.mark.parametrize("template, widget", _widgets("chart"))
+def test_chart_widget_names_charts_by_their_title_keys(template, widget):
+    for title in widget.charts or ():
+        assert title.startswith("charts.") and title in MESSAGES, title
+
+
 @pytest.mark.parametrize("template, widget", _widgets("layer"))
 def test_layer_widget_dataset_has_a_tile_layer(template, widget):
     record = _CATALOG[widget.dataset_id]

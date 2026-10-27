@@ -49,6 +49,10 @@ class ChartWidgetSpec(_WidgetSpec):
 
     kind: Literal["chart"] = "chart"
     dataset_id: int
+    # The title keys of the dataset's curated charts to keep, for a dataset
+    # with more than one (tree cover loss has annual loss and annual
+    # emissions). None keeps them all.
+    charts: Optional[tuple[str, ...]] = None
 
 
 class LayerWidgetSpec(_WidgetSpec):

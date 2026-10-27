@@ -231,12 +231,16 @@ async def _curated_charts(
     start: str,
     end: str,
     generators: Sequence[ChartGenerator] = DETERMINISTIC_GENERATORS,
+    titles: Optional[Sequence[str]] = None,
     **options,
 ) -> tuple[list[InsightChart], DataPullResult]:
     """The dataset's curated charts for the period, and the pull they were
-    built from. ``options`` go to ``AnalyzeService.analyze``."""
+    built from. ``titles`` keeps the charts with those title keys.
+    ``options`` go to ``AnalyzeService.analyze``."""
     record = _dataset_record(dataset_id)
-    service = AnalyzeService(context.handler, generators)
+    # No generators for the service: the charts are built below from the
+    # rows, where ``titles`` can pick them before they are localised.
+    service = AnalyzeService(context.handler, ())
     result = await service.analyze(
         aois=[dict(context.aoi)],
         dataset_id=dataset_id,
@@ -250,13 +254,12 @@ async def _curated_charts(
             f"Could not get {record['dataset_name']} data for "
             f"'{context.aoi['name']}': {result.data.message}"
         )
-    charts = result.charts
-    if not charts:
-        # A successful pull with no rows: nothing happened in the period.
-        # That is a result, so the chart is built empty.
-        charts = await build_curated_charts(
-            dataset_id, [], context.language, generators
-        )
+    # A successful pull with no rows: nothing happened in the period. That
+    # is a result, so the chart is built empty.
+    rows = column_to_rows(result.data.data) if result.data.data else []
+    charts = await build_curated_charts(
+        dataset_id, rows, context.language, generators, titles
+    )
     if not charts:
         raise WidgetFailedError(
             f"No chart is available for {record['dataset_name']}."
@@ -269,7 +272,9 @@ async def _build_chart(
 ) -> BuiltWidget:
     record = _dataset_record(spec.dataset_id)
     start, end = await _period(spec.dataset_id, context)
-    charts, _ = await _curated_charts(spec.dataset_id, context, start, end)
+    charts, _ = await _curated_charts(
+        spec.dataset_id, context, start, end, titles=spec.charts
+    )
     return BuiltWidget(
         widget=SectionWidget(
             widget_type="insight",

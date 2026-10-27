@@ -221,6 +221,36 @@ async def test_layer_with_a_context_layer_and_a_size():
 
 
 @pytest.mark.asyncio
+async def test_chart_widget_keeps_only_the_named_charts():
+    template = NRT.model_copy(
+        update={
+            "args_model": Post2020ForestLossArgs,
+            "widgets": (
+                ChartWidgetSpec(
+                    dataset_id=TREE_COVER_LOSS_ID,
+                    charts=("charts.tcl.annual_loss",),
+                ),
+            ),
+        }
+    )
+    loss = {
+        "tree_cover_loss_year": [2021, 2022],
+        "area_ha": [10.0, 20.0],
+        "carbon_emissions_MgCO2e": [1.0, 2.0],
+    }
+    mocks, stack = _patches(
+        pull=_pull(data=loss), written=("section-1", ["w1"])
+    )
+
+    await _apply(stack, template=template)
+
+    (widget,) = mocks.write.await_args.kwargs["widgets"]
+    # Tree cover loss makes two charts; the emissions chart is left out.
+    (chart,) = widget.insight.charts
+    assert (chart.y_axis, chart.position) == ("area_ha", 0)
+
+
+@pytest.mark.asyncio
 async def test_template_record_and_one_today():
     mocks, stack = _patches(written=("section-1", ["w1", "w2", "w3"]))
 
