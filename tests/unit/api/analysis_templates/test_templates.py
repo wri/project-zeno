@@ -55,6 +55,25 @@ def test_chart_widget_names_charts_by_their_title_keys(template, widget):
         assert title.startswith("charts.") and title in MESSAGES, title
 
 
+@pytest.mark.parametrize("template, widget", _widgets("chart"))
+def test_chart_facts_are_in_each_language_with_their_placeholders(
+    template, widget
+):
+    common = {"aoi_name": "A", "start_year": "2001", "end_year": "2025"}
+    figures = {"total": "3", "category": "C", "value": "2", "share": "50%"}
+    for fact in widget.facts:
+        for key, values in (
+            (fact.text_key, {**common, **figures}),
+            (fact.empty_key, common),
+        ):
+            if key is None:
+                continue
+            messages = MESSAGES.get(key, {})
+            assert set(LANGUAGES) <= set(messages), key
+            for message in messages.values():
+                message.format(**values)
+
+
 @pytest.mark.parametrize("template, widget", _widgets("layer"))
 def test_layer_widget_dataset_has_a_tile_layer(template, widget):
     record = _CATALOG[widget.dataset_id]

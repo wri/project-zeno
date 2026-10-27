@@ -28,6 +28,7 @@ from src.api.services.analysis_templates.builder import (
 )
 from src.api.services.analysis_templates.models import (
     AlertsWidgetSpec,
+    ChartFact,
     ChartWidgetSpec,
     ImageryWidgetSpec,
     LayerWidgetSpec,
@@ -248,6 +249,42 @@ async def test_chart_widget_keeps_only_the_named_charts():
     # Tree cover loss makes two charts; the emissions chart is left out.
     (chart,) = widget.insight.charts
     assert (chart.y_axis, chart.position) == ("area_ha", 0)
+
+
+@pytest.mark.asyncio
+async def test_chart_widget_facts_go_to_the_text_model_in_order():
+    template = NRT.model_copy(
+        update={
+            "args_model": Post2020ForestLossArgs,
+            "widgets": (
+                ChartWidgetSpec(
+                    dataset_id=TREE_COVER_LOSS_ID,
+                    charts=("charts.tcl.annual_loss",),
+                    facts=(
+                        ChartFact(kind="peak", text_key="test.peak"),
+                        ChartFact(kind="total", text_key="test.total"),
+                    ),
+                ),
+            ),
+        }
+    )
+    loss = {"tree_cover_loss_year": [2021, 2022], "area_ha": [10.0, 20.0]}
+    mocks, stack = _patches(
+        pull=_pull(data=loss), written=("section-1", ["w1"])
+    )
+    sentences = {
+        "test.peak": {"en": "Peak {category}."},
+        "test.total": {"en": "{total} ha from {start_year} to {end_year}."},
+    }
+
+    with patch.dict(MESSAGES, sentences):
+        await _apply(stack, template=template)
+
+    # The period is clamped to the end of the loss data.
+    assert mocks.text.await_args.kwargs["facts"] == [
+        "Peak 2022.",
+        "30 ha from 2021 to 2025.",
+    ]
 
 
 @pytest.mark.asyncio

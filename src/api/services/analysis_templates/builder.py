@@ -56,6 +56,11 @@ from src.api.services.alerts_list import (
     LatestAlertDateSource,
     UnsupportedAreaError,
 )
+from src.api.services.analysis_templates.facts import (
+    chart_fact,
+    hectares,
+    percent,
+)
 from src.api.services.analysis_templates.models import (
     AlertsWidgetSpec,
     AnalysisTemplate,
@@ -275,6 +280,18 @@ async def _build_chart(
     charts, _ = await _curated_charts(
         spec.dataset_id, context, start, end, titles=spec.charts
     )
+    facts = []
+    for fact in spec.facts:
+        sentence = await chart_fact(
+            fact,
+            charts[0],
+            aoi_name=context.aoi["name"],
+            start=start,
+            end=end,
+            language=context.language,
+        )
+        if sentence is not None:
+            facts.append(sentence)
     return BuiltWidget(
         widget=SectionWidget(
             widget_type="insight",
@@ -283,6 +300,7 @@ async def _build_chart(
         ),
         summary=f"chart: {record['dataset_name']}, {start} to {end}",
         charts=charts,
+        facts=facts,
         period=(start, end),
     )
 
@@ -348,24 +366,6 @@ async def _build_layer(
     )
 
 
-def _hectares(value: float) -> str:
-    """Whole hectares, grouped with a narrow no-break space. A comma or a
-    point would read as a decimal mark in some languages."""
-    if 0 < value < 1:
-        return "<1"
-    return f"{round(value):,}".replace(",", "\u202f")
-
-
-def _percent(part: float, whole: float) -> str:
-    """A whole percent that never rounds a small part to 0% or 100%."""
-    share = 100 * part / whole
-    if 0 < share < 1:
-        return "<1%"
-    if 99 < share < 100:
-        return ">99%"
-    return f"{round(share)}%"
-
-
 async def _build_natural_forest_loss(
     spec: NaturalForestLossWidgetSpec, context: BuildContext
 ) -> BuiltWidget:
@@ -403,9 +403,9 @@ async def _build_natural_forest_loss(
         fact = await t(
             "analysis_template.natural_forest_loss.share",
             context.language,
-            share=_percent(natural_ha, total_ha),
-            natural_ha=_hectares(natural_ha),
-            total_ha=_hectares(total_ha),
+            share=percent(natural_ha, total_ha),
+            natural_ha=hectares(natural_ha),
+            total_ha=hectares(total_ha),
             **values,
         )
     else:
@@ -503,7 +503,7 @@ async def _alerts_fact(
         "analysis_template.alerts.week",
         context.language,
         days=len(new_days),
-        area_ha=_hectares(math.fsum(row.total_ha for row in new_days)),
+        area_ha=hectares(math.fsum(row.total_ha for row in new_days)),
         **values,
     )
 
