@@ -1,18 +1,48 @@
 # GOLD
 
-GOLD is the capability regression suite for Project Zeno, the LLM agent behind Global Nature Watch (GNW) that answers questions about land and nature data, such as deforestation, land cover and carbon, for named places. This directory holds the GOLD cases, the harness that runs them against the agent, and the committed ledger of results, as a standalone project (its own `pyproject.toml`, `uv.lock` and virtual environment) nested inside the agent repo it tests.
+GOLD is the capability regression suite for Project Zeno, the LLM agent behind Global
+Nature Watch (GNW) Horizon. This directory holds the GOLD cases, the harness that
+runs them against the agent, and the committed ledger of results, as a standalone
+project (its own `pyproject.toml`, `uv.lock` and virtual environment) nested inside
+the agent repo it tests.
 
-GOLD answers one question before each release: **did an agent change break a capability that used to work?** It does not measure answer quality or accuracy; a separate programme (CHALLENGE, not in this repo) does that. So coverage across capabilities is the design goal, a deterministic case beats a realistic one, and the headline number is a **regression count** between two runs, not a mean score.
+GOLD answers one question before each release: **did an agent change break a
+capability that used to work?** So coverage across capabilities is the design goal
+and a nearly deterministic case beats a realistic one.
 
 Every case is a versioned file and every result is pinned to the exact case content it was scored against — editing a case's query or any expected value mints a new identity for it, so an old score is never silently read as a score for new content. Project terms are defined in the [Glossary](#glossary).
 
-**Why this lives inside project-zeno**: someone changing the agent's behaviour sees the case that exercises it break in the same PR, and can fix the case alongside the change instead of discovering it later in a separate repo. `--env local` (below) targets `make api` run from this same checkout, with no separate project-zeno clone to keep in sync.
-
 ## How it works
 
-A **case** is a YAML file holding a user query (or a scripted conversation) and the values a correct answer must contain: the place ids, the dataset, the date range, a figure. `gold run` sends each query to the agent's API, waits for the answer, then fetches the agent's final state for that conversation. **Evaluators** compare that state with the case's expected values and produce **checks**, each scoring pass, fail or not evaluated. Each check speaks for one or two of five **buckets** (retrieval, analysis, explanation, output, scope), so a failure points at the stage that broke. The run is written to `results/runs/` as one immutable JSON record, which is committed. Before a release, `tools/diff_runs.py` compares the candidate build's run with a baseline run and counts **regressions**: checks that passed before and fail now.
+A **case** is a YAML file (under `cases/v2`) holding a user query (or a scripted
+conversation) and the values a correct answer must contain: the place ids, the
+dataset, the date range, a figure. `uv run gold run` sends each query to the agent's
+API, waits for the answer, then fetches the agent's final state for that
+conversation. **Evaluators** compare that state with the case's expected values and
+produce **checks**, with a score of pass, fail or not evaluated. Each check relates
+to one or two of five **buckets** (retrieval, analysis, explanation, output, scope),
+so a failure points at the stage that broke. The run is written to `results/runs/` as
+a JSON record, which can be committed. Before a release, `tools/diff_runs.py`
+compares the candidate build's run with a baseline run and counts **regressions**:
+checks that passed before and fail now.
 
 Results are keyed by case content, not by case name. Every case has a [uid](#uid), a hash of its query and expected values, so editing a case gives it a new uid and an old score is never read as a score for the new content. The store of cases (`cases/v2`) has a [caseset_version](#caseset-version), a hash of all its uids.
+
+## Running the set
+
+`gold run` sends every case in `cases/v2` whose status is not `not doing` to the agent, scores it, and writes one run record to `results/runs/<run_id>.json`, plus raw agent state under `results/artifacts/<run_id>/` (gitignored).
+
+The default value for the arguments are: workers (10, max 20 allowed), trials (1),
+env (staging). The most reliable run uses at least 3 trials per case.
+s
+```bash
+uv run gold run --env staging --workers 5                    # smoke run: 1 trial
+uv run gold run --env staging --trials 3                     # official run against staging
+uv run gold run --env staging --id 1-030 --verbose           # one case (repeat --id for more)
+uv run gold run --env local                                  # Run against local 'make api'
+uv run gold run --dry-run                                    # list the selected cases; no API calls
+uv run gold run --help                                       # every flag
+```
 
 ## Glossary
 
@@ -20,11 +50,8 @@ Definitions only: counts are in [cases/v2/COVERAGE.md](cases/v2/COVERAGE.md), an
 
 ### The product
 
-- **GNW (Global Nature Watch)**: the World Resources Institute (WRI) product for asking questions about land and nature data for named places.
 - **Project Zeno, the agent**: the LLM agent behind GNW, built in [wri/project-zeno](https://github.com/wri/project-zeno). The harness asks it a question with `POST /api/chat`, then reads its final state with `GET /api/threads/{id}/state`; checks score that state.
-- **GOLD**: this suite, a capability regression check run before each release (also called the capability smoke-test set; not the same thing as a [smoke run](#smoke-run)). Its headline is a regression count, not a score.
-- **CHALLENGE**: a separate evaluation programme that scores answer quality and accuracy. It has no code or docs in this repo.
-- **gnw-evals**: the earlier evaluation harness ([wri/gnw-evals](https://github.com/wri/gnw-evals)) that this harness was ported from, now retired.
+- **GOLD**: this suite, a capability regression check run before each release (also called the capability smoke-test set
 - **harness**: the code here that sends each case to the agent, fetches the final state and scores it (`src/goldset/runner/`, run with `gold run`).
 - **environment**: the agent deployment a run targets: `staging`, `prod`, `local` (`http://localhost:8000`) or `ephemeral` (a per-commit CI deployment, needs `--api-base-url`). Recorded on the run and in its run_id.
 - <a id="profile"></a>**ff, tool profile**: `ff` (feature flag) is a field in the chat request that picks the agent's tool profile. Leaving it out gives the default profile; `experimental` adds features not yet released to the default. A run records its `ff`, and its run_id ends with it. See [Running the set](#running-the-set).
@@ -32,7 +59,6 @@ Definitions only: counts are in [cases/v2/COVERAGE.md](cases/v2/COVERAGE.md), an
 - **GADM**: the Database of Global Administrative Areas: country, state and district boundaries. Ids look like `BRA.25_1`: a country code, admin-level numbers, then a `_N` suffix that `aoi_id_match` ignores.
 - **KBA, WDPA, Landmark**: the other AOI sources: Key Biodiversity Areas, the World Database on Protected Areas, and LandMark (indigenous and community lands).
 - **dataset, catalogue**: the agent's datasets are numbered and defined in project-zeno's dataset catalogue (`src/agent/datasets/catalog/*.yml`). A case's `dataset_id` names the dataset it expects. A retired dataset id, such as 0 (DIST-ALERT), is never reused.
-- **LGMS**: the Land GHG Monitoring System dataset (id 12), hidden on the default profile.
 - **nudge**: the agent's structured follow-up offer, held in the `nudge` state field as `{type, options, data?}`. A `dataset_choice` nudge offers datasets (scope `suggest`); other types, such as `aoi_choice`, ask the user to pick or clarify (scope `clarify`). It replaced the older `suggested_datasets` field, which the agent no longer writes.
 - **send_nudge**: the agent tool that writes a nudge with fixed arguments, the most deterministic kind of nudge.
 - **thread**: one conversation with the agent. Each trial runs in a fresh thread; a multi-turn case sends all its turns to one thread.
@@ -114,18 +140,6 @@ Live runs need two secrets, set in your shell or in a `.env` file in this direct
 - **Judge credentials**: `ANTHROPIC_API_KEY` for the default judge. With `--judge-backend openrouter-jev-decisions` the judge is TypeSafe JEV through OpenRouter Decisions, which needs `OPENROUTER_API_KEY` instead.
 
 Cases with `expected.ground_truth` also call the production analytics API. They use `ANALYTICS_API_TOKEN` when it is set, and the API token otherwise.
-
-## Running the set
-
-`gold run` sends every case in `cases/v2` whose status is not `not doing` to the agent, scores it, and writes one run record to `results/runs/<run_id>.json`, plus raw agent state under `results/artifacts/<run_id>/` (gitignored).
-
-```bash
-uv run gold run --env staging --build "<label>"              # smoke run: 1 trial
-uv run gold run --env staging --trials 3 --build "<label>"   # official run
-uv run gold run --env staging --id 1-030 --verbose           # one case (repeat --id for more)
-uv run gold run --dry-run                                    # list the selected cases; no API calls
-uv run gold run --help                                       # every flag
-```
 
 **Choose the tier before you start.**
 
