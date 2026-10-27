@@ -64,6 +64,7 @@ from src.api.services.analysis_templates.models import (
     LayerWidgetSpec,
     NaturalForestLossWidgetSpec,
     TemplateArgs,
+    TextWidgetSpec,
 )
 from src.api.services.analysis_templates.text import generate_section_text
 from src.api.services.analyze import AnalyzeService
@@ -589,12 +590,27 @@ async def _build_imagery(
     )
 
 
+async def _build_text(
+    spec: TextWidgetSpec, context: BuildContext
+) -> BuiltWidget:
+    text = await t(spec.text_key, context.language)
+    # t() gives "" for an unknown key, which would write an empty card.
+    if not text.strip():
+        raise WidgetFailedError(f"The text '{spec.text_key}' is missing.")
+    return BuiltWidget(
+        widget=SectionWidget(widget_type="text", config={"text": text}),
+        # On one line, so the note stays one item of the prompt's list.
+        summary=f"fixed text: {' '.join(text.split())}",
+    )
+
+
 _BUILDERS: dict[str, Callable[..., Awaitable[BuiltWidget]]] = {
     "chart": _build_chart,
     "layer": _build_layer,
     "imagery": _build_imagery,
     "natural_forest_loss": _build_natural_forest_loss,
     "alerts": _build_alerts,
+    "text": _build_text,
 }
 
 

@@ -93,12 +93,23 @@ class AlertsWidgetSpec(_WidgetSpec):
     dataset_id: ClassVar[int] = INTEGRATED_ALERTS_ID
 
 
+class TextWidgetSpec(_WidgetSpec):
+    """A fixed markdown note, such as how to read the charts or what the
+    data cannot tell. The text model sees it, so the description need not
+    repeat it."""
+
+    kind: Literal["text"] = "text"
+    # i18n key of the markdown. It takes no placeholders.
+    text_key: str
+
+
 WidgetSpec = Annotated[
     ChartWidgetSpec
     | LayerWidgetSpec
     | ImageryWidgetSpec
     | NaturalForestLossWidgetSpec
-    | AlertsWidgetSpec,
+    | AlertsWidgetSpec
+    | TextWidgetSpec,
     Field(discriminator="kind"),
 ]
 

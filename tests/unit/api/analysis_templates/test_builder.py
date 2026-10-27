@@ -32,6 +32,7 @@ from src.api.services.analysis_templates.models import (
     ImageryWidgetSpec,
     LayerWidgetSpec,
     NaturalForestLossWidgetSpec,
+    TextWidgetSpec,
 )
 from src.api.services.analysis_templates.registry import (
     Post2020ForestLossArgs,
@@ -137,7 +138,9 @@ def _patches(
     return mocks, stack
 
 
-async def _apply(stack, dashboard=None, args=None, template=NRT):
+async def _apply(
+    stack, dashboard=None, args=None, template=NRT, language="en"
+):
     for p in stack:
         p.start()
     try:
@@ -146,7 +149,7 @@ async def _apply(stack, dashboard=None, args=None, template=NRT):
             template,
             template.parse_args(args),
             "user-1",
-            "en",
+            language,
         )
     finally:
         for p in stack:
@@ -804,6 +807,44 @@ def test_natural_forest_facts_take_their_placeholders_in_every_language(key):
     }
     for message in MESSAGES[key].values():
         assert "A" in message.format(**values)
+
+
+NOTE_KEY = "analysis_template.test.note"
+NOTE = {
+    "en": "**How to read this.**\nLoss is not deforestation.",
+    "es": "**Cómo leer esto.**\nLa pérdida no es deforestación.",
+}
+NOTES = NRT.model_copy(
+    update={"widgets": (TextWidgetSpec(text_key=NOTE_KEY, size="double"),)}
+)
+
+
+@pytest.mark.asyncio
+async def test_text_widget_is_the_note_in_the_users_language():
+    mocks, stack = _patches(written=("section-1", ["w1"]))
+
+    with patch.dict(MESSAGES, {NOTE_KEY: NOTE}):
+        await _apply(stack, template=NOTES, language="es")
+
+    (widget,) = mocks.write.await_args.kwargs["widgets"]
+    assert widget.widget_type == "text"
+    assert widget.config == {"text": NOTE["es"], "size": "double"}
+    assert widget.insight is None
+    # The text model sees the note, on one line, so the description need
+    # not repeat it.
+    assert mocks.text.await_args.kwargs["widget_summaries"] == [
+        "fixed text: **Cómo leer esto.** La pérdida no es deforestación."
+    ]
+
+
+@pytest.mark.asyncio
+async def test_a_missing_note_writes_nothing():
+    mocks, stack = _patches(written=("section-1", ["w1"]))
+
+    with pytest.raises(WidgetFailedError, match=NOTE_KEY):
+        await _apply(stack, template=NOTES)
+
+    mocks.write.assert_not_awaited()
 
 
 POST_2020 = get_template("post-2020-forest-loss")
