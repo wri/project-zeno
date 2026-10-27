@@ -25,7 +25,7 @@ from sqlalchemy import text
 from src.agent.config import AgentSettings
 from src.agent.i18n import t
 from src.agent.language import DEFAULT_LANGUAGE
-from src.agent.llms import SMALL_MODEL
+from src.agent.llms import resilient_structured_output
 from src.agent.subagents.pick_aoi.global_queries import (
     handle_global_request,
     is_global_request,
@@ -442,7 +442,7 @@ async def select_best_aoi(
     # use it: derived.cost_by_component credits the spend to the enclosing
     # pick_aoi TOOL span.
     AOI_SELECTION_CHAIN = (
-        AOI_SELECTION_PROMPT | SMALL_MODEL.with_structured_output(AOIId)
+        AOI_SELECTION_PROMPT | resilient_structured_output(AOIId)
     ).with_config(run_name="select_aoi")
 
     selected_aoi_index = await AOI_SELECTION_CHAIN.ainvoke(
@@ -964,7 +964,7 @@ class Geocoder:
         """LLM step: turn the user's request into place(s) + subregion."""
         chain = (
             GEOCODER_EXTRACTION_PROMPT
-            | SMALL_MODEL.with_structured_output(PlaceQuery)
+            | resilient_structured_output(PlaceQuery)
         ).with_config(run_name="extract_place_query")
         return await chain.ainvoke({"question": question})
 

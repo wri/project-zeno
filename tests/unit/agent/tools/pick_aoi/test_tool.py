@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 
 import pandas as pd
 import pytest
+from google.genai.errors import ServerError
 
 from src.agent.config import AgentSettings
 from src.agent.subagents.pick_aoi import Geocoder, pick_aoi
@@ -20,6 +21,7 @@ from tests.unit.agent.tools.pick_aoi.conftest import (
     _patch_search,
     _row,
     _SmallModelStub,
+    _use_small_model,
     tool_module,
 )
 
@@ -309,15 +311,32 @@ async def test_select_best_aoi_bad_src_id_returns_none(monkeypatch):
     When the LLM picks a src_id that isn't among the candidates,
     select_best_aoi should return None instead of crashing on .iloc[0]."""
 
-    monkeypatch.setattr(
-        tool_module, "SMALL_MODEL", _SmallModelStub("does-not-exist")
-    )
+    _use_small_model(monkeypatch, _SmallModelStub("does-not-exist"))
 
     candidates = pd.DataFrame(
         [_row("BRA.14_1", "Para, Brazil", subtype="state-province")]
     )
     result = await tool_module.select_best_aoi("some question", candidates)
     assert result is None
+
+
+@pytest.mark.asyncio
+async def test_select_best_aoi_survives_a_transient_503(monkeypatch):
+    """Gemini answers 503 UNAVAILABLE under high demand. One such answer
+    must not fail the whole pick_aoi call: the selection is retried."""
+    unavailable = ServerError(
+        503, {"error": {"code": 503, "status": "UNAVAILABLE"}}
+    )
+    model = _SmallModelStub("BRA.14_1", failures=[unavailable])
+    _use_small_model(monkeypatch, model)
+
+    candidates = pd.DataFrame(
+        [_row("BRA.14_1", "Para, Brazil", subtype="state-province")]
+    )
+    result = await tool_module.select_best_aoi("some question", candidates)
+
+    assert result.src_id == "BRA.14_1"
+    assert model.calls == 2
 
 
 @pytest.mark.asyncio
@@ -646,7 +665,7 @@ async def test_selection_never_calls_a_model_and_is_repeatable(monkeypatch):
             "Parque Nacional Botum Sakor": _BOTUM_SAKOR_ROW,
         },
     )
-    monkeypatch.setattr(tool_module, "SMALL_MODEL", _SmallModelStub())
+    _use_small_model(monkeypatch, _SmallModelStub())
 
     picks = []
     for _ in range(2):

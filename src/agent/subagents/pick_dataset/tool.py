@@ -37,7 +37,7 @@ from src.agent.language import (
     language_name,
     resolve_language,
 )
-from src.agent.llms import SMALL_MODEL
+from src.agent.llms import resilient_structured_output
 from src.agent.subagents.pick_dataset.prompts import DATASET_SELECTOR_PROMPT
 from src.agent.subagents.pick_dataset.schema import (
     ContextLayer,
@@ -290,7 +290,7 @@ async def select_best_dataset(
     logger.debug("Invoking dataset selection chain...")
     dataset_selection_chain = (
         DATASET_SELECTION_PROMPT
-        | SMALL_MODEL.with_structured_output(DatasetSelectionResponse)
+        | resilient_structured_output(DatasetSelectionResponse)
     ).with_config(run_name="select_dataset")
 
     if aoi_selection is None:
