@@ -68,6 +68,17 @@ def test_alerts_widget_dataset_has_a_tile_layer(template, widget):
     assert _CATALOG[widget.dataset_id].get("tile_url")
 
 
+@pytest.mark.parametrize("template, widget", _widgets("text"))
+def test_text_widget_note_is_in_each_language_without_placeholders(
+    template, widget
+):
+    notes = MESSAGES.get(widget.text_key, {})
+    assert set(LANGUAGES) <= set(notes), widget.text_key
+    for note in notes.values():
+        # The builder formats the note with no values.
+        assert note.format().strip()
+
+
 def test_nrt_monitoring_covers_the_30_days_to_today():
     template = get_template("nrt-monitoring")
     today = date(2026, 10, 16)
