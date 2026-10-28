@@ -1142,6 +1142,8 @@ async def test_ff_allowed_for_admin(client, auth_override, admin_user_factory):
 SUBSCRIPTION = Subscription(
     subscription_id=UUID("00000000-0000-0000-0000-000000000001"),
     dashboard_id=UUID("00000000-0000-0000-0000-000000000002"),
+    user_id="user-1",
+    user_email="user@example.com",
     aoi_type=AoiType.ADMIN,
     aoi_id="BRA.1",
     dataset=Dataset.INTEGRATED_ALERTS,
@@ -1194,6 +1196,8 @@ async def test_list_subscriptions_returns_active_subscriptions(
         {
             "subscription_id": "00000000-0000-0000-0000-000000000001",
             "dashboard_id": "00000000-0000-0000-0000-000000000002",
+            "user_id": "user-1",
+            "user_email": "user@example.com",
             "aoi_type": "admin",
             "aoi_id": "BRA.1",
             "dataset": "integrated_alerts",

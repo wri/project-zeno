@@ -20,6 +20,8 @@ class Dataset(str, Enum):
 class Subscription:
     subscription_id: UUID
     dashboard_id: UUID
+    user_id: str
+    user_email: str
     aoi_type: AoiType
     aoi_id: str
     dataset: Dataset
