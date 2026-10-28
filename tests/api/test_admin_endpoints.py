@@ -6,11 +6,22 @@ import json
 import re
 from datetime import datetime, timezone
 from unittest.mock import patch
+from uuid import UUID
 
 import pytest
 from sqlalchemy import select
 
+from src.api.app import app
 from src.api.data_models import UserOrm, UserType
+from src.api.repositories.subscription_repository import (
+    get_subscription_repository,
+)
+from src.api.services.subscription import (
+    AoiType,
+    Dataset,
+    Subscription,
+    SubscriptionRepository,
+)
 from tests.conftest import async_session_maker
 
 
@@ -1124,3 +1135,71 @@ async def test_ff_allowed_for_admin(client, auth_override, admin_user_factory):
         )
 
     assert response.status_code == 200
+
+
+# --- GET /api/admin/subscriptions ------------------------------------------
+
+SUBSCRIPTION = Subscription(
+    subscription_id=UUID("00000000-0000-0000-0000-000000000001"),
+    dashboard_id=UUID("00000000-0000-0000-0000-000000000002"),
+    user_id="user-1",
+    user_email="user@example.com",
+    aoi_type=AoiType.ADMIN,
+    aoi_id="BRA.1",
+    dataset=Dataset.INTEGRATED_ALERTS,
+)
+
+
+class FakeSubscriptionRepository(SubscriptionRepository):
+    async def list_active(self) -> list[Subscription]:
+        return [SUBSCRIPTION]
+
+
+@pytest.fixture
+def fake_subscription_repository():
+    app.dependency_overrides[get_subscription_repository] = (
+        FakeSubscriptionRepository
+    )
+    yield
+    app.dependency_overrides.pop(get_subscription_repository, None)
+
+
+@pytest.mark.asyncio
+async def test_list_subscriptions_requires_superuser(
+    client, auth_override, fake_subscription_repository
+):
+    regular = await _seed_user(
+        "regular-subs", "regular_subs@example.com", UserType.REGULAR
+    )
+    auth_override(regular.id)
+
+    response = await client.get(
+        "/api/admin/subscriptions",
+        headers={"Authorization": "Bearer test-token"},
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_list_subscriptions_returns_active_subscriptions(
+    client, auth_override, superuser_factory, fake_subscription_repository
+):
+    superuser = await superuser_factory("subs_super@example.com")
+    auth_override(superuser.id)
+
+    response = await client.get(
+        "/api/admin/subscriptions",
+        headers={"Authorization": "Bearer test-token"},
+    )
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "subscription_id": "00000000-0000-0000-0000-000000000001",
+            "dashboard_id": "00000000-0000-0000-0000-000000000002",
+            "user_id": "user-1",
+            "user_email": "user@example.com",
+            "aoi_type": "admin",
+            "aoi_id": "BRA.1",
+            "dataset": "integrated_alerts",
+        }
+    ]

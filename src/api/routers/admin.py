@@ -11,9 +11,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth.dependencies import _orm_to_user_model, require_superuser
 from src.api.data_models import UserOrm, UserType
+from src.api.repositories.subscription_repository import (
+    get_subscription_repository,
+)
 from src.api.schemas import (
     UserModel,
     UserTypeUpdateRequest,
+)
+from src.api.services.subscription import (
+    Subscription,
+    SubscriptionRepository,
 )
 from src.shared.database import get_session_from_pool_dependency
 
@@ -153,3 +160,12 @@ async def export_users(
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.get("/api/admin/subscriptions", response_model=list[Subscription])
+async def list_subscriptions(
+    _superuser: UserModel = Depends(require_superuser),
+    repository: SubscriptionRepository = Depends(get_subscription_repository),
+):
+    """All active dashboard subscriptions to AOI datasets. Superuser-only."""
+    return await repository.list_active()
