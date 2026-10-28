@@ -5,19 +5,23 @@ from typing import Optional
 
 from pydantic import Field
 
+from src.agent.datasets.config import DATASETS
 from src.agent.datasets.handlers.analytics_handler import (
     INTEGRATED_ALERTS_ID,
+    TREE_COVER_LOSS_BY_DRIVER_ID,
     TREE_COVER_LOSS_ID,
 )
 from src.api.schemas import ALERTS_MAX_DAYS
 from src.api.services.analysis_templates.models import (
     AlertsWidgetSpec,
     AnalysisTemplate,
+    ChartFact,
     ChartWidgetSpec,
     ImageryWidgetSpec,
     LayerWidgetSpec,
     NaturalForestLossWidgetSpec,
     TemplateArgs,
+    TextWidgetSpec,
 )
 from src.api.services.charts.tcl_natural_forest import FIRST_YEAR
 
@@ -40,6 +44,22 @@ class Post2020ForestLossArgs(TemplateArgs):
         # The chart and the map are clamped to the end of the loss data, and
         # so is the section. The imagery is of today.
         return date(FIRST_YEAR, 1, 1), today
+
+
+# The first day of tree cover loss data, from the catalog.
+TREE_COVER_LOSS_START = date.fromisoformat(
+    next(
+        d["start_date"]
+        for d in DATASETS
+        if d["dataset_id"] == TREE_COVER_LOSS_ID
+    )
+)
+
+
+class ForestLossDriversArgs(TemplateArgs):
+    def period(self, today: date) -> tuple[date, date]:
+        # The widgets clamp the end to the last year of loss data.
+        return TREE_COVER_LOSS_START, today
 
 
 NRT_MONITORING_RULES = (
@@ -66,6 +86,15 @@ POST_2020_FOREST_LOSS_RULES = (
     "forest is broader than primary forest, as it includes regenerated and "
     "secondary natural forest and excludes plantations; tree cover loss is "
     "not the same as deforestation."
+)
+
+
+FOREST_LOSS_DRIVERS_RULES = (
+    "three or four sentences of plain prose, no markup. First give the "
+    "facts, in their order. Take every figure and every year from the "
+    "facts. Do not compute new figures. Say tree cover loss, never "
+    "deforestation. The section has a fixed note on how to read the data: "
+    "do not repeat its explanations."
 )
 
 
@@ -110,6 +139,63 @@ TEMPLATES: tuple[AnalysisTemplate, ...] = (
             ),
             # A month, not a week: a cloud-free week is rare in the tropics.
             ImageryWidgetSpec(window_days=30, size="single"),
+        ),
+    ),
+    AnalysisTemplate(
+        name="forest-loss-drivers",
+        label_key="analysis_template.forest_loss_drivers.label",
+        purpose=(
+            "Show how much tree cover the area lost each year since 2001, "
+            "what drove the loss, and where it happened."
+        ),
+        description_rules=FOREST_LOSS_DRIVERS_RULES,
+        fallback_title_key="analysis_template.forest_loss_drivers.title",
+        fallback_description_key=(
+            "analysis_template.forest_loss_drivers.description"
+        ),
+        args_model=ForestLossDriversArgs,
+        widgets=(
+            ChartWidgetSpec(
+                dataset_id=TREE_COVER_LOSS_ID,
+                charts=("charts.tcl.annual_loss",),
+                facts=(
+                    ChartFact(
+                        kind="total",
+                        text_key="analysis_template.forest_loss_drivers.total",
+                        # The same sentence as the post-2020 template's.
+                        empty_key=(
+                            "analysis_template.natural_forest_loss.no_loss"
+                        ),
+                    ),
+                    ChartFact(
+                        kind="peak",
+                        text_key="analysis_template.forest_loss_drivers.peak",
+                    ),
+                ),
+            ),
+            # Optional: an area with no loss has no driver to show, and the
+            # section still has the loss chart and the map.
+            ChartWidgetSpec(
+                dataset_id=TREE_COVER_LOSS_BY_DRIVER_ID,
+                facts=(
+                    ChartFact(
+                        kind="top_share",
+                        text_key=(
+                            "analysis_template.forest_loss_drivers.top_driver"
+                        ),
+                    ),
+                ),
+                required=False,
+                size="single",
+            ),
+            # Half width each, the pie and the note share the row under the
+            # loss chart.
+            TextWidgetSpec(
+                text_key="analysis_template.forest_loss_drivers.note",
+                size="single",
+            ),
+            # Last, at the full width a map takes by default.
+            LayerWidgetSpec(dataset_id=TREE_COVER_LOSS_BY_DRIVER_ID),
         ),
     ),
 )

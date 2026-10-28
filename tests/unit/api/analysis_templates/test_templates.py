@@ -49,6 +49,31 @@ def test_chart_widget_has_a_curated_generator(template, widget):
     )
 
 
+@pytest.mark.parametrize("template, widget", _widgets("chart"))
+def test_chart_widget_names_charts_by_their_title_keys(template, widget):
+    for title in widget.charts or ():
+        assert title.startswith("charts.") and title in MESSAGES, title
+
+
+@pytest.mark.parametrize("template, widget", _widgets("chart"))
+def test_chart_facts_are_in_each_language_with_their_placeholders(
+    template, widget
+):
+    common = {"aoi_name": "A", "start_year": "2001", "end_year": "2025"}
+    figures = {"total": "3", "category": "C", "value": "2", "share": "50%"}
+    for fact in widget.facts:
+        for key, values in (
+            (fact.text_key, {**common, **figures}),
+            (fact.empty_key, common),
+        ):
+            if key is None:
+                continue
+            messages = MESSAGES.get(key, {})
+            assert set(LANGUAGES) <= set(messages), key
+            for message in messages.values():
+                message.format(**values)
+
+
 @pytest.mark.parametrize("template, widget", _widgets("layer"))
 def test_layer_widget_dataset_has_a_tile_layer(template, widget):
     record = _CATALOG[widget.dataset_id]
@@ -66,6 +91,17 @@ def test_layer_widget_context_layer_is_in_the_catalog(template, widget):
 @pytest.mark.parametrize("template, widget", _widgets("alerts"))
 def test_alerts_widget_dataset_has_a_tile_layer(template, widget):
     assert _CATALOG[widget.dataset_id].get("tile_url")
+
+
+@pytest.mark.parametrize("template, widget", _widgets("text"))
+def test_text_widget_note_is_in_each_language_without_placeholders(
+    template, widget
+):
+    notes = MESSAGES.get(widget.text_key, {})
+    assert set(LANGUAGES) <= set(notes), widget.text_key
+    for note in notes.values():
+        # The builder formats the note with no values.
+        assert note.format().strip()
 
 
 def test_nrt_monitoring_covers_the_30_days_to_today():

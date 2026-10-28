@@ -13,6 +13,7 @@ import pytest
 from src.agent.datasets.handlers.analytics_handler import (
     INTEGRATED_ALERTS_ID,
     INTEGRATED_ALERTS_LAND_FILTERS,
+    TREE_COVER_LOSS_BY_DRIVER_ID,
     TREE_COVER_LOSS_ID,
 )
 from src.agent.datasets.handlers.base import DataPullResult
@@ -28,10 +29,12 @@ from src.api.services.analysis_templates.builder import (
 )
 from src.api.services.analysis_templates.models import (
     AlertsWidgetSpec,
+    ChartFact,
     ChartWidgetSpec,
     ImageryWidgetSpec,
     LayerWidgetSpec,
     NaturalForestLossWidgetSpec,
+    TextWidgetSpec,
 )
 from src.api.services.analysis_templates.registry import (
     Post2020ForestLossArgs,
@@ -137,7 +140,9 @@ def _patches(
     return mocks, stack
 
 
-async def _apply(stack, dashboard=None, args=None, template=NRT):
+async def _apply(
+    stack, dashboard=None, args=None, template=NRT, language="en"
+):
     for p in stack:
         p.start()
     try:
@@ -146,7 +151,7 @@ async def _apply(stack, dashboard=None, args=None, template=NRT):
             template,
             template.parse_args(args),
             "user-1",
-            "en",
+            language,
         )
     finally:
         for p in stack:
@@ -215,6 +220,65 @@ async def test_layer_with_a_context_layer_and_a_size():
     )
     assert "tree_cover_density_threshold=10" in dataset["tile_url"]
     assert dataset["tile_url"].endswith("&start_year=2021&end_year=2025")
+
+
+async def _apply_loss_chart(spec, loss):
+    """Build a template of the one tree cover loss chart ``spec``, from
+    2021, with ``loss`` as the pulled rows."""
+    template = NRT.model_copy(
+        update={"args_model": Post2020ForestLossArgs, "widgets": (spec,)}
+    )
+    mocks, stack = _patches(
+        pull=_pull(data=loss), written=("section-1", ["w1"])
+    )
+    await _apply(stack, template=template)
+    return mocks
+
+
+@pytest.mark.asyncio
+async def test_chart_widget_keeps_only_the_named_charts():
+    loss = {
+        "tree_cover_loss_year": [2021, 2022],
+        "area_ha": [10.0, 20.0],
+        "carbon_emissions_MgCO2e": [1.0, 2.0],
+    }
+    mocks = await _apply_loss_chart(
+        ChartWidgetSpec(
+            dataset_id=TREE_COVER_LOSS_ID, charts=("charts.tcl.annual_loss",)
+        ),
+        loss,
+    )
+
+    (widget,) = mocks.write.await_args.kwargs["widgets"]
+    # Tree cover loss makes two charts; the emissions chart is left out.
+    (chart,) = widget.insight.charts
+    assert (chart.y_axis, chart.position) == ("area_ha", 0)
+
+
+@pytest.mark.asyncio
+async def test_chart_widget_facts_go_to_the_text_model_in_order():
+    spec = ChartWidgetSpec(
+        dataset_id=TREE_COVER_LOSS_ID,
+        charts=("charts.tcl.annual_loss",),
+        facts=(
+            ChartFact(kind="peak", text_key="test.peak"),
+            ChartFact(kind="total", text_key="test.total"),
+        ),
+    )
+    loss = {"tree_cover_loss_year": [2021, 2022], "area_ha": [10.0, 20.0]}
+    sentences = {
+        "test.peak": {"en": "Peak {category}."},
+        "test.total": {"en": "{total} ha from {start_year} to {end_year}."},
+    }
+
+    with patch.dict(MESSAGES, sentences):
+        mocks = await _apply_loss_chart(spec, loss)
+
+    # The period is clamped to the end of the loss data.
+    assert mocks.text.await_args.kwargs["facts"] == [
+        "Peak 2022.",
+        "30 ha from 2021 to 2025.",
+    ]
 
 
 @pytest.mark.asyncio
@@ -806,22 +870,69 @@ def test_natural_forest_facts_take_their_placeholders_in_every_language(key):
         assert "A" in message.format(**values)
 
 
+NOTE_KEY = "analysis_template.test.note"
+NOTE = {
+    "en": "**How to read this.**\nLoss is not deforestation.",
+    "es": "**Cómo leer esto.**\nLa pérdida no es deforestación.",
+}
+NOTES = NRT.model_copy(
+    update={"widgets": (TextWidgetSpec(text_key=NOTE_KEY, size="double"),)}
+)
+
+
+@pytest.mark.asyncio
+async def test_text_widget_is_the_note_in_the_users_language():
+    mocks, stack = _patches(written=("section-1", ["w1"]))
+
+    with patch.dict(MESSAGES, {NOTE_KEY: NOTE}):
+        await _apply(stack, template=NOTES, language="es")
+
+    (widget,) = mocks.write.await_args.kwargs["widgets"]
+    assert widget.widget_type == "text"
+    assert widget.config == {
+        "text": NOTE["es"],
+        "source": "template",
+        "size": "double",
+    }
+    assert widget.insight is None
+    # The text model sees the note, on one line, so the description need
+    # not repeat it.
+    assert mocks.text.await_args.kwargs["widget_summaries"] == [
+        "fixed text: **Cómo leer esto.** La pérdida no es deforestación."
+    ]
+
+
+@pytest.mark.asyncio
+async def test_a_missing_note_writes_nothing():
+    mocks, stack = _patches(written=("section-1", ["w1"]))
+
+    with pytest.raises(WidgetFailedError, match=NOTE_KEY):
+        await _apply(stack, template=NOTES)
+
+    mocks.write.assert_not_awaited()
+
+
 POST_2020 = get_template("post-2020-forest-loss")
 
 
-async def _apply_post_2020():
-    # A model that records its prompt, then fails, so the section gets the
-    # fallback text.
+def _with_fallback_text(mocks):
+    """A text model that records its prompt, then fails, so the section
+    gets the fallback text."""
     model = _FakeModel(RuntimeError("no model in unit tests"))
-    mocks, stack = _patches(
-        pull=_pull(data=NATURAL_FOREST_DATA),
-        written=("section-1", ["w1", "w2", "w3"]),
-    )
 
     async def _text(*args, **kwargs):
         return await text.generate_section_text(*args, model=model, **kwargs)
 
     mocks.text.side_effect = _text
+    return model
+
+
+async def _apply_post_2020():
+    mocks, stack = _patches(
+        pull=_pull(data=NATURAL_FOREST_DATA),
+        written=("section-1", ["w1", "w2", "w3"]),
+    )
+    model = _with_fallback_text(mocks)
     result = await _apply(stack, template=POST_2020)
     return result, mocks, model
 
@@ -882,3 +993,132 @@ async def test_post_2020_fallback_states_the_share_then_the_caveats():
         f"{SHARE_FACT} The SBTN Natural Lands Map is a 2020 baseline"
     )
     assert "30%" in result.description
+
+
+FOREST_LOSS_DRIVERS = get_template("forest-loss-drivers")
+LOSS = {
+    "tree_cover_loss_year": [2001, 2002, 2003],
+    "area_ha": [1000.0, 2500.4, 1500.0],
+    "carbon_emissions_MgCO2e": [1.0, 2.0, 3.0],
+}
+DRIVERS = {
+    "tree_cover_loss_driver": [
+        "Permanent agriculture",
+        "Logging",
+        "Unknown",
+    ],
+    "area_ha": [3000.0, 1000.0, 500.0],
+}
+LOSS_FACTS = [
+    "From 2001 to 2025, Paraná lost 5\u202f000 ha of tree cover.",
+    "The most tree cover loss was in 2002, with 2\u202f500 ha.",
+    "The leading driver was Permanent agriculture: 75% of the loss with a "
+    "known driver (3\u202f000 ha of 4\u202f000 ha).",
+]
+
+
+async def _apply_forest_loss_drivers(loss=LOSS, drivers=DRIVERS):
+    mocks, stack = _patches(written=("section-1", ["w1", "w2", "w3", "w4"]))
+
+    async def pull(**kwargs):
+        if kwargs["dataset"]["dataset_id"] == TREE_COVER_LOSS_BY_DRIVER_ID:
+            return _pull(data=drivers)
+        return _pull(data=loss)
+
+    mocks.pull.side_effect = pull
+    model = _with_fallback_text(mocks)
+    result = await _apply(stack, template=FOREST_LOSS_DRIVERS)
+    return result, mocks, model
+
+
+@pytest.mark.asyncio
+async def test_forest_loss_drivers_builds_its_four_widgets():
+    result, mocks, _ = await _apply_forest_loss_drivers()
+
+    assert result.warnings == []
+    kwargs = mocks.write.await_args.kwargs
+    loss, drivers, note, layer = kwargs["widgets"]
+    # Annual loss only, without the emissions chart.
+    (loss_chart,) = loss.insight.charts
+    assert (loss_chart.dataset_id, loss_chart.y_axis) == (
+        TREE_COVER_LOSS_ID,
+        "area_ha",
+    )
+    assert "size" not in loss.config
+    (pie,) = drivers.insight.charts
+    assert pie.chart_type == "pie"
+    assert [row["tree_cover_loss_driver"] for row in pie.chart_data] == [
+        "Permanent agriculture",
+        "Logging",
+    ]
+    # The pie and the note share the row under the loss chart; the map
+    # comes last at the full width.
+    assert drivers.config["size"] == note.config["size"] == "single"
+    assert "size" not in layer.config
+    dataset = layer.config["dataset"]
+    assert dataset["dataset_id"] == TREE_COVER_LOSS_BY_DRIVER_ID
+    assert dataset["context_layer"] is None
+    assert (dataset["start_date"], dataset["end_date"]) == (
+        "2001-01-01",
+        "2025-12-31",
+    )
+    assert note.widget_type == "text"
+    assert note.config["text"].startswith("**How to read this section**")
+    assert (
+        kwargs["template"]["start_date"],
+        kwargs["template"]["end_date"],
+    ) == ("2001-01-01", "2025-12-31")
+
+
+@pytest.mark.asyncio
+async def test_forest_loss_drivers_pulls_loss_and_drivers_for_the_period():
+    _, mocks, _ = await _apply_forest_loss_drivers()
+
+    pulls = {
+        call.kwargs["dataset"]["dataset_id"]: call.kwargs
+        for call in mocks.pull.await_args_list
+    }
+    assert set(pulls) == {TREE_COVER_LOSS_ID, TREE_COVER_LOSS_BY_DRIVER_ID}
+    for pull in pulls.values():
+        assert (pull["start_date"], pull["end_date"]) == (
+            "2001-01-01",
+            "2025-12-31",
+        )
+
+
+@pytest.mark.asyncio
+async def test_forest_loss_drivers_prompt_has_the_facts_and_the_note():
+    _, mocks, model = await _apply_forest_loss_drivers()
+
+    assert mocks.text.await_args.kwargs["facts"] == LOSS_FACTS
+    for fact in LOSS_FACTS:
+        assert f"- {fact}" in model.inputs
+    assert "- fixed text: **How to read this section** Tree cover loss" in (
+        model.inputs
+    )
+    assert "do not repeat its explanations" in model.inputs
+
+
+@pytest.mark.asyncio
+async def test_forest_loss_drivers_fallback_gives_the_facts_first():
+    result, _, _ = await _apply_forest_loss_drivers()
+
+    assert result.title == "Tree cover loss and drivers in Paraná"
+    assert result.description.startswith(" ".join(LOSS_FACTS))
+    assert result.description.endswith(
+        "Tree cover loss is not the same as deforestation."
+    )
+
+
+@pytest.mark.asyncio
+async def test_forest_loss_drivers_with_no_loss_drops_the_pie():
+    result, mocks, _ = await _apply_forest_loss_drivers(loss={}, drivers={})
+
+    assert result.warnings == [
+        "No chart is available for Tree cover loss by dominant driver."
+    ]
+    widgets = mocks.write.await_args.kwargs["widgets"]
+    assert [w.widget_type for w in widgets] == ["insight", "text", "map"]
+    assert mocks.text.await_args.kwargs["facts"] == [
+        "No tree cover loss was recorded in Paraná from 2001 to 2025."
+    ]

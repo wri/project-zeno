@@ -44,11 +44,34 @@ class _WidgetSpec(BaseModel):
     size: Optional[Literal["single", "double"]] = None
 
 
+class ChartFact(BaseModel):
+    """A sentence with a figure from a chart widget's first chart, computed
+    in code (``facts``), that the description must give."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    # total: the sum of the areas, as {total}. peak: the x value with the
+    # largest area, as {category}, and that area, as {value}. top_share: the
+    # same, plus its share of the sum, as {share}, and the sum, as {total}.
+    kind: Literal["total", "peak", "top_share"]
+    # i18n key of the sentence. It can also use {aoi_name}, {start_year}
+    # and {end_year}.
+    text_key: str
+    # i18n key of the sentence when the chart has no area, with those three
+    # placeholders only. None leaves the fact out.
+    empty_key: Optional[str] = None
+
+
 class ChartWidgetSpec(_WidgetSpec):
     """A curated chart of one dataset, from the analytics pull."""
 
     kind: Literal["chart"] = "chart"
     dataset_id: int
+    # The title keys of the dataset's curated charts to keep, for a dataset
+    # with more than one (tree cover loss has annual loss and annual
+    # emissions). None keeps them all.
+    charts: Optional[tuple[str, ...]] = None
+    facts: tuple[ChartFact, ...] = ()
 
 
 class LayerWidgetSpec(_WidgetSpec):
@@ -93,12 +116,23 @@ class AlertsWidgetSpec(_WidgetSpec):
     dataset_id: ClassVar[int] = INTEGRATED_ALERTS_ID
 
 
+class TextWidgetSpec(_WidgetSpec):
+    """A fixed markdown note, such as how to read the charts or what the
+    data cannot tell. The text model sees it, so the description need not
+    repeat it."""
+
+    kind: Literal["text"] = "text"
+    # i18n key of the markdown. It takes no placeholders.
+    text_key: str
+
+
 WidgetSpec = Annotated[
     ChartWidgetSpec
     | LayerWidgetSpec
     | ImageryWidgetSpec
     | NaturalForestLossWidgetSpec
-    | AlertsWidgetSpec,
+    | AlertsWidgetSpec
+    | TextWidgetSpec,
     Field(discriminator="kind"),
 ]
 

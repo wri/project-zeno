@@ -3,8 +3,14 @@
 from typing import List
 
 from src.agent.datasets.handlers.analytics_handler import TREE_COVER_LOSS_ID
+from src.agent.datasets.palette import PALETTES
 from src.agent.subagents.analyst.charts import InsightChart
 from src.api.services.charts.base import ChartGenerator
+
+# The annual loss bars take the colour of the tree cover loss map layer.
+LOSS_COLOR = PALETTES[TREE_COVER_LOSS_ID]["series_color"]
+if LOSS_COLOR is None:
+    raise RuntimeError("The tree cover loss palette has no series_color")
 
 
 class TCLChartGenerator(ChartGenerator):
@@ -26,6 +32,7 @@ class TCLChartGenerator(ChartGenerator):
                 chart_type="bar",
                 x_axis="tree_cover_loss_year",
                 y_axis="area_ha",
+                series_color=LOSS_COLOR,
                 chart_data=rows,
             ),
             InsightChart(

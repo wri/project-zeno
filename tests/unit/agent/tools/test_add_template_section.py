@@ -168,6 +168,7 @@ def test_schema_lists_the_template_names():
     assert prop.get("enum", [prop.get("const")]) == [
         "nrt-monitoring",
         "post-2020-forest-loss",
+        "forest-loss-drivers",
     ]
 
 
@@ -178,6 +179,7 @@ def test_prompt_fragment_lists_each_template():
         in SPEC.prompt_fragment
     )
     assert "'post-2020-forest-loss'" in SPEC.prompt_fragment
+    assert "'forest-loss-drivers'" in SPEC.prompt_fragment
     assert "imagery. Args: none." in SPEC.prompt_fragment
 
 
