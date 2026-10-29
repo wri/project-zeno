@@ -6,7 +6,9 @@ from typing import Optional
 from pydantic import Field
 
 from src.agent.datasets.handlers.analytics_handler import (
+    DEFAULT_CANOPY_COVER,
     INTEGRATED_ALERTS_ID,
+    NATURAL_FOREST_DEFAULT_CANOPY_COVER,
     TREE_COVER_LOSS_ID,
 )
 from src.api.schemas import ALERTS_MAX_DAYS
@@ -58,14 +60,15 @@ POST_2020_FOREST_LOSS_RULES = (
     "total area and their unit, or that no loss was recorded. Take every "
     "figure and every year from the facts. Do not compute new figures. Then "
     "explain, combining points where it reads well: the SBTN Natural Lands "
-    "Map is a 2020 baseline, so the split covers loss from 2021 on; no "
-    "canopy density threshold applies, so the totals are higher than the "
-    "default 30% figures of Global Forest Watch (do not state a 30% "
-    "threshold); other tree cover is non-natural forest, such as plantations "
-    "and tree crops, plus loss outside the 2020 forest classes; natural "
-    "forest is broader than primary forest, as it includes regenerated and "
-    "secondary natural forest and excludes plantations; tree cover loss is "
-    "not the same as deforestation."
+    "Map is a 2020 baseline, so the split covers loss from 2021 on; the "
+    f"chart and the map use a {NATURAL_FOREST_DEFAULT_CANOPY_COVER}% canopy "
+    "density threshold, lower than the default "
+    f"{DEFAULT_CANOPY_COVER}% of Global Forest Watch, so the totals are "
+    "higher than its default figures; other tree cover is non-natural "
+    "forest, such as plantations and tree crops, plus loss outside the 2020 "
+    "forest classes; natural forest is broader than primary forest, as it "
+    "includes regenerated and secondary natural forest and excludes "
+    "plantations; tree cover loss is not the same as deforestation."
 )
 
 

@@ -41,7 +41,10 @@ from src.api.services.dashboard_alerts import AlertsUnavailableError
 from src.api.user_profile_configs.languages import LANGUAGES
 from tests.unit.api.analysis_templates.test_text import _FakeModel
 from tests.unit.api.services.test_alerts_list import FakeHandler, FakeLatest
-from tests.unit.api.services.test_chart_generators import NATURAL_FOREST_DATA
+from tests.unit.api.services.test_chart_generators import (
+    ALL_LOSS_DATA,
+    NATURAL_FOREST_DATA,
+)
 
 NRT = get_template("nrt-monitoring")
 TODAY = date(2026, 9, 23)
@@ -383,7 +386,7 @@ async def test_different_pulls_are_separate_requests():
         **_pull_args(
             dataset={
                 "dataset_id": TREE_COVER_LOSS_ID,
-                "forest_breakdown": "natural_forest",
+                "context_layer": "natural_forest",
             }
         )
     )
@@ -681,35 +684,52 @@ SPLIT = NRT.model_copy(
 )
 
 
-def _split_pull(classes_and_areas):
-    """A breakdown answer with one row per (class, area), all in 2022."""
-    return _pull(
-        data={
-            "tree_cover_loss_year": [2022] * len(classes_and_areas),
-            "natural_forests_class": [c for c, _ in classes_and_areas],
-            "area_ha": [a for _, a in classes_and_areas],
-        }
-    )
+def _split_pulls(natural=NATURAL_FOREST_DATA, all_loss=ALL_LOSS_DATA):
+    """The analytics answers of the natural forest split: ``natural`` for
+    the pull with the natural_forest context layer, ``all_loss`` for the
+    pull of all tree cover."""
+
+    def pull(**kwargs):
+        in_natural_forest = (
+            kwargs["dataset"].get("context_layer") == "natural_forest"
+        )
+        return _pull(data=natural if in_natural_forest else all_loss)
+
+    return pull
+
+
+def _loss_2022(area_ha):
+    return {"tree_cover_loss_year": [2022], "area_ha": [area_ha]}
+
+
+def _split_patches(natural=NATURAL_FOREST_DATA, all_loss=ALL_LOSS_DATA):
+    mocks, stack = _patches(written=("section-1", ["w1"]))
+    mocks.pull.side_effect = _split_pulls(natural, all_loss)
+    return mocks, stack
 
 
 @pytest.mark.asyncio
-async def test_natural_forest_loss_pulls_the_breakdown_from_2021():
-    mocks, stack = _patches(
-        pull=_pull(data=NATURAL_FOREST_DATA), written=("section-1", ["w1"])
-    )
+async def test_natural_forest_loss_pulls_natural_forest_and_all_loss_at_10():
+    mocks, stack = _split_patches()
 
     await _apply(stack, template=SPLIT)
 
-    pull = mocks.pull.await_args.kwargs
-    assert pull["dataset"] == {
-        "dataset_id": TREE_COVER_LOSS_ID,
-        "forest_breakdown": "natural_forest",
-    }
+    pulls = [call.kwargs for call in mocks.pull.await_args_list]
+    canopy_cover = [{"name": "canopy_cover", "values": [10]}]
+    assert sorted(
+        (pull["dataset"] for pull in pulls), key=lambda d: len(d)
+    ) == [
+        {"dataset_id": TREE_COVER_LOSS_ID, "parameters": canopy_cover},
+        {
+            "dataset_id": TREE_COVER_LOSS_ID,
+            "context_layer": "natural_forest",
+            "parameters": canopy_cover,
+        },
+    ]
     # From the natural forest baseline to the last year of loss data.
-    assert (pull["start_date"], pull["end_date"]) == (
-        "2021-01-01",
-        "2025-12-31",
-    )
+    assert {(pull["start_date"], pull["end_date"]) for pull in pulls} == {
+        ("2021-01-01", "2025-12-31")
+    }
     (widget,) = mocks.write.await_args.kwargs["widgets"]
     assert (widget.widget_type, widget.config) == ("insight", {})
     (chart,) = widget.insight.charts
@@ -722,9 +742,7 @@ async def test_natural_forest_loss_pulls_the_breakdown_from_2021():
 
 @pytest.mark.asyncio
 async def test_natural_forest_share_is_a_computed_fact():
-    mocks, stack = _patches(
-        pull=_pull(data=NATURAL_FOREST_DATA), written=("section-1", ["w1"])
-    )
+    mocks, stack = _split_patches()
 
     await _apply(stack, template=SPLIT)
 
@@ -734,7 +752,7 @@ async def test_natural_forest_share_is_a_computed_fact():
 
 @pytest.mark.asyncio
 async def test_no_loss_is_a_fact_and_a_chart_of_zeros():
-    mocks, stack = _patches(pull=_pull(data={}), written=("section-1", ["w1"]))
+    mocks, stack = _split_patches(natural={}, all_loss={})
 
     await _apply(stack, template=SPLIT)
 
@@ -766,8 +784,10 @@ async def test_no_loss_is_a_fact_and_a_chart_of_zeros():
 async def test_a_small_part_never_rounds_to_0_or_100_percent(
     natural_ha, other_ha, fact_end
 ):
-    pull = _split_pull([("Natural Forest", natural_ha), ("Unknown", other_ha)])
-    mocks, stack = _patches(pull=pull, written=("section-1", ["w1"]))
+    mocks, stack = _split_patches(
+        natural=_loss_2022(natural_ha),
+        all_loss=_loss_2022(natural_ha + other_ha),
+    )
 
     await _apply(stack, template=SPLIT)
 
@@ -776,11 +796,12 @@ async def test_a_small_part_never_rounds_to_0_or_100_percent(
 
 
 @pytest.mark.asyncio
-async def test_unknown_natural_forest_class_writes_nothing():
-    pull = _split_pull([("Natural Grassland", 10.0)])
-    mocks, stack = _patches(pull=pull, written=("section-1", ["w1"]))
+async def test_pulls_that_do_not_match_write_nothing():
+    mocks, stack = _split_patches(
+        natural=_loss_2022(10.0), all_loss=_loss_2022(9.0)
+    )
 
-    with pytest.raises(WidgetFailedError, match="natural forest class"):
+    with pytest.raises(WidgetFailedError, match="more than all tree cover"):
         await _apply(stack, template=SPLIT)
 
     mocks.write.assert_not_awaited()
@@ -813,10 +834,8 @@ async def _apply_post_2020():
     # A model that records its prompt, then fails, so the section gets the
     # fallback text.
     model = _FakeModel(RuntimeError("no model in unit tests"))
-    mocks, stack = _patches(
-        pull=_pull(data=NATURAL_FOREST_DATA),
-        written=("section-1", ["w1", "w2", "w3"]),
-    )
+    mocks, stack = _patches(written=("section-1", ["w1", "w2", "w3"]))
+    mocks.pull.side_effect = _split_pulls()
 
     async def _text(*args, **kwargs):
         return await text.generate_section_text(*args, model=model, **kwargs)
@@ -871,6 +890,9 @@ async def test_post_2020_prompt_has_the_share_and_the_clamped_years():
         "2021-01-01 to 2025-12-31"
     ) in model.inputs
     assert "Take every figure and every year from the facts" in model.inputs
+    # The chart line and the rules give the threshold of the chart and map.
+    assert "other tree cover, 10% canopy density threshold" in model.inputs
+    assert "the chart and the map use a 10% canopy density" in model.inputs
 
 
 @pytest.mark.asyncio
@@ -881,4 +903,5 @@ async def test_post_2020_fallback_states_the_share_then_the_caveats():
     assert result.description.startswith(
         f"{SHARE_FACT} The SBTN Natural Lands Map is a 2020 baseline"
     )
+    assert "A 10% canopy density threshold applies" in result.description
     assert "30%" in result.description

@@ -24,7 +24,7 @@ import math
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from types import SimpleNamespace
-from typing import Any, Awaitable, Callable, Optional, Sequence
+from typing import Any, Awaitable, Callable, Optional
 from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 
 import pandas as pd
@@ -33,6 +33,7 @@ from src.agent.datasets.config import DATASETS
 from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import (
     INTEGRATED_ALERTS_ID,
+    NATURAL_FOREST_DEFAULT_CANOPY_COVER,
     AnalyticsHandler,
 )
 from src.agent.datasets.handlers.base import (
@@ -67,12 +68,12 @@ from src.api.services.analysis_templates.models import (
 )
 from src.api.services.analysis_templates.text import generate_section_text
 from src.api.services.analyze import AnalyzeService
-from src.api.services.charts import DETERMINISTIC_GENERATORS, column_to_rows
-from src.api.services.charts.base import ChartGenerator
+from src.api.services.charts import column_to_rows
 from src.api.services.charts.curated import build_curated_charts
 from src.api.services.charts.tcl_natural_forest import (
     TCLNaturalForestChartGenerator,
     natural_forest_totals,
+    split_by_year,
 )
 from src.api.services.dashboard_alerts import (
     AlertsUnavailableError,
@@ -224,18 +225,19 @@ async def _period(
     return start, end
 
 
-async def _curated_charts(
+async def _pull_rows(
     dataset_id: int,
     context: BuildContext,
     start: str,
     end: str,
-    generators: Sequence[ChartGenerator] = DETERMINISTIC_GENERATORS,
     **options,
-) -> tuple[list[InsightChart], DataPullResult]:
-    """The dataset's curated charts for the period, and the pull they were
-    built from. ``options`` go to ``AnalyzeService.analyze``."""
+) -> list[dict]:
+    """The rows of one analytics pull for the period. A successful pull
+    with no rows gives [], as nothing happened in the period; a failed pull
+    raises. ``options`` go to ``AnalyzeService.analyze``."""
     record = _dataset_record(dataset_id)
-    service = AnalyzeService(context.handler, generators)
+    # No generators: the caller builds the charts from the rows.
+    service = AnalyzeService(context.handler, ())
     result = await service.analyze(
         aois=[dict(context.aoi)],
         dataset_id=dataset_id,
@@ -249,18 +251,22 @@ async def _curated_charts(
             f"Could not get {record['dataset_name']} data for "
             f"'{context.aoi['name']}': {result.data.message}"
         )
-    charts = result.charts
-    if not charts:
-        # A successful pull with no rows: nothing happened in the period.
-        # That is a result, so the chart is built empty.
-        charts = await build_curated_charts(
-            dataset_id, [], context.language, generators
-        )
+    return column_to_rows(result.data.data) if result.data.data else []
+
+
+async def _curated_charts(
+    dataset_id: int, context: BuildContext, start: str, end: str
+) -> list[InsightChart]:
+    """The dataset's curated charts for the period. With no rows the chart
+    is built empty: nothing happened in the period, and that is a result."""
+    record = _dataset_record(dataset_id)
+    rows = await _pull_rows(dataset_id, context, start, end)
+    charts = await build_curated_charts(dataset_id, rows, context.language)
     if not charts:
         raise WidgetFailedError(
             f"No chart is available for {record['dataset_name']}."
         )
-    return charts, result.data
+    return charts
 
 
 async def _build_chart(
@@ -268,7 +274,7 @@ async def _build_chart(
 ) -> BuiltWidget:
     record = _dataset_record(spec.dataset_id)
     start, end = await _period(spec.dataset_id, context)
-    charts, _ = await _curated_charts(spec.dataset_id, context, start, end)
+    charts = await _curated_charts(spec.dataset_id, context, start, end)
     return BuiltWidget(
         widget=SectionWidget(
             widget_type="insight",
@@ -288,7 +294,7 @@ def _layer_snapshot(
     its selection and the catalog row to ``get_tile_services_for_dataset``.
     Here the selection is a stub with the context layer and no parameters,
     which gives the dataset defaults (for example a canopy threshold of 30,
-    or 0 with natural forest). The snapshot is what a map widget stores.
+    or 10 with natural forest). The snapshot is what a map widget stores.
     """
     record = _dataset_record(dataset_id)
     selection = SimpleNamespace(
@@ -365,28 +371,47 @@ async def _build_natural_forest_loss(
 ) -> BuiltWidget:
     """The natural forest split of tree cover loss, and its share as a fact.
 
+    Two pulls at the canopy threshold of the natural forest map layer: tree
+    cover loss in natural forest, and all tree cover loss. The analytics
+    API takes no threshold with its own split by natural forest class, so
+    other tree cover is the difference of the two.
+
     The share is computed here, not by the text model. With no loss the
     fact says so; there is no share to compute.
     """
     record = _dataset_record(spec.dataset_id)
     start, end = await _period(spec.dataset_id, context, "natural_forest")
-    try:
-        charts, pull = await _curated_charts(
+    natural_rows, all_rows = await asyncio.gather(
+        _pull_rows(
             spec.dataset_id,
             context,
             start,
             end,
-            [TCLNaturalForestChartGenerator(int(start[:4]), int(end[:4]))],
-            forest_breakdown="natural_forest",
-        )
-        natural_ha, total_ha = natural_forest_totals(
-            column_to_rows(pull.data) if pull.data else []
-        )
+            context_layer="natural_forest",
+            canopy_cover=NATURAL_FOREST_DEFAULT_CANOPY_COVER,
+        ),
+        _pull_rows(
+            spec.dataset_id,
+            context,
+            start,
+            end,
+            canopy_cover=NATURAL_FOREST_DEFAULT_CANOPY_COVER,
+        ),
+    )
+    try:
+        rows = split_by_year(natural_rows, all_rows)
     except ValueError as error:
         raise WidgetFailedError(
             f"Unexpected {record['dataset_name']} data for "
             f"'{context.aoi['name']}': {error}"
         ) from error
+    natural_ha, total_ha = natural_forest_totals(rows)
+    charts = await build_curated_charts(
+        spec.dataset_id,
+        rows,
+        context.language,
+        [TCLNaturalForestChartGenerator(int(start[:4]), int(end[:4]))],
+    )
 
     values = {
         "aoi_name": context.aoi["name"],
@@ -416,8 +441,9 @@ async def _build_natural_forest_loss(
         ),
         summary=(
             f"chart: {record['dataset_name']} per year, natural forest "
-            "(SBTN Natural Lands Map 2020) and other tree cover, no canopy "
-            f"density threshold, {start} to {end}"
+            "(SBTN Natural Lands Map 2020) and other tree cover, "
+            f"{NATURAL_FOREST_DEFAULT_CANOPY_COVER}% canopy density "
+            f"threshold, {start} to {end}"
         ),
         charts=charts,
         facts=[fact],

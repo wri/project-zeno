@@ -17,10 +17,13 @@ from src.api.services.charts import (
 )
 from src.api.services.charts.curated import build_curated_charts
 from src.api.services.charts.tcl_natural_forest import (
+    NATURAL_COLUMN,
     NATURAL_SERIES,
+    OTHER_COLUMN,
     OTHER_SERIES,
     TCLNaturalForestChartGenerator,
     natural_forest_totals,
+    split_by_year,
 )
 
 TCL_DATA = {
@@ -97,57 +100,37 @@ def test_sorts_rows_by_year():
         assert years == [2001, 2004, 2010, 2021, 2023]
 
 
-# --- Tree cover loss split by natural forest class --------------------------
-# Shaped like the analytics answer for BRA.14.1 with
-# forest_filter="natural_forest": one row per year and class, in arbitrary
-# order. 2022 is the live sample; 2024 has no rows.
+# --- Tree cover loss split by natural forest -------------------------------
+# Shaped like the two analytics answers for BRA.14.1 at a 10% threshold, as
+# the handler gives them: tree cover loss with the natural_forest context
+# layer, and all tree cover loss. One row per year, in arbitrary order;
+# 2024 has no rows. Below 30% there are no emissions.
 NATURAL_FOREST_DATA = {
-    "aoi_id": ["BRA.14.1"] * 10,
-    "aoi_type": ["admin"] * 10,
-    "tree_cover_loss_year": [
-        2023,
-        2022,
-        2021,
-        2022,
-        2025,
-        2021,
-        2022,
-        2023,
-        2025,
-        2021,
-    ],
-    "natural_forests_class": [
-        "Unknown",
-        "Natural Forest",
-        "Non-natural Forest",
-        "Unknown",
-        "Natural Forest",
-        "Natural Forest",
-        "Non-natural Forest",
-        "Natural Forest",
-        "Unknown",
-        "Unknown",
-    ],
-    "area_ha": [
-        200.0,
-        1222.35,
-        80.25,
-        230.15,
-        800.0,
-        900.5,
-        103.11,
-        1500.0,
-        99.5,
-        150.0,
-    ],
-    "carbon_emissions_MgCO2e": [1.0] * 10,
+    "aoi_id": ["BRA.14.1"] * 4,
+    "aoi_type": ["admin"] * 4,
+    "tree_cover_loss_year": [2023, 2021, 2025, 2022],
+    "area_ha": [1500.0, 900.5, 800.0, 1222.35],
+    "carbon_emissions_MgCO2e": [None] * 4,
 }
-NATURAL_FOREST_ROWS = column_to_rows(NATURAL_FOREST_DATA)
+ALL_LOSS_DATA = {
+    "aoi_id": ["BRA.14.1"] * 4,
+    "aoi_type": ["admin"] * 4,
+    "tree_cover_loss_year": [2022, 2021, 2023, 2025],
+    "area_ha": [1555.61, 1130.75, 1700.0, 899.5],
+    "carbon_emissions_MgCO2e": [None] * 4,
+}
+SPLIT_ROWS = split_by_year(
+    column_to_rows(NATURAL_FOREST_DATA), column_to_rows(ALL_LOSS_DATA)
+)
 
 
-def _split_chart(rows=NATURAL_FOREST_ROWS):
+def _split_chart(rows=SPLIT_ROWS):
     (chart,) = TCLNaturalForestChartGenerator(2021, 2025).generate(rows)
     return chart
+
+
+def _loss(year, area_ha):
+    return {"tree_cover_loss_year": year, "area_ha": area_ha}
 
 
 def test_natural_forest_split_is_one_stacked_bar_per_year():
@@ -165,17 +148,24 @@ def test_natural_forest_split_is_one_stacked_bar_per_year():
     ]
 
 
-def test_natural_forest_split_folds_non_natural_and_unknown_into_other():
+def test_other_tree_cover_is_all_loss_minus_natural_forest_loss():
     by_year = {
         row["tree_cover_loss_year"]: row for row in _split_chart().chart_data
     }
 
     assert by_year[2022][NATURAL_SERIES] == 1222.35
-    assert by_year[2022][OTHER_SERIES] == pytest.approx(230.15 + 103.11)
+    assert by_year[2022][OTHER_SERIES] == pytest.approx(1555.61 - 1222.35)
     assert by_year[2023][OTHER_SERIES] == 200.0
     # A year with no loss still has its bar, at zero.
     assert by_year[2024][NATURAL_SERIES] == 0.0
     assert by_year[2024][OTHER_SERIES] == 0.0
+
+
+def test_a_year_with_loss_outside_natural_forest_only():
+    (row,) = split_by_year([], [_loss(2022, 40.0)])
+
+    assert row[NATURAL_COLUMN] == 0.0
+    assert row[OTHER_COLUMN] == 40.0
 
 
 def test_natural_forest_is_on_top_of_the_stack_with_its_colours():
@@ -190,34 +180,37 @@ def test_natural_forest_is_on_top_of_the_stack_with_its_colours():
 
 
 def test_natural_forest_split_with_no_rows_has_a_zero_bar_per_year():
-    chart = _split_chart(rows=[])
+    rows = split_by_year([], [])
+    chart = _split_chart(rows=rows)
 
     assert len(chart.chart_data) == 5
     assert all(row[NATURAL_SERIES] == 0.0 for row in chart.chart_data)
-    assert natural_forest_totals([]) == (0.0, 0.0)
+    assert natural_forest_totals(rows) == (0.0, 0.0)
 
 
 @pytest.mark.parametrize(
-    "row",
+    ("natural", "all_loss"),
     [
-        {"tree_cover_loss_year": 2022, "area_ha": 1.0},
-        {
-            "tree_cover_loss_year": 2022,
-            "natural_forests_class": "Natural Grassland",
-            "area_ha": 1.0,
-        },
+        ([_loss(2022, 10.0)], [_loss(2022, 9.0)]),
+        ([_loss(2022, 10.0)], []),
     ],
 )
-def test_natural_forest_split_rejects_an_unknown_class(row):
-    with pytest.raises(ValueError, match="natural forest class"):
-        _split_chart(rows=[row])
+def test_more_natural_forest_loss_than_all_loss_raises(natural, all_loss):
+    with pytest.raises(ValueError, match="more than all tree cover loss"):
+        split_by_year(natural, all_loss)
+
+
+def test_float_noise_in_the_two_sums_is_no_other_tree_cover():
+    (row,) = split_by_year([_loss(2022, 1000.0000001)], [_loss(2022, 1000.0)])
+
+    assert row[OTHER_COLUMN] == 0.0
 
 
 def test_natural_forest_totals():
-    natural, total = natural_forest_totals(NATURAL_FOREST_ROWS)
+    natural, total = natural_forest_totals(SPLIT_ROWS)
 
-    assert natural == pytest.approx(900.5 + 1222.35 + 1500.0 + 800.0)
-    assert total == pytest.approx(sum(NATURAL_FOREST_DATA["area_ha"]))
+    assert natural == pytest.approx(sum(NATURAL_FOREST_DATA["area_ha"]))
+    assert total == pytest.approx(sum(ALL_LOSS_DATA["area_ha"]))
 
 
 def test_natural_forest_split_is_not_the_default_tree_cover_loss_chart():
@@ -230,7 +223,7 @@ def test_natural_forest_split_is_not_the_default_tree_cover_loss_chart():
 async def test_natural_forest_split_legend_and_colours_are_localised():
     (chart,) = await build_curated_charts(
         TREE_COVER_LOSS_ID,
-        NATURAL_FOREST_ROWS,
+        SPLIT_ROWS,
         "es",
         [TCLNaturalForestChartGenerator(2021, 2025)],
     )
