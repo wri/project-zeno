@@ -1,0 +1,19 @@
+id: 1-083
+uid: 9198d265bbfde9e0
+status: done
+group: dataset-suggestion
+query: Brazil deforestation linked to agricultural commodities in 2017
+expected:
+  aoi_ids: BRA
+  aoi_source: gadm
+  text: Provides good reason for each dataset suggestion that relate to the user query
+  scope: suggest
+  nudge_type: dataset_choice
+  nudge_options: Tree cover loss by dominant driver;sLUC
+notes:
+  aoi_type: gadm 0
+  rewrite: 'Expectations moved off suggested_datasets (populated in 0
+    of 1,298 retained trials — project-zeno#770 moved suggestion onto the nudge surface) and
+    onto nudge_type/nudge_options. Every trial''s observed option set was already a subset
+    of the old expected ids, so the expectation was right all along; only the surface moved.
+    DIST-ALERT was dropped from nudge_options when it was removed from the agent.'

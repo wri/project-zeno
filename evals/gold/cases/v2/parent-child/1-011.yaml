@@ -1,0 +1,23 @@
+id: 1-011
+uid: 8b4135b1aedc2ec5
+status: not doing
+group: parent-child
+query: How much land changed to short vegetation in protected areas in Colorado between 2015
+  and 2024?
+expected:
+  aoi_source: wdpa
+  dataset_id: '1'
+  dataset_name: Global land cover
+  scope: analyse
+  aoi_ids: USA.6_1
+notes:
+  status_reason: 'RE-PARKED 2026-08-04 after verification (run 20260803T220705Z). Unparking
+    it was premature: the agent selects three arbitrary WDPA polygons (555665453, 1034, 555607614)
+    rather than all protected areas in Colorado, nudges aoi_choice on some trials, and the
+    resulting figure varies about 20x across identical trials (41,339 ha vs 1,920.67 ha).
+    Closing the date window did not touch the real defect — protected areas in Colorado is
+    a multi-AOI aggregate the product does not select deterministically, exactly as the original
+    park note said. Needs a product answer, not a prompt edit.'
+  aoi_type: wdpa
+  class_1: all
+  class_2: short vegetation

@@ -12,6 +12,7 @@ from src.agent.tools.inspect_view_context import (
     TEXT_WIDGET_CHAR_LIMIT,
     _chart_variables,
     _extract_insight_ids,
+    _format_alerts_widget,
     _format_map_widget,
     _format_text_widget,
     format_chart_data,
@@ -185,6 +186,59 @@ def test_format_map_widget_imagery():
 def test_format_map_widget_unknown_config():
     assert _format_map_widget({}) is None
     assert _format_map_widget({"default_view": "map"}) is None
+
+
+def test_format_alerts_widget():
+    line = _format_alerts_widget(
+        {
+            "alerts": {"aoi": {"src_id": "BRA.16_1"}, "days": 30},
+            "dataset": {
+                "dataset_name": "Integrated alerts",
+                "tile_url": "https://tiles.example.com/{z}/{x}/{y}.png",
+                "start_date": "2026-09-16",
+                "end_date": "2026-10-16",
+            },
+        }
+    )
+    assert line == (
+        "alerts list and map: Integrated alerts (2026-09-16–2026-10-16)"
+    )
+    assert "tiles.example.com" not in line
+
+
+@pytest.mark.asyncio
+async def test_format_dashboard_describes_an_alerts_widget():
+    widget = SimpleNamespace(
+        id=uuid4(),
+        widget_type="alerts",
+        position=1,
+        section_id=None,
+        insight_id=None,
+        config={
+            "alerts": {"aoi": {"src_id": "BRA.16_1"}, "days": 30},
+            "dataset": {
+                "dataset_name": "Integrated alerts",
+                "start_date": "2026-09-16",
+                "end_date": "2026-10-16",
+            },
+        },
+    )
+    dashboard = SimpleNamespace(
+        id=uuid4(),
+        name="Paraná",
+        description=None,
+        aois=[],
+        sections=[],
+        widgets=[widget],
+    )
+
+    out = await format_dashboard(dashboard)
+
+    assert (
+        f"Widget 1 (alerts) {widget.id}: alerts list and map: "
+        "Integrated alerts (2026-09-16–2026-10-16)"
+    ) in out
+    assert "map: dataset" not in out
 
 
 def test_format_text_widget_renders_the_markdown_body():

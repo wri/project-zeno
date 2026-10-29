@@ -1,0 +1,35 @@
+id: 1-037
+uid: ea93ce88e6587f89
+status: done
+group: comparative
+query: For exactly the 5 Canadian provinces and territories whose names begin with the letter
+  'N', which had the most deforestation in 2004?
+expected:
+  aoi_ids: CAN.4_1;CAN.5_1;CAN.7_1;CAN.6_1;CAN.8_1
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  answer: Northwest Territories
+  scope: analyse
+notes:
+  aoi_type: gadm 1
+  rewrite: '2026-09-18: original wording ("Of the Canadian provinces+territories beginning
+    with ''N''...") had a real, reproducible AOI-resolution problem, not a dataset nudge:
+    11/27 (~41%) aoi_id_match failures across default-profile runs 2026-09-10..2026-09-18,
+    vs. only 1/27 (~4%) dataset_id_match failures baseline. Raw AOI selections showed three
+    distinct malformed behaviors, not one: resolving all 13 Canadian provinces/territories
+    instead of the 5 named ones, dropping one of the 5 at random, and once resolving 49
+    sub-provincial counties/divisions within the 5 instead of the provinces themselves.
+
+    Tried "Only among the... whose names begin with the letter ''N''": worse (6/9, ~67%).
+    Tried "For exactly the...": fixed the dataset side (0/18) but only partly fixed the AOI
+    side (5/18, ~28%). Tried "For the 5...": fixed the AOI side well (2/18, ~11%) but
+    reintroduced dataset confusion (3/18, ~17% vs the 4% baseline) — a new dataset_choice
+    flap between "Tree cover loss" (expected), "Tree cover loss by dominant driver", and
+    "Tree cover loss due to fires".
+
+    Combining both — "For exactly the 5 Canadian provinces and territories whose names begin
+    with the letter ''N''...": 0/18 on both aoi_id_match and dataset_id_match across two
+    fresh 9-trial batches. At the original 41% aoi baseline, 0/18 by chance is <0.01%; the
+    dataset side returning to 0/18 is consistent with "For the 5" alone being a noise spike
+    against its already-low ~4% baseline, not a real problem introduced by adding the count.'

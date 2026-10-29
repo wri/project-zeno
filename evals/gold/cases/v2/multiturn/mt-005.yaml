@@ -1,0 +1,21 @@
+id: mt-005
+uid: f04c442b6ce8ebe0
+status: ready
+group: multiturn
+turns:
+- query: How much tree cover loss did Brazil have in 2022?
+  expected:
+    aoi_ids: BRA
+    dataset_id: '4'
+    scope: analyse
+- query: And for Indonesia?
+  expected:
+    aoi_ids: IDN
+    scope: analyse
+  deltas:
+    changed:
+    - aoi_ids
+    retain:
+    - dataset_id
+notes:
+  scenario: ellipsis / context retention (Retrieval)

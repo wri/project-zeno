@@ -9,6 +9,7 @@ and the agent tool both call it.
 3. Build every widget concurrently. Each widget builder clamps the period to
    its dataset and gets its own copy of the AOI, because the analytics
    handler changes its input in place (it strips the GADM level suffix).
+   Builders that need the same data share one analytics pull.
    A builder returns data. It does not write to the database.
 4. A failed required widget stops the build with nothing written. A failed
    optional widget adds a warning and is left out.
@@ -18,18 +19,26 @@ and the agent tool both call it.
 """
 
 import asyncio
+import json
+import math
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from types import SimpleNamespace
-from typing import Awaitable, Callable, Optional
+from typing import Any, Awaitable, Callable, Optional
+from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 
 import pandas as pd
 
 from src.agent.datasets.config import DATASETS
 from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import (
+    INTEGRATED_ALERTS_ID,
     NATURAL_FOREST_DEFAULT_CANOPY_COVER,
     AnalyticsHandler,
+)
+from src.agent.datasets.handlers.base import (
+    DataPullResult,
+    DataSourceHandler,
 )
 from src.agent.i18n import t
 from src.agent.imagery import ImageryRequest, Sentinel2ImageryProvider
@@ -41,7 +50,15 @@ from src.agent.subagents.pick_dataset.tool import (
 from src.api.data_models import DashboardOrm
 from src.api.repositories import dashboard_writer
 from src.api.repositories.dashboard_writer import SectionWidget
+from src.api.services.alerts_list import (
+    AlertsList,
+    AlertsListService,
+    InvalidWindowError,
+    LatestAlertDateSource,
+    UnsupportedAreaError,
+)
 from src.api.services.analysis_templates.models import (
+    AlertsWidgetSpec,
     AnalysisTemplate,
     ChartWidgetSpec,
     ImageryWidgetSpec,
@@ -57,6 +74,10 @@ from src.api.services.charts.tcl_natural_forest import (
     TCLNaturalForestChartGenerator,
     natural_forest_totals,
     split_by_year,
+)
+from src.api.services.dashboard_alerts import (
+    AlertsUnavailableError,
+    AnalyticsAlertsSource,
 )
 from src.api.services.dashboard_aoi import dashboard_aoi
 from src.api.services.widget_configs import (
@@ -94,15 +115,75 @@ class TemplateResult:
     warnings: list[str] = field(default_factory=list)
 
 
+class _SharedPulls(DataSourceHandler):
+    """The analytics handler of one template build: one pull per payload.
+
+    The builders run concurrently, and two of them can need the same data,
+    such as the integrated alerts chart and the alerts list. The analytics
+    API runs both of two identical requests that arrive together, so here
+    the second caller awaits the first caller's pull instead. Callers get
+    the same result object and must not change it.
+    """
+
+    def __init__(self, handler: DataSourceHandler):
+        self._handler = handler
+        self._pulls: dict[str, asyncio.Future[DataPullResult]] = {}
+
+    def can_handle(self, dataset: Any) -> bool:
+        return self._handler.can_handle(dataset)
+
+    async def pull_data(
+        self,
+        query: str,
+        dataset: dict,
+        start_date: str,
+        end_date: str,
+        change_over_time_query: bool,
+        aois: list[dict],
+    ) -> DataPullResult:
+        key = json.dumps(
+            [
+                query,
+                dataset,
+                start_date,
+                end_date,
+                change_over_time_query,
+                [
+                    [aoi.get("source"), aoi.get("src_id"), aoi.get("subtype")]
+                    for aoi in aois
+                ],
+            ],
+            sort_keys=True,
+            default=str,
+        )
+        if key not in self._pulls:
+            # Copies, because the handler changes its input in place.
+            self._pulls[key] = asyncio.ensure_future(
+                self._handler.pull_data(
+                    query=query,
+                    dataset=dict(dataset),
+                    start_date=start_date,
+                    end_date=end_date,
+                    change_over_time_query=change_over_time_query,
+                    aois=[dict(aoi) for aoi in aois],
+                )
+            )
+        return await self._pulls[key]
+
+
 @dataclass(frozen=True)
 class BuildContext:
     """What every widget builder reads. ``aoi`` is the dashboard's first
-    AOI as a reference dict; a builder must copy it before use."""
+    AOI as a reference dict; a builder must copy it before use. ``handler``
+    is the build's analytics handler, shared by all its builders, and
+    ``latest_alerts`` reads the integrated alerts' latest date."""
 
     aoi: dict
     start: date
     end: date
     language: str
+    handler: DataSourceHandler
+    latest_alerts: LatestAlertDateSource
 
 
 @dataclass
@@ -156,7 +237,7 @@ async def _pull_rows(
     raises. ``options`` go to ``AnalyzeService.analyze``."""
     record = _dataset_record(dataset_id)
     # No generators: the caller builds the charts from the rows.
-    service = AnalyzeService(AnalyticsHandler(), ())
+    service = AnalyzeService(context.handler, ())
     result = await service.analyze(
         aois=[dict(context.aoi)],
         dataset_id=dataset_id,
@@ -206,20 +287,19 @@ async def _build_chart(
     )
 
 
-async def _build_layer(
-    spec: LayerWidgetSpec, context: BuildContext
-) -> BuiltWidget:
+def _layer_snapshot(
+    dataset_id: int, context_layer: Optional[str], start: str, end: str
+) -> dict:
     """The same tile layer the chat path resolves: ``pick_dataset`` passes
     its selection and the catalog row to ``get_tile_services_for_dataset``.
-    Here the selection is a stub with the spec's context layer and no
-    parameters, which gives the dataset defaults (for example a canopy
-    threshold of 30, or 10 with natural forest).
+    Here the selection is a stub with the context layer and no parameters,
+    which gives the dataset defaults (for example a canopy threshold of 30,
+    or 10 with natural forest). The snapshot is what a map widget stores.
     """
-    record = _dataset_record(spec.dataset_id)
-    start, end = await _period(spec.dataset_id, context, spec.context_layer)
+    record = _dataset_record(dataset_id)
     selection = SimpleNamespace(
-        dataset_id=spec.dataset_id,
-        context_layer=spec.context_layer,
+        dataset_id=dataset_id,
+        context_layer=context_layer,
         parameters=None,
     )
     tile_url, context_layers, layers = get_tile_services_for_dataset(
@@ -228,10 +308,10 @@ async def _build_layer(
     snapshot = dataset_config(
         {
             "dataset": {
-                "dataset_id": spec.dataset_id,
+                "dataset_id": dataset_id,
                 "dataset_name": record["dataset_name"],
                 "tile_url": tile_url,
-                "context_layer": spec.context_layer,
+                "context_layer": context_layer,
                 "selected_layer": None,
                 "context_layers": [
                     layer.model_dump() for layer in context_layers
@@ -247,6 +327,15 @@ async def _build_layer(
         raise WidgetFailedError(
             f"{record['dataset_name']} has no map layer to show."
         )
+    return snapshot
+
+
+async def _build_layer(
+    spec: LayerWidgetSpec, context: BuildContext
+) -> BuiltWidget:
+    record = _dataset_record(spec.dataset_id)
+    start, end = await _period(spec.dataset_id, context, spec.context_layer)
+    snapshot = _layer_snapshot(spec.dataset_id, spec.context_layer, start, end)
     name = record["dataset_name"]
     if spec.context_layer:
         name += f" with the {spec.context_layer} context layer"
@@ -362,6 +451,137 @@ async def _build_natural_forest_loss(
     )
 
 
+# The SBTN Natural Lands Map classes that are natural forest: natural
+# forests, mangroves, wetland natural forests and peat natural forests. The
+# analytics API's natural_forests land filter keeps the same classes.
+NATURAL_FOREST_CLASSES = (2, 5, 8, 9)
+# The land overlays the alerts widget carries for its map, one per land
+# filter of the alerts list and named after it, so the frontend overlays the
+# one the list is filtered to. Both draw the integrated alerts natural_lands
+# context layer (the SBTN Natural Lands Map); each keeps the classes given,
+# or every class the catalog layer shows for None.
+ALERTS_LAND_OVERLAYS: dict[str, Optional[tuple[int, ...]]] = {
+    "natural_lands": None,
+    "natural_forests": NATURAL_FOREST_CLASSES,
+}
+
+
+def _only_classes(tile_url: str, classes: tuple[int, ...]) -> str:
+    """The Natural Lands Map tile URL drawing only ``classes``: the colormap
+    keeps their entries (the catalog's colours), and the expression sets
+    every other class to 0, which the colormap leaves transparent. Built
+    from the catalog URL, so a colormap change there flows through."""
+    url = urlsplit(tile_url)
+    query = dict(parse_qsl(url.query, keep_blank_values=True))
+    colormap = json.loads(query["colormap"])
+    query["colormap"] = json.dumps({str(c): colormap[str(c)] for c in classes})
+    query["expression"] = "+".join(f"asset*(asset=={c})" for c in classes)
+    return urlunsplit(url._replace(query=urlencode(query, quote_via=quote)))
+
+
+def _land_overlays(start: str, end: str) -> list[dict]:
+    """The alerts widget's land overlays as snapshot context layers."""
+    layers = _layer_snapshot(
+        INTEGRATED_ALERTS_ID, "natural_lands", start, end
+    )["context_layers"]
+    (natural_lands,) = [
+        entry for entry in layers if entry["name"] == "natural_lands"
+    ]
+    return [
+        {
+            "name": name,
+            "tile_url": natural_lands["tile_url"]
+            if classes is None
+            else _only_classes(natural_lands["tile_url"], classes),
+        }
+        for name, classes in ALERTS_LAND_OVERLAYS.items()
+    ]
+
+
+async def _alerts_fact(
+    alerts: AlertsList, context: BuildContext
+) -> Optional[str]:
+    """The alerts of the list's new week (the 7 days to the latest alert
+    date), over the part of it that the period covers. None when the
+    period and the week do not meet."""
+    week = alerts.new_week
+    start = max(week.start_date, alerts.start_date)
+    end = min(week.end_date, alerts.end_date)
+    if start > end:
+        return None
+    values = {
+        "aoi_name": context.aoi["name"],
+        "start_date": start.isoformat(),
+        "end_date": end.isoformat(),
+    }
+    new_days = [row for row in alerts.rows if row.new]
+    if not new_days:
+        return await t(
+            "analysis_template.alerts.no_alerts", context.language, **values
+        )
+    return await t(
+        "analysis_template.alerts.week",
+        context.language,
+        days=len(new_days),
+        area_ha=_hectares(math.fsum(row.total_ha for row in new_days)),
+        **values,
+    )
+
+
+async def _build_alerts(
+    spec: AlertsWidgetSpec, context: BuildContext
+) -> BuiltWidget:
+    """The live alerts list and its map: the area, the period length and
+    the alerts layer. The frontend fetches the rows, so none are stored.
+
+    The one pull here, shared with an alerts chart in the same build, gives
+    the new week as a fact for the description, so the text and the list's
+    NEW rows name the same days.
+    """
+    record = _dataset_record(spec.dataset_id)
+    try:
+        # The service clamps the period to the data as _period does for the
+        # chart, so the two pull the same dates. It copies the area.
+        alerts = await AlertsListService(
+            context.handler, context.latest_alerts
+        ).list(context.aoi, context.start, context.end, today=context.end)
+    except (UnsupportedAreaError, InvalidWindowError) as error:
+        raise WidgetFailedError(str(error)) from error
+    except AlertsUnavailableError as error:
+        raise WidgetFailedError(
+            f"Could not get {record['dataset_name']} data for "
+            f"'{context.aoi['name']}': {error}"
+        ) from error
+    start, end = alerts.start_date.isoformat(), alerts.end_date.isoformat()
+    fact = await _alerts_fact(alerts, context)
+    snapshot = _layer_snapshot(spec.dataset_id, None, start, end)
+    # The snapshot's own context_layer stays None, so the map shows alerts
+    # on all land until the list is filtered.
+    snapshot["context_layers"] = _land_overlays(start, end)
+    return BuiltWidget(
+        widget=SectionWidget(
+            widget_type="alerts",
+            config={
+                "alerts": {
+                    "aoi": {
+                        key: context.aoi[key]
+                        for key in ("source", "src_id", "subtype", "name")
+                    },
+                    # The template's period, which the chart shares.
+                    "days": (context.end - context.start).days,
+                },
+                "dataset": snapshot,
+            },
+        ),
+        summary=(
+            f"alerts list and map: {record['dataset_name']}, high and "
+            f"highest confidence, {start} to {end}"
+        ),
+        facts=[fact] if fact else [],
+        period=(start, end),
+    )
+
+
 _IMAGERY_PROVIDER = Sentinel2ImageryProvider()
 
 
@@ -400,6 +620,7 @@ _BUILDERS: dict[str, Callable[..., Awaitable[BuiltWidget]]] = {
     "layer": _build_layer,
     "imagery": _build_imagery,
     "natural_forest_loss": _build_natural_forest_loss,
+    "alerts": _build_alerts,
 }
 
 
@@ -441,11 +662,14 @@ async def apply_template(
             f"Dashboard '{dashboard.name}' has no area. Add an area first."
         )
     start, end = args.period(date.today())
+    analytics = AnalyticsHandler()
     context = BuildContext(
         aoi=aoi,
         start=start,
         end=end,
         language=language or DEFAULT_LANGUAGE,
+        handler=_SharedPulls(analytics),
+        latest_alerts=AnalyticsAlertsSource(analytics, analytics.BASE_URL),
     )
     logger.info(
         "analysis_template_build_started",

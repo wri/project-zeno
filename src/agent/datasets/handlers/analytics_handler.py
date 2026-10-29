@@ -36,6 +36,12 @@ ADMIN_SUBTYPES = (
 )
 # The analytics API takes GADM admin levels 0 to 2 only.
 ANALYTICS_ADMIN_SUBTYPES = ADMIN_SUBTYPES[:3]
+# The AOI subtypes the analytics API knows by name, and its type for each.
+NAMED_AOI_TYPES = {
+    "key-biodiversity-area": "key_biodiversity_area",
+    "indigenous-and-community-land": "indigenous_land",
+    "protected-area": "protected_area",
+}
 SLUC_GADM_LEVELS = ["country", "state-province", "district-county"]
 
 SLUC_CROPS = [
@@ -146,8 +152,21 @@ LAND_GHG_INVENTORY_ID = [
     if ds["dataset_name"] == "Land GHG Monitoring System (LGMS)"
 ][0]
 
+# The land classes the integrated alerts endpoint can restrict alerts to,
+# sent as its land_filter when the dataset's context layer names one.
+# natural_lands is a catalog context layer; natural_forests (the SBTN natural
+# forest classes) is asked for by the alerts list only.
+INTEGRATED_ALERTS_LAND_FILTERS = ("natural_lands", "natural_forests")
+
 # AOI subtypes that the handler sends as their geometry (a feature collection).
 GEOMETRY_SUBTYPES = ("custom-area", *CONCESSION_SUBTYPES)
+# Every AOI subtype the analytics API takes: admin levels 0 to 2, the named
+# area types and the geometries. Some datasets support fewer (see below).
+ANALYTICS_AOI_SUBTYPES = (
+    *ANALYTICS_ADMIN_SUBTYPES,
+    *NAMED_AOI_TYPES,
+    *GEOMETRY_SUBTYPES,
+)
 # The analytics API has no feature_collection AOI type for these endpoints.
 GEOMETRY_UNSUPPORTED_IDS = {
     TREE_COVER_GAIN_ID,
@@ -323,12 +342,8 @@ class AnalyticsHandler(DataSourceHandler):
 
         if aoi["subtype"] in ADMIN_SUBTYPES:
             aoi_type = "admin"
-        elif aoi["subtype"] == "key-biodiversity-area":
-            aoi_type = "key_biodiversity_area"
-        elif aoi["subtype"] == "indigenous-and-community-land":
-            aoi_type = "indigenous_land"
-        elif aoi["subtype"] == "protected-area":
-            aoi_type = "protected_area"
+        elif aoi["subtype"] in NAMED_AOI_TYPES:
+            aoi_type = NAMED_AOI_TYPES[aoi["subtype"]]
         elif aoi["subtype"] in GEOMETRY_SUBTYPES:
             # The analytics API has no concession type, so a concession is
             # sent as its geometry, like a custom area.
@@ -409,9 +424,12 @@ class AnalyticsHandler(DataSourceHandler):
 
         payload: dict[str, Any]
         if dataset.get("dataset_id") == INTEGRATED_ALERTS_ID:
-            land_filter = None
-            if dataset.get("context_layer") == "natural_lands":
-                land_filter = "natural_lands"
+            context_layer = dataset.get("context_layer")
+            land_filter = (
+                context_layer
+                if context_layer in INTEGRATED_ALERTS_LAND_FILTERS
+                else None
+            )
 
             payload = {
                 **base_payload,

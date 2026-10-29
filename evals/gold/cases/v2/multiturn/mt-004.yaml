@@ -1,0 +1,18 @@
+id: mt-004
+uid: 636fc19f46d767a6
+status: ready
+group: multiturn
+turns:
+- query: How much tree cover loss did Indonesia have in 2022?
+  expected:
+    dataset_id: '4'
+    scope: analyse
+- query: How does that compare with 2021?
+  expected:
+    scope: analyse
+  deltas:
+    retain:
+    - aoi_ids
+    - dataset_id
+notes:
+  scenario: follow-up comparison reusing context (Analysis)

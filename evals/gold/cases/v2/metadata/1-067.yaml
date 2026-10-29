@@ -1,0 +1,8 @@
+id: 1-067
+uid: 8c512724d73a8fb4
+status: done
+group: metadata
+query: Tell me about the methodology used to produce the Tree cover loss by dominant driver
+  dataset - how should I use this data? Are they any details I should be aware of?
+expected:
+  text: Refers to the classes, methodology, and 1 km grid cell over the 24-year period.

@@ -11,7 +11,9 @@ from src.agent.datasets.handlers.analytics_handler import (
     NATURAL_FOREST_DEFAULT_CANOPY_COVER,
     TREE_COVER_LOSS_ID,
 )
+from src.api.schemas import ALERTS_MAX_DAYS
 from src.api.services.analysis_templates.models import (
+    AlertsWidgetSpec,
     AnalysisTemplate,
     ChartWidgetSpec,
     ImageryWidgetSpec,
@@ -24,9 +26,10 @@ from src.api.services.charts.tcl_natural_forest import FIRST_YEAR
 
 class NrtMonitoringArgs(TemplateArgs):
     days: int = Field(
-        default=14,
+        default=30,
         ge=1,
-        le=365,
+        # The template's days become the alerts widget's, which this bounds.
+        le=ALERTS_MAX_DAYS,
         description="Length of the period in days, counted back from today.",
     )
 
@@ -39,6 +42,16 @@ class Post2020ForestLossArgs(TemplateArgs):
         # The chart and the map are clamped to the end of the loss data, and
         # so is the section. The imagery is of today.
         return date(FIRST_YEAR, 1, 1), today
+
+
+NRT_MONITORING_RULES = (
+    "two or three sentences of plain prose, no markup. First give the fact "
+    "on the latest alerts: the alert days, the area with its unit and the "
+    "dates, or that no alerts were recorded. Take every figure and every "
+    "date from the facts. Do not compute new figures. Then say that the "
+    "alerts show possible disturbance, not confirmed deforestation. End "
+    "with: Pick a period to see the list and the map for the same dates."
+)
 
 
 POST_2020_FOREST_LOSS_RULES = (
@@ -64,14 +77,17 @@ TEMPLATES: tuple[AnalysisTemplate, ...] = (
         name="nrt-monitoring",
         label_key="analysis_template.nrt_monitoring.label",
         purpose="Show recent forest disturbance in the area, day by day.",
+        description_rules=NRT_MONITORING_RULES,
         fallback_title_key="analysis_template.nrt_monitoring.title",
         fallback_description_key=(
             "analysis_template.nrt_monitoring.description"
         ),
         args_model=NrtMonitoringArgs,
+        # The alerts widget's map is the alerts layer, so there is no
+        # separate layer widget. The chart and the list share one period.
         widgets=(
             ChartWidgetSpec(dataset_id=INTEGRATED_ALERTS_ID),
-            LayerWidgetSpec(dataset_id=INTEGRATED_ALERTS_ID),
+            AlertsWidgetSpec(),
             ImageryWidgetSpec(),
         ),
     ),

@@ -3,6 +3,7 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 
+import httpx
 import pytest
 from sqlalchemy import select
 
@@ -616,6 +617,64 @@ async def test_pull_data_custom_area(auth_override, client, structlog_context):
     aoi_id_to_name = statistics[0].get("aoi_id_to_name", {})
     assert aoi_data["name"] == aoi_id_to_name.get(aoi_data["src_id"])
     assert raw_data["land_cover_class"] == ["Built-up"]
+
+
+def _flaky_client(failures: int, calls: list):
+    """An AsyncClient whose first `failures` GETs time out."""
+
+    class FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        async def get(self, url, headers):
+            calls.append(url)
+            if len(calls) <= failures:
+                raise httpx.ReadTimeout("stalled")
+            return httpx.Response(
+                200,
+                json={"data": {"result": {"aoi_id": ["x"]}}},
+                request=httpx.Request("GET", url),
+            )
+
+    return FakeClient
+
+
+async def test_fetch_statistics_retries_with_backoff(monkeypatch):
+    """A stalled analytics API is retried, not surfaced (PZB-1410)."""
+    calls, delays = [], []
+    monkeypatch.setattr(
+        pull_data_module.httpx, "AsyncClient", _flaky_client(2, calls)
+    )
+
+    async def fake_sleep(delay):
+        delays.append(delay)
+
+    monkeypatch.setattr(pull_data_module.asyncio, "sleep", fake_sleep)
+
+    assert await fetch_statistics_from_url("https://example.test/r") == {
+        "aoi_id": ["x"]
+    }
+    assert len(calls) == 3
+    assert delays == [1.0, 2.0]
+
+
+async def test_fetch_statistics_gives_up_after_max_retries(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        pull_data_module.httpx, "AsyncClient", _flaky_client(99, calls)
+    )
+
+    async def fake_sleep(delay):
+        pass
+
+    monkeypatch.setattr(pull_data_module.asyncio, "sleep", fake_sleep)
+
+    with pytest.raises(httpx.ReadTimeout):
+        await fetch_statistics_from_url("https://example.test/r")
+    assert len(calls) == pull_data_module.FETCH_MAX_RETRIES + 1
 
 
 class TestReviseDateRange:
