@@ -9,7 +9,9 @@ from importlib import import_module
 from typing import Optional
 
 import pandas as pd
+from langchain_core.runnables import RunnableLambda
 
+from src.agent import llms
 from src.agent.subagents.pick_aoi import Geocoder
 from src.shared.aoi_search import PARTIAL_TIER
 from src.shared.geocoding_helpers import WORLD_BBOX
@@ -92,11 +94,14 @@ class _SmallModelStub:
     Built without a `src_id` it fails the test on any attempt to use it, which
     is how the deterministic path proves no model is reachable during
     selection. Given one, it plays the model's pick — pass a src_id that is
-    not among the candidates to play a hallucinated one.
+    not among the candidates to play a hallucinated one. `failures` are
+    raised by the first calls, in order, before the pick is returned.
     """
 
-    def __init__(self, src_id: Optional[str] = None):
+    def __init__(self, src_id: Optional[str] = None, failures=()):
         self._src_id = src_id
+        self._failures = list(failures)
+        self.calls = 0
 
     def with_structured_output(self, schema):
         if self._src_id is None:
@@ -104,9 +109,22 @@ class _SmallModelStub:
         src_id = self._src_id
 
         async def _pick(_input):
+            self.calls += 1
+            if self._failures:
+                raise self._failures.pop(0)
             return schema(src_id=src_id)
 
-        return _pick
+        return RunnableLambda(_pick)
+
+
+def _use_small_model(monkeypatch, stub):
+    """Route the tool's model calls to `stub`, with no fallback model behind
+    it and no wait between retries."""
+    monkeypatch.setattr(llms, "SMALL_MODEL", stub)
+    monkeypatch.setattr(llms, "SMALL_FALLBACK_MODELS", [])
+    monkeypatch.setattr(
+        llms, "RETRY_WAIT", {"initial": 0, "max": 0, "jitter": 0}
+    )
 
 
 async def _lookup(places, **kwargs):

@@ -21,6 +21,11 @@ class _AgentSettings(BaseSettings):
     fallback_models: str = Field(
         default="gemini-flash,gemini-flash-lite", alias="FALLBACK_MODELS"
     )
+    # Models to try, in order, when a SMALL_MODEL call from a tool or API
+    # route still fails after its retries (see llms.resilient_structured_output)
+    small_fallback_models: str = Field(
+        default="gemini-flash-lite", alias="SMALL_FALLBACK_MODELS"
+    )
     # Retries handled by ModelRetryMiddleware, so default should be 0
     # this is only used in unit tests
     llm_max_retries: int = Field(default=0, alias="LLM_MAX_RETRIES")

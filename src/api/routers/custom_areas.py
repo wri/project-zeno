@@ -22,7 +22,7 @@ from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.agent.llms import SMALL_MODEL
+from src.agent.llms import resilient_structured_output
 from src.api.auth.dependencies import require_auth
 from src.api.data_models import CustomAreaOrm
 from src.api.schemas import (
@@ -73,7 +73,7 @@ async def custom_area_name(
 
         Features: {features}
         """
-        response = await SMALL_MODEL.with_structured_output(
+        response = await resilient_structured_output(
             CustomAreaNameResponse
         ).ainvoke(
             prompt.format(features=request.features[0]),
