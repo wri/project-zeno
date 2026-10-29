@@ -2903,6 +2903,7 @@ dependencies = [
     { name = "structlog" },
     { name = "tabulate" },
     { name = "trafilatura" },
+    { name = "unidecode" },
     { name = "uvicorn", extra = ["standard"] },
     { name = "watchdog" },
 ]
@@ -2976,6 +2977,7 @@ requires-dist = [
     { name = "structlog", specifier = "==25.4.0" },
     { name = "tabulate", specifier = "==0.9.0" },
     { name = "trafilatura", specifier = ">=2.0.0" },
+    { name = "unidecode", specifier = "==1.4.0" },
     { name = "uvicorn", extras = ["standard"], specifier = "==0.54.0" },
     { name = "watchdog", specifier = "==6.0.0" },
 ]
@@ -4276,6 +4278,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/81/5b/879b2f932adfa7a053c360d50bc896c977fa6426109185f7c12ebdd0cb9d/tzlocal-5.4.4.tar.gz", hash = "sha256:8dbb8660838688a7b6ba4fed31d18dedf842afb4d47ca050d6d891c2c15f3be4", size = 31170, upload-time = "2026-06-29T08:03:40.026Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9e/a4/017a7a6cbe387d961a688ec31364ae60a5c4e22c96ae9921b79a947c855d/tzlocal-5.4.4-py3-none-any.whl", hash = "sha256:aae09f0126a8a86fa736be266eb4a471380d26a0de3bc14844e7821fee3e2a15", size = 18115, upload-time = "2026-06-29T08:03:38.666Z" },
+]
+
+[[package]]
+name = "unidecode"
+version = "1.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/94/7d/a8a765761bbc0c836e397a2e48d498305a865b70a8600fd7a942e85dcf63/Unidecode-1.4.0.tar.gz", hash = "sha256:ce35985008338b676573023acc382d62c264f307c8f7963733405add37ea2b23", size = 200149, upload-time = "2025-04-24T08:45:03.798Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8f/b7/559f59d57d18b44c6d1250d2eeaa676e028b9c527431f5d0736478a73ba1/Unidecode-1.4.0-py3-none-any.whl", hash = "sha256:c3c7606c27503ad8d501270406e345ddb480a7b5f38827eafe4fa82a137f0021", size = 235837, upload-time = "2025-04-24T08:45:01.609Z" },
 ]
 
 [[package]]
