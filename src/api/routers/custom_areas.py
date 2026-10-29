@@ -47,6 +47,7 @@ from src.api.services.custom_aoi_analytics import (
     AnalyticsCustomAoiStore,
     CustomAoiAnalyticsService,
     CustomAoiStore,
+    custom_aoi_payload,
 )
 from src.shared.database import get_session_from_pool_dependency
 from src.shared.langfuse_tracing import auxiliary_config
@@ -130,9 +131,9 @@ async def create_custom_area(
     # together.
     await session.flush()
     await upsert_custom_aoi(session, area_id=custom_area.id)
-    await session.commit()
     await session.refresh(custom_area)
-    await analytics_service.save(session, [custom_area.id])
+    await session.commit()
+    await analytics_service.save([custom_aoi_payload(custom_area)])
 
     return CustomAreaModel(
         id=custom_area.id,
@@ -246,7 +247,7 @@ async def upload_custom_areas(
     await session.flush()
     await upsert_custom_aoi(session, area_ids=[area.id for area in areas])
     await session.commit()
-    await analytics_service.save(session, [area.id for area in areas])
+    await analytics_service.save([custom_aoi_payload(area) for area in areas])
 
     return CustomAreaUploadResponse(
         upload_batch_id=batch_id,
@@ -344,9 +345,9 @@ async def update_custom_area_name(
     area.name = payload["name"]
     await session.flush()
     await upsert_custom_aoi(session, area_id=area.id)
-    await session.commit()
     await session.refresh(area)
-    await analytics_service.save(session, [area.id])
+    await session.commit()
+    await analytics_service.save([custom_aoi_payload(area)])
 
     return CustomAreaModel(
         id=area.id,

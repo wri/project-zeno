@@ -242,13 +242,16 @@ class FakeCustomAoiStore:
         self.saved = []
         self.deleted = []
         self.error = None
+        self.on_call = lambda: None
 
     async def save(self, aois):
+        self.on_call()
         if self.error:
             raise self.error
         self.saved.append(aois)
 
     async def delete(self, aoi_id):
+        self.on_call()
         if self.error:
             raise self.error
         self.deleted.append(aoi_id)

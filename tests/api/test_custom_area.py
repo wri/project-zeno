@@ -1,5 +1,9 @@
-import httpx
 import pytest
+
+from src.api.app import app
+from src.api.services.custom_aoi_analytics import CustomAoiStoreError
+from src.shared.database import get_session_from_pool_dependency
+from tests.conftest import async_session_maker
 
 
 @pytest.mark.asyncio
@@ -251,8 +255,40 @@ async def test_analytics_failure_does_not_fail_request(
     auth_override, client, custom_aoi_store
 ):
     auth_override("test-user-wri")
-    custom_aoi_store.error = httpx.ConnectError("down")
+    custom_aoi_store.error = CustomAoiStoreError("down")
 
     area_id = await _create(client, "Unsynced")
     res = await client.delete(f"/api/custom_areas/{area_id}", headers=AUTH)
     assert res.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_analytics_called_outside_a_transaction(
+    auth_override, client, custom_aoi_store
+):
+    auth_override("test-user-wri")
+    sessions = []
+    in_transaction = []
+
+    async def recording_session():
+        async with async_session_maker() as session:
+            sessions.append(session)
+            yield session
+
+    custom_aoi_store.on_call = lambda: in_transaction.append(
+        sessions[-1].in_transaction()
+    )
+    original = app.dependency_overrides[get_session_from_pool_dependency]
+    app.dependency_overrides[get_session_from_pool_dependency] = (
+        recording_session
+    )
+    try:
+        area_id = await _create(client, "Fresh")
+        await client.patch(
+            f"/api/custom_areas/{area_id}", json={"name": "New"}, headers=AUTH
+        )
+        await client.delete(f"/api/custom_areas/{area_id}", headers=AUTH)
+    finally:
+        app.dependency_overrides[get_session_from_pool_dependency] = original
+
+    assert in_transaction == [False, False, False]
