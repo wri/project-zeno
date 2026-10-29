@@ -1,8 +1,7 @@
-"""Send custom areas to the analytics API's custom AOI store.
+"""Send custom areas to the analytics API, which batch-processes them.
 
-The analytics pipelines batch-process custom areas from that store. The
-database stays the source of truth, so a failed request is logged and the
-user's request still succeeds.
+Failures are logged rather than raised, since the database is the source of
+truth.
 """
 
 import json

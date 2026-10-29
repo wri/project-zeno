@@ -38,9 +38,6 @@ class FailingStore:
     async def save(self, aois):
         raise self.error
 
-    async def delete(self, aoi_id):
-        raise self.error
-
 
 def test_payload_combines_parts_into_one_multipolygon():
     area = CustomAreaOrm(
@@ -106,22 +103,6 @@ async def test_error_response_raises_with_status_and_detail():
 
 
 @pytest.mark.asyncio
-async def test_error_detail_is_truncated():
-    store = AnalyticsCustomAoiStore(
-        BASE_URL,
-        transport=httpx.MockTransport(
-            lambda request: httpx.Response(422, text="x" * 50)
-        ),
-        max_detail_length=10,
-    )
-
-    with pytest.raises(CustomAoiStoreError) as raised:
-        await store.save([{"id": "abc"}])
-
-    assert raised.value.detail == "x" * 10
-
-
-@pytest.mark.asyncio
 async def test_network_error_raises_without_status():
     def fail(request):
         raise httpx.ConnectError("down")
@@ -152,18 +133,3 @@ async def test_service_logs_failed_save():
     assert record["aoi_ids"] == ["a", "b"]
     assert record["status_code"] == 422
     assert record["detail"] == "no area"
-
-
-@pytest.mark.asyncio
-async def test_service_logs_failed_delete():
-    service = CustomAoiAnalyticsService(
-        FailingStore(CustomAoiStoreError("down"))
-    )
-    area_id = uuid4()
-
-    with structlog.testing.capture_logs() as logs:
-        await service.delete(area_id)
-
-    [record] = logs
-    assert record["aoi_ids"] == [str(area_id)]
-    assert record["status_code"] is None

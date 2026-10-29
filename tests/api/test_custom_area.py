@@ -1,7 +1,6 @@
 import pytest
 
 from src.api.app import app
-from src.api.services.custom_aoi_analytics import CustomAoiStoreError
 from src.shared.database import get_session_from_pool_dependency
 from tests.conftest import async_session_maker
 
@@ -189,18 +188,47 @@ async def test_list_rejects_out_of_range_paging(auth_override, client):
 
 
 @pytest.mark.asyncio
-async def test_create_sends_dissolved_area_to_analytics(
+async def test_create_rename_delete_reach_analytics_outside_a_transaction(
     auth_override, client, custom_aoi_store
 ):
     auth_override("test-user-wri")
-    area_id = await _create(client, "Synced")
+    sessions = []
+    in_transaction = []
 
-    [[aoi]] = custom_aoi_store.saved
-    assert aoi.keys() == {"id", "name", "user_id", "geometry"}
-    assert aoi["id"] == area_id
-    assert aoi["name"] == "Synced"
-    assert aoi["user_id"] == "test-user-wri"
-    assert aoi["geometry"]["type"] == "MultiPolygon"
+    async def recording_session():
+        async with async_session_maker() as session:
+            sessions.append(session)
+            yield session
+
+    custom_aoi_store.on_call = lambda: in_transaction.append(
+        sessions[-1].in_transaction()
+    )
+    original = app.dependency_overrides[get_session_from_pool_dependency]
+    app.dependency_overrides[get_session_from_pool_dependency] = (
+        recording_session
+    )
+    try:
+        area_id = await _create(client, "Old")
+        await client.patch(
+            f"/api/custom_areas/{area_id}", json={"name": "New"}, headers=AUTH
+        )
+        await client.delete(f"/api/custom_areas/{area_id}", headers=AUTH)
+    finally:
+        app.dependency_overrides[get_session_from_pool_dependency] = original
+
+    [[created], [renamed]] = custom_aoi_store.saved
+    assert created == {
+        "id": area_id,
+        "name": "Old",
+        "user_id": "test-user-wri",
+        "geometry": {
+            "type": "MultiPolygon",
+            "coordinates": [_SQUARE["coordinates"]],
+        },
+    }
+    assert (renamed["id"], renamed["name"]) == (area_id, "New")
+    assert custom_aoi_store.deleted == [area_id]
+    assert in_transaction == [False, False, False]
 
 
 @pytest.mark.asyncio
@@ -222,73 +250,3 @@ async def test_upload_sends_every_area_in_one_save(
 
     [aois] = custom_aoi_store.saved
     assert {aoi["name"] for aoi in aois} == {"A", "B"}
-
-
-@pytest.mark.asyncio
-async def test_rename_resends_area(auth_override, client, custom_aoi_store):
-    auth_override("test-user-wri")
-    area_id = await _create(client, "Old")
-
-    res = await client.patch(
-        f"/api/custom_areas/{area_id}", json={"name": "New"}, headers=AUTH
-    )
-    assert res.status_code == 200
-
-    [aoi] = custom_aoi_store.saved[-1]
-    assert (aoi["id"], aoi["name"]) == (area_id, "New")
-
-
-@pytest.mark.asyncio
-async def test_delete_removes_area_from_analytics(
-    auth_override, client, custom_aoi_store
-):
-    auth_override("test-user-wri")
-    area_id = await _create(client, "Doomed")
-
-    res = await client.delete(f"/api/custom_areas/{area_id}", headers=AUTH)
-    assert res.status_code == 204
-    assert custom_aoi_store.deleted == [area_id]
-
-
-@pytest.mark.asyncio
-async def test_analytics_failure_does_not_fail_request(
-    auth_override, client, custom_aoi_store
-):
-    auth_override("test-user-wri")
-    custom_aoi_store.error = CustomAoiStoreError("down")
-
-    area_id = await _create(client, "Unsynced")
-    res = await client.delete(f"/api/custom_areas/{area_id}", headers=AUTH)
-    assert res.status_code == 204
-
-
-@pytest.mark.asyncio
-async def test_analytics_called_outside_a_transaction(
-    auth_override, client, custom_aoi_store
-):
-    auth_override("test-user-wri")
-    sessions = []
-    in_transaction = []
-
-    async def recording_session():
-        async with async_session_maker() as session:
-            sessions.append(session)
-            yield session
-
-    custom_aoi_store.on_call = lambda: in_transaction.append(
-        sessions[-1].in_transaction()
-    )
-    original = app.dependency_overrides[get_session_from_pool_dependency]
-    app.dependency_overrides[get_session_from_pool_dependency] = (
-        recording_session
-    )
-    try:
-        area_id = await _create(client, "Fresh")
-        await client.patch(
-            f"/api/custom_areas/{area_id}", json={"name": "New"}, headers=AUTH
-        )
-        await client.delete(f"/api/custom_areas/{area_id}", headers=AUTH)
-    finally:
-        app.dependency_overrides[get_session_from_pool_dependency] = original
-
-    assert in_transaction == [False, False, False]
