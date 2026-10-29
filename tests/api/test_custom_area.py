@@ -185,7 +185,7 @@ async def test_list_rejects_out_of_range_paging(auth_override, client):
 
 
 @pytest.mark.asyncio
-async def test_create_syncs_dissolved_area_to_store(
+async def test_create_sends_dissolved_area_to_analytics(
     auth_override, client, custom_aoi_store
 ):
     auth_override("test-user-wri")
@@ -200,7 +200,7 @@ async def test_create_syncs_dissolved_area_to_store(
 
 
 @pytest.mark.asyncio
-async def test_upload_syncs_every_area_in_one_save(
+async def test_upload_sends_every_area_in_one_save(
     auth_override, client, custom_aoi_store
 ):
     auth_override("test-user-wri")
@@ -221,7 +221,7 @@ async def test_upload_syncs_every_area_in_one_save(
 
 
 @pytest.mark.asyncio
-async def test_rename_resyncs_area(auth_override, client, custom_aoi_store):
+async def test_rename_resends_area(auth_override, client, custom_aoi_store):
     auth_override("test-user-wri")
     area_id = await _create(client, "Old")
 
@@ -235,7 +235,7 @@ async def test_rename_resyncs_area(auth_override, client, custom_aoi_store):
 
 
 @pytest.mark.asyncio
-async def test_delete_removes_area_from_store(
+async def test_delete_removes_area_from_analytics(
     auth_override, client, custom_aoi_store
 ):
     auth_override("test-user-wri")
@@ -247,7 +247,7 @@ async def test_delete_removes_area_from_store(
 
 
 @pytest.mark.asyncio
-async def test_store_failure_does_not_fail_request(
+async def test_analytics_failure_does_not_fail_request(
     auth_override, client, custom_aoi_store
 ):
     auth_override("test-user-wri")

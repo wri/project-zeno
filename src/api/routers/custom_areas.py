@@ -43,10 +43,10 @@ from src.api.services.area_upload import (
     parse_geojson,
     parse_shapefile_zip,
 )
-from src.api.services.custom_aoi_store import (
+from src.api.services.custom_aoi_analytics import (
     AnalyticsCustomAoiStore,
+    CustomAoiAnalyticsService,
     CustomAoiStore,
-    CustomAoiSync,
 )
 from src.shared.database import get_session_from_pool_dependency
 from src.shared.langfuse_tracing import auxiliary_config
@@ -61,10 +61,10 @@ def get_custom_aoi_store() -> CustomAoiStore:
     return AnalyticsCustomAoiStore(AnalyticsHandler().BASE_URL)
 
 
-def get_custom_aoi_sync(
+def get_custom_aoi_analytics_service(
     store: CustomAoiStore = Depends(get_custom_aoi_store),
-) -> CustomAoiSync:
-    return CustomAoiSync(store)
+) -> CustomAoiAnalyticsService:
+    return CustomAoiAnalyticsService(store)
 
 
 @router.post("/api/custom_area_name", response_model=CustomAreaNameResponse)
@@ -108,7 +108,9 @@ async def create_custom_area(
     area: CustomAreaCreate,
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
-    sync: CustomAoiSync = Depends(get_custom_aoi_sync),
+    analytics_service: CustomAoiAnalyticsService = Depends(
+        get_custom_aoi_analytics_service
+    ),
 ):
     """Create a new custom area for the authenticated user.
 
@@ -130,7 +132,7 @@ async def create_custom_area(
     await upsert_custom_aoi(session, area_id=custom_area.id)
     await session.commit()
     await session.refresh(custom_area)
-    await sync.save(session, [custom_area.id])
+    await analytics_service.save(session, [custom_area.id])
 
     return CustomAreaModel(
         id=custom_area.id,
@@ -150,7 +152,9 @@ async def upload_custom_areas(
     file: UploadFile,
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
-    sync: CustomAoiSync = Depends(get_custom_aoi_sync),
+    analytics_service: CustomAoiAnalyticsService = Depends(
+        get_custom_aoi_analytics_service
+    ),
 ):
     """Create custom areas from an uploaded file, one per feature.
 
@@ -242,7 +246,7 @@ async def upload_custom_areas(
     await session.flush()
     await upsert_custom_aoi(session, area_ids=[area.id for area in areas])
     await session.commit()
-    await sync.save(session, [area.id for area in areas])
+    await analytics_service.save(session, [area.id for area in areas])
 
     return CustomAreaUploadResponse(
         upload_batch_id=batch_id,
@@ -323,7 +327,9 @@ async def update_custom_area_name(
     payload: dict,
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
-    sync: CustomAoiSync = Depends(get_custom_aoi_sync),
+    analytics_service: CustomAoiAnalyticsService = Depends(
+        get_custom_aoi_analytics_service
+    ),
 ):
     """Update the name of a custom area.
 
@@ -340,7 +346,7 @@ async def update_custom_area_name(
     await upsert_custom_aoi(session, area_id=area.id)
     await session.commit()
     await session.refresh(area)
-    await sync.save(session, [area.id])
+    await analytics_service.save(session, [area.id])
 
     return CustomAreaModel(
         id=area.id,
@@ -359,7 +365,9 @@ async def delete_custom_area(
     area_id: UUID,
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
-    sync: CustomAoiSync = Depends(get_custom_aoi_sync),
+    analytics_service: CustomAoiAnalyticsService = Depends(
+        get_custom_aoi_analytics_service
+    ),
 ):
     """Delete a custom area.
 
@@ -374,5 +382,5 @@ async def delete_custom_area(
     await delete_custom_aoi(session, area_id)
     await session.delete(area)
     await session.commit()
-    await sync.delete(area_id)
+    await analytics_service.delete(area_id)
     return {"detail": f"Area {area_id} deleted successfully"}

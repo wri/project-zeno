@@ -3,7 +3,7 @@ import json
 import httpx
 import pytest
 
-from src.api.services.custom_aoi_store import AnalyticsCustomAoiStore
+from src.api.services.custom_aoi_analytics import AnalyticsCustomAoiStore
 
 BASE_URL = "https://analytics.example.com"
 

@@ -1,8 +1,8 @@
-"""Keep the analytics API's custom AOI store in step with ``custom_areas``.
+"""Send custom areas to the analytics API's custom AOI store.
 
 The analytics pipelines batch-process custom areas from that store. The
-database stays the source of truth, so a failed sync is logged and the user's
-request still succeeds.
+database stays the source of truth, so a failed request is logged and the
+user's request still succeeds.
 """
 
 import json
@@ -10,10 +10,11 @@ from typing import Optional, Protocol, Sequence
 from uuid import UUID
 
 import httpx
-from sqlalchemy import text
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agent.datasets.handlers.analytics_handler import analytics_api_headers
+from src.api.data_models import AoiOrm
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -61,24 +62,23 @@ class AnalyticsCustomAoiStore:
             response.raise_for_status()
 
 
-# Reads the dissolved geometry from the mirrored aois row.
-CUSTOM_AOIS_SQL = """
-    SELECT a.source_id, a.name, a.created_by,
-           ST_AsGeoJSON(a.geometry) AS geometry
-    FROM aois a
-    WHERE a.source = 'custom' AND a.source_id = ANY(:src_ids)
-      AND NOT a.is_deprecated
-"""
-
-
-class CustomAoiSync:
+class CustomAoiAnalyticsService:
     def __init__(self, store: CustomAoiStore):
         self.store = store
 
     async def save(self, session: AsyncSession, area_ids: Sequence[UUID]):
         src_ids = [str(area_id) for area_id in area_ids]
         rows = await session.execute(
-            text(CUSTOM_AOIS_SQL), {"src_ids": src_ids}
+            select(
+                AoiOrm.source_id,
+                AoiOrm.name,
+                AoiOrm.created_by,
+                func.ST_AsGeoJSON(AoiOrm.geometry).label("geometry"),
+            ).where(
+                AoiOrm.source == "custom",
+                AoiOrm.source_id.in_(src_ids),
+                AoiOrm.is_deprecated.is_(False),
+            )
         )
         aois = [
             {
@@ -95,7 +95,9 @@ class CustomAoiSync:
             await self.store.save(aois)
         except httpx.HTTPError as error:
             logger.warning(
-                "custom_aoi_sync_failed", area_ids=src_ids, error=repr(error)
+                "custom_aoi_analytics_failed",
+                area_ids=src_ids,
+                error=repr(error),
             )
 
     async def delete(self, area_id: UUID):
@@ -103,7 +105,7 @@ class CustomAoiSync:
             await self.store.delete(str(area_id))
         except httpx.HTTPError as error:
             logger.warning(
-                "custom_aoi_sync_failed",
+                "custom_aoi_analytics_failed",
                 area_ids=[str(area_id)],
                 error=repr(error),
             )
