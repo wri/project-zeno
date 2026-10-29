@@ -163,11 +163,10 @@ def resilient_structured_output(
 ) -> Runnable:
     """`model.with_structured_output(schema)`, retried and with fallbacks.
 
-    For model calls made from tools and API routes. The agent's own calls are
-    retried and fall back through ModelRetryMiddleware and
-    ModelFallbackMiddleware (graph._build_middleware), but a tool calling a
-    model directly gets none of that, and the clients themselves do not retry
-    (LLM_MAX_RETRIES is 0), so a single 503 used to fail the whole tool call.
+    For model calls made from tools and API routes. ModelRetryMiddleware and
+    ModelFallbackMiddleware (graph._build_middleware) cover only the agent's
+    own calls, and the clients are built with LLM_MAX_RETRIES=0, so a model
+    called directly from a tool gets its retries and fallbacks here.
 
     Each model is retried on TRANSIENT_ERRORS; when one still fails, for any
     reason, the next is tried. `model` defaults to SMALL_MODEL followed by
