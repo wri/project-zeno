@@ -192,10 +192,10 @@ async def test_create_syncs_dissolved_area_to_store(
     area_id = await _create(client, "Synced")
 
     [[aoi]] = custom_aoi_store.saved
+    assert aoi.keys() == {"id", "name", "user_id", "geometry"}
     assert aoi["id"] == area_id
     assert aoi["name"] == "Synced"
     assert aoi["user_id"] == "test-user-wri"
-    assert aoi["email"] == "admin@wri.org"
     assert aoi["geometry"]["type"] == "MultiPolygon"
 
 

@@ -63,10 +63,9 @@ class AnalyticsCustomAoiStore:
 
 # Reads the dissolved geometry from the mirrored aois row.
 CUSTOM_AOIS_SQL = """
-    SELECT a.source_id, a.name, a.created_by, u.email,
+    SELECT a.source_id, a.name, a.created_by,
            ST_AsGeoJSON(a.geometry) AS geometry
     FROM aois a
-    JOIN users u ON u.id = a.created_by
     WHERE a.source = 'custom' AND a.source_id = ANY(:src_ids)
       AND NOT a.is_deprecated
 """
@@ -86,7 +85,6 @@ class CustomAoiSync:
                 "id": row.source_id,
                 "name": row.name,
                 "user_id": row.created_by,
-                "email": row.email,
                 "geometry": json.loads(row.geometry),
             }
             for row in rows
