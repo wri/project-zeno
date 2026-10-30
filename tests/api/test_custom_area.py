@@ -1,5 +1,9 @@
 import pytest
 
+from src.api.app import app
+from src.shared.database import get_session_from_pool_dependency
+from tests.conftest import async_session_maker
+
 
 @pytest.mark.asyncio
 async def test_custom_area_endpoints(auth_override, client):
@@ -181,3 +185,68 @@ async def test_list_rejects_out_of_range_paging(auth_override, client):
     for query in ("limit=0", "limit=101", "offset=-1"):
         res = await client.get(f"/api/custom_areas?{query}", headers=AUTH)
         assert res.status_code == 422, query
+
+
+@pytest.mark.asyncio
+async def test_create_rename_delete_reach_analytics_outside_a_transaction(
+    auth_override, client, custom_aoi_analytics
+):
+    auth_override("test-user-wri")
+    sessions = []
+    in_transaction = []
+
+    async def recording_session():
+        async with async_session_maker() as session:
+            sessions.append(session)
+            yield session
+
+    custom_aoi_analytics.on_call = lambda: in_transaction.append(
+        sessions[-1].in_transaction()
+    )
+    original = app.dependency_overrides[get_session_from_pool_dependency]
+    app.dependency_overrides[get_session_from_pool_dependency] = (
+        recording_session
+    )
+    try:
+        area_id = await _create(client, "Old")
+        await client.patch(
+            f"/api/custom_areas/{area_id}", json={"name": "New"}, headers=AUTH
+        )
+        await client.delete(f"/api/custom_areas/{area_id}", headers=AUTH)
+    finally:
+        app.dependency_overrides[get_session_from_pool_dependency] = original
+
+    [[created], [renamed]] = custom_aoi_analytics.saved
+    assert created == {
+        "id": area_id,
+        "name": "Old",
+        "user_id": "test-user-wri",
+        "geometry": {
+            "type": "MultiPolygon",
+            "coordinates": [_SQUARE["coordinates"]],
+        },
+    }
+    assert (renamed["id"], renamed["name"]) == (area_id, "New")
+    assert custom_aoi_analytics.deleted == [area_id]
+    assert in_transaction == [False, False, False]
+
+
+@pytest.mark.asyncio
+async def test_upload_sends_every_area_in_one_save(
+    auth_override, client, custom_aoi_analytics
+):
+    auth_override("test-user-wri")
+    content = (
+        "name,geom\n"
+        'A,"POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))"\n'
+        'B,"POLYGON((2 2, 2 3, 3 3, 3 2, 2 2))"\n'
+    )
+    res = await client.post(
+        "/api/custom_areas/upload",
+        files={"file": ("areas.csv", content, "text/csv")},
+        headers=AUTH,
+    )
+    assert res.status_code == 200, res.text
+
+    [aois] = custom_aoi_analytics.saved
+    assert {aoi["name"] for aoi in aois} == {"A", "B"}
