@@ -5,7 +5,7 @@ truth.
 """
 
 import json
-from typing import Optional, Protocol
+from typing import Optional
 from uuid import UUID
 
 import httpx
@@ -15,19 +15,6 @@ from src.api.data_models import CustomAreaOrm
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
-
-
-class CustomAoiStoreError(Exception):
-    def __init__(self, detail: str, status_code: Optional[int] = None):
-        super().__init__(detail)
-        self.detail = detail
-        self.status_code = status_code
-
-
-class CustomAoiStore(Protocol):
-    async def save(self, aois: list[dict]) -> None: ...
-
-    async def delete(self, aoi_id: str) -> None: ...
 
 
 def custom_aoi_payload(area: CustomAreaOrm) -> dict:
@@ -46,20 +33,28 @@ def custom_aoi_payload(area: CustomAreaOrm) -> dict:
     }
 
 
-class AnalyticsCustomAoiStore:
+class CustomAoiAnalyticsService:
     def __init__(
         self,
         base_url: str,
         transport: Optional[httpx.AsyncBaseTransport] = None,
         timeout_seconds: float = 60,
-        max_detail_length: int = 1000,
     ):
         self.url = base_url + "/v0/custom_aois"
         self.transport = transport
         self.timeout_seconds = timeout_seconds
-        self.max_detail_length = max_detail_length
 
-    async def request(self, method: str, url: str, **kwargs) -> None:
+    async def save(self, aois: list[dict]) -> None:
+        await self.send(
+            "PUT", self.url, [aoi["id"] for aoi in aois], json={"aois": aois}
+        )
+
+    async def delete(self, area_id: UUID) -> None:
+        await self.send("DELETE", f"{self.url}/{area_id}", [str(area_id)])
+
+    async def send(
+        self, method: str, url: str, aoi_ids: list[str], **kwargs
+    ) -> None:
         try:
             async with httpx.AsyncClient(
                 timeout=self.timeout_seconds, transport=self.transport
@@ -68,39 +63,20 @@ class AnalyticsCustomAoiStore:
                     method, url, headers=analytics_api_headers(), **kwargs
                 )
         except httpx.HTTPError as error:
-            raise CustomAoiStoreError(repr(error)) from error
+            self.log_failure(aoi_ids, None, repr(error))
+            return
         if response.is_error:
-            raise CustomAoiStoreError(
-                response.text[: self.max_detail_length], response.status_code
+            # Error bodies can echo whole geometries back.
+            self.log_failure(
+                aoi_ids, response.status_code, response.text[:1000]
             )
 
-    async def save(self, aois: list[dict]) -> None:
-        await self.request("PUT", self.url, json={"aois": aois})
-
-    async def delete(self, aoi_id: str) -> None:
-        await self.request("DELETE", f"{self.url}/{aoi_id}")
-
-
-class CustomAoiAnalyticsService:
-    def __init__(self, store: CustomAoiStore):
-        self.store = store
-
-    async def save(self, aois: list[dict]) -> None:
-        try:
-            await self.store.save(aois)
-        except CustomAoiStoreError as error:
-            self.log_failure([aoi["id"] for aoi in aois], error)
-
-    async def delete(self, area_id: UUID) -> None:
-        try:
-            await self.store.delete(str(area_id))
-        except CustomAoiStoreError as error:
-            self.log_failure([str(area_id)], error)
-
-    def log_failure(self, aoi_ids: list[str], error: CustomAoiStoreError):
+    def log_failure(
+        self, aoi_ids: list[str], status_code: Optional[int], detail: str
+    ) -> None:
         logger.warning(
             "custom_aoi_analytics_failed",
             aoi_ids=aoi_ids,
-            status_code=error.status_code,
-            detail=error.detail,
+            status_code=status_code,
+            detail=detail,
         )

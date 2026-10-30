@@ -44,9 +44,7 @@ from src.api.services.area_upload import (
     parse_shapefile_zip,
 )
 from src.api.services.custom_aoi_analytics import (
-    AnalyticsCustomAoiStore,
     CustomAoiAnalyticsService,
-    CustomAoiStore,
     custom_aoi_payload,
 )
 from src.shared.database import get_session_from_pool_dependency
@@ -58,14 +56,8 @@ logger = get_logger(__name__)
 router = APIRouter()
 
 
-def get_custom_aoi_store() -> CustomAoiStore:
-    return AnalyticsCustomAoiStore(AnalyticsHandler().BASE_URL)
-
-
-def get_custom_aoi_analytics_service(
-    store: CustomAoiStore = Depends(get_custom_aoi_store),
-) -> CustomAoiAnalyticsService:
-    return CustomAoiAnalyticsService(store)
+def get_custom_aoi_analytics_service() -> CustomAoiAnalyticsService:
+    return CustomAoiAnalyticsService(AnalyticsHandler().BASE_URL)
 
 
 @router.post("/api/custom_area_name", response_model=CustomAreaNameResponse)

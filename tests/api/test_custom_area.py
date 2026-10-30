@@ -189,7 +189,7 @@ async def test_list_rejects_out_of_range_paging(auth_override, client):
 
 @pytest.mark.asyncio
 async def test_create_rename_delete_reach_analytics_outside_a_transaction(
-    auth_override, client, custom_aoi_store
+    auth_override, client, custom_aoi_analytics
 ):
     auth_override("test-user-wri")
     sessions = []
@@ -200,7 +200,7 @@ async def test_create_rename_delete_reach_analytics_outside_a_transaction(
             sessions.append(session)
             yield session
 
-    custom_aoi_store.on_call = lambda: in_transaction.append(
+    custom_aoi_analytics.on_call = lambda: in_transaction.append(
         sessions[-1].in_transaction()
     )
     original = app.dependency_overrides[get_session_from_pool_dependency]
@@ -216,7 +216,7 @@ async def test_create_rename_delete_reach_analytics_outside_a_transaction(
     finally:
         app.dependency_overrides[get_session_from_pool_dependency] = original
 
-    [[created], [renamed]] = custom_aoi_store.saved
+    [[created], [renamed]] = custom_aoi_analytics.saved
     assert created == {
         "id": area_id,
         "name": "Old",
@@ -227,13 +227,13 @@ async def test_create_rename_delete_reach_analytics_outside_a_transaction(
         },
     }
     assert (renamed["id"], renamed["name"]) == (area_id, "New")
-    assert custom_aoi_store.deleted == [area_id]
+    assert custom_aoi_analytics.deleted == [area_id]
     assert in_transaction == [False, False, False]
 
 
 @pytest.mark.asyncio
 async def test_upload_sends_every_area_in_one_save(
-    auth_override, client, custom_aoi_store
+    auth_override, client, custom_aoi_analytics
 ):
     auth_override("test-user-wri")
     content = (
@@ -248,5 +248,5 @@ async def test_upload_sends_every_area_in_one_save(
     )
     assert res.status_code == 200, res.text
 
-    [aois] = custom_aoi_store.saved
+    [aois] = custom_aoi_analytics.saved
     assert {aoi["name"] for aoi in aois} == {"A", "B"}
