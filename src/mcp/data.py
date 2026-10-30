@@ -470,6 +470,8 @@ async def pull_data(
                 else rows[:MAX_ROWS]
             ),
             "rows_truncated": len(rows) > MAX_ROWS,
+            # The rows are held back, not missing: views say so.
+            "withheld": is_curated_only(pull.ds["dataset_id"]),
             "script": pull_script(pull),
         },
     )
