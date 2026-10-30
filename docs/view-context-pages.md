@@ -83,3 +83,20 @@ could similarly learn to consult the dashboard's area — revisit then.
    default from it.
 3. Tests: `tests/unit/agent/test_view_pages.py` covers session lines, prompt
    sections and the unknown-page fallback — extend the same file.
+
+## Proposed change: the map page sends a workspace snapshot (2026-10-23)
+
+project-zeno-next ADR 0011 (`docs/architecture/decisions/0011-map-workspace-state-in-url.md`
+in that repo, proposed in wri/project-zeno-next#792) would have every chat
+request from the map page carry the full map workspace in `view_context`:
+visible areas, layers with their parameters, insights, the pinned date range
+and the viewport, typed on `ViewContext` rather than passed through
+`extra="allow"`. The backend would diff that snapshot against the agent's
+current selection and write `aoi_selection`, `dataset`, `start_date` and
+`end_date` from it, clearing a field the snapshot no longer has, with one
+synthetic user message per changed turn. That reverses the "no eager
+hydration" rule above for the map page only; dashboards keep reference
+semantics. The `ui_context` selection slots would then be retired. The ADR
+also asks for insight parameters to be persisted and returned, and for a
+layer registry on the catalogue endpoint. Nothing here is implemented yet;
+read the ADR before changing this module or `stream_chat`.
