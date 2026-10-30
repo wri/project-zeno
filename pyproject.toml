@@ -82,6 +82,8 @@ dev = [
 [tool.ruff]
 # Set the maximum line length to 79.
 line-length = 79
+# Copies of chart generators, built by src/mcp/skill.py: not modules.
+extend-exclude = ["src/mcp/skills"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "Q", "I"]
@@ -104,6 +106,7 @@ sgrep = "src.agent.utils.sgrep:main"
 python_version = "3.12"
 explicit_package_bases = true
 ignore_missing_imports = true
+exclude = ["^src/mcp/skills/"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

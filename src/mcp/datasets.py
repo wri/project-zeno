@@ -14,6 +14,7 @@ from pydantic import Field
 from src.agent.agent_config import DEFAULT_EXCLUDED_DATASETS
 from src.agent.datasets.config import DATASETS
 from src.agent.datasets.palette import get_dataset_palette
+from src.api.services.charts.registry import find_generator
 
 MCP_EXCLUDED_DATASETS = DEFAULT_EXCLUDED_DATASETS
 
@@ -100,6 +101,7 @@ def _summary(ds: dict) -> dict:
             layer["value"] for layer in ds.get("context_layers") or []
         ],
         "parameters": [param["name"] for param in ds.get("parameters") or []],
+        "curated_charts": find_generator(ds["dataset_id"]) is not None,
     }
 
 
@@ -120,6 +122,8 @@ async def list_datasets() -> ToolResult:
             )
         if summary["parameters"]:
             options.append("parameters: " + ", ".join(summary["parameters"]))
+        if summary["curated_charts"]:
+            options.append("curated charts")
         suffix = f" [{'; '.join(options)}]" if options else ""
         lines.append(
             f"- {summary['dataset_id']}: {summary['dataset_name']}. "
