@@ -23,6 +23,11 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import text
 
 from src.agent.config import AgentSettings
+from src.agent.datasets.pull_checks import (  # noqa: F401 (re-exported)
+    SUBREGION_LIMIT,
+    SUBREGION_LIMIT_ADMIN,
+    refuse_areas,
+)
 from src.agent.i18n import t
 from src.agent.language import DEFAULT_LANGUAGE
 from src.agent.llms import SMALL_MODEL
@@ -59,8 +64,6 @@ from src.shared.logging_config import get_logger
 from src.shared.request_context import current_user_id
 
 RESULT_LIMIT = 10
-SUBREGION_LIMIT_ADMIN = 1000
-SUBREGION_LIMIT = 50
 
 load_dotenv()
 logger = get_logger(__name__)
@@ -116,6 +119,9 @@ async def query_aoi_database(
         user_id=user_id,
         limit=result_limit,
         offset=0,
+        # A caller with no user (the MCP server) searches the reference
+        # areas only; custom areas belong to a user.
+        include_custom=user_id is not None,
     )
 
 
@@ -244,7 +250,8 @@ async def query_subregion_database(
     selects them by a spatial overlap. A non-GADM parent with an admin
     subregion gets no containment filter at all, so the result holds every
     admin unit of that subtype worldwide. ``check_aoi_selection`` then rejects
-    it as too many subregions. This is a known defect.
+    it as too many subregions. This is a known defect. The query stops at
+    ``SUBREGION_LIMIT_ADMIN + 1`` rows, so the rejection stays cheap.
 
     A concession scope returns at most ``SUBREGION_LIMIT + 1`` rows: a large
     parent overlaps hundreds of thousands of mining claims (Canada), and one
@@ -271,6 +278,7 @@ async def query_subregion_database(
         "subregion_source": subregion_source,
         "subtype": subtype,
     }
+    row_limit = ""
 
     if subregion_source == "gadm":
         # The GADM id holds the hierarchy, so a prefix match gives containment.
@@ -286,8 +294,12 @@ async def query_subregion_database(
             # A non-GADM parent gets no containment filter, only the exclusion of
             # disputed territories. The query then returns every admin unit of
             # the subtype worldwide, and check_aoi_selection rejects the result
-            # as too many subregions. This is a known defect.
+            # as too many subregions. This is a known defect. One row past
+            # the limit is all that check needs, so the query stops there
+            # rather than reading every admin unit in the world.
             gadm_filter = "AND NOT t.is_disputed"
+            row_limit = "LIMIT :row_limit"
+            params["row_limit"] = SUBREGION_LIMIT_ADMIN + 1
         spatial_filter = ""
     else:
         gadm_filter = ""
@@ -318,7 +330,6 @@ async def query_subregion_database(
           ELSE true
       END"""
 
-    row_limit = ""
     if subregion_source in CONCESSION_SOURCES:
         row_limit = "LIMIT :row_limit"
         params["row_limit"] = SUBREGION_LIMIT + 1
@@ -568,35 +579,10 @@ async def check_aoi_selection(
 ) -> Optional[str]:
     if not aois:
         return await t("pick_aoi.no_matching_aois", language)
-
-    aoi_sources = set([aoi.source for aoi in aois])
-    if len(aoi_sources) > 1:
-        return await t("pick_aoi.multiple_sources", language)
-
-    aoi_source = next(iter(aoi_sources))
-    if aoi_source in {"kba", "wdpa", "landmark", *CONCESSION_SOURCES}:
-        subregion_limit = SUBREGION_LIMIT
-    else:
-        subregion_limit = SUBREGION_LIMIT_ADMIN
-
-    if len(aois) > subregion_limit:
-        # A concession expansion stops one row past the limit, so its true
-        # count is unknown. The message says so, and that no figure across
-        # the area is possible, so the agent does not offer one.
-        if aoi_source in CONCESSION_SOURCES:
-            return await t(
-                "pick_aoi.too_many_concessions",
-                language,
-                limit=subregion_limit,
-            )
-        return await t(
-            "pick_aoi.too_many_subregions",
-            language,
-            count=len(aois),
-            subregion_limit=SUBREGION_LIMIT,
-            subregion_limit_admin=SUBREGION_LIMIT_ADMIN,
-        )
-
+    # The same check every pull runs, so a selection made here can be pulled.
+    refusal = refuse_areas([aoi.model_dump() for aoi in aois])
+    if refusal:
+        return await t(refusal.key, language, **refusal.kwargs)
     return None
 
 
@@ -979,8 +965,14 @@ class Geocoder:
         tool_call_id: Optional[str] = None,
         language: str = DEFAULT_LANGUAGE,
         admin_term: Optional[str] = None,
+        normalized: Optional[bool] = None,
     ) -> Command:
-        """DB step: resolve known place name(s) to AOI geometry."""
+        """DB step: resolve known place name(s) to AOI geometry.
+
+        ``normalized`` overrides the ``AOI_NORMALIZER_ENABLED`` kill switch.
+        The MCP server passes True: with the normaliser off, a model picks
+        among the candidates, and the server runs no model.
+        """
         place_names = [place.place for place in places]
         logger.info(
             f"GEOCODER: lookup places: '{place_names}', "
@@ -994,7 +986,8 @@ class Geocoder:
                 subregion, tool_call_id, language
             )
 
-        normalized = AgentSettings.aoi_normalizer_enabled
+        if normalized is None:
+            normalized = AgentSettings.aoi_normalizer_enabled
         # With a subregion, the caller's `area_of_interest` names the kind of
         # the children ("indigenous lands in Ecuador" comes with the landmark
         # type), not the kind of the parent. Narrowing the parent search to it
