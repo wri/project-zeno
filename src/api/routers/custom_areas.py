@@ -11,6 +11,7 @@ from uuid import UUID, uuid4
 
 from fastapi import (
     APIRouter,
+    BackgroundTasks,
     Depends,
     HTTPException,
     Query,
@@ -99,6 +100,7 @@ async def custom_area_name(
 @router.post("/api/custom_areas", response_model=CustomAreaModel)
 async def create_custom_area(
     area: CustomAreaCreate,
+    background_tasks: BackgroundTasks,
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
     analytics_service: CustomAoiAnalyticsService = Depends(
@@ -125,7 +127,9 @@ async def create_custom_area(
     await upsert_custom_aoi(session, area_id=custom_area.id)
     await session.refresh(custom_area)
     await session.commit()
-    await analytics_service.save([custom_aoi_payload(custom_area)])
+    background_tasks.add_task(
+        analytics_service.save, [custom_aoi_payload(custom_area)]
+    )
 
     return CustomAreaModel(
         id=custom_area.id,
@@ -143,6 +147,7 @@ async def create_custom_area(
 async def upload_custom_areas(
     request: Request,
     file: UploadFile,
+    background_tasks: BackgroundTasks,
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
     analytics_service: CustomAoiAnalyticsService = Depends(
@@ -239,7 +244,9 @@ async def upload_custom_areas(
     await session.flush()
     await upsert_custom_aoi(session, area_ids=[area.id for area in areas])
     await session.commit()
-    await analytics_service.save([custom_aoi_payload(area) for area in areas])
+    background_tasks.add_task(
+        analytics_service.save, [custom_aoi_payload(area) for area in areas]
+    )
 
     return CustomAreaUploadResponse(
         upload_batch_id=batch_id,
@@ -318,6 +325,7 @@ async def get_custom_area(
 async def update_custom_area_name(
     area_id: UUID,
     payload: dict,
+    background_tasks: BackgroundTasks,
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
     analytics_service: CustomAoiAnalyticsService = Depends(
@@ -339,7 +347,9 @@ async def update_custom_area_name(
     await upsert_custom_aoi(session, area_id=area.id)
     await session.refresh(area)
     await session.commit()
-    await analytics_service.save([custom_aoi_payload(area)])
+    background_tasks.add_task(
+        analytics_service.save, [custom_aoi_payload(area)]
+    )
 
     return CustomAreaModel(
         id=area.id,
@@ -356,6 +366,7 @@ async def update_custom_area_name(
 @router.delete("/api/custom_areas/{area_id}", status_code=204)
 async def delete_custom_area(
     area_id: UUID,
+    background_tasks: BackgroundTasks,
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
     analytics_service: CustomAoiAnalyticsService = Depends(
@@ -375,5 +386,5 @@ async def delete_custom_area(
     await delete_custom_aoi(session, area_id)
     await session.delete(area)
     await session.commit()
-    await analytics_service.delete(area_id)
+    background_tasks.add_task(analytics_service.delete, area_id)
     return {"detail": f"Area {area_id} deleted successfully"}
