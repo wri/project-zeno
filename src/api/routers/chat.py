@@ -6,14 +6,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agent.agent_config import PUBLIC_PROFILES
-from src.api.agent_tools import api_tools
 from src.api.auth.dependencies import require_auth
 from src.api.config import APISettings
 from src.api.data_models import ThreadOrm, UserType
-from src.api.routers.dashboards import get_dashboard_alerts_service
+from src.api.mcp.server import api_tools, default_server
 from src.api.schemas import ChatRequest, QuotaModel, UserModel
 from src.api.services.chat import generate_thread_name, stream_chat
-from src.api.services.dashboard_alerts import DashboardAlertsService
 from src.api.services.quota import check_quota, enforce_quota
 from src.api.streaming import guarded_stream
 from src.api.user_profile_configs.sectors import SECTOR_ROLES, SECTORS
@@ -34,10 +32,8 @@ async def get_quota(
     return quota_info
 
 
-async def stream_chat_with_api_tools(
-    alerts: DashboardAlertsService, **chat_kwargs
-):
-    async with api_tools(alerts) as tools:
+async def stream_chat_with_api_tools(**chat_kwargs):
+    async with api_tools(default_server()) as tools:
         async for chunk in stream_chat(**chat_kwargs, extra_tools=tools):
             yield chunk
 
@@ -48,7 +44,6 @@ async def chat(
     chat_request: ChatRequest,
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
-    alerts: DashboardAlertsService = Depends(get_dashboard_alerts_service),
 ):
     """
     Chat endpoint for Zeno with quota tracking.
@@ -128,7 +123,6 @@ async def chat(
             guarded_stream(
                 request,
                 stream_chat_with_api_tools(
-                    alerts,
                     query=chat_request.query,
                     user_persona=chat_request.user_persona,
                     thread_id=thread_id,

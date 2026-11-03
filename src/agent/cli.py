@@ -40,12 +40,8 @@ from src.agent.graph import (
     get_prompt,
 )
 from src.agent.tools.pull_data import fetch_statistics_from_url
-from src.api.agent_tools import api_tools
 from src.api.data_models import UserOrm
-from src.api.routers.dashboards import (
-    get_alerts_source,
-    get_dashboard_alerts_service,
-)
+from src.api.mcp.server import api_tools, default_server
 from src.shared.database import (
     close_global_pool,
     get_session_from_pool,
@@ -722,8 +718,7 @@ async def _async_main(
         if use_postgres:
             await get_checkpointer_pool()
 
-        alerts = get_dashboard_alerts_service(get_alerts_source())
-        async with api_tools(alerts) as tools:
+        async with api_tools(default_server()) as tools:
             agent = await _fetch_agent(
                 system_prompt,
                 use_postgres=use_postgres,

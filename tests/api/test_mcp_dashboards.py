@@ -3,8 +3,8 @@ from datetime import date
 import pytest
 
 from src.agent.datasets.handlers.analytics_handler import INTEGRATED_ALERTS_ID
-from src.api.agent_tools import api_tools
 from src.api.data_models import InsightChartOrm, InsightOrm, UserOrm
+from src.api.mcp.server import api_tools, build_server
 from src.api.repositories import dashboard_writer
 from src.api.services.dashboard_alerts import DashboardAlertsService
 from src.shared.request_context import bound_user_id
@@ -20,6 +20,12 @@ PARA = {
     "subtype": "state-province",
     "name": "Pará",
 }
+PARANA = {
+    "source": "gadm",
+    "src_id": "BRA.16_1",
+    "subtype": "state-province",
+    "name": "Paraná",
+}
 PERU = {
     "source": "gadm",
     "src_id": "PER",
@@ -30,7 +36,8 @@ PERU = {
 
 class FakeAlertsSource:
     async def area_ha_by_src_id(self, aois, start, end):
-        return {aoi["src_id"]: 38463.65 for aoi in aois}
+        area_ha = {PARA["src_id"]: 38463.65, PARANA["src_id"]: 131.05}
+        return {aoi["src_id"]: area_ha[aoi["src_id"]] for aoi in aois}
 
     async def latest_alert_date(self):
         return date(2026, 10, 30)
@@ -75,6 +82,10 @@ async def dashboards():
         user_id=OWNER, name="Pará", aois=[PARA]
     )
     await add_alerts_chart(para, OWNER)
+    parana = await dashboard_writer.create_dashboard(
+        user_id=OWNER, name="Paraná", aois=[PARANA]
+    )
+    await add_alerts_chart(parana, OWNER)
     await dashboard_writer.create_dashboard(
         user_id=OWNER, name="Peru", aois=[PERU]
     )
@@ -83,54 +94,53 @@ async def dashboards():
     )
 
 
-async def call(tool_name: str, user_id=OWNER, **args) -> str:
-    service = DashboardAlertsService(FakeAlertsSource())
+async def call(user_id=OWNER) -> str:
+    server = build_server(DashboardAlertsService(FakeAlertsSource()))
     with bound_user_id(user_id):
-        async with api_tools(service) as tools:
-            tool = {tool.name: tool for tool in tools}[tool_name]
-            blocks = await tool.ainvoke(args)
+        async with api_tools(server) as tools:
+            (tool,) = tools
+            blocks = await tool.ainvoke({})
     return "\n".join(block["text"] for block in blocks)
 
 
-async def test_exposes_dashboard_list_and_alerts_summary():
-    service = DashboardAlertsService(FakeAlertsSource())
-    async with api_tools(service) as tools:
-        assert {tool.name for tool in tools} == {
-            "list_dashboards",
-            "summarize_dashboard_alerts",
-        }
+async def test_exposes_the_alerts_summary():
+    server = build_server(DashboardAlertsService(FakeAlertsSource()))
+    async with api_tools(server) as tools:
+        assert [tool.name for tool in tools] == ["summarize_dashboard_alerts"]
 
 
-async def test_lists_the_current_users_dashboards_and_alerts_tracking(
-    dashboards,
-):
-    text = await call("list_dashboards")
-
-    assert "Not mine" not in text
-    para_line, peru_line = (
-        next(line for line in text.splitlines() if line.startswith(f"- {n}"))
-        for n in ("Pará", "Peru")
-    )
-    assert "tracks integrated disturbance alerts" in para_line
-    assert "does not track" in peru_line
-
-
-async def test_summary_names_dashboards_and_separates_untracked_ones(
-    dashboards,
-):
-    text = await call("summarize_dashboard_alerts")
+async def test_summary_covers_only_the_current_users_dashboards(dashboards):
+    text = await call()
 
     assert "disturbance alerts" in text
     assert "2026-10-24 to 2026-10-30" in text
-    assert "Pará: 38,464 ha" in text
+    assert "Not mine" not in text
+
+
+async def test_summary_ranks_dashboards_by_area_and_gives_the_total(
+    dashboards,
+):
+    text = await call()
+
+    figures = [line for line in text.splitlines() if line.endswith(" ha")]
+    assert figures == [
+        "- Pará: 38,464 ha",
+        "- Paraná: 131 ha",
+        "Total: 38,595 ha",
+    ]
+
+
+async def test_summary_lists_untracked_dashboards_separately(dashboards):
+    text = await call()
+
     not_tracked = next(
         line for line in text.splitlines() if "not tracked" in line.lower()
     )
     assert "Peru" in not_tracked
 
 
-async def test_tools_require_a_signed_in_user(dashboards):
-    text = await call("list_dashboards", user_id=None)
+async def test_summary_requires_a_signed_in_user(dashboards):
+    text = await call(user_id=None)
 
     assert "Pará" not in text
     assert "signed in" in text
