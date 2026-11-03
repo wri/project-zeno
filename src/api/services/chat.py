@@ -2,11 +2,12 @@
 
 import json
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence
 
 from fastapi import HTTPException
 from langchain_core.load import dumps
 from langchain_core.messages import HumanMessage
+from langchain_core.tools import BaseTool
 from langfuse import Langfuse
 from langfuse.langchain import CallbackHandler
 
@@ -154,6 +155,7 @@ async def stream_chat(
     user: Optional[dict] = None,
     ff: Optional[str] = None,
     registry: AgentConfigRegistry = default_registry,
+    extra_tools: Sequence[BaseTool] = (),
 ):
     langfuse_handler = CallbackHandler(update_trace=True)
     config = {
@@ -169,6 +171,7 @@ async def stream_chat(
         ff=ff,
         registry=registry,
         page=page if isinstance(page, str) else None,
+        extra_tools=extra_tools,
     )
 
     messages = []

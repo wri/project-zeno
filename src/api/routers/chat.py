@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agent.agent_config import PUBLIC_PROFILES
+from src.api.agent_tools import api_tools
 from src.api.auth.dependencies import require_auth
 from src.api.config import APISettings
 from src.api.data_models import ThreadOrm, UserType
@@ -29,6 +30,13 @@ async def get_quota(
 ):
     quota_info = await check_quota(user, session)
     return quota_info
+
+
+async def stream_chat_with_api_tools(request: Request, **chat_kwargs):
+    headers = {"Authorization": request.headers["authorization"]}
+    async with api_tools(request.app, headers) as tools:
+        async for chunk in stream_chat(**chat_kwargs, extra_tools=tools):
+            yield chunk
 
 
 @router.post("/api/chat")
@@ -115,7 +123,8 @@ async def chat(
         return StreamingResponse(
             guarded_stream(
                 request,
-                stream_chat(
+                stream_chat_with_api_tools(
+                    request,
                     query=chat_request.query,
                     user_persona=chat_request.user_persona,
                     thread_id=thread_id,

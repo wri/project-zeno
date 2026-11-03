@@ -202,7 +202,11 @@ async def create_dashboard(
     return _row_to_response(await _refetch_dashboard(dashboard_id))
 
 
-@router.get("/api/dashboards", response_model=list[DashboardResponse])
+@router.get(
+    "/api/dashboards",
+    response_model=list[DashboardResponse],
+    operation_id="list_dashboards",
+)
 async def list_dashboards(
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
@@ -265,6 +269,7 @@ def get_dashboard_alerts_service(
 @router.post(
     "/api/dashboards/alerts-summary",
     response_model=DashboardAlertsSummaryResponse,
+    operation_id="summarize_dashboard_alerts",
 )
 async def summarize_dashboard_alerts(
     body: DashboardAlertsSummaryRequest,

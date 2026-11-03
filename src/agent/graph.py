@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Optional, Sequence
 
 from dotenv import load_dotenv
 from langchain.agents import create_agent
@@ -10,6 +10,7 @@ from langchain.agents.middleware import (
     wrap_tool_call,
 )
 from langchain.messages import ToolMessage
+from langchain_core.tools import BaseTool
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph.state import CompiledStateGraph
 from psycopg.rows import dict_row
@@ -279,6 +280,7 @@ async def fetch_zeno(
     checkpointer: Any = _CHECKPOINTER_UNSET,
     config: Optional[AgentConfig] = None,
     page: Optional[str] = None,
+    extra_tools: Sequence[BaseTool] = (),
 ) -> CompiledStateGraph:
     """Setup the Zeno agent for the given config and feature flag.
 
@@ -294,6 +296,9 @@ async def fetch_zeno(
     By default the Postgres checkpointer is used (API and durable CLI runs).
     Pass an explicit ``checkpointer`` (e.g. ``InMemorySaver()``) for local
     runs without Postgres, or ``None`` for a stateless single-turn agent.
+
+    ``extra_tools`` are bound alongside the profile's tools, for tools the
+    caller builds per request.
     """
     if config is None:
         config = registry.resolve(ff)
@@ -303,7 +308,7 @@ async def fetch_zeno(
         checkpointer = await fetch_checkpointer()
     zeno_agent = create_agent(
         model=MODEL,
-        tools=config.bound_tools(),
+        tools=[*config.bound_tools(), *extra_tools],
         state_schema=AgentState,
         system_prompt=config.system_prompt or get_prompt(config, page=page),
         middleware=_build_middleware(),
