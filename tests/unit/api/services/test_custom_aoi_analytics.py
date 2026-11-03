@@ -16,7 +16,7 @@ SQUARE = [[[0.0, 0.0], [0.0, 1.0], [1.0, 1.0], [1.0, 0.0], [0.0, 0.0]]]
 OTHER_SQUARE = [[[2.0, 2.0], [2.0, 3.0], [3.0, 3.0], [3.0, 2.0], [2.0, 2.0]]]
 
 
-def _service(respond):
+def _service(respond, enabled=True):
     requests = []
 
     def handle(request):
@@ -24,7 +24,7 @@ def _service(respond):
         return respond(request)
 
     service = CustomAoiAnalyticsService(
-        BASE_URL, transport=httpx.MockTransport(handle)
+        BASE_URL, enabled=enabled, transport=httpx.MockTransport(handle)
     )
     return service, requests
 
@@ -69,7 +69,14 @@ async def test_save_puts_aois(monkeypatch):
     assert str(request.url) == BASE_URL + "/v0/custom_aois"
     assert request.headers["Authorization"] == "Bearer secret"
     assert json.loads(request.content) == {"aois": [{"id": "a"}, {"id": "b"}]}
-    assert logs == []
+    [record] = logs
+    assert record["event"] == "custom_aoi_analytics_request"
+    assert record["log_level"] == "info"
+    assert record["method"] == "PUT"
+    assert record["outcome"] == "ok"
+    assert record["status_code"] == 200
+    assert record["aoi_ids"] == ["a", "b"]
+    assert record["duration_ms"] >= 0
 
 
 @pytest.mark.asyncio
@@ -82,8 +89,9 @@ async def test_error_response_is_logged():
         await service.save([{"id": "a"}, {"id": "b"}])
 
     [record] = logs
-    assert record["event"] == "custom_aoi_analytics_failed"
+    assert record["event"] == "custom_aoi_analytics_request"
     assert record["log_level"] == "warning"
+    assert record["outcome"] == "http_error"
     assert record["aoi_ids"] == ["a", "b"]
     assert record["status_code"] == 422
     assert "no area" in record["detail"]
@@ -104,6 +112,30 @@ async def test_network_error_on_delete_is_logged():
     assert request.method == "DELETE"
     assert str(request.url) == f"{BASE_URL}/v0/custom_aois/{area_id}"
     [record] = logs
+    assert record["outcome"] == "network_error"
     assert record["aoi_ids"] == [str(area_id)]
     assert record["status_code"] is None
     assert "down" in record["detail"]
+
+
+@pytest.mark.asyncio
+async def test_disabled_service_sends_nothing():
+    service, requests = _service(lambda request: httpx.Response(200), False)
+
+    await service.save([{"id": "a"}])
+    await service.delete(uuid4())
+
+    assert requests == []
+
+
+def test_dependency_reads_settings(monkeypatch):
+    from src.api.config import APISettings
+    from src.api.routers.custom_areas import get_custom_aoi_analytics_service
+
+    monkeypatch.setattr(APISettings, "analytics_api_base_url", BASE_URL)
+    monkeypatch.setattr(APISettings, "custom_aoi_analytics_enabled", True)
+
+    service = get_custom_aoi_analytics_service()
+
+    assert service.url == BASE_URL + "/v0/custom_aois"
+    assert service.enabled

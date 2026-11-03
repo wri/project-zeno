@@ -23,9 +23,9 @@ from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.agent.datasets.handlers.analytics_handler import AnalyticsHandler
 from src.agent.llms import SMALL_MODEL
 from src.api.auth.dependencies import require_auth
+from src.api.config import APISettings
 from src.api.data_models import CustomAreaOrm
 from src.api.schemas import (
     CustomAreaCreate,
@@ -58,7 +58,10 @@ router = APIRouter()
 
 
 def get_custom_aoi_analytics_service() -> CustomAoiAnalyticsService:
-    return CustomAoiAnalyticsService(AnalyticsHandler().BASE_URL)
+    return CustomAoiAnalyticsService(
+        APISettings.analytics_api_base_url,
+        enabled=APISettings.custom_aoi_analytics_enabled,
+    )
 
 
 @router.post("/api/custom_area_name", response_model=CustomAreaNameResponse)
