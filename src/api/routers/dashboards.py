@@ -25,10 +25,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.agent.datasets.handlers.analytics_handler import (
-    INTEGRATED_ALERTS_ID,
-    AnalyticsHandler,
-)
+from src.agent.datasets.handlers.analytics_handler import AnalyticsHandler
 from src.agent.i18n import t
 from src.api.auth.dependencies import optional_auth, require_auth
 from src.api.data_models import DashboardOrm, InsightOrm, UserType
@@ -59,6 +56,7 @@ from src.api.schemas import (
     SectionFromTemplateResponse,
     UserModel,
 )
+from src.api.services import user_dashboards
 from src.api.services.analysis_templates.builder import (
     DashboardGoneError,
     NoAreaError,
@@ -75,7 +73,6 @@ from src.api.services.dashboard_alerts import (
     DashboardAlertsService,
     InvalidPeriodError,
 )
-from src.api.services.dashboard_aoi import dashboard_aoi
 from src.shared.database import get_session_from_pool_dependency
 from src.shared.logging_config import get_logger
 from src.shared.tile_urls import absolutize_widget_config
@@ -202,11 +199,7 @@ async def create_dashboard(
     return _row_to_response(await _refetch_dashboard(dashboard_id))
 
 
-@router.get(
-    "/api/dashboards",
-    response_model=list[DashboardResponse],
-    operation_id="list_dashboards",
-)
+@router.get("/api/dashboards", response_model=list[DashboardResponse])
 async def list_dashboards(
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
@@ -269,7 +262,6 @@ def get_dashboard_alerts_service(
 @router.post(
     "/api/dashboards/alerts-summary",
     response_model=DashboardAlertsSummaryResponse,
-    operation_id="summarize_dashboard_alerts",
 )
 async def summarize_dashboard_alerts(
     body: DashboardAlertsSummaryRequest,
@@ -278,12 +270,11 @@ async def summarize_dashboard_alerts(
 ):
     """Integrated alerts area in each dashboard's AOI over the requested
     period, by default the week ending on the latest alert date."""
-    rows = await dashboard_writer.get_visible_dashboards_with_dataset(
-        body.dashboard_ids, user.id, INTEGRATED_ALERTS_ID
-    )
     try:
-        report = await service.summarize(
-            {row.id: dashboard_aoi(row) for row in rows},
+        report = await user_dashboards.summarize_dashboard_alerts(
+            service,
+            user.id,
+            body.dashboard_ids,
             body.start_date,
             body.end_date,
         )

@@ -1,83 +1,136 @@
-import pytest
-from fastapi import Request
+from datetime import date
 
+import pytest
+
+from src.agent.datasets.handlers.analytics_handler import INTEGRATED_ALERTS_ID
 from src.api.agent_tools import api_tools
-from src.api.app import app
-from src.api.auth.dependencies import fetch_user_from_rw_api
-from src.api.data_models import UserOrm
-from src.api.schemas import UserModel
+from src.api.data_models import InsightChartOrm, InsightOrm, UserOrm
+from src.api.repositories import dashboard_writer
+from src.api.services.dashboard_alerts import DashboardAlertsService
+from src.shared.request_context import bound_user_id
 from tests.conftest import async_session_maker
 
-USER_ID = "mcp-user"
-AUTH = {"Authorization": "Bearer secret"}
+pytestmark = pytest.mark.asyncio(loop_scope="session")
+
+OWNER = "alerts-owner"
+
+PARA = {
+    "source": "gadm",
+    "src_id": "BRA.14_1",
+    "subtype": "state-province",
+    "name": "Pará",
+}
+PERU = {
+    "source": "gadm",
+    "src_id": "PER",
+    "subtype": "country",
+    "name": "Peru",
+}
 
 
-def user_for_token(request: Request):
-    if request.headers.get("authorization") != AUTH["Authorization"]:
-        return None
-    return UserModel.model_validate(
-        {
-            "id": USER_ID,
-            "name": USER_ID,
-            "email": f"{USER_ID}@example.com",
-            "createdAt": "2024-01-01T00:00:00Z",
-            "updatedAt": "2024-01-01T00:00:00Z",
-        }
+class FakeAlertsSource:
+    async def area_ha_by_src_id(self, aois, start, end):
+        return {aoi["src_id"]: 38463.65 for aoi in aois}
+
+    async def latest_alert_date(self):
+        return date(2026, 10, 30)
+
+
+async def create_user(user_id: str) -> None:
+    async with async_session_maker() as session:
+        session.add(
+            UserOrm(id=user_id, name=user_id, email=f"{user_id}@example.com")
+        )
+        await session.commit()
+
+
+async def add_alerts_chart(dashboard_id: str, user_id: str) -> None:
+    async with async_session_maker() as session:
+        insight = InsightOrm(
+            user_id=user_id, thread_id="thread-1", insight_text="Alerts"
+        )
+        session.add(insight)
+        await session.flush()
+        session.add(
+            InsightChartOrm(
+                insight_id=insight.id,
+                title="Integrated alerts",
+                chart_type="line",
+                chart_data=[],
+                dataset_id=INTEGRATED_ALERTS_ID,
+            )
+        )
+        await session.commit()
+        insight_id = str(insight.id)
+    await dashboard_writer.add_widget(
+        dashboard_id, widget_type="insight", insight_id=insight_id
     )
 
 
 @pytest.fixture
-async def dashboard(client):
-    async with async_session_maker() as session:
-        session.add(
-            UserOrm(id=USER_ID, name=USER_ID, email=f"{USER_ID}@example.com")
-        )
-        await session.commit()
-    app.dependency_overrides[fetch_user_from_rw_api] = user_for_token
-    response = await client.post(
-        "/api/dashboards",
-        headers=AUTH,
-        json={
-            "name": "Forest watch",
-            "aois": [
-                {
-                    "source": "gadm",
-                    "src_id": "BRA",
-                    "subtype": "country",
-                    "name": "Brazil",
-                }
-            ],
-        },
+async def dashboards():
+    await create_user(OWNER)
+    await create_user("someone-else")
+    para = await dashboard_writer.create_dashboard(
+        user_id=OWNER, name="Pará", aois=[PARA]
     )
-    assert response.status_code == 201
-    return response.json()
+    await add_alerts_chart(para, OWNER)
+    await dashboard_writer.create_dashboard(
+        user_id=OWNER, name="Peru", aois=[PERU]
+    )
+    await dashboard_writer.create_dashboard(
+        user_id="someone-else", name="Not mine", aois=[PERU]
+    )
 
 
-def by_name(tools):
-    return {tool.name: tool for tool in tools}
+async def call(tool_name: str, user_id=OWNER, **args) -> str:
+    service = DashboardAlertsService(FakeAlertsSource())
+    with bound_user_id(user_id):
+        async with api_tools(service) as tools:
+            tool = {tool.name: tool for tool in tools}[tool_name]
+            blocks = await tool.ainvoke(args)
+    return "\n".join(block["text"] for block in blocks)
 
 
-@pytest.mark.asyncio
-async def test_exposes_only_dashboard_list_and_alerts_summary():
-    async with api_tools(app, AUTH) as tools:
-        assert set(by_name(tools)) == {
+async def test_exposes_dashboard_list_and_alerts_summary():
+    service = DashboardAlertsService(FakeAlertsSource())
+    async with api_tools(service) as tools:
+        assert {tool.name for tool in tools} == {
             "list_dashboards",
             "summarize_dashboard_alerts",
         }
 
 
-@pytest.mark.asyncio
-async def test_calls_routes_as_the_forwarded_user(dashboard):
-    async with api_tools(app, AUTH) as tools:
-        result = await by_name(tools)["list_dashboards"].ainvoke({})
+async def test_lists_the_current_users_dashboards_and_alerts_tracking(
+    dashboards,
+):
+    text = await call("list_dashboards")
 
-    assert "Forest watch" in str(result)
+    assert "Not mine" not in text
+    para_line, peru_line = (
+        next(line for line in text.splitlines() if line.startswith(f"- {n}"))
+        for n in ("Pará", "Peru")
+    )
+    assert "tracks integrated disturbance alerts" in para_line
+    assert "does not track" in peru_line
 
 
-@pytest.mark.asyncio
-async def test_rejects_calls_without_valid_credentials(dashboard):
-    async with api_tools(app, {}) as tools:
-        result = await by_name(tools)["list_dashboards"].ainvoke({})
+async def test_summary_names_dashboards_and_separates_untracked_ones(
+    dashboards,
+):
+    text = await call("summarize_dashboard_alerts")
 
-    assert "Forest watch" not in str(result)
-    assert "401" in str(result)
+    assert "disturbance alerts" in text
+    assert "2026-10-24 to 2026-10-30" in text
+    assert "Pará: 38,464 ha" in text
+    not_tracked = next(
+        line for line in text.splitlines() if "not tracked" in line.lower()
+    )
+    assert "Peru" in not_tracked
+
+
+async def test_tools_require_a_signed_in_user(dashboards):
+    text = await call("list_dashboards", user_id=None)
+
+    assert "Pará" not in text
+    assert "signed in" in text

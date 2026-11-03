@@ -147,6 +147,18 @@ async def get_dashboard(dashboard_id) -> Optional[DashboardOrm]:
         return result.scalar_one_or_none()
 
 
+async def get_owned_dashboards(user_id: str) -> list[DashboardOrm]:
+    """The user's own dashboards with their AOIs, newest first."""
+    async with get_session_from_pool() as session:
+        result = await session.execute(
+            select(DashboardOrm)
+            .options(selectinload(DashboardOrm.aois))
+            .where(DashboardOrm.user_id == user_id)
+            .order_by(DashboardOrm.created_at.desc())
+        )
+        return list(result.scalars().all())
+
+
 async def get_visible_dashboards_with_dataset(
     dashboard_ids: list[UUID], user_id: str, dataset_id: int
 ) -> list[DashboardOrm]:

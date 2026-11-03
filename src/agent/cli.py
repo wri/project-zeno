@@ -17,7 +17,6 @@ import sys
 import uuid
 from contextlib import contextmanager
 from dataclasses import replace
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator, Optional, Sequence
 
@@ -42,10 +41,11 @@ from src.agent.graph import (
 )
 from src.agent.tools.pull_data import fetch_statistics_from_url
 from src.api.agent_tools import api_tools
-from src.api.app import app
-from src.api.auth.dependencies import fetch_user_from_rw_api
 from src.api.data_models import UserOrm
-from src.api.schemas import UserModel
+from src.api.routers.dashboards import (
+    get_alerts_source,
+    get_dashboard_alerts_service,
+)
 from src.shared.database import (
     close_global_pool,
     get_session_from_pool,
@@ -616,20 +616,6 @@ async def _ensure_user_exists(user_id: str, email: str) -> None:
         await session.commit()
 
 
-def _authenticate_api_as(user_id: str, user_email: str) -> None:
-    """The CLI trusts --user-id, so API routes called by the agent's tools
-    run as that user instead of validating a bearer token."""
-    now = datetime.now(timezone.utc)
-    user = UserModel(
-        id=user_id,
-        name=user_id,
-        email=user_email,
-        created_at=now,
-        updated_at=now,
-    )
-    app.dependency_overrides[fetch_user_from_rw_api] = lambda: user
-
-
 async def _fetch_agent(
     system_prompt: Optional[str],
     *,
@@ -736,8 +722,8 @@ async def _async_main(
         if use_postgres:
             await get_checkpointer_pool()
 
-        _authenticate_api_as(user_id, user_email)
-        async with api_tools(app, {}) as tools:
+        alerts = get_dashboard_alerts_service(get_alerts_source())
+        async with api_tools(alerts) as tools:
             agent = await _fetch_agent(
                 system_prompt,
                 use_postgres=use_postgres,
