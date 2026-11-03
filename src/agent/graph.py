@@ -25,6 +25,7 @@ from src.agent.middleware import SessionContextMiddleware
 from src.agent.state import AgentState
 from src.agent.tool_spec import Gate, set_bound_availability
 from src.agent.view_pages import prompt_section
+from src.agent_mcp import MCP_PROFILE
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
@@ -295,6 +296,12 @@ async def fetch_zeno(
     Pass an explicit ``checkpointer`` (e.g. ``InMemorySaver()``) for local
     runs without Postgres, or ``None`` for a stateless single-turn agent.
     """
+    if config is None and ff == MCP_PROFILE:
+        from src.agent_mcp.graph import fetch_mcp_agent
+
+        if checkpointer is _CHECKPOINTER_UNSET:
+            checkpointer = await fetch_checkpointer()
+        return await fetch_mcp_agent(checkpointer=checkpointer)
     if config is None:
         config = registry.resolve(ff)
     set_bound_availability(config.availability())

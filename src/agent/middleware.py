@@ -9,6 +9,7 @@ This restores harness idea #2 ("current state auto-loads every turn").
 """
 
 from datetime import date
+from typing import Callable, Optional
 
 from langchain.agents.middleware.types import AgentMiddleware, ModelRequest
 from langchain_core.messages import SystemMessage
@@ -147,12 +148,19 @@ class SessionContextMiddleware(AgentMiddleware):
     pulled data and active insight.
 
     Reads from request.state which is the live LangGraph agent state,
-    automatically updated by Command returns from tools.
+    automatically updated by Command returns from tools. ``format_block``
+    renders it; the MCP agent passes one that adds the ids its tools take.
     """
+
+    def __init__(
+        self, format_block: Optional[Callable[[dict], str]] = None
+    ) -> None:
+        super().__init__()
+        self.format_block = format_block or format_session_block
 
     async def awrap_model_call(self, request: ModelRequest, handler):
         state = request.state or {}
-        block = format_session_block(state)
+        block = self.format_block(state)
         request.messages = [
             SystemMessage(content=block),
             *request.messages,

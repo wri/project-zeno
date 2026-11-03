@@ -39,6 +39,7 @@ from src.agent.graph import (
     get_prompt,
 )
 from src.agent.tools.pull_data import fetch_statistics_from_url
+from src.agent_mcp import MCP_PROFILE
 from src.api.data_models import UserOrm
 from src.shared.database import (
     close_global_pool,
@@ -617,6 +618,14 @@ async def _fetch_agent(
     use_memory: bool,
     ff: Optional[str] = None,
 ):
+    if ff == MCP_PROFILE:
+        from src.agent_mcp.graph import fetch_mcp_agent
+
+        if use_postgres:
+            return await fetch_zeno(ff=ff)
+        return await fetch_mcp_agent(
+            checkpointer=InMemorySaver() if use_memory else None
+        )
     if ff:
         config = default_registry.resolve(ff)
     else:
