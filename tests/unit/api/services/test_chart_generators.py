@@ -16,6 +16,11 @@ from src.api.services.charts import (
     column_to_rows,
 )
 from src.api.services.charts.curated import build_curated_charts
+from src.api.services.charts.integrated_alerts import (
+    HIGH_SERIES,
+    HIGHEST_SERIES,
+    LOW_SERIES,
+)
 from src.api.services.charts.tcl_natural_forest import (
     NATURAL_COLUMN,
     NATURAL_SERIES,
@@ -241,13 +246,13 @@ async def test_natural_forest_split_legend_and_colours_are_localised():
 
 # --- Integrated Alerts -------------------------------------------------------
 IA_DATA = {
-    # Two rows share 2024-04-05: the analytics API returns one row per
+    # Two rows share 2024-03-05: the analytics API returns one row per
     # intersecting geometry, so a day can appear more than once.
     "alert_date": [
         "2024-03-01",
         "2024-03-01",
-        "2024-04-05",
-        "2024-04-05",
+        "2024-03-05",
+        "2024-03-05",
     ],
     "alert_confidence": ["high", "low", "high", "high"],
     "area_ha": [10.0, 5.0, 20.0, 2.5],
@@ -255,6 +260,13 @@ IA_DATA = {
     "aoi_type": ["admin"] * 4,
 }
 IA_ROWS = column_to_rows(IA_DATA)
+
+
+def _alerts(*days: tuple[str, str, float]) -> list[dict]:
+    return [
+        {"alert_date": day, "alert_confidence": confidence, "area_ha": area}
+        for day, confidence, area in days
+    ]
 
 
 def test_can_handle_integrated_alerts_dataset():
@@ -270,44 +282,51 @@ def test_integrated_alerts_generator_registered():
     )
 
 
-def test_ia_generates_one_line_chart_by_confidence():
-    chart = IntegratedAlertsChartGenerator().generate(IA_ROWS)[0]
+def test_ia_is_a_daily_stacked_bar_highest_to_low_in_the_map_colours():
+    (chart,) = IntegratedAlertsChartGenerator().generate(IA_ROWS)
     fe = chart.to_frontend_dict()
-    assert fe["type"] == "line"
+
+    assert fe["type"] == "stacked-bar"
     assert fe["xAxis"] == "alert_date"
     assert fe["yAxis"] == "area_ha"
-    assert fe["colorField"] == "alert_confidence"
-    # snake_case persistence parity
-    assert chart.to_orm_kwargs()["color_field"] == "alert_confidence"
-
-
-def test_ia_aggregates_area_by_day_and_confidence():
-    """Daily, not monthly: it is the resolution the data arrives at, and a
-    monthly bucket would collapse the default two-week window to one point."""
-    chart = IntegratedAlertsChartGenerator().generate(IA_ROWS)[0]
-    by_key = {
-        (r["alert_date"], r["alert_confidence"]): r["area_ha"]
-        for r in chart.chart_data
+    assert fe["colorField"] == ""
+    # The first series is the bottom of the stack.
+    assert chart.series_fields == [HIGHEST_SERIES, HIGH_SERIES, LOW_SERIES]
+    assert chart.color_map == {
+        HIGHEST_SERIES: "#C92A6D",
+        HIGH_SERIES: "#DC6699",
+        LOW_SERIES: "#EDA4C2",
     }
-    # Same day, different confidence: kept apart.
-    assert by_key[("2024-03-01", "high")] == 10.0
-    assert by_key[("2024-03-01", "low")] == 5.0
-    # Same day, same confidence, two geometries: summed.
-    assert by_key[("2024-04-05", "high")] == 22.5
-    # A month is never a bucket.
-    assert all(len(r["alert_date"]) == 10 for r in chart.chart_data)
+
+
+def test_ia_sums_each_tier_per_day():
+    (chart,) = IntegratedAlertsChartGenerator().generate(IA_ROWS)
+
+    assert chart.chart_data == [
+        {
+            "alert_date": "2024-03-01",
+            LOW_SERIES: 5.0,
+            HIGH_SERIES: 10.0,
+            HIGHEST_SERIES: 0.0,
+        },
+        # Same day, same tier, two geometries: summed.
+        {
+            "alert_date": "2024-03-05",
+            LOW_SERIES: 0.0,
+            HIGH_SERIES: 22.5,
+            HIGHEST_SERIES: 0.0,
+        },
+    ]
 
 
 def test_ia_days_are_chronological():
-    chart = IntegratedAlertsChartGenerator().generate(
-        column_to_rows(
-            {
-                "alert_date": ["2024-04-05", "2024-03-01", "2024-03-20"],
-                "alert_confidence": ["high"] * 3,
-                "area_ha": [1.0, 2.0, 3.0],
-            }
+    (chart,) = IntegratedAlertsChartGenerator().generate(
+        _alerts(
+            ("2024-04-05", "high", 1.0),
+            ("2024-03-01", "high", 2.0),
+            ("2024-03-20T00:00:00", "high", 3.0),
         )
-    )[0]
+    )
 
     assert [r["alert_date"] for r in chart.chart_data] == [
         "2024-03-01",
@@ -316,20 +335,99 @@ def test_ia_days_are_chronological():
     ]
 
 
-def test_ia_absent_days_are_not_zero_filled():
-    """The API reports what it detected; a fabricated zero is a claim about
-    a day nobody looked at that way."""
-    chart = IntegratedAlertsChartGenerator().generate(
-        column_to_rows(
-            {
-                "alert_date": ["2024-03-01", "2024-03-05"],
-                "alert_confidence": ["high", "high"],
-                "area_ha": [1.0, 2.0],
-            }
-        )
-    )[0]
+def test_ia_without_a_period_has_rows_for_the_alert_days_only():
+    (chart,) = IntegratedAlertsChartGenerator().generate(IA_ROWS)
 
-    assert len(chart.chart_data) == 2
+    assert [r["alert_date"] for r in chart.chart_data] == [
+        "2024-03-01",
+        "2024-03-05",
+    ]
+
+
+def test_ia_gives_every_day_of_the_period_a_slot_and_no_value():
+    """A day with no alerts holds its place on the axis as a gap, not a
+    zero: the API reports what it detected, and a fabricated zero is a claim
+    about a day nobody looked at that way."""
+    generator = IntegratedAlertsChartGenerator().for_period(
+        "2024-02-28", "2024-03-06"
+    )
+    (chart,) = generator.generate(IA_ROWS)
+
+    assert [r["alert_date"] for r in chart.chart_data] == [
+        "2024-02-28",
+        "2024-02-29",
+        "2024-03-01",
+        "2024-03-02",
+        "2024-03-03",
+        "2024-03-04",
+        "2024-03-05",
+        "2024-03-06",
+    ]
+    quiet = [r for r in chart.chart_data if r["alert_date"] == "2024-03-02"]
+    assert quiet == [{"alert_date": "2024-03-02"}]
+
+
+def test_ia_with_no_alerts_in_the_period_still_spans_it():
+    generator = IntegratedAlertsChartGenerator().for_period(
+        "2024-03-01", "2024-03-03"
+    )
+    (chart,) = generator.generate([])
+
+    assert chart.chart_data == [
+        {"alert_date": "2024-03-01"},
+        {"alert_date": "2024-03-02"},
+        {"alert_date": "2024-03-03"},
+    ]
+
+
+def test_ia_unknown_confidence_raises():
+    with pytest.raises(ValueError, match="Unknown alert confidence"):
+        IntegratedAlertsChartGenerator().generate(
+            _alerts(("2024-03-01", "medium", 1.0))
+        )
+
+
+async def test_ia_legend_and_colours_are_localised():
+    (chart,) = await build_curated_charts(
+        INTEGRATED_ALERTS_ID,
+        IA_ROWS,
+        "es",
+        period=("2024-03-01", "2024-03-02"),
+    )
+
+    low, high, highest = [
+        await t(key, "es") for key in (LOW_SERIES, HIGH_SERIES, HIGHEST_SERIES)
+    ]
+    assert (low, high, highest) == (
+        "Confianza baja",
+        "Confianza alta",
+        "Confianza máxima",
+    )
+    assert chart.series_fields == [highest, high, low]
+    assert chart.color_map == {
+        low: "#EDA4C2",
+        high: "#DC6699",
+        highest: "#C92A6D",
+    }
+    assert chart.chart_data[0] == {
+        "alert_date": "2024-03-01",
+        low: 5.0,
+        high: 10.0,
+        highest: 0.0,
+    }
+    # The period is passed through: the day after has a slot.
+    assert chart.chart_data[1] == {"alert_date": "2024-03-02"}
+
+
+async def test_a_period_leaves_other_charts_as_they_are():
+    rows = column_to_rows(TCL_DATA)
+
+    with_period = await build_curated_charts(
+        TREE_COVER_LOSS_ID, rows, period=("2020-01-01", "2022-12-31")
+    )
+    without = await build_curated_charts(TREE_COVER_LOSS_ID, rows)
+
+    assert with_period == without
 
 
 # --- LGMS ---------------------------------------------------------------

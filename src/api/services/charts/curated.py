@@ -66,11 +66,15 @@ async def build_curated_charts(
     rows: list[dict],
     language: Optional[str] = None,
     generators: Sequence[ChartGenerator] = DETERMINISTIC_GENERATORS,
+    period: Optional[tuple[str, str]] = None,
 ) -> list[InsightChart]:
     """Curated charts for `dataset_id` from `rows`; [] when no generator
-    handles the dataset. Charts carry `dataset_id`."""
+    handles the dataset. Charts carry `dataset_id`. `period` is the start
+    and end date of the pull, for a chart whose axis spans it."""
     for generator in generators:
         if generator.can_handle(dataset_id):
+            if period is not None:
+                generator = generator.for_period(*period)
             charts = generator.generate(rows)
             await _localise(charts, generator, language)
             for chart in charts:

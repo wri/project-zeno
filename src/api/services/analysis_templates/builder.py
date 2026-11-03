@@ -4,8 +4,9 @@
 and the agent tool both call it.
 
 1. Take the first AOI of the dashboard.
-2. Resolve "today" one time for the request, and get the period from the
-   template arguments.
+2. Resolve "today" one time for the request, and the day the period ends
+   on: today, or the latest alert date for a template that counts back from
+   it. Get the period from the template arguments.
 3. Build every widget concurrently. Each widget builder clamps the period to
    its dataset and gets its own copy of the AOI, because the analytics
    handler changes its input in place (it strips the GADM level suffix).
@@ -258,10 +259,12 @@ async def _curated_charts(
     dataset_id: int, context: BuildContext, start: str, end: str
 ) -> list[InsightChart]:
     """The dataset's curated charts for the period. With no rows the chart
-    is built empty: nothing happened in the period, and that is a result."""
+    has no values: nothing happened in the period, and that is a result."""
     record = _dataset_record(dataset_id)
     rows = await _pull_rows(dataset_id, context, start, end)
-    charts = await build_curated_charts(dataset_id, rows, context.language)
+    charts = await build_curated_charts(
+        dataset_id, rows, context.language, period=(start, end)
+    )
     if not charts:
         raise WidgetFailedError(
             f"No chart is available for {record['dataset_name']}."
@@ -567,8 +570,9 @@ async def _build_alerts(
                         key: context.aoi[key]
                         for key in ("source", "src_id", "subtype", "name")
                     },
-                    # The template's period, which the chart shares.
-                    "days": (context.end - context.start).days,
+                    # The length of the template's period, which the chart
+                    # shares, both ends counted.
+                    "days": (context.end - context.start).days + 1,
                 },
                 "dataset": snapshot,
             },
@@ -661,15 +665,27 @@ async def apply_template(
         raise NoAreaError(
             f"Dashboard '{dashboard.name}' has no area. Add an area first."
         )
-    start, end = args.period(date.today())
+    today = date.today()
     analytics = AnalyticsHandler()
+    handler = _SharedPulls(analytics)
+    latest_alerts = AnalyticsAlertsSource(analytics, analytics.BASE_URL)
+    period_end = today
+    if template.period_end == "latest_alert":
+        # Today when the date cannot be read: the build goes on.
+        period_end = (
+            await AlertsListService(
+                handler, latest_alerts
+            ).resolve_latest_alert_date(today)
+            or today
+        )
+    start, end = args.period(period_end)
     context = BuildContext(
         aoi=aoi,
         start=start,
         end=end,
         language=language or DEFAULT_LANGUAGE,
-        handler=_SharedPulls(analytics),
-        latest_alerts=AnalyticsAlertsSource(analytics, analytics.BASE_URL),
+        handler=handler,
+        latest_alerts=latest_alerts,
     )
     logger.info(
         "analysis_template_build_started",

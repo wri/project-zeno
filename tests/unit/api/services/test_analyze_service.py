@@ -1,10 +1,14 @@
 import pytest
 
+from src.agent.datasets.handlers.analytics_handler import INTEGRATED_ALERTS_ID
 from src.agent.datasets.handlers.base import DataPullResult, DataSourceHandler
 from src.agent.i18n import t
 from src.agent.subagents.analyst.charts import InsightChart
 from src.api.services.analyze import AnalyzeService
-from src.api.services.charts import ChartGenerator
+from src.api.services.charts import (
+    ChartGenerator,
+    IntegratedAlertsChartGenerator,
+)
 
 UNHANDLED_DATASET_ID = 1
 HANDLED_DATASET_ID = 99
@@ -152,6 +156,69 @@ async def test_uses_deterministic_source_when_one_matches():
     )
 
     assert result.charts == FAKE_CHARTS
+
+
+@pytest.mark.asyncio
+async def test_integrated_alerts_chart_spans_the_requested_period():
+    """The Analyses pane's alerts chart gives every day of the period a
+    slot, so its axis spans the dates the user picked, quiet days too."""
+    handler = FakeHandler(
+        DataPullResult(
+            success=True,
+            data={
+                "alert_date": ["2026-09-02"],
+                "alert_confidence": ["high"],
+                "area_ha": [3.0],
+            },
+            message="ok",
+        )
+    )
+    service = AnalyzeService(handler, [IntegratedAlertsChartGenerator()])
+
+    result = await service.analyze(
+        aois=[AOI],
+        dataset_id=INTEGRATED_ALERTS_ID,
+        start_date="2026-09-01",
+        end_date="2026-09-03",
+    )
+
+    (chart,) = result.charts
+    assert [row["alert_date"] for row in chart.chart_data] == [
+        "2026-09-01",
+        "2026-09-02",
+        "2026-09-03",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_integrated_alerts_chart_starts_where_the_data_does():
+    """The Analyses pane asks for 2001 to 2025; the alerts begin on
+    1 December 2023, so the axis does not give 22 empty years a slot."""
+    handler = FakeHandler(
+        DataPullResult(
+            success=True,
+            data={
+                "alert_date": ["2024-03-02"],
+                "alert_confidence": ["high"],
+                "area_ha": [3.0],
+            },
+            message="ok",
+        )
+    )
+    service = AnalyzeService(handler, [IntegratedAlertsChartGenerator()])
+
+    result = await service.analyze(
+        aois=[AOI],
+        dataset_id=INTEGRATED_ALERTS_ID,
+        start_date="2001-01-01",
+        end_date="2025-12-31",
+    )
+
+    (chart,) = result.charts
+    days = [row["alert_date"] for row in chart.chart_data]
+    assert (days[0], days[-1], len(days)) == ("2023-12-01", "2025-12-31", 762)
+    # The pull still asks for the request's period.
+    assert handler.last_call["start_date"] == "2001-01-01"
 
 
 @pytest.mark.asyncio

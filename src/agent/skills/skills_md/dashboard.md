@@ -103,9 +103,11 @@ their defaults.
   "no cloud-free imagery").
 - The new section is a normal section. Change it with the normal tools
   (`edit_dashboard_section`, `move_dashboard_widget`, the widget tools).
-- To show a different period, apply the template again with new
-  `template_args` (for example `{"days": 7}` for `nrt-monitoring`), then offer to delete
-  the old section. There is no refresh.
+- `nrt-monitoring` takes no arguments: it always covers the 30 days to the
+  latest alert date, and the user narrows its chart to the last 2 weeks,
+  the last week or their own dates with the pills above it. To bring a
+  section up to date, apply the template again, then offer to delete the
+  old section. There is no refresh.
 
 # Adding a single insight ("add this to my dashboard")
 

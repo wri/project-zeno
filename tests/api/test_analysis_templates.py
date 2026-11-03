@@ -141,7 +141,7 @@ async def test_apply_template_builds_a_section(client, auth_override):
     dashboard = await _create_dashboard(client)
 
     with _sources():
-        response = await _apply(client, dashboard["id"], args={"days": 30})
+        response = await _apply(client, dashboard["id"])
 
     assert response.status_code == 201
     body = response.json()
@@ -152,7 +152,7 @@ async def test_apply_template_builds_a_section(client, auth_override):
     assert section["title"] == "Recent alerts in Paraná"
     assert section["description"] == "3.3 ha of alerts."
     assert section["template"]["name"] == "nrt-monitoring"
-    assert section["template"]["args"] == {"days": 30}
+    assert section["template"]["args"] == {}
 
     widgets = body["dashboard"]["widgets"]
     assert [w["id"] for w in widgets] == body["widget_ids"]
@@ -283,7 +283,7 @@ async def test_apply_template_goes_after_the_last_section(
         "Recent alerts in Paraná",
     ]
     assert sections[1]["position"] == 1
-    assert sections[1]["template"]["args"] == {"days": 30}
+    assert sections[1]["template"]["args"] == {}
 
 
 @pytest.mark.asyncio
@@ -309,8 +309,8 @@ async def test_missing_imagery_is_a_warning(client, auth_override):
     "body",
     [
         {"template": "no-such-template"},
-        {"template": "nrt-monitoring", "args": {"days": 0}},
-        {"template": "nrt-monitoring", "args": {"days": 366}},
+        # nrt-monitoring always covers the 30 days to the latest alert date.
+        {"template": "nrt-monitoring", "args": {"days": 7}},
         {"template": "nrt-monitoring", "args": {"window": 7}},
         {"template": "post-2020-forest-loss", "args": {"days": 30}},
     ],

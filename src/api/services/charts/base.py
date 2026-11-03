@@ -65,5 +65,12 @@ class ChartGenerator(ABC):
     def can_handle(self, dataset_id: int) -> bool:
         return dataset_id == self.dataset_id
 
+    def for_period(self, start: str, end: str) -> "ChartGenerator":
+        """The generator for rows pulled from ``start`` to ``end`` (ISO
+        dates). Most charts read their rows alone, so this is the generator
+        itself; a chart that gives every day of the period a slot returns
+        one that knows the period."""
+        return self
+
     @abstractmethod
     def generate(self, rows: List[dict]) -> List[InsightChart]: ...

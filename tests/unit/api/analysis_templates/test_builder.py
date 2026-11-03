@@ -2,7 +2,7 @@
 
 import asyncio
 import json
-from datetime import date
+from datetime import date, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 from urllib.parse import parse_qsl, urlsplit
@@ -32,6 +32,7 @@ from src.api.services.analysis_templates.models import (
     ImageryWidgetSpec,
     LayerWidgetSpec,
     NaturalForestLossWidgetSpec,
+    TemplateArgs,
 )
 from src.api.services.analysis_templates.registry import (
     Post2020ForestLossArgs,
@@ -175,7 +176,7 @@ async def test_builds_three_widgets_in_template_order():
     assert chart.dataset_id == INTEGRATED_ALERTS_ID
     assert chart.x_axis == "alert_date"
     assert widgets[1].config["dataset"]["dataset_id"] == INTEGRATED_ALERTS_ID
-    assert widgets[1].config["dataset"]["end_date"] == "2026-09-23"
+    assert widgets[1].config["dataset"]["end_date"] == "2026-09-21"
     assert widgets[1].config["alerts"]["days"] == 30
     assert widgets[1].insight is None
     assert widgets[2].config["imagery"]["mosaic_id"] == "mosaic-1"
@@ -224,13 +225,13 @@ async def test_layer_with_a_context_layer_and_a_size():
 async def test_template_record_and_one_today():
     mocks, stack = _patches(written=("section-1", ["w1", "w2", "w3"]))
 
-    await _apply(stack, args={"days": 30})
+    await _apply(stack)
 
     record = mocks.write.await_args.kwargs["template"]
     assert record["name"] == "nrt-monitoring"
-    assert record["args"] == {"days": 30}
-    assert record["start_date"] == "2026-08-24"
-    assert record["end_date"] == "2026-09-23"
+    assert record["args"] == {}
+    assert record["start_date"] == "2026-08-23"
+    assert record["end_date"] == "2026-09-21"
     assert mocks.today.calls == 1
 
 
@@ -243,19 +244,53 @@ async def test_a_section_with_no_dated_data_keeps_the_requested_period():
 
     record = mocks.write.await_args.kwargs["template"]
     assert (record["start_date"], record["end_date"]) == (
-        "2026-08-24",
+        "2026-08-23",
+        "2026-09-21",
+    )
+
+
+@pytest.mark.asyncio
+async def test_nrt_period_is_the_30_days_to_the_latest_alert_date():
+    """Counted from the latest alert date, not today: alerts arrive days
+    after they are detected, so the days before today are not yet quiet."""
+    mocks, stack = _patches()
+
+    await _apply(stack)
+
+    pull = mocks.pull.await_args.kwargs
+    assert (pull["start_date"], pull["end_date"]) == (
+        "2026-08-23",
+        "2026-09-21",
+    )
+
+
+@pytest.mark.asyncio
+async def test_without_a_latest_alert_date_the_period_ends_today():
+    unreadable = FakeLatest(error=AlertsUnavailableError("timed out"))
+    mocks, stack = _patches(
+        written=("section-1", ["w1", "w2", "w3"]), latest=unreadable
+    )
+
+    await _apply(stack)
+
+    record = mocks.write.await_args.kwargs["template"]
+    assert (record["start_date"], record["end_date"]) == (
+        "2026-08-25",
         "2026-09-23",
     )
 
 
 @pytest.mark.asyncio
-async def test_args_default_to_the_template_default():
+async def test_the_chart_has_a_slot_for_every_day_of_the_period():
     mocks, stack = _patches()
 
     await _apply(stack)
 
-    assert mocks.write.await_args.kwargs["template"]["args"] == {"days": 30}
-    assert mocks.pull.await_args.kwargs["start_date"] == "2026-08-24"
+    chart = mocks.write.await_args.kwargs["widgets"][0].insight.charts[0]
+    days = [row["alert_date"] for row in chart.chart_data]
+    assert len(days) == 30
+    assert (days[0], days[-1]) == ("2026-08-23", "2026-09-21")
+    assert chart.chart_type == "stacked-bar"
 
 
 @pytest.mark.asyncio
@@ -308,19 +343,22 @@ async def test_each_builder_gets_its_own_aoi_copy():
 
     (request,) = mocks.imagery.await_args.args
     assert request.aois[0]["src_id"] == "BRA.16_1"
-    assert request.target_date == TODAY
+    # The imagery is of the period's end, the latest alert date.
+    assert request.target_date == LATEST
     alerts = mocks.write.await_args.kwargs["widgets"][1]
     assert alerts.config["alerts"]["aoi"]["src_id"] == "BRA.16_1"
 
 
 @pytest.mark.asyncio
-async def test_empty_period_builds_an_empty_chart():
+async def test_empty_period_builds_a_chart_of_quiet_days():
     mocks, stack = _patches(pull=_pull(data={}))
 
     await _apply(stack)
 
     widgets = mocks.write.await_args.kwargs["widgets"]
-    assert widgets[0].insight.charts[0].chart_data == []
+    rows = widgets[0].insight.charts[0].chart_data
+    assert len(rows) == 30
+    assert all(set(row) == {"alert_date"} for row in rows)
 
 
 @pytest.mark.asyncio
@@ -452,6 +490,22 @@ NO_ALERTS_FACT = (
 ALERTS = NRT.model_copy(update={"widgets": (AlertsWidgetSpec(),)})
 
 
+class _DaysArgs(TemplateArgs):
+    """The ``days`` to the period end, for alerts facts over periods that
+    nrt-monitoring, always 30 days to the latest alert date, does not
+    build."""
+
+    days: int
+
+    def period(self, end: date) -> tuple[date, date]:
+        return end - timedelta(days=self.days), end
+
+
+ALERTS_TO_TODAY = ALERTS.model_copy(
+    update={"args_model": _DaysArgs, "period_end": "today"}
+)
+
+
 async def _apply_alerts(
     data=WEEK_ROWS, template=ALERTS, latest=None, **kwargs
 ):
@@ -466,7 +520,7 @@ async def _apply_alerts(
 
 @pytest.mark.asyncio
 async def test_alerts_widget_stores_the_area_the_period_and_the_layer():
-    mocks = await _apply_alerts(args={"days": 30})
+    mocks = await _apply_alerts()
 
     (widget,) = mocks.write.await_args.kwargs["widgets"]
     assert widget.widget_type == "alerts"
@@ -510,11 +564,11 @@ async def test_alerts_widget_stores_the_area_the_period_and_the_layer():
     assert forests_query == lands_query
 
     assert (dataset["start_date"], dataset["end_date"]) == (
-        "2026-08-24",
-        "2026-09-23",
+        "2026-08-23",
+        "2026-09-21",
     )
     assert dataset["tile_url"].endswith(
-        "&start_date=2026-08-24&end_date=2026-09-23"
+        "&start_date=2026-08-23&end_date=2026-09-21"
     )
     assert set(widget.config) == {"alerts", "dataset"}
 
@@ -575,7 +629,9 @@ async def test_a_period_that_covers_part_of_the_week_gives_its_own_dates():
         "area_ha": [1.0],
     }
 
-    mocks = await _apply_alerts(data=in_period, args={"days": 7})
+    mocks = await _apply_alerts(
+        data=in_period, template=ALERTS_TO_TODAY, args={"days": 7}
+    )
 
     assert mocks.pull.await_args.kwargs["start_date"] == "2026-09-16"
     assert mocks.text.await_args.kwargs["facts"] == [
@@ -586,7 +642,7 @@ async def test_a_period_that_covers_part_of_the_week_gives_its_own_dates():
 
 @pytest.mark.asyncio
 async def test_a_period_after_the_week_gives_no_fact():
-    mocks = await _apply_alerts(args={"days": 1})
+    mocks = await _apply_alerts(template=ALERTS_TO_TODAY, args={"days": 1})
 
     assert mocks.text.await_args.kwargs["facts"] == []
 

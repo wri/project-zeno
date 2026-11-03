@@ -26,8 +26,9 @@ class TemplateArgs(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    def period(self, today: date) -> tuple[date, date]:
-        """The start and end dates that the widgets cover."""
+    def period(self, end: date) -> tuple[date, date]:
+        """The start and end dates that the widgets cover, for a period
+        ending on ``end``, the day the template's ``period_end`` names."""
         raise NotImplementedError
 
 
@@ -124,6 +125,11 @@ class AnalysisTemplate(BaseModel):
     # Validates the arguments of a request.
     args_model: type[TemplateArgs]
     widgets: tuple[WidgetSpec, ...]
+    # The day the period ends on: today, or the latest integrated alert date
+    # (today when it cannot be read), the day the alerts list counts back
+    # from. Alerts arrive days after they are detected, so the days before
+    # today are not yet quiet.
+    period_end: Literal["today", "latest_alert"] = "today"
 
     def parse_args(self, raw: dict[str, Any] | None) -> TemplateArgs:
         """The validated arguments. Raises ``pydantic.ValidationError``."""
