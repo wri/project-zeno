@@ -397,6 +397,28 @@ async def test_fetch_zeno_binds_the_resolved_configs_availability():
     assert available.tools == frozenset({"_fake_tool", "read_skill"})
 
 
+async def test_fetch_zeno_binds_extra_tools_alongside_the_profile():
+    from langgraph.checkpoint.memory import InMemorySaver
+
+    from src.agent.graph import fetch_zeno
+
+    @tool
+    def _extra_tool() -> str:
+        """An extra tool supplied by the caller."""
+        return ""
+
+    registry = AgentConfigRegistry()
+    registry.register(AgentConfig("default", tools=(FAKE_SPEC,)))
+
+    agent = await fetch_zeno(
+        registry=registry,
+        checkpointer=InMemorySaver(),
+        extra_tools=[_extra_tool],
+    )
+    bound = agent.nodes["tools"].bound.tools_by_name
+    assert {"_fake_tool", "_extra_tool"} <= set(bound)
+
+
 # --- excluded_datasets enforcement in pick_dataset ---------------------------
 
 
