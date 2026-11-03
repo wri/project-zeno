@@ -124,6 +124,13 @@ async def prepare_dataframes(
     return dataframes, source_urls
 
 
+def _extract_place_names(statistics: list[dict]) -> list[str]:
+    """Names of the areas of interest across the pulled datasets."""
+    return [
+        name for stat in statistics for name in (stat.get("aoi_names") or [])
+    ]
+
+
 def _extract_statistics_ids(statistics: list[dict]) -> list[str]:
     return [
         stat["id"]
@@ -559,6 +566,7 @@ class Analyst:
             query,
             executor_context=executor_context,
             language=language,
+            place_names=_extract_place_names(statistics),
         )
         primary_insight = text.primary_insight
         follow_up_suggestions = text.follow_up_suggestions

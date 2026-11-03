@@ -10,7 +10,7 @@ it nests as a span in the active Langfuse trace via the ambient
 `RunnableConfig`. Callers outside a traced context may pass an explicit `config`.
 """
 
-from typing import List, Optional
+from typing import List, Optional, Sequence
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
@@ -18,8 +18,8 @@ from pydantic import BaseModel, Field
 
 from src.agent.language import DEFAULT_LANGUAGE, language_name
 from src.agent.llms import SMALL_MODEL
-from src.agent.subagents.analyst.ascii_sanitizer import AsciiSanitizer
 from src.agent.subagents.analyst.charts.model import InsightChart
+from src.agent.subagents.analyst.place_masker import PlaceMasker
 from src.agent.subagents.analyst.prompts import WORDING_GUIDE
 from src.shared.logging_config import get_logger
 from src.shared.text_sanitize import strip_control_chars
@@ -53,7 +53,15 @@ Write a 2-3 sentence `primary_insight` grounded in the numbers, and 1-2 \
 Write both in {language} — regardless of what language the query, dataset \
 cautions, or presentation instructions below are written in.
 
-{wording_guide}"""
+{wording_guide}{place_note}"""
+
+# Added to the system prompt only when place names were masked.
+PLACE_NOTE = """
+
+Place names appear in the input as tokens such as PLACE_1: the real names \
+were withheld. Each token stands for a real place, so write it exactly as \
+given, with the same spelling and capitalisation (for example "PLACE_1 lost \
+3,600 ha"). Do not translate, explain, abbreviate or invent them."""
 
 _USER = """## User query
 {query}
@@ -91,6 +99,7 @@ class InsightTextGenerator:
         executor_context: Optional[str] = None,
         language: str = DEFAULT_LANGUAGE,
         config: Optional[RunnableConfig] = None,
+        place_names: Sequence[str] = (),
     ) -> InsightText:
         charts_block = "\n".join(
             c.model_dump_json(exclude={"insight"}) for c in charts
@@ -107,15 +116,28 @@ class InsightTextGenerator:
             "charts": charts_block,
         }
         # Gemini Flash sometimes writes a control character in place of an
-        # accented one ("Piau\x00" for "Piauí"). Keep non-ASCII words out of
-        # the prompt so the model never has to copy them, and put the original
-        # words back in what it returns. The system prompt (wording guide and
-        # language name) is deliberately left alone.
-        sanitizer = AsciiSanitizer.for_texts(*data.values())
+        # accented one ("Piau\x00" for "Piauí"). Keep non-ASCII place names out
+        # of the prompt so the model never has to copy them, and put the real
+        # names back in what it returns. Data fields go first because they
+        # teach the masker which words are names; prose fields (query,
+        # dataset notes) then only get names already known. The system prompt
+        # (wording guide and language name) is deliberately left alone.
+        masker = PlaceMasker.for_texts(place_names, *data.values())
+        masked = {
+            key: masker.mask(data[key], learn=True)
+            for key in ("charts", "executor_context")
+        }
+        masked.update(
+            {
+                key: masker.mask(data[key])
+                for key in ("query", "cautions", "presentation_instructions")
+            }
+        )
         inputs = {
             "wording_guide": WORDING_GUIDE,
+            "place_note": PLACE_NOTE if masker.mapping else "",
             "language": language_name(language),
-            **{key: sanitizer.sanitize(value) for key, value in data.items()},
+            **masked,
         }
         raw: InsightText = await self._chain.ainvoke(inputs, config=config)
         # Anything still corrupt after the restore is a character the model
@@ -123,12 +145,12 @@ class InsightTextGenerator:
         # see is the same text that gets stored.
         result = InsightText(
             primary_insight=strip_control_chars(
-                sanitizer.restore(raw.primary_insight),
+                masker.unmask(raw.primary_insight),
                 field="text_stage.primary_insight",
             ),
             follow_up_suggestions=[
                 strip_control_chars(
-                    sanitizer.restore(s),
+                    masker.unmask(s),
                     field="text_stage.follow_up_suggestion",
                 )
                 for s in raw.follow_up_suggestions

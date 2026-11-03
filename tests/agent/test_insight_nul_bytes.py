@@ -26,10 +26,10 @@ asyncpg refusing the value, which a mocked session cannot show.
   output; the wire form is assumed to be the JSON escape). The control
   character is in the model's output, not added by our code.
 * ``test_text_generator_*``: the text stage against a model that reproduces
-  that fault for every non-ASCII character it writes. Accented words are kept
-  out of the prompt and restored in the response.
+  that fault for every non-ASCII character it writes. Place names are masked
+  with PLACE_n stand-ins in the prompt and restored in the response.
 * ``test_persist_insight_*`` / ``test_update_insight_*``: the persistence
-  boundary, the last line of defence. Whatever upstream stage corrupts the
+  boundary, the last line of defense. Whatever upstream stage corrupts the
   text, the write must not blow up and must not store control characters.
 * ``test_analyze_*``: the full ``Analyst.analyze`` flow with a model that
   writes control characters on its own, so the whole path to the database is
@@ -172,7 +172,7 @@ class _AccentGlitchModel:
     It writes a short narrative about the area named in the user query and,
     like the real model, replaces every non-ASCII character it has to emit
     with a control character. It only ever sees the prompt it is given, so
-    a prompt that keeps non-ASCII words out gives it nothing to corrupt.
+    a prompt that keeps non-ASCII place names out gives it nothing to corrupt.
 
     Assumption (to be confirmed by the probe script): the fault is triggered
     by accented words that appear in the prompt. Accents the model would
@@ -215,7 +215,7 @@ async def test_text_generator_survives_the_accent_glitch(name, glitch_char):
     """Accented area names come back intact and free of control characters.
 
     The model corrupts any non-ASCII character it has to write. The text
-    stage must keep accented words out of the prompt and restore them in the
+    stage must keep accented place names out of the prompt and restore them in the
     response, so the narrative reads "Piauí" and not "Piau\\x00".
     """
     model = _AccentGlitchModel(glitch_char)
@@ -226,6 +226,7 @@ async def test_text_generator_survives_the_accent_glitch(name, glitch_char):
         dataset={},
         query=f"Tree cover loss in {name}",
         executor_context=f"Total loss in {name}: 3,600 ha",
+        place_names=[name],
     )
 
     assert_clean(result.primary_insight)
@@ -299,7 +300,7 @@ async def test_analyze_with_corrupted_model_output(user, raw_text, clean):
 
     The code executor is stubbed to return a chart for the accented area, and
     the text stage's model replays the raw message in which Gemini wrote a
-    control character itself (it ignores the prompt, so sanitizing the input
+    control character itself (it ignores the prompt, so masking the input
     cannot help). The flow must still persist an insight, with no control
     characters in the stored text or in the text returned to the agent.
     """
@@ -464,3 +465,55 @@ async def test_persist_logs_what_it_strips(user):
         if log["event"] == "control_chars_stripped"
     )
     assert fields == ["follow_up_suggestion", "insight_text"]
+
+
+async def test_analyze_passes_the_area_names_to_the_text_stage(user):
+    """The areas of interest reach the text stage, so it can mask their names."""
+    chart = InsightChart(
+        position=0,
+        title="Annual tree cover loss",
+        chart_type="bar",
+        x_axis="year",
+        y_axis="loss",
+        chart_data=[{"year": 2020, "loss": 5}],
+    )
+    statistics = [
+        {"id": "s1", "dataset_id": "tcl", "aoi_names": ["Piauí"]},
+        {"id": "s2", "dataset_id": "tcl", "aoi_names": ["São Paulo", "Pará"]},
+        {"id": "s3", "dataset_id": "tcl"},
+    ]
+    generate = AsyncMock(
+        return_value=SimpleNamespace(
+            primary_insight="Loss rose.", follow_up_suggestions=[]
+        )
+    )
+
+    with (
+        bound_user_id(user.id),
+        patch.object(
+            Analyst,
+            "_resolve_charts",
+            AsyncMock(return_value=([chart], [], "", None)),
+        ),
+        patch(
+            "src.agent.subagents.analyst.tool.InsightTextGenerator.generate",
+            generate,
+        ),
+        patch(
+            "src.agent.subagents.analyst.tool.persist_insight",
+            AsyncMock(return_value="insight-1"),
+        ),
+        patch(
+            "src.agent.subagents.analyst.tool._build_tool_message",
+            AsyncMock(return_value="ok"),
+        ),
+    ):
+        await Analyst().analyze(
+            query="Loss?", statistics=statistics, dataset={}, tool_call_id="c"
+        )
+
+    assert generate.await_args.kwargs["place_names"] == [
+        "Piauí",
+        "São Paulo",
+        "Pará",
+    ]
