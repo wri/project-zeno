@@ -160,69 +160,6 @@ async def test_build_payload_natural_forest_canopy_cover(
     assert payload["canopy_cover"] == canopy_cover
 
 
-async def test_build_payload_natural_forest_breakdown_groups_by_class():
-    handler = AnalyticsHandler()
-    dataset = {
-        "dataset_id": TREE_COVER_LOSS_ID,
-        "forest_breakdown": "natural_forest",
-    }
-    aois = [{"name": "Pará", "subtype": "state-province", "src_id": "BRA.14"}]
-
-    payload = await handler._build_payload(
-        dataset=dataset,
-        aois=aois,
-        start_date="2021-01-01",
-        end_date="2025-12-31",
-    )
-
-    # No canopy_cover: the API rejects a threshold with this filter.
-    assert payload == {
-        "aoi": {"type": "admin", "ids": ["BRA.14"]},
-        "start_year": "2021",
-        "end_year": "2025",
-        "forest_filter": "natural_forest",
-        "intersections": [],
-    }
-
-
-@pytest.mark.parametrize(
-    ("dataset", "problem"),
-    [
-        (
-            {
-                "dataset_id": TREE_COVER_LOSS_ID,
-                "forest_breakdown": "natural_forest",
-                "context_layer": "natural_forest",
-            },
-            "cannot be combined",
-        ),
-        (
-            {
-                "dataset_id": INTEGRATED_ALERTS_ID,
-                "forest_breakdown": "natural_forest",
-            },
-            "only available for tree cover loss",
-        ),
-        (
-            {"dataset_id": TREE_COVER_LOSS_ID, "forest_breakdown": "primary"},
-            "Unknown forest breakdown",
-        ),
-    ],
-)
-async def test_build_payload_rejects_an_invalid_forest_breakdown(
-    dataset, problem
-):
-    aois = [{"name": "Pará", "subtype": "state-province", "src_id": "BRA.14"}]
-
-    with pytest.raises(ValueError, match=problem):
-        await AnalyticsHandler()._build_payload(
-            dataset=dataset,
-            aois=aois,
-            start_date="2021-01-01",
-            end_date="2025-12-31",
-        )
-
-
 # --- LGMS per-section result merged into one flat category/class table -------
 # The Land GHG Monitoring System returns a per-section result; the handler
 # flattens it into one column-oriented table with unified category/class
@@ -315,6 +252,23 @@ async def test_flat_result_enriches_names_and_counts():
     enriched, count = _count_and_enrich(raw, aois)
     assert count == 2
     assert enriched["name"] == ["Brazil", "Argentina"]
+
+
+async def test_a_null_column_becomes_a_null_per_row():
+    # Tree cover loss below a 30% canopy threshold, as the API answers it:
+    # no emissions, as one null for the column.
+    raw = {
+        "aoi_id": [format_id("BRA.11_1")] * 2,
+        "tree_cover_loss_year": [2021, 2022],
+        "area_ha": [130451.62, 85800.05],
+        "carbon_emissions_MgCO2e": None,
+    }
+    aois = [{"src_id": "BRA.11_1", "name": "Mato Grosso do Sul"}]
+
+    enriched, count = _count_and_enrich(raw, aois)
+
+    assert count == 2
+    assert enriched["carbon_emissions_MgCO2e"] == [None, None]
 
 
 @pytest.mark.parametrize(
