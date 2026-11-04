@@ -25,6 +25,18 @@ from src.shared import text_sanitize
 from src.shared.request_context import bound_user_id
 from tests.conftest import async_session_maker
 
+ANALYSIS_INPUTS = [
+    {
+        "areas": [{"name": "Brazil", "source": "gadm", "src_id": "BRA"}],
+        "dataset_id": 4,
+        "dataset_name": "Tree cover loss",
+        "start_date": "2020-01-01",
+        "end_date": "2020-12-31",
+        "canopy_cover": 30,
+        "context_layer": None,
+    }
+]
+
 
 async def _insert_insight(
     *,
@@ -42,6 +54,7 @@ async def _insert_insight(
             insight_text=text,
             follow_up_suggestions=["old follow-up"],
             statistics_ids=["stat-1"],
+            analysis_inputs=ANALYSIS_INPUTS,
             codeact_types=["code"],
             codeact_contents=["cHJpbnQoKQ=="],
             is_public=is_public,
@@ -194,6 +207,7 @@ async def test_update_insight_replaces_charts_preserves_provenance(user):
     assert row.user_id == user.id
     assert row.thread_id == "thread-1"
     assert row.statistics_ids == ["stat-1"]
+    assert row.analysis_inputs == ANALYSIS_INPUTS
     assert row.codeact_types == ["code"]
     assert row.codeact_contents == ["cHJpbnQoKQ=="]
     assert row.created_at == datetime(2026, 6, 1)

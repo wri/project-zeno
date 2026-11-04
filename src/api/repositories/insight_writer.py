@@ -40,13 +40,20 @@ def add_insight_rows(
     statistics_ids: Optional[list[str]] = None,
     codeact_parts: Optional[list[dict]] = None,
     is_public: bool = False,
+    analysis_inputs: Optional[list[dict]] = None,
 ) -> InsightOrm:
     """Add an insight and its charts to `session`; the caller commits.
 
     Lets another writer put the insight in its own transaction, so a later
     failure leaves no insight behind. The charts hang off the insight
     relationship, so they get the insight id when the session flushes.
+
+    `analysis_inputs` is the snapshot from `src.api.services.analysis_inputs`,
+    or None when the inputs are not known.
     """
+    if analysis_inputs == []:
+        # The read side gives [] no meaning: null is "not recorded".
+        raise ValueError("analysis_inputs must be None or non-empty")
     statistics_ids = statistics_ids or []
     codeact_parts = codeact_parts or []
     insight_orm = InsightOrm(
@@ -60,6 +67,7 @@ def add_insight_rows(
             for s in insight.follow_up_suggestions
         ],
         statistics_ids=statistics_ids,
+        analysis_inputs=analysis_inputs,
         codeact_types=[p["type"] for p in codeact_parts],
         codeact_contents=[p["content"] for p in codeact_parts],
         is_public=is_public,
@@ -76,6 +84,7 @@ async def persist_insight(
     thread_id: str,
     statistics_ids: Optional[list[str]] = None,
     codeact_parts: Optional[list[dict]] = None,
+    analysis_inputs: Optional[list[dict]] = None,
 ) -> str:
     """Persist an insight and its charts; return the new insight id (str).
 
@@ -90,6 +99,7 @@ async def persist_insight(
             thread_id=thread_id,
             statistics_ids=statistics_ids,
             codeact_parts=codeact_parts,
+            analysis_inputs=analysis_inputs,
         )
         await session.commit()
         await session.refresh(insight_orm)
@@ -110,7 +120,8 @@ async def update_insight(insight_id: str, insight: Insight) -> bool:
     Only the generative/presentation fields are replaced — narrative text,
     follow-up suggestions and the chart specs (titles, types, field mappings,
     per-chart `chart_data`). Ownership (`user_id`/`thread_id`), `statistics_ids`,
-    the `codeact_*` provenance and `created_at` are deliberately left untouched:
+    `analysis_inputs`, the `codeact_*` provenance and `created_at` are
+    deliberately left untouched:
     this path restyles an insight, it does not pull new data or re-run code.
 
     Returns ``True`` on success, ``False`` if the insight no longer exists

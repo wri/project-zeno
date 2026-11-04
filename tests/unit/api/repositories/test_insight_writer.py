@@ -48,3 +48,45 @@ def test_add_insight_rows_tags_chart_row_warnings_as_create(monkeypatch):
     (call,) = logger.warning.call_args_list
     assert call.args == ("control_chars_stripped",)
     assert call.kwargs["field"] == "chart_row:create"
+
+
+_INPUTS = [
+    {
+        "areas": [{"name": "Brazil", "source": "gadm", "src_id": "BRA"}],
+        "dataset_id": 4,
+        "dataset_name": "Tree cover loss",
+        "start_date": "2020-01-01",
+        "end_date": "2020-12-31",
+        "canopy_cover": 30,
+        "context_layer": None,
+    }
+]
+
+
+def _insight():
+    return Insight(charts=[], primary_insight="text")
+
+
+@pytest.mark.parametrize("inputs", [_INPUTS, None])
+def test_add_insight_rows_stores_the_analysis_inputs(inputs):
+    session = MagicMock()
+    row = insight_writer.add_insight_rows(
+        session,
+        _insight(),
+        user_id="user-1",
+        thread_id="thread-1",
+        analysis_inputs=inputs,
+    )
+    assert row.analysis_inputs == inputs
+    session.add.assert_called_once_with(row)
+
+
+def test_add_insight_rows_refuses_an_empty_list():
+    with pytest.raises(ValueError, match="None or non-empty"):
+        insight_writer.add_insight_rows(
+            MagicMock(),
+            _insight(),
+            user_id="user-1",
+            thread_id="thread-1",
+            analysis_inputs=[],
+        )
