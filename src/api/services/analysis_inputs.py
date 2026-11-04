@@ -10,6 +10,7 @@ from typing import Optional
 
 from src.agent.datasets.handlers.analytics_handler import (
     canopy_cover_threshold,
+    with_catalog_record,
 )
 from src.api.schemas import AnalysisInput
 from src.shared.logging_config import get_logger
@@ -84,6 +85,53 @@ def input_from_statistics(statistics: dict) -> dict:
             statistics.get("parameters"),
         ),
         context_layer=statistics.get("context_layer"),
+    )
+
+
+def named_areas(
+    pairs: list[tuple[str, str]], names: dict[tuple[str, str], str]
+) -> list[dict]:
+    """Areas for ``(source, src_id)`` pairs, named from ``names``.
+
+    An area with no name found is named by its src_id, as the analytics
+    handler names it, and the gap is logged.
+    """
+    areas = []
+    for source, src_id in pairs:
+        name = names.get((source, src_id))
+        if name is None:
+            logger.warning(
+                "analysis_inputs_area_name_missing",
+                source=source,
+                src_id=src_id,
+            )
+            name = src_id
+        areas.append({"name": name, "source": source, "src_id": src_id})
+    return areas
+
+
+def input_for_analysis(
+    *,
+    areas: list[dict],
+    dataset_id: int,
+    start_date: str,
+    end_date: str,
+    canopy_cover: Optional[int],
+    context_layer: Optional[str],
+) -> dict:
+    """The entry for a pull made from explicit options (``/api/analyze``,
+    dashboard templates). ``canopy_cover`` is the threshold the pull sent
+    (see ``sent_canopy_cover`` in ``src.api.services.analyze``)."""
+    return analysis_input(
+        areas=areas,
+        dataset_id=dataset_id,
+        dataset_name=with_catalog_record({"dataset_id": dataset_id})[
+            "dataset_name"
+        ],
+        start_date=start_date,
+        end_date=end_date,
+        canopy_cover=canopy_cover,
+        context_layer=context_layer,
     )
 
 

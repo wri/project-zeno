@@ -2,6 +2,10 @@ from dataclasses import dataclass, field
 from typing import Optional, Sequence
 
 from src.agent.datasets.dates import revise_date_range
+from src.agent.datasets.handlers.analytics_handler import (
+    canopy_cover_threshold,
+    with_catalog_record,
+)
 from src.agent.datasets.handlers.base import DataPullResult, DataSourceHandler
 from src.agent.subagents.analyst.charts import InsightChart
 from src.api.services.charts import ChartGenerator, column_to_rows
@@ -23,6 +27,46 @@ async def _chart_period(
     except ValueError:
         return start_date, end_date
     return start, end
+
+
+def analysis_dataset(
+    dataset_id: int,
+    context_layer: Optional[str] = None,
+    canopy_cover: Optional[int] = None,
+) -> dict:
+    """The dataset selection an analysis sends to the handler: the same
+    fields the agent's pick_dataset sets. The handler reads the forest
+    filter and the canopy cover threshold from them."""
+    # `parameters` is always set. The handler merges the catalog entry
+    # under these fields, and the catalog lists every allowed threshold
+    # (10 to 75): without the key, the pull takes the largest one, 75,
+    # in place of the default of 30.
+    dataset: dict = {"dataset_id": dataset_id, "parameters": None}
+    if context_layer:
+        dataset["context_layer"] = context_layer
+    if canopy_cover is not None:
+        dataset["parameters"] = [
+            {"name": "canopy_cover", "values": [canopy_cover]}
+        ]
+    return dataset
+
+
+def sent_canopy_cover(
+    dataset_id: int,
+    context_layer: Optional[str] = None,
+    canopy_cover: Optional[int] = None,
+) -> Optional[int]:
+    """The canopy cover threshold an analysis with these options sends, the
+    way the handler works it out: the selection over its catalog record,
+    then the shared rule."""
+    dataset = with_catalog_record(
+        analysis_dataset(dataset_id, context_layer, canopy_cover)
+    )
+    return canopy_cover_threshold(
+        dataset.get("dataset_id"),
+        dataset.get("context_layer"),
+        dataset.get("parameters"),
+    )
 
 
 @dataclass
@@ -51,22 +95,9 @@ class AnalyzeService:
         context_layer: Optional[str] = None,
         canopy_cover: Optional[int] = None,
     ) -> AnalyzeResult:
-        # The same dataset fields the agent's pick_dataset sets: the handler
-        # reads the forest filter and the canopy cover threshold from them.
-        # `parameters` is always set. The handler merges the catalog entry
-        # under these fields, and the catalog lists every allowed threshold
-        # (10 to 75): without the key, the pull takes the largest one, 75,
-        # in place of the default of 30.
-        dataset: dict = {"dataset_id": dataset_id, "parameters": None}
-        if context_layer:
-            dataset["context_layer"] = context_layer
-        if canopy_cover is not None:
-            dataset["parameters"] = [
-                {"name": "canopy_cover", "values": [canopy_cover]}
-            ]
         result = await self._handler.pull_data(
             query="",
-            dataset=dataset,
+            dataset=analysis_dataset(dataset_id, context_layer, canopy_cover),
             start_date=start_date,
             end_date=end_date,
             change_over_time_query=False,

@@ -2,10 +2,17 @@ from typing import Optional
 from uuid import UUID, uuid4
 
 import pytest
+import structlog
 
+from src.agent.datasets.handlers.analytics_handler import (
+    DEFAULT_CANOPY_COVER,
+    INTEGRATED_ALERTS_ID,
+    NATURAL_FOREST_DEFAULT_CANOPY_COVER,
+    TREE_COVER_LOSS_ID,
+)
 from src.agent.subagents.analyst.charts import Insight, InsightChart
 from src.api.services.analysis_job import AnalysisJobRunner
-from src.api.services.analyze import AnalyzeResult
+from src.api.services.analyze import AnalyzeResult, sent_canopy_cover
 from src.api.services.job import JobRepository, JobStatus
 
 JOB_ID = uuid4()
@@ -46,6 +53,10 @@ class FakeService:
         canopy_cover=None,
     ):
         self.language = language
+        # The analytics handler strips the GADM suffix in place.
+        for aoi in aois:
+            if aoi["src_id"][-2:] in ["_1", "_2", "_3", "_4", "_5"]:
+                aoi["src_id"] = aoi["src_id"][:-2]
         return AnalyzeResult(
             data=_Result(self._success, "upstream error"),
             charts=self._charts if self._success else [],
@@ -69,6 +80,7 @@ class FakeJobRepository(JobRepository):
         user_id: str,
         thread_id: Optional[str],
         insight: Insight,
+        analysis_inputs: Optional[list[dict]],
     ) -> str:
         self.insight_resources.append(
             {
@@ -76,6 +88,7 @@ class FakeJobRepository(JobRepository):
                 "user_id": user_id,
                 "thread_id": thread_id,
                 "insight": insight,
+                "analysis_inputs": analysis_inputs,
             }
         )
         return "insight-123"
@@ -84,8 +97,24 @@ class FakeJobRepository(JobRepository):
         return None
 
 
-def make_runner(repo, *, success=True, charts=CHARTS):
-    return AnalysisJobRunner(FakeService(success=success, charts=charts), repo)
+class FakeNames:
+    """The AOI name lookup, with the pairs it was asked for."""
+
+    def __init__(self, names=None):
+        self.names = names or {}
+        self.calls: list[list[tuple[str, str]]] = []
+
+    async def __call__(self, pairs):
+        self.calls.append(pairs)
+        return {pair: self.names[pair] for pair in pairs if pair in self.names}
+
+
+def make_runner(repo, *, success=True, charts=CHARTS, names=None):
+    return AnalysisJobRunner(
+        FakeService(success=success, charts=charts),
+        repo,
+        names or FakeNames(),
+    )
 
 
 @pytest.mark.asyncio
@@ -167,7 +196,9 @@ async def test_run_forwards_the_readers_language_to_the_service():
     """Chart titles are localised in the service, so the language has to
     survive the hop through the background job."""
     service = FakeService(success=True, charts=[])
-    runner = AnalysisJobRunner(service=service, repo=FakeJobRepository())
+    runner = AnalysisJobRunner(
+        service=service, repo=FakeJobRepository(), aoi_names=FakeNames()
+    )
 
     await runner.run(
         job_id=uuid4(),
@@ -180,3 +211,125 @@ async def test_run_forwards_the_readers_language_to_the_service():
     )
 
     assert service.language == "pt"
+
+
+# --- analysis_inputs ----------------------------------------------------------
+
+
+async def _inputs(**run_kwargs) -> tuple[list[dict], FakeNames]:
+    names = run_kwargs.pop("names", FakeNames())
+    repo = FakeJobRepository()
+    runner = make_runner(repo, names=names)
+    await runner.run(JOB_ID, USER_ID, **run_kwargs)
+    return repo.insight_resources[0]["analysis_inputs"], names
+
+
+async def test_the_request_is_recorded_as_one_pull():
+    names = FakeNames({("gadm", "BRA.22_1"): "Rondônia, Brazil"})
+    inputs, _ = await _inputs(
+        aois=[{"source": "gadm", "src_id": "BRA.22_1", "subtype": "state"}],
+        dataset_id=TREE_COVER_LOSS_ID,
+        start_date="2020-01-01",
+        end_date="2022-12-31",
+        context_layer="primary_forest",
+        canopy_cover=50,
+        names=names,
+    )
+
+    assert inputs == [
+        {
+            # The id as requested, not as the handler rewrote it.
+            "areas": [
+                {
+                    "name": "Rondônia, Brazil",
+                    "source": "gadm",
+                    "src_id": "BRA.22_1",
+                }
+            ],
+            "dataset_id": TREE_COVER_LOSS_ID,
+            "dataset_name": "Tree cover loss",
+            "start_date": "2020-01-01",
+            "end_date": "2022-12-31",
+            "canopy_cover": 50,
+            "context_layer": "primary_forest",
+        }
+    ]
+    assert names.calls == [[("gadm", "BRA.22_1")]]
+
+
+async def test_an_area_without_a_name_is_named_by_its_id():
+    with structlog.testing.capture_logs() as logs:
+        inputs, _ = await _inputs(
+            aois=[AOI],
+            dataset_id=TREE_COVER_LOSS_ID,
+            start_date="2020-01-01",
+            end_date="2022-12-31",
+        )
+
+    assert inputs[0]["areas"] == [
+        {"name": "BRA", "source": "gadm", "src_id": "BRA"}
+    ]
+    assert any(
+        log["event"] == "analysis_inputs_area_name_missing" for log in logs
+    )
+
+
+async def test_without_a_threshold_the_sent_one_is_recorded():
+    inputs, _ = await _inputs(
+        aois=[AOI],
+        dataset_id=TREE_COVER_LOSS_ID,
+        start_date="2020-01-01",
+        end_date="2022-12-31",
+    )
+    assert inputs[0]["canopy_cover"] == sent_canopy_cover(TREE_COVER_LOSS_ID)
+    assert inputs[0]["canopy_cover"] == DEFAULT_CANOPY_COVER
+
+
+async def test_natural_forest_without_a_threshold_records_the_sent_one():
+    """The request carries no threshold, so the pull sends the natural
+    forest default. The entry records what was sent."""
+    inputs, _ = await _inputs(
+        aois=[AOI],
+        dataset_id=TREE_COVER_LOSS_ID,
+        start_date="2021-01-01",
+        end_date="2022-12-31",
+        context_layer="natural_forest",
+    )
+    assert inputs[0]["canopy_cover"] == sent_canopy_cover(
+        TREE_COVER_LOSS_ID, "natural_forest"
+    )
+    assert inputs[0]["canopy_cover"] == NATURAL_FOREST_DEFAULT_CANOPY_COVER
+    assert inputs[0]["context_layer"] == "natural_forest"
+
+
+async def test_natural_forest_with_a_threshold_records_it():
+    inputs, _ = await _inputs(
+        aois=[AOI],
+        dataset_id=TREE_COVER_LOSS_ID,
+        start_date="2021-01-01",
+        end_date="2022-12-31",
+        context_layer="natural_forest",
+        canopy_cover=NATURAL_FOREST_DEFAULT_CANOPY_COVER,
+    )
+    assert inputs[0]["canopy_cover"] == NATURAL_FOREST_DEFAULT_CANOPY_COVER
+
+
+async def test_a_dataset_without_a_threshold_records_null():
+    inputs, _ = await _inputs(
+        aois=[AOI],
+        dataset_id=INTEGRATED_ALERTS_ID,
+        start_date="2024-01-01",
+        end_date="2024-12-31",
+    )
+    assert inputs[0]["canopy_cover"] is None
+
+
+async def test_a_failed_pull_looks_up_no_names():
+    names = FakeNames()
+    repo = FakeJobRepository()
+    runner = make_runner(repo, success=False, names=names)
+
+    await runner.run(JOB_ID, USER_ID, [AOI], 4, "2020-01-01", "2022-12-31")
+
+    assert names.calls == []
+    assert repo.insight_resources == []

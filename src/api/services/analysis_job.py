@@ -1,19 +1,32 @@
 import time
-from typing import Optional
+from typing import Awaitable, Callable, Optional
 from uuid import UUID
 
 from src.agent.subagents.analyst.charts import Insight
-from src.api.services.analyze import AnalyzeService
+from src.api.services.analysis_inputs import input_for_analysis, named_areas
+from src.api.services.analyze import AnalyzeService, sent_canopy_cover
 from src.api.services.job import JobRepository, JobStatus
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
 
+# Names of AOIs by (source, src_id); see fetch_aoi_names.
+AoiNameLookup = Callable[
+    [list[tuple[str, str]]], Awaitable[dict[tuple[str, str], str]]
+]
+
+
 class AnalysisJobRunner:
-    def __init__(self, service: AnalyzeService, repo: JobRepository):
+    def __init__(
+        self,
+        service: AnalyzeService,
+        repo: JobRepository,
+        aoi_names: AoiNameLookup,
+    ):
         self._service = service
         self._repo = repo
+        self._aoi_names = aoi_names
 
     async def run(
         self,
@@ -37,6 +50,10 @@ class AnalysisJobRunner:
             start_date=start_date,
             end_date=end_date,
         )
+
+        # The handler strips the GADM suffix from the AOI dicts it is given,
+        # so the areas are taken before the pull.
+        requested = [(aoi["source"], aoi["src_id"]) for aoi in aois]
 
         started_at = time.perf_counter()
         try:
@@ -66,12 +83,29 @@ class AnalysisJobRunner:
             # Charts only, no narrative: this job doesn't run the LLM text
             # generation step.
             insight = Insight(charts=result.charts)
+            # The request is the one pull. The service passes the dates
+            # through unclamped, so they are the dates it pulled.
+            analysis_inputs = [
+                input_for_analysis(
+                    areas=named_areas(
+                        requested, await self._aoi_names(requested)
+                    ),
+                    dataset_id=dataset_id,
+                    start_date=start_date,
+                    end_date=end_date,
+                    canopy_cover=sent_canopy_cover(
+                        dataset_id, context_layer, canopy_cover
+                    ),
+                    context_layer=context_layer,
+                )
+            ]
 
             await self._repo.create_insight_resource(
                 job_id=job_id,
                 user_id=user_id,
                 thread_id=thread_id,
                 insight=insight,
+                analysis_inputs=analysis_inputs,
             )
 
             await self._repo.update_job_status(job_id, JobStatus.COMPLETED)

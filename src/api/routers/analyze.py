@@ -14,6 +14,7 @@ from src.api.services.analysis_job import AnalysisJobRunner
 from src.api.services.analyze import AnalyzeService
 from src.api.services.charts import DETERMINISTIC_GENERATORS
 from src.api.services.job import JobRepository, JobType
+from src.shared.geocoding_helpers import fetch_aoi_names
 
 router = APIRouter()
 
@@ -26,6 +27,7 @@ def get_analysis_runner(
     return AnalysisJobRunner(
         service=AnalyzeService(handler, DETERMINISTIC_GENERATORS),
         repo=repo,
+        aoi_names=fetch_aoi_names,
     )
 
 
