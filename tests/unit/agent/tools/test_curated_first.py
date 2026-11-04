@@ -153,6 +153,7 @@ async def test_state_has_the_fields_of_the_code_executor_path(run):
 
     assert set(command.update) == {
         "insight_id",
+        "analysis_inputs",
         "insight",
         "follow_up_suggestions",
         "codeact_parts",

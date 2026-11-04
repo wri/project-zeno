@@ -127,6 +127,38 @@ async def test_curated_only_insight_skips_every_model(curated_run):
     assert curated_run.await_args.kwargs["codeact_parts"] == []
 
 
+async def test_curated_only_insight_records_its_one_pull(curated_run):
+    tcl = {"dataset_id": TREE_COVER_LOSS_ID, "dataset_name": "Tree cover loss"}
+    lgms = {
+        **_lgms_statistics(),
+        "aoi_ids": ["BRA.14"],
+        "aoi_sources": ["gadm"],
+        "parameters": None,
+        "context_layer": None,
+    }
+
+    command = await Analyst().analyze(
+        "lgms",
+        statistics=[tcl, lgms],
+        tool_call_id="call-1",
+        language="en",
+    )
+
+    expected = [
+        {
+            "areas": [{"name": "Pará", "source": "gadm", "src_id": "BRA.14"}],
+            "dataset_id": LAND_GHG_INVENTORY_ID,
+            "dataset_name": LGMS_NAME,
+            "start_date": "2016-01-01",
+            "end_date": "2024-12-31",
+            "canopy_cover": None,
+            "context_layer": None,
+        }
+    ]
+    assert command.update["analysis_inputs"] == expected
+    assert curated_run.await_args.kwargs["analysis_inputs"] == expected
+
+
 async def test_curated_only_charts_carry_grouped_ids(curated_run):
     """The LGMS charts reach the frontend under one `chartBatchKey` group.
 
