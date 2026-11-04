@@ -618,6 +618,42 @@ class InsightChartResponse(BaseModel):
     divergent_colors: Optional[Dict[str, str]] = None
 
 
+class AnalysisArea(BaseModel):
+    """One area of a data pull.
+
+    ``source`` and ``src_id`` identify the area together, never the name.
+    Both are null when the pull did not record them (older pulls kept
+    names only).
+    """
+
+    name: str
+    source: Optional[str]
+    src_id: Optional[str]
+
+
+class AnalysisInput(BaseModel):
+    """The inputs of one data pull that an insight was computed from.
+
+    Absence convention: every field is always present, and a nullable field
+    is an explicit ``null``, never omitted. A list of these is ``null`` when
+    the inputs were not recorded (the insight was saved before they were, or
+    the analyst's code read no input file), and never ``[]``.
+
+    ``start_date`` and ``end_date`` are ISO date strings, as stored on the
+    pull. ``canopy_cover`` is the threshold the analytics request sent (the
+    dataset default when none was selected), or ``null`` for a dataset that
+    takes none.
+    """
+
+    areas: List[AnalysisArea]
+    dataset_id: Optional[int]
+    dataset_name: str
+    start_date: str
+    end_date: str
+    canopy_cover: Optional[int]
+    context_layer: Optional[str]
+
+
 class InsightResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
