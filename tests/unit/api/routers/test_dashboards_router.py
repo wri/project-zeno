@@ -67,6 +67,7 @@ def _insight_row(insight_id):
         insight_text="Tree cover loss peaked in 2016.",
         follow_up_suggestions=["Compare with 2023"],
         statistics_ids=[],
+        analysis_inputs=None,
         charts=[],
         codeact_types=[],
         codeact_contents=[],
