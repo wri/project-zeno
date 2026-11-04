@@ -197,6 +197,44 @@ async def fetch_aoi_bbox(source: str, src_id: str) -> list[float]:
     return WORLD_BBOX
 
 
+async def fetch_aoi_names(
+    pairs: list[tuple[str, str]],
+) -> dict[tuple[str, str], str]:
+    """Return the names of the AOIs found by ``(source, src_id)``, in one
+    query.
+
+    A pair with no live row is left out, and the caller chooses the
+    fallback. Custom areas are mirrored into ``aois`` with the source
+    ``custom``, so they are found too. The lookup is not scoped to a user,
+    so call it only for areas the user's request already reached, such as
+    an analysis that succeeded.
+    """
+    if not pairs:
+        return {}
+    query = text(
+        "SELECT source, source_id, name FROM aois "
+        "WHERE source = ANY(:sources) AND source_id = ANY(:src_ids) "
+        "AND NOT is_deprecated"
+    )
+    async with get_connection_from_pool() as conn:
+        result = await conn.execute(
+            query,
+            {
+                "sources": sorted({source for source, _ in pairs}),
+                "src_ids": sorted({src_id for _, src_id in pairs}),
+            },
+        )
+        rows = result.fetchall()
+    # ANY on each column also matches pairs that cross, such as one
+    # pair's source with another's id, so keep the pairs asked for.
+    wanted = set(pairs)
+    return {
+        (source, src_id): name
+        for source, src_id, name in rows
+        if (source, src_id) in wanted
+    }
+
+
 def format_id(idx):
     """Remove the GADM version suffix from an id, and return a string.
 
