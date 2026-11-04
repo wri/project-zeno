@@ -586,11 +586,13 @@ class DashboardOrm(Base):
         cascade="all, delete-orphan",
         order_by="DashboardSectionOrm.position",
     )
-    # The FK also cascades, so a delete that skips the ORM still clears them.
+    # passive_deletes: the FK's ON DELETE CASCADE clears the rows, so a
+    # dashboard delete needn't load them first.
     subscriptions = relationship(
         "SubscriptionOrm",
         back_populates="dashboard",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
 

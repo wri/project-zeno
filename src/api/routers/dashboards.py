@@ -32,7 +32,7 @@ from src.agent.datasets.handlers.analytics_handler import (
 from src.agent.i18n import t
 from src.api.auth.dependencies import optional_auth, require_auth
 from src.api.data_models import DashboardOrm, InsightOrm, UserType
-from src.api.repositories import dashboard_writer
+from src.api.repositories import dashboard_writer, subscription_repository
 from src.api.repositories.insight_access import (
     is_visible_to_user as insight_is_visible_to_user,
 )
@@ -45,12 +45,14 @@ from src.api.schemas import (
     DashboardAlertsSummaryResponse,
     DashboardAoiResponse,
     DashboardCreateRequest,
+    DashboardDatasetAlerts,
     DashboardPublicToggleRequest,
     DashboardPublicToggleResponse,
     DashboardResponse,
     DashboardSectionCreateRequest,
     DashboardSectionResponse,
     DashboardSectionUpdateRequest,
+    DashboardSubscriptionsRequest,
     DashboardUpdateRequest,
     DashboardWidgetCreateRequest,
     DashboardWidgetResponse,
@@ -74,8 +76,10 @@ from src.api.services.dashboard_alerts import (
     AnalyticsAlertsSource,
     DashboardAlertsService,
     InvalidPeriodError,
+    supports_alerts,
 )
 from src.api.services.dashboard_aoi import dashboard_aoi
+from src.api.services.subscription import Dataset, SubscriptionMode
 from src.shared.database import get_session_from_pool_dependency
 from src.shared.logging_config import get_logger
 from src.shared.tile_urls import absolutize_widget_config
@@ -92,14 +96,37 @@ def _is_privileged(user: Optional[UserModel]) -> bool:
     )
 
 
+def _sees_alerts(row: DashboardOrm, user: Optional[UserModel]) -> bool:
+    """Alert settings are shown to the owner and superusers only, not to
+    admins (ADR 0012, decision 2)."""
+    return user is not None and (
+        row.user_id == user.id or user.user_type == UserType.SUPERUSER
+    )
+
+
+def _alerts_response(row: DashboardOrm) -> dict:
+    """The modes on per dataset, every dataset listed. Needs
+    ``row.subscriptions`` loaded."""
+    on = {(s.dataset, s.mode) for s in row.subscriptions}
+    return {
+        dataset: DashboardDatasetAlerts(
+            modes=[mode for mode in SubscriptionMode if (dataset, mode) in on]
+        )
+        for dataset in Dataset
+    }
+
+
 def _row_to_response(
     row: DashboardOrm,
     insights_by_id: Optional[dict] = None,
+    viewer: Optional[UserModel] = None,
 ) -> DashboardResponse:
     """Map a dashboard row (aois + sections + widgets loaded) to the response.
 
     ``insights_by_id`` carries the pre-loaded insight rows the viewer may see;
-    widgets referencing anything else keep ``insight=None``.
+    widgets referencing anything else keep ``insight=None``. ``alerts`` is
+    filled only when a ``viewer`` who may see it is passed, and then
+    ``row.subscriptions`` must be loaded.
     """
     insights_by_id = insights_by_id or {}
     return DashboardResponse(
@@ -134,6 +161,7 @@ def _row_to_response(
             )
             for widget in row.widgets or []
         ],
+        alerts=_alerts_response(row) if _sees_alerts(row, viewer) else None,
     )
 
 
@@ -180,7 +208,7 @@ async def _expanded_response(
             if insight_is_visible_to_user(insight, user_id)
             or _is_privileged(user)
         }
-    return _row_to_response(row, insights_by_id)
+    return _row_to_response(row, insights_by_id, user)
 
 
 @router.post(
@@ -199,7 +227,9 @@ async def create_dashboard(
         description=body.description,
         aois=[aoi.model_dump() for aoi in body.aois],
     )
-    return _row_to_response(await _refetch_dashboard(dashboard_id))
+    return _row_to_response(
+        await _refetch_dashboard(dashboard_id), viewer=user
+    )
 
 
 @router.get("/api/dashboards", response_model=list[DashboardResponse])
@@ -214,11 +244,14 @@ async def list_dashboards(
             selectinload(DashboardOrm.aois),
             selectinload(DashboardOrm.sections),
             selectinload(DashboardOrm.widgets),
+            selectinload(DashboardOrm.subscriptions),
         )
         .where(DashboardOrm.user_id == user.id)
         .order_by(DashboardOrm.created_at.desc())
     )
-    return [_row_to_response(row) for row in result.scalars().all()]
+    return [
+        _row_to_response(row, viewer=user) for row in result.scalars().all()
+    ]
 
 
 @router.get("/api/dashboards/{dashboard_id}", response_model=DashboardResponse)
@@ -305,7 +338,9 @@ async def update_dashboard(
     await dashboard_writer.update_dashboard(
         dashboard_id, name=body.name, description=body.description
     )
-    return _row_to_response(await _refetch_dashboard(dashboard_id))
+    return _row_to_response(
+        await _refetch_dashboard(dashboard_id), viewer=user
+    )
 
 
 @router.patch(
@@ -327,11 +362,84 @@ async def toggle_dashboard_public(
     publicized = await dashboard_writer.set_dashboard_public(
         dashboard_id, body.is_public
     )
-    base = _row_to_response(await _refetch_dashboard(dashboard_id))
+    base = _row_to_response(
+        await _refetch_dashboard(dashboard_id), viewer=user
+    )
     return DashboardPublicToggleResponse(
         **base.model_dump(),
         publicized_insight_ids=[UUID(i) for i in publicized or []],
     )
+
+
+@router.put(
+    "/api/dashboards/{dashboard_id}/subscriptions",
+    response_model=DashboardResponse,
+)
+async def set_dashboard_subscriptions(
+    dashboard_id: UUID,
+    body: DashboardSubscriptionsRequest,
+    user: UserModel = Depends(require_auth),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
+):
+    """Set the alert modes on for the listed datasets (owner only, with no
+    admin override: ADR 0012, decision 1).
+
+    The body is the desired state, so an empty ``modes`` turns everything
+    off. Turning email on also turns in-app on, and needs an eligible
+    dashboard (an integrated alerts chart and a GADM admin area), or 409.
+    Turning in-app off turns email off too.
+    """
+    row = await dashboard_writer.get_dashboard(dashboard_id)
+    if row is None or row.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Dashboard not found")
+    aoi = min(row.aois, key=lambda a: a.position, default=None)
+    if aoi is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Alerts need a dashboard with an area",
+        )
+
+    email = SubscriptionMode.EMAIL
+    changes = {}
+    turns_email_on = False
+    for dataset in set(body.datasets):
+        current = {s.mode for s in row.subscriptions if s.dataset == dataset}
+        changes[dataset] = subscription_repository.coupled_modes(
+            current, set(body.modes)
+        )
+        turns_email_on |= email in changes[dataset] and email not in current
+    if turns_email_on and not await _supports_email_alerts(row, user):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Email alerts need an integrated alerts chart and a GADM "
+                "admin area on the dashboard"
+            ),
+        )
+
+    for dataset, modes in changes.items():
+        await subscription_repository.set_modes(
+            dashboard_id=row.id,
+            aoi_id=aoi.id,
+            user_id=row.user_id,
+            dataset=dataset,
+            modes=modes,
+        )
+    return await _expanded_response(
+        await _refetch_dashboard(dashboard_id), user, session
+    )
+
+
+async def _supports_email_alerts(row: DashboardOrm, user: UserModel) -> bool:
+    """The same rule as the alerts summary: a chart of integrated alerts and
+    a GADM admin area. Integrated alerts is the only dataset for now."""
+    aoi = dashboard_aoi(row)
+    if aoi is None or not supports_alerts(aoi):
+        return False
+    with_chart = await dashboard_writer.get_visible_dashboards_with_dataset(
+        [row.id], user.id, INTEGRATED_ALERTS_ID
+    )
+    return bool(with_chart)
 
 
 @router.post(
@@ -356,7 +464,9 @@ async def add_section(
         description=body.description,
         position=body.position,
     )
-    return _row_to_response(await _refetch_dashboard(dashboard_id))
+    return _row_to_response(
+        await _refetch_dashboard(dashboard_id), viewer=user
+    )
 
 
 @router.patch(
@@ -386,7 +496,9 @@ async def update_section(
         description=description,
         position=body.position,
     )
-    return _row_to_response(await _refetch_dashboard(dashboard_id))
+    return _row_to_response(
+        await _refetch_dashboard(dashboard_id), viewer=user
+    )
 
 
 @router.delete(
@@ -468,7 +580,9 @@ async def add_widget(
         )
     except dashboard_writer.UnknownSectionError:
         raise HTTPException(status_code=404, detail="Section not found")
-    return _row_to_response(await _refetch_dashboard(dashboard_id))
+    return _row_to_response(
+        await _refetch_dashboard(dashboard_id), viewer=user
+    )
 
 
 @router.patch(
@@ -503,7 +617,9 @@ async def update_widget(
         )
     except dashboard_writer.UnknownSectionError:
         raise HTTPException(status_code=404, detail="Section not found")
-    return _row_to_response(await _refetch_dashboard(dashboard_id))
+    return _row_to_response(
+        await _refetch_dashboard(dashboard_id), viewer=user
+    )
 
 
 @router.delete(
