@@ -97,6 +97,16 @@ async def replay_chat(thread_id):
 
                 update[key] = value
 
+            # The dedupe above drops analysis_inputs when an earlier insight
+            # had the same inputs (or also none), but the frontend reads
+            # them with each insight. So an update with an insight_id also
+            # carries that checkpoint's inputs: null for a checkpoint saved
+            # before the key existed. Every other key keeps the dedupe.
+            if "insight_id" in update:
+                update["analysis_inputs"] = checkpoint.values.get(
+                    "analysis_inputs"
+                )
+
             mtypes = set(m.type for m in update["messages"])
 
             node_type = (
