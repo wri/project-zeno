@@ -663,6 +663,12 @@ class InsightResponse(BaseModel):
     insight_text: str
     follow_up_suggestions: List[str]
     statistics_ids: List[str] = []
+    # One entry per pull the insight was computed from, in pull order.
+    # Always present: null when the inputs were not recorded, never [] (see
+    # AnalysisInput). No default, so every response must state it.
+    analysis_inputs: Optional[
+        Annotated[List[AnalysisInput], Field(min_length=1)]
+    ]
     charts: List[InsightChartResponse]
     codeact_parts: List[CodeActPartResponse]
     is_public: bool

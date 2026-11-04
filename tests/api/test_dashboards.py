@@ -40,8 +40,26 @@ async def _create_user(user_id: str) -> UserOrm:
         return user
 
 
+ANALYSIS_INPUTS = [
+    {
+        "areas": [
+            {"name": "Paraná, Brazil", "source": "gadm", "src_id": "BRA.16"}
+        ],
+        "dataset_id": 4,
+        "dataset_name": "Tree cover loss",
+        "start_date": "2001-01-01",
+        "end_date": "2024-12-31",
+        "canopy_cover": 30,
+        "context_layer": None,
+    }
+]
+
+
 async def _create_insight(
-    *, user_id: str | None, is_public: bool = False
+    *,
+    user_id: str | None,
+    is_public: bool = False,
+    analysis_inputs: list[dict] | None = None,
 ) -> InsightOrm:
     async with async_session_maker() as session:
         row = InsightOrm(
@@ -49,6 +67,7 @@ async def _create_insight(
             thread_id="thread-1",
             insight_text="Sample insight text",
             is_public=is_public,
+            analysis_inputs=analysis_inputs,
         )
         session.add(row)
         await session.commit()
@@ -216,7 +235,9 @@ async def test_get_dashboard_expands_insight_widgets(client, auth_override):
     user = await _create_user("expand-owner")
     auth_override(user.id)
     dashboard = await _create_dashboard(client)
-    insight = await _create_insight(user_id=user.id)
+    insight = await _create_insight(
+        user_id=user.id, analysis_inputs=ANALYSIS_INPUTS
+    )
 
     response = await client.post(
         f"/api/dashboards/{dashboard['id']}/widgets",
@@ -234,6 +255,7 @@ async def test_get_dashboard_expands_insight_widgets(client, auth_override):
     # Same shape the insights endpoints return, nested in the widget.
     assert widget["insight"]["insight_text"] == "Sample insight text"
     assert widget["insight"]["id"] == str(insight.id)
+    assert widget["insight"]["analysis_inputs"] == ANALYSIS_INPUTS
 
 
 # ---------------------------------------------------------------------------

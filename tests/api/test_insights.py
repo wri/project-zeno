@@ -38,6 +38,7 @@ async def _create_insight(
     title: str = "Test Insight",
     is_public: bool = False,
     statistics_ids: list[str] | None = None,
+    analysis_inputs: list[dict] | None = None,
 ) -> InsightOrm:
     async with async_session_maker() as session:
         row = InsightOrm(
@@ -46,6 +47,7 @@ async def _create_insight(
             insight_text="Sample insight text",
             follow_up_suggestions=["Try a different area"],
             statistics_ids=statistics_ids or [],
+            analysis_inputs=analysis_inputs,
             codeact_types=["code_block"],
             codeact_contents=["print('hi')"],
             is_public=is_public,
@@ -656,6 +658,72 @@ async def test_make_public_then_access_without_auth(client, auth_override):
 
 
 # ---------------------------------------------------------------------------
+# analysis_inputs
+# ---------------------------------------------------------------------------
+ANALYSIS_INPUTS = [
+    {
+        "areas": [
+            {"name": "Rondônia, Brazil", "source": "gadm", "src_id": "BRA.22"}
+        ],
+        "dataset_id": 4,
+        "dataset_name": "Tree cover loss",
+        "start_date": "2001-01-01",
+        "end_date": "2024-12-31",
+        "canopy_cover": 30,
+        "context_layer": None,
+    }
+]
+
+
+@pytest.mark.asyncio
+async def test_list_returns_the_recorded_analysis_inputs(
+    client, auth_override
+):
+    user = await _create_user("inputs-list-owner")
+    auth_override(user.id)
+    await _create_insight(user_id=user.id, analysis_inputs=ANALYSIS_INPUTS)
+
+    response = await client.get(
+        "/api/insights", headers={"Authorization": "Bearer t"}
+    )
+    assert response.status_code == 200
+    assert response.json()[0]["analysis_inputs"] == ANALYSIS_INPUTS
+
+
+@pytest.mark.asyncio
+async def test_detail_returns_the_recorded_analysis_inputs(
+    client, auth_override
+):
+    user = await _create_user("inputs-detail-owner")
+    auth_override(user.id)
+    row = await _create_insight(
+        user_id=user.id, analysis_inputs=ANALYSIS_INPUTS
+    )
+
+    response = await client.get(
+        f"/api/insights/{row.id}", headers={"Authorization": "Bearer t"}
+    )
+    assert response.status_code == 200
+    assert response.json()["analysis_inputs"] == ANALYSIS_INPUTS
+
+
+@pytest.mark.asyncio
+async def test_an_insight_saved_without_inputs_returns_null(
+    client, auth_override
+):
+    user = await _create_user("inputs-legacy-owner")
+    auth_override(user.id)
+    row = await _create_insight(user_id=user.id)
+
+    response = await client.get(
+        f"/api/insights/{row.id}", headers={"Authorization": "Bearer t"}
+    )
+    body = response.json()
+    assert "analysis_inputs" in body
+    assert body["analysis_inputs"] is None
+
+
+# ---------------------------------------------------------------------------
 # Response shape
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
@@ -680,6 +748,7 @@ async def test_insight_response_shape(client, auth_override):
         "codeact_parts",
         "is_public",
         "statistics_ids",
+        "analysis_inputs",
         "created_at",
     }
     assert set(item.keys()) == expected_keys

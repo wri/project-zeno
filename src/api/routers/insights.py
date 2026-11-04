@@ -32,6 +32,7 @@ def _row_to_response(row: InsightOrm) -> InsightResponse:
         insight_text=row.insight_text,
         follow_up_suggestions=row.follow_up_suggestions or [],
         statistics_ids=row.statistics_ids or [],
+        analysis_inputs=row.analysis_inputs,
         charts=[
             InsightChartResponse(
                 id=chart.id,
