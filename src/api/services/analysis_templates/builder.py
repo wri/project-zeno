@@ -56,6 +56,7 @@ from src.api.services.alerts_list import (
     LatestAlertDateSource,
     UnsupportedAreaError,
 )
+from src.api.services.analysis_inputs import input_for_analysis
 from src.api.services.analysis_templates.models import (
     AlertsWidgetSpec,
     AnalysisTemplate,
@@ -67,7 +68,7 @@ from src.api.services.analysis_templates.models import (
     TextWidgetSpec,
 )
 from src.api.services.analysis_templates.text import generate_section_text
-from src.api.services.analyze import AnalyzeService
+from src.api.services.analyze import AnalyzeService, sent_canopy_cover
 from src.api.services.charts import column_to_rows
 from src.api.services.charts.curated import build_curated_charts
 from src.api.services.charts.facts import (
@@ -258,6 +259,36 @@ async def _pull_rows(
     return column_to_rows(result.data.data) if result.data.data else []
 
 
+def _analysis_input(
+    dataset_id: int,
+    context: BuildContext,
+    start: str,
+    end: str,
+    *,
+    context_layer: Optional[str] = None,
+    canopy_cover: Optional[int] = None,
+) -> dict:
+    """The analysis_inputs entry of one pull made by ``_pull_rows`` with
+    these options, for the dashboard's area."""
+    aoi = context.aoi
+    return input_for_analysis(
+        areas=[
+            {
+                "name": aoi["name"],
+                "source": aoi["source"],
+                "src_id": aoi["src_id"],
+            }
+        ],
+        dataset_id=dataset_id,
+        start_date=start,
+        end_date=end,
+        canopy_cover=sent_canopy_cover(
+            dataset_id, context_layer, canopy_cover
+        ),
+        context_layer=context_layer,
+    )
+
+
 async def _curated_charts(
     dataset_id: int,
     context: BuildContext,
@@ -305,6 +336,9 @@ async def _build_chart(
             widget_type="insight",
             config={},
             insight=Insight(charts=charts),
+            analysis_inputs=[
+                _analysis_input(spec.dataset_id, context, start, end)
+            ],
         ),
         summary=f"chart: {record['dataset_name']}, {start} to {end}",
         charts=charts,
@@ -446,6 +480,24 @@ async def _build_natural_forest_loss(
             widget_type="insight",
             config={},
             insight=Insight(charts=charts),
+            # The chart is the split of the two pulls above.
+            analysis_inputs=[
+                _analysis_input(
+                    spec.dataset_id,
+                    context,
+                    start,
+                    end,
+                    context_layer="natural_forest",
+                    canopy_cover=NATURAL_FOREST_DEFAULT_CANOPY_COVER,
+                ),
+                _analysis_input(
+                    spec.dataset_id,
+                    context,
+                    start,
+                    end,
+                    canopy_cover=NATURAL_FOREST_DEFAULT_CANOPY_COVER,
+                ),
+            ],
         ),
         summary=(
             f"chart: {record['dataset_name']} per year, natural forest "

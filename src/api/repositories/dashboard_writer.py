@@ -417,12 +417,14 @@ class SectionWidget(NamedTuple):
     """One widget for ``add_section_with_widgets``.
 
     ``insight`` is an insight that is not yet written. The writer adds it in
-    the same transaction as the widget that shows it.
+    the same transaction as the widget that shows it, with
+    ``analysis_inputs`` (see ``src.api.services.analysis_inputs``).
     """
 
     widget_type: str
     config: dict
     insight: Optional[Insight] = None
+    analysis_inputs: Optional[list[dict]] = None
 
 
 async def add_section_with_widgets(
@@ -475,6 +477,7 @@ async def add_section_with_widgets(
                 user_id=user_id,
                 thread_id=thread_id,
                 is_public=is_public,
+                analysis_inputs=spec.analysis_inputs,
             )
             if spec.insight is not None
             else None

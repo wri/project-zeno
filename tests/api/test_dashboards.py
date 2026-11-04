@@ -1234,6 +1234,7 @@ def _section_widgets(insight=None):
             widget_type="insight",
             config={"default_view": "chart"},
             insight=insight or _new_insight(),
+            analysis_inputs=ANALYSIS_INPUTS,
         ),
         SectionWidget(widget_type="text", config={"text": "A note"}),
     ]
@@ -1277,6 +1278,7 @@ async def test_section_with_widgets_writes_all_rows(client, auth_override):
     chart_widget = widgets[0]
     assert chart_widget["insight"]["insight_text"] == "Alerts in the area"
     assert chart_widget["insight"]["is_public"] is False
+    assert chart_widget["insight"]["analysis_inputs"] == ANALYSIS_INPUTS
 
 
 @pytest.mark.asyncio
