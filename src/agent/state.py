@@ -132,3 +132,9 @@ class AgentState(TypedDict):
     insight_id: str
     charts_data: list
     codeact_parts: list[EncodedCodeActPart]
+    # The pulls the insight in insight_id was computed from, as saved on it:
+    # one dict per pull, shaped like AnalysisInput in src/api/schemas.py.
+    # None when not recorded. Every write of insight_id writes this too,
+    # null included, so a stale value never outlives its insight. A key
+    # missing here would be dropped silently by LangGraph.
+    analysis_inputs: list[dict] | None
