@@ -40,6 +40,7 @@ from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.inspect_view_context import format_chart_data
 from src.agent.tools.pull_data import fetch_statistics_from_url
 from src.api.repositories.insight_writer import persist_insight
+from src.api.services.analysis_inputs import inputs_from_statistics
 from src.shared.logging_config import get_logger
 from src.shared.request_context import current_user_id
 
@@ -83,12 +84,14 @@ async def _load_statistics_data(data: dict) -> dict | None:
 
 async def prepare_dataframes(
     statistics: list[dict],
-) -> tuple[List[tuple[pd.DataFrame, str]], List]:
+) -> tuple[List[tuple[pd.DataFrame, str]], List, List[dict]]:
     """
     Prepare DataFrames from raw data for code executor.
 
     Fetches ID-backed data by source URL, while keeping older inline-data
-    thread state working.
+    thread state working. A statistic whose data does not load gets no
+    dataframe, so `input_file_{i}` indexes the third list (the statistics
+    that loaded, parallel to the dataframes), not `statistics`.
     """
     raw_results = await asyncio.gather(
         *[_load_statistics_data(s) for s in statistics]
@@ -96,6 +99,7 @@ async def prepare_dataframes(
 
     dataframes = []
     source_urls = []
+    loaded = []
 
     for data, raw_data in zip(statistics, raw_results):
         if not raw_data:
@@ -119,10 +123,11 @@ async def prepare_dataframes(
         display_name = f"{', '.join(data['aoi_names'])} — {data['dataset_name']} ({data['start_date']} to {data['end_date']}){param_suffix}"
         dataframes.append((df, display_name))
         source_urls.append(data.get("source_url", ""))
+        loaded.append(data)
 
         logger.info(f"Prepared: {display_name}")
 
-    return dataframes, source_urls
+    return dataframes, source_urls, loaded
 
 
 def _extract_statistics_ids(statistics: list[dict]) -> list[str]:
@@ -131,6 +136,40 @@ def _extract_statistics_ids(statistics: list[dict]) -> list[str]:
         for stat in statistics
         if isinstance(stat, dict) and stat.get("id")
     ]
+
+
+# How the executor's code names an input file: `build_file_references` calls
+# them input_file_{i}.csv, and the prompt makes the code load them by name.
+INPUT_FILE_PATTERN = re.compile(r"input_file_(\d+)\.csv")
+
+
+def referenced_statistics(
+    code_blocks: List[str], loaded: list[dict]
+) -> list[dict]:
+    """The pulls whose input file the executor's code names, in pull order.
+
+    `loaded` is parallel to the input files (see `prepare_dataframes`). A
+    file named in a comment counts as read; a name built at run time, such
+    as an f-string, is not seen.
+    """
+    indices = sorted(
+        {
+            int(index)
+            for code in code_blocks
+            for index in INPUT_FILE_PATTERN.findall(code)
+        }
+    )
+    referenced = []
+    for index in indices:
+        if index < len(loaded):
+            referenced.append(loaded[index])
+        else:
+            logger.warning(
+                "analysis_inputs_unknown_input_file",
+                index=index,
+                input_files=len(loaded),
+            )
+    return referenced
 
 
 def replace_csv_paths_with_urls(
@@ -448,16 +487,24 @@ class Analyst:
         statistics: list[dict],
         dataset: dict,
         language: str = DEFAULT_LANGUAGE,
-    ) -> tuple[Optional[list[InsightChart]], list[dict], str, Optional[str]]:
+    ) -> tuple[
+        Optional[list[InsightChart]],
+        list[dict],
+        str,
+        Optional[list[dict]],
+        Optional[str],
+    ]:
         """Build charts via the LLM code executor.
 
-        Returns (charts, encoded_codeact_parts, executor_context, error_message).
-        `executor_context` is the concatenated execution-output text (printed
-        totals, key statistics) for the text-generator stage. On success
-        `charts` is non-empty and error is None. On failure `charts` is None and
-        a user-facing error message is returned.
+        Returns (charts, encoded_codeact_parts, executor_context,
+        analysis_inputs, error_message). `executor_context` is the
+        concatenated execution-output text (printed totals, key statistics)
+        for the text-generator stage. `analysis_inputs` describes the pulls
+        the code read, or is None when it read none. On success `charts` is
+        non-empty and error is None. On failure `charts` is None and a
+        user-facing error message is returned.
         """
-        dataframes, source_urls = await prepare_dataframes(statistics)
+        dataframes, source_urls, loaded = await prepare_dataframes(statistics)
         logger.info(f"Prepared {len(dataframes)} dataframes for analysis")
 
         # When a dataset provides code_instructions, use those and drop
@@ -506,13 +553,14 @@ class Analyst:
         )
         if result.error:
             logger.error(f"Code execution error: {result.error}")
-            return None, [], "", f"Analysis failed: {result.error}"
+            return None, [], "", None, f"Analysis failed: {result.error}"
         if not result.chart_data:
             logger.error("No chart data generated")
             return (
                 None,
                 [],
                 "",
+                None,
                 f"Failed to generate chart data. Feedback:{text_output}",
             )
         if result.insight is None or not result.insight.charts:
@@ -521,7 +569,28 @@ class Analyst:
                 None,
                 [],
                 "",
+                None,
                 f"Failed to generate chart insight. Feedback:{text_output}",
+            )
+
+        # Record the pulls the code read before the URL swap below rewrites
+        # the file names away. `statistics` holds every pull of the thread,
+        # so the insight is described by the ones its code used.
+        analysis_inputs = inputs_from_statistics(
+            referenced_statistics(
+                [
+                    part.content
+                    for part in result.parts
+                    if part.type == PartType.CODE_BLOCK
+                ],
+                loaded,
+            )
+        )
+        if analysis_inputs is None:
+            logger.warning(
+                "analysis_inputs_not_recorded",
+                reason="the code read no input file",
+                input_files=len(loaded),
             )
 
         # Make code blocks runnable anywhere by swapping CSV paths for URLs.
@@ -551,7 +620,13 @@ class Analyst:
                 executor_context[:MAX_EXECUTOR_CONTEXT_CHARS]
                 + "\n...[truncated]"
             )
-        return charts, _encode_parts(result.parts), executor_context, None
+        return (
+            charts,
+            _encode_parts(result.parts),
+            executor_context,
+            analysis_inputs,
+            None,
+        )
 
     async def analyze(
         self,
@@ -603,6 +678,7 @@ class Analyst:
             charts,
             codeact_parts,
             executor_context,
+            analysis_inputs,
             error,
         ) = await self._resolve_charts(
             query,
@@ -640,11 +716,13 @@ class Analyst:
             thread_id=ctx.get("thread_id", ""),
             statistics_ids=_extract_statistics_ids(statistics),
             codeact_parts=codeact_parts,
+            analysis_inputs=analysis_inputs,
         )
         logger.info(f"Persisted insight to DB: {insight_id}")
 
         updated_state = {
             "insight_id": insight_id,
+            "analysis_inputs": analysis_inputs,
             "insight": insight.primary_insight,
             "follow_up_suggestions": insight.follow_up_suggestions,
             "codeact_parts": codeact_parts,

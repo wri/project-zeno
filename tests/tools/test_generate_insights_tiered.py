@@ -429,7 +429,7 @@ async def test_prepare_dataframes_uses_inline_data_for_legacy_stats(
         generate_insights_module, "fetch_statistics_from_url", fetch_data
     )
 
-    dataframes, source_urls = await prepare_dataframes(
+    dataframes, source_urls, _ = await prepare_dataframes(
         [
             {
                 "dataset_name": "Tree cover loss",
@@ -458,7 +458,7 @@ async def test_prepare_dataframes_fetches_id_backed_stats(monkeypatch):
         generate_insights_module, "fetch_statistics_from_url", fetch_data
     )
 
-    dataframes, source_urls = await prepare_dataframes(
+    dataframes, source_urls, _ = await prepare_dataframes(
         [
             {
                 "id": "stat-1",

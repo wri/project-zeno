@@ -206,7 +206,7 @@ async def test_curated_only_without_data_does_not_fall_back(curated_run):
 
 async def test_code_executor_never_receives_a_curated_only_pull():
     tcl = {"dataset_id": TREE_COVER_LOSS_ID, "dataset_name": "Tree cover loss"}
-    resolve = AsyncMock(return_value=(None, [], "", "stop here"))
+    resolve = AsyncMock(return_value=(None, [], "", None, "stop here"))
 
     with patch.object(Analyst, "_resolve_charts", resolve):
         await Analyst().analyze(
