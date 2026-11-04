@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from src.agent.datasets.config import DATASETS
 from src.agent.i18n import t
 from src.agent.language import DEFAULT_LANGUAGE, language_name
-from src.agent.llms import SMALL_MODEL
+from src.agent.llms import resilient_structured_output
 from src.agent.subagents.analyst.charts import InsightChart
 from src.api.services.analysis_templates.models import AnalysisTemplate
 from src.shared.logging_config import get_logger
@@ -157,7 +157,7 @@ async def generate_section_text(
     charts: list[InsightChart],
     language: Optional[str],
     facts: Sequence[str] = (),
-    model=SMALL_MODEL,
+    model=None,
 ) -> tuple[str, str]:
     """The section's title and description. Never raises."""
     language = language or DEFAULT_LANGUAGE
@@ -185,7 +185,7 @@ async def generate_section_text(
         ),
     }
     try:
-        chain = _PROMPT | model.with_structured_output(SectionText)
+        chain = _PROMPT | resilient_structured_output(SectionText, model)
         result: SectionText = await chain.ainvoke(inputs)
         title = (result.title or "").strip().rstrip(".").strip()
         description = (result.description or "").strip()

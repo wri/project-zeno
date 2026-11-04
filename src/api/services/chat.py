@@ -14,7 +14,7 @@ from src.agent.agent_config import AgentConfigRegistry, default_registry
 from src.agent.datasets.config import catalog_layers, resolve_selected_layer
 from src.agent.graph import fetch_zeno
 from src.agent.language import resolve_language
-from src.agent.llms import SMALL_MODEL
+from src.agent.llms import resilient_structured_output
 from src.agent.subagents.pick_dataset import to_dataset_layers
 from src.api.schemas import ThreadNameOutput
 from src.shared.geocoding_helpers import fetch_aoi_bbox
@@ -347,9 +347,7 @@ async def generate_thread_name(
           measurement from the reduction in intact forest extent, and that wording conflates the two. Use
           "tree cover loss in intact forest" instead.
         """
-        response = await SMALL_MODEL.with_structured_output(
-            ThreadNameOutput
-        ).ainvoke(
+        response = await resilient_structured_output(ThreadNameOutput).ainvoke(
             prompt,
             config=auxiliary_config(
                 "generate_thread_name",

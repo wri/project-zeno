@@ -1,6 +1,12 @@
+from typing import Optional
+
 from dotenv import load_dotenv
+from google.genai.errors import ServerError
 from langchain_anthropic import ChatAnthropic
+from langchain_core.language_models import BaseChatModel
+from langchain_core.runnables import Runnable
 from langchain_google_genai import ChatGoogleGenerativeAI
+from pydantic import BaseModel
 
 from src.agent.config import AgentSettings
 
@@ -95,21 +101,15 @@ def get_small_model():
     return MODEL_REGISTRY[model_name]
 
 
-def get_fallback_models():
-    """Get the configured fallback models from environment.
+def _fallbacks_for(primary: str, raw: str):
+    """The registry models named in comma-separated `raw`, minus `primary`.
 
-    Returns a list of BaseChatModel instances, filtering out the primary model.
-    Returns empty list if FALLBACK_MODELS is empty.
     Raises ValueError if any model name is unknown.
     """
-    raw = AgentSettings.fallback_models.strip()
-    if not raw:
-        return []
-    primary = AgentSettings.model.lower()
     models = []
     for name in raw.split(","):
         name = name.strip().lower()
-        if not name or name == primary:
+        if not name or name == primary.lower():
             continue
         if name not in MODEL_REGISTRY:
             raise ValueError(
@@ -117,6 +117,24 @@ def get_fallback_models():
             )
         models.append(MODEL_REGISTRY[name])
     return models
+
+
+def get_fallback_models():
+    """Get the configured fallback models from environment.
+
+    Returns a list of BaseChatModel instances, filtering out the primary model.
+    Returns empty list if FALLBACK_MODELS is empty.
+    Raises ValueError if any model name is unknown.
+    """
+    return _fallbacks_for(AgentSettings.model, AgentSettings.fallback_models)
+
+
+def get_small_fallback_models():
+    """The models SMALL_MODEL calls fall back to, from SMALL_FALLBACK_MODELS,
+    filtering out the small model itself."""
+    return _fallbacks_for(
+        AgentSettings.small_model, AgentSettings.small_fallback_models
+    )
 
 
 # Base Model - dynamically selected from environment
@@ -127,3 +145,42 @@ SMALL_MODEL = get_small_model()
 
 # Fallback models for resilience
 FALLBACK_MODELS = get_fallback_models()
+
+SMALL_FALLBACK_MODELS = get_small_fallback_models()
+
+# Retry policy for model calls made outside the agent loop. Gemini answers
+# 5xx (most often 503 UNAVAILABLE, "high demand") when it is briefly
+# overloaded, and a retry a second or two later usually goes through. Other
+# errors are not retried: a 400 fails the same way twice, and a 429 is better
+# served by another model's quota than by waiting on this one's.
+TRANSIENT_ERRORS = (ServerError,)
+RETRY_ATTEMPTS = 3
+RETRY_WAIT = {"initial": 1.0, "max": 4.0, "exp_base": 2.0}
+
+
+def resilient_structured_output(
+    schema: type[BaseModel], model: Optional[BaseChatModel] = None
+) -> Runnable:
+    """`model.with_structured_output(schema)`, retried and with fallbacks.
+
+    For model calls made from tools and API routes. ModelRetryMiddleware and
+    ModelFallbackMiddleware (graph._build_middleware) cover only the agent's
+    own calls, and the clients are built with LLM_MAX_RETRIES=0, so a model
+    called directly from a tool gets its retries and fallbacks here.
+
+    Each model is retried on TRANSIENT_ERRORS; when one still fails, for any
+    reason, the next is tried. `model` defaults to SMALL_MODEL followed by
+    SMALL_FALLBACK_MODELS; a model passed in is used alone.
+    """
+    models = (
+        [model] if model is not None else [SMALL_MODEL, *SMALL_FALLBACK_MODELS]
+    )
+    primary, *fallbacks = [
+        m.with_structured_output(schema).with_retry(
+            retry_if_exception_type=TRANSIENT_ERRORS,
+            exponential_jitter_params=RETRY_WAIT,
+            stop_after_attempt=RETRY_ATTEMPTS,
+        )
+        for m in models
+    ]
+    return primary.with_fallbacks(fallbacks) if fallbacks else primary

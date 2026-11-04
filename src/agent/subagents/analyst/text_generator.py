@@ -17,7 +17,7 @@ from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field
 
 from src.agent.language import DEFAULT_LANGUAGE, language_name
-from src.agent.llms import SMALL_MODEL
+from src.agent.llms import resilient_structured_output
 from src.agent.subagents.analyst.charts.model import InsightChart
 from src.agent.subagents.analyst.prompts import WORDING_GUIDE
 from src.shared.logging_config import get_logger
@@ -76,9 +76,9 @@ _PROMPT = ChatPromptTemplate.from_messages(
 class InsightTextGenerator:
     """Generates insight text from resolved charts."""
 
-    def __init__(self, model=SMALL_MODEL):
+    def __init__(self, model=None):
         self._chain = (
-            _PROMPT | model.with_structured_output(InsightText)
+            _PROMPT | resilient_structured_output(InsightText, model)
         ).with_config(run_name="generate_insight_text")
 
     async def generate(
