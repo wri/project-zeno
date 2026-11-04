@@ -70,6 +70,14 @@ def test_canopy_without_a_selection_is_the_default_the_pull_sent():
     assert entry["context_layer"] == "natural_forest"
 
 
+def test_a_natural_forest_pull_with_a_selected_threshold_records_it():
+    stat = _stat(
+        context_layer="natural_forest",
+        parameters=[{"name": "canopy_cover", "values": [30]}],
+    )
+    assert input_from_statistics(stat)["canopy_cover"] == 30
+
+
 def test_canopy_is_null_for_a_dataset_without_a_threshold():
     stat = _stat(
         dataset_id=INTEGRATED_ALERTS_ID, context_layer="natural_lands"
