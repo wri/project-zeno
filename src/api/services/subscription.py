@@ -16,6 +16,11 @@ class Dataset(str, Enum):
     INTEGRATED_ALERTS = "integrated_alerts"
 
 
+class SubscriptionMode(str, Enum):
+    EMAIL = "email"
+    IN_APP = "in-app"
+
+
 @dataclass
 class Subscription:
     subscription_id: UUID
