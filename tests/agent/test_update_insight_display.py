@@ -34,6 +34,19 @@ def _original_chart():
     )
 
 
+ANALYSIS_INPUTS = [
+    {
+        "areas": [{"name": "Brazil", "source": "gadm", "src_id": "BRA"}],
+        "dataset_id": 4,
+        "dataset_name": "Tree cover loss",
+        "start_date": "2020-01-01",
+        "end_date": "2020-12-31",
+        "canopy_cover": 30,
+        "context_layer": None,
+    }
+]
+
+
 def _fake_orm_row(**kwargs):
     """Object shaped like InsightOrm (+ chart rows) for the load path."""
     defaults = dict(
@@ -41,6 +54,7 @@ def _fake_orm_row(**kwargs):
         user_id="user-1",
         insight_text="Old summary.",
         follow_up_suggestions=["old follow-up"],
+        analysis_inputs=ANALYSIS_INPUTS,
         charts=[
             SimpleNamespace(
                 position=0,
@@ -256,6 +270,8 @@ async def test_update_insight_display_happy_path():
 
     assert command.update["insight"] == "New summary"
     assert command.update["follow_up_suggestions"] == ["f1"]
+    # A restyle keeps the data, so state keeps the stored inputs.
+    assert command.update["analysis_inputs"] == ANALYSIS_INPUTS
     charts_data = command.update["charts_data"]
     assert charts_data[0]["title"] == "New title"
     assert charts_data[0]["type"] == "line"

@@ -174,15 +174,25 @@ def dashboard_updated_command(
 
 
 def insight_updated_command(
-    insight_id, insight: Insight, content: str, tool_call_id: Optional[str]
+    insight_id,
+    insight: Insight,
+    content: str,
+    tool_call_id: Optional[str],
+    *,
+    analysis_inputs: Optional[list[dict]],
 ) -> Command:
     """Success reply for an existing insight put (back) on screen: pushes the
     insight into state in the shape `generate_insights` uses and signals the
     frontend to re-fetch /api/insights/{id} (replace in place, not a new
-    card — distinct from the "human_feedback" msg_type of new insights)."""
+    card — distinct from the "human_feedback" msg_type of new insights).
+
+    `analysis_inputs` is the stored value of that insight's row. It is
+    required so state never pairs this insight_id with the inputs of the
+    insight that was on screen before."""
     return Command(
         update={
             "insight_id": str(insight_id),
+            "analysis_inputs": analysis_inputs,
             "insight": insight.primary_insight,
             "follow_up_suggestions": insight.follow_up_suggestions,
             "charts_data": [

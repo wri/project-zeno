@@ -230,6 +230,8 @@ async def update_insight_display(
             f"Summary: {updated.primary_insight}{facts_block}"
         ),
         tool_call_id,
+        # A restyle keeps the data, so the stored inputs still hold.
+        analysis_inputs=row.analysis_inputs,
     )
 
 

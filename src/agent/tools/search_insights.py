@@ -199,6 +199,7 @@ async def search_insights(
         insight,
         _recalled_message(best.id, insight, query),
         tool_call_id,
+        analysis_inputs=best.analysis_inputs,
     )
 
 
