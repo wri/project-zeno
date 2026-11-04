@@ -16,6 +16,7 @@ from sqlalchemy.orm import sessionmaker
 from src.api.app import app
 from src.api.auth.dependencies import fetch_user_from_rw_api
 from src.api.data_models import Base, ThreadOrm, UserOrm, UserType
+from src.api.routers.custom_areas import get_custom_aoi_analytics_service
 from src.api.schemas import UserModel
 from src.shared.aoi_search_sql import (
     SEARCH_DDL,
@@ -234,6 +235,32 @@ async def test_db_session():
     yield engine_test
     await clear_tables()
     await engine_test.dispose()
+
+
+class FakeCustomAoiAnalyticsService:
+    def __init__(self):
+        self.saved = []
+        self.deleted = []
+        self.on_call = lambda: None
+
+    async def save(self, aois):
+        self.on_call()
+        self.saved.append(aois)
+
+    async def delete(self, area_id):
+        self.on_call()
+        self.deleted.append(str(area_id))
+
+
+@pytest.fixture(autouse=True, scope="function")
+def custom_aoi_analytics():
+    """Keep custom area writes from reaching the analytics API."""
+    service = FakeCustomAoiAnalyticsService()
+    app.dependency_overrides[get_custom_aoi_analytics_service] = (
+        lambda: service
+    )
+    yield service
+    app.dependency_overrides.pop(get_custom_aoi_analytics_service, None)
 
 
 @pytest.fixture(autouse=True, scope="function")
