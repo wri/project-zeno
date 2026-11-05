@@ -138,11 +138,15 @@ async def _get_or_create_user(
     if not user:
         # Only a first login inserts, so first_seen_at (server clock) and
         # rw_apps (from the RW payload) record that one and are never
-        # updated by a later login. terms_accepted is computed, not a column.
+        # updated by a later login. Only RW-owned fields come from the
+        # payload; every GNW-owned column, updated_at included, takes its
+        # default. RW's updatedAt is often a GFW edit, not a GNW change.
         user = UserOrm(
-            **user_info.model_dump(
-                exclude={"terms_accepted", "first_seen_at"}
-            ),
+            id=user_info.id,
+            name=user_info.name,
+            email=user_info.email,
+            created_at=user_info.created_at,  # the RW account's
+            rw_apps=user_info.rw_apps,
             first_seen_at=datetime.now(timezone.utc),
         )
         session.add(user)
