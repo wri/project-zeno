@@ -9,7 +9,7 @@ from src.api.services.charts.curated import build_curated_charts
 
 
 async def _chart_period(
-    dataset_id: int, start_date: str, end_date: str
+    start_date: str, end_date: str, dataset_id: int
 ) -> tuple[str, str]:
     """The period the charts span: the request's, clamped to the dates the
     dataset covers, as the template builder clamps its own. A chart that
@@ -76,7 +76,7 @@ class AnalyzeService:
                 column_to_rows(result.data),
                 language,
                 self._generators,
-                period=await _chart_period(dataset_id, start_date, end_date),
+                period=await _chart_period(start_date, end_date, dataset_id),
             )
 
         source_urls = (
