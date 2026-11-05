@@ -18,23 +18,16 @@ IN_APP = SubscriptionMode.IN_APP
 
 
 @pytest.mark.parametrize(
-    "current, requested, stored",
+    "requested, stored",
     [
-        # Email on turns in-app on.
-        (set(), {EMAIL}, {EMAIL, IN_APP}),
-        # Asking for email on and in-app off at once: email on wins.
-        ({IN_APP}, {EMAIL}, {EMAIL, IN_APP}),
-        # In-app off turns email off.
-        ({EMAIL, IN_APP}, {EMAIL}, set()),
-        # Email off leaves in-app alone.
-        ({EMAIL, IN_APP}, {IN_APP}, {IN_APP}),
-        # In-app on and off by itself.
-        (set(), {IN_APP}, {IN_APP}),
-        ({IN_APP}, set(), set()),
+        ({EMAIL}, {EMAIL, IN_APP}),
+        ({EMAIL, IN_APP}, {EMAIL, IN_APP}),
+        ({IN_APP}, {IN_APP}),
+        (set(), set()),
     ],
 )
-def test_modes_to_store(current, requested, stored):
-    assert modes_to_store(current, requested) == stored
+def test_modes_to_store(requested, stored):
+    assert modes_to_store(requested) == stored
 
 
 class FakeRepository(SubscriptionModeRepository):
@@ -100,3 +93,14 @@ async def test_eligibility_is_only_checked_when_email_turns_on():
 
     assert not eligibility.asked
     assert repository.saved == {Dataset.INTEGRATED_ALERTS: {IN_APP}}
+
+
+async def test_the_same_request_twice_gives_the_same_result():
+    repository = FakeRepository(set())
+    subscriptions = SubscriptionService(repository, FakeEligibility(True))
+
+    await subscriptions.update(TARGET, DATASETS, {EMAIL})
+    repository.current = repository.saved[Dataset.INTEGRATED_ALERTS]
+    await subscriptions.update(TARGET, DATASETS, {EMAIL})
+
+    assert repository.saved == {Dataset.INTEGRATED_ALERTS: {EMAIL, IN_APP}}

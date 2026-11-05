@@ -95,14 +95,13 @@ async def test_email_off_leaves_in_app_on(client, auth_override):
 
 
 @pytest.mark.asyncio
-async def test_in_app_off_turns_email_off(client, auth_override):
-    dashboard = await _owned_dashboard(client, auth_override, "subs-inapp")
-    await _put(client, dashboard["id"], ["email", "in-app"])
+async def test_sending_email_again_keeps_both_on(client, auth_override):
+    dashboard = await _owned_dashboard(client, auth_override, "subs-again")
+    await _put(client, dashboard["id"], ["email"])
 
     response = await _put(client, dashboard["id"], ["email"])
 
-    assert response.json()["alerts"] == OFF
-    assert await _rows(dashboard["id"]) == []
+    assert response.json()["alerts"] == BOTH
 
 
 @pytest.mark.asyncio

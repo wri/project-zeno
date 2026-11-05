@@ -48,7 +48,7 @@ async def set_dashboard_subscriptions(
     dashboard owner can change them.
 
     The body lists the modes that should be on, so an empty list turns
-    everything off. Email can't be on without in-app, and needs an
+    everything off. Asking for email also turns in-app on. Email needs an
     integrated alerts chart and a GADM admin area on the dashboard, or 409.
     """
     dashboard = await dashboard_writer.get_dashboard(dashboard_id)

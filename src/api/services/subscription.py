@@ -74,22 +74,11 @@ class EmailEligibility(ABC):
     async def allows_email(self, dashboard_id: UUID) -> bool: ...
 
 
-def modes_to_store(
-    current: set[SubscriptionMode], requested: set[SubscriptionMode]
-) -> set[SubscriptionMode]:
-    """The modes to save when a dashboard has ``current`` on and the owner
-    asks for ``requested``.
-
-    Email can't be on without in-app. Asking for email turns in-app on too,
-    and leaving in-app out turns email off too. Turning email off leaves
-    in-app as it is.
-    """
-    email = SubscriptionMode.EMAIL
-    in_app = SubscriptionMode.IN_APP
-    if email in requested and email not in current:
-        return requested | {in_app}
-    if in_app not in requested:
-        return requested - {email}
+def modes_to_store(requested: set[SubscriptionMode]) -> set[SubscriptionMode]:
+    """The modes to save for a request. Email can't be on without in-app, so
+    asking for email turns in-app on too."""
+    if SubscriptionMode.EMAIL in requested:
+        return requested | {SubscriptionMode.IN_APP}
     return requested
 
 
@@ -118,7 +107,7 @@ class SubscriptionService:
             current = await self.repository.list_modes(
                 target.dashboard_id, dataset
             )
-            changes[dataset] = modes_to_store(current, requested)
+            changes[dataset] = modes_to_store(requested)
             if SubscriptionMode.EMAIL in changes[dataset] - current:
                 email_turns_on = True
 
