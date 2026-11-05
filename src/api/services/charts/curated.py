@@ -66,12 +66,19 @@ async def build_curated_charts(
     rows: list[dict],
     language: Optional[str] = None,
     generators: Sequence[ChartGenerator] = DETERMINISTIC_GENERATORS,
+    titles: Optional[Sequence[str]] = None,
 ) -> list[InsightChart]:
     """Curated charts for `dataset_id` from `rows`; [] when no generator
-    handles the dataset. Charts carry `dataset_id`."""
+    handles the dataset. Charts carry `dataset_id`. `titles` keeps only
+    the charts with those title keys; None keeps them all."""
     for generator in generators:
         if generator.can_handle(dataset_id):
             charts = generator.generate(rows)
+            if titles is not None:
+                # Before _localise, while the titles are still keys.
+                charts = [chart for chart in charts if chart.title in titles]
+                for position, chart in enumerate(charts):
+                    chart.position = position
             await _localise(charts, generator, language)
             for chart in charts:
                 chart.dataset_id = dataset_id
