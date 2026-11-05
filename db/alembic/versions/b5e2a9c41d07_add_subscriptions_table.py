@@ -4,9 +4,8 @@ Revision ID: b5e2a9c41d07
 Revises: f3a8c1d5b204
 Create Date: 2026-11-04 10:00:00.000000
 
-Dashboard alert subscriptions (ADR 0012, Option D): one row per dashboard,
-dataset and mode, and a row means the mode is on. Both modes are opt-in, so
-the table starts empty: no backfill.
+Dashboard alert subscriptions: one row per dashboard, dataset and mode, and a
+row means the mode is on. Both modes start off, so the table starts empty.
 """
 
 from typing import Sequence, Union

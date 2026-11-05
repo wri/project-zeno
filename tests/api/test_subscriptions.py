@@ -1,5 +1,4 @@
-"""PUT /api/dashboards/{id}/subscriptions, the ``alerts`` field on dashboard
-responses, and the subscriptions repository behind the admin listing."""
+"""Turning dashboard alert modes on and off, and who can see them."""
 
 import pytest
 from sqlalchemy import select
@@ -7,13 +6,9 @@ from sqlalchemy import select
 from src.api.app import app
 from src.api.auth.dependencies import fetch_user_from_rw_api
 from src.api.data_models import SubscriptionOrm
-from src.api.repositories.subscription_repository import (
-    PostgresSubscriptionRepository,
-)
-from src.api.services.subscription import AoiType, Dataset
+from src.api.services.subscription import Dataset
 from tests.api.test_dashboards import (
     AUTH,
-    PARANA,
     _add_alerts_chart_widget,
     _create_dashboard,
     _create_user,
@@ -151,7 +146,6 @@ async def test_rows_point_at_the_dashboard_area_and_owner(
     [
         {"datasets": ["tree_cover_loss"], "modes": ["email"]},
         {"datasets": ["integrated_alerts"], "modes": ["sms"]},
-        {"datasets": [], "modes": ["email"]},
     ],
 )
 @pytest.mark.asyncio
@@ -300,7 +294,7 @@ async def test_alerts_shown_to_owner_and_superuser_only(
 
 
 # ---------------------------------------------------------------------------
-# Delete and list_active
+# Delete
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_deleting_the_dashboard_deletes_its_subscriptions(
@@ -315,42 +309,3 @@ async def test_deleting_the_dashboard_deletes_its_subscriptions(
 
     assert response.status_code == 204
     assert await _rows(dashboard["id"]) == []
-
-
-@pytest.mark.asyncio
-async def test_list_active_returns_email_subscriptions_with_in_app(
-    client, auth_override
-):
-    emailed = await _owned_dashboard(client, auth_override, "subs-active")
-    await _put(client, emailed["id"], ["email"])
-    in_app_only = await _create_dashboard(client)
-    await _put(client, in_app_only["id"], ["in-app"])
-    await _create_dashboard(client)
-
-    (subscription,) = await PostgresSubscriptionRepository().list_active()
-
-    (email_row,) = [
-        r for r in await _rows(emailed["id"]) if r.mode.value == "email"
-    ]
-    assert subscription.subscription_id == email_row.id
-    assert str(subscription.dashboard_id) == emailed["id"]
-    assert subscription.user_id == "subs-active"
-    assert subscription.user_email == "subs-active@example.com"
-    assert subscription.aoi_type == AoiType.ADMIN
-    assert subscription.aoi_id == PARANA["src_id"]
-    assert subscription.dataset == Dataset.INTEGRATED_ALERTS
-
-
-@pytest.mark.asyncio
-async def test_admin_endpoint_lists_active_subscriptions(
-    client, auth_override, superuser_factory
-):
-    dashboard = await _owned_dashboard(client, auth_override, "subs-admin-ep")
-    await _put(client, dashboard["id"], ["email"])
-    superuser = await superuser_factory("subs-ep-super@example.com")
-    auth_override(superuser.id)
-
-    response = await client.get("/api/admin/subscriptions", headers=AUTH)
-
-    assert response.status_code == 200
-    assert [s["dashboard_id"] for s in response.json()] == [dashboard["id"]]

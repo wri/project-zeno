@@ -628,10 +628,8 @@ class DashboardAoiOrm(Base):
 
 
 class SubscriptionOrm(Base):
-    """One alert mode a dashboard owner turned on for one dataset (ADR 0012,
-    Option D). A row means the mode is on; turning it off deletes the row.
-    Write through ``subscription_repository.set_modes``, which keeps email
-    from being on without in-app."""
+    """One alert mode a dashboard owner turned on for one dataset. A row
+    means the mode is on; turning it off deletes the row."""
 
     __tablename__ = "subscriptions"
     __table_args__ = (

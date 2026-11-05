@@ -991,8 +991,8 @@ class DashboardResponse(BaseModel):
     # (`section_id`); ungrouped widgets render above the first section.
     sections: List[DashboardSectionResponse] = []
     widgets: List[DashboardWidgetResponse] = []
-    # Alert modes on, per dataset: only for the owner and superusers, and
-    # left out of the body for anyone else (ADR 0012, decision 2).
+    # The alert modes that are on, per dataset. Only the owner and
+    # superusers get this; for anyone else the key is left out.
     alerts: Optional[Dict[Dataset, DashboardDatasetAlerts]] = Field(
         default=None, exclude_if=lambda alerts: alerts is None
     )
