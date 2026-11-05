@@ -782,6 +782,9 @@ _WIDGET_TYPES = ("insight", "map", "text", "alerts")
 # alerts list request.
 ALERTS_MAX_DAYS = 365
 _ALERTS_AOI_KEYS = ("source", "src_id", "subtype")
+# Who wrote a text widget, for the frontend's caption: an analysis template's
+# fixed note or the dashboard owner. Absent means the agent wrote it.
+TEXT_WIDGET_SOURCES = ("template", "user")
 
 
 class DashboardWidgetCreateRequest(BaseModel):
@@ -803,7 +806,10 @@ class DashboardWidgetCreateRequest(BaseModel):
             "context layers, parameters, dates) or `imagery` (Sentinel-2 "
             "mosaic_id and tile URLs); optional `viewport` override — by "
             "default map widgets render fitted to the dashboard's area. "
-            "Text widgets: `text` (markdown string). "
+            "Text widgets: `text` (markdown string) and an optional "
+            "`source`: `template` for an analysis template's fixed note, "
+            "`user` for a note the owner wrote; absent means the agent "
+            "wrote it. "
             "Alerts widgets (a live list of integrated alert days next to "
             "their map): `alerts` with `aoi` (`source`, `src_id`, "
             "`subtype`, optional `name`) and `days`, the period length; "
@@ -902,6 +908,11 @@ class DashboardWidgetCreateRequest(BaseModel):
             raise ValueError(
                 "text widgets require a config with a 'text' string"
             )
+        if "source" in config and config["source"] not in TEXT_WIDGET_SOURCES:
+            raise ValueError(
+                "a text widget's config.source must be one of "
+                + ", ".join(TEXT_WIDGET_SOURCES)
+            )
         return self
 
 
@@ -999,8 +1010,8 @@ class AnalysisTemplateResponse(BaseModel):
     widgets: List[str] = Field(
         description=(
             "Widget kinds, in order: `chart`, `natural_forest_loss` (a "
-            "chart), `layer`, `alerts` (the live alerts list and its map) "
-            "or `imagery`."
+            "chart), `layer`, `alerts` (the live alerts list and its map), "
+            "`imagery` or `text` (a fixed note)."
         )
     )
 

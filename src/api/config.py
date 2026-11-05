@@ -22,6 +22,9 @@ class _APISettings(BaseSettings):
     machine_user_daily_quota: int = 99999
     enable_quota_checking: bool = True
 
+    custom_aoi_analytics_enabled: bool = False
+    analytics_api_base_url: str = "https://analytics.globalnaturewatch.org"
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",

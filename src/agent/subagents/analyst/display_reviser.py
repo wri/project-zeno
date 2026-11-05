@@ -18,7 +18,7 @@ from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field
 
 from src.agent.datasets.config import DATASETS
-from src.agent.llms import SMALL_MODEL
+from src.agent.llms import resilient_structured_output
 from src.agent.subagents.analyst.charts.model import Insight
 from src.agent.subagents.analyst.code_executors.base import (
     CHART_TYPES,
@@ -148,9 +148,9 @@ _PROMPT = ChatPromptTemplate.from_messages(
 class InsightDisplayReviser:
     """Generates a restyled insight spec from an existing one + an instruction."""
 
-    def __init__(self, model=SMALL_MODEL):
+    def __init__(self, model=None):
         self._chain = (
-            _PROMPT | model.with_structured_output(RevisedInsight)
+            _PROMPT | resilient_structured_output(RevisedInsight, model)
         ).with_config(run_name="revise_insight_display")
 
     async def revise(

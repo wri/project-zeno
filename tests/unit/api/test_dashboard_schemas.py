@@ -206,6 +206,20 @@ class TestTextWidgetConfig:
                 widget_type="text", config={"text": text}
             )
 
+    @pytest.mark.parametrize("source", ["template", "user"])
+    def test_known_sources_accepted(self, source):
+        body = DashboardWidgetCreateRequest(
+            widget_type="text", config={"text": "# Note", "source": source}
+        )
+        assert body.config["source"] == source
+
+    @pytest.mark.parametrize("source", ["agent", "ai", "", None, 42])
+    def test_unknown_source_rejected(self, source):
+        with pytest.raises(ValidationError, match="config.source"):
+            DashboardWidgetCreateRequest(
+                widget_type="text", config={"text": "# Note", "source": source}
+            )
+
     def test_valid_text_widget_accepted(self):
         body = DashboardWidgetCreateRequest(
             widget_type="text", config={"text": "# Notes\nSome context."}

@@ -25,7 +25,7 @@ import math
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from types import SimpleNamespace
-from typing import Any, Awaitable, Callable, Optional
+from typing import Any, Awaitable, Callable, Optional, Sequence
 from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 
 import pandas as pd
@@ -58,6 +58,11 @@ from src.api.services.alerts_list import (
     LatestAlertDateSource,
     UnsupportedAreaError,
 )
+from src.api.services.analysis_templates.facts import (
+    chart_facts,
+    hectares,
+    percent,
+)
 from src.api.services.analysis_templates.models import (
     AlertsWidgetSpec,
     AnalysisTemplate,
@@ -66,6 +71,7 @@ from src.api.services.analysis_templates.models import (
     LayerWidgetSpec,
     NaturalForestLossWidgetSpec,
     TemplateArgs,
+    TextWidgetSpec,
 )
 from src.api.services.analysis_templates.text import generate_section_text
 from src.api.services.analyze import AnalyzeService
@@ -244,7 +250,6 @@ async def _pull_rows(
         dataset_id=dataset_id,
         start_date=start,
         end_date=end,
-        language=context.language,
         **options,
     )
     if not result.data.success:
@@ -256,14 +261,23 @@ async def _pull_rows(
 
 
 async def _curated_charts(
-    dataset_id: int, context: BuildContext, start: str, end: str
+    dataset_id: int,
+    context: BuildContext,
+    start: str,
+    end: str,
+    titles: Optional[Sequence[str]] = None,
 ) -> list[InsightChart]:
-    """The dataset's curated charts for the period. With no rows the chart
-    has no values: nothing happened in the period, and that is a result."""
+    """The dataset's curated charts for the period. ``titles`` keeps the
+    charts with those title keys. With no rows the chart has no values:
+    nothing happened in the period, and that is a result."""
     record = _dataset_record(dataset_id)
     rows = await _pull_rows(dataset_id, context, start, end)
     charts = await build_curated_charts(
-        dataset_id, rows, context.language, period=(start, end)
+        dataset_id,
+        rows,
+        context.language,
+        titles=titles,
+        period=(start, end),
     )
     if not charts:
         raise WidgetFailedError(
@@ -277,7 +291,17 @@ async def _build_chart(
 ) -> BuiltWidget:
     record = _dataset_record(spec.dataset_id)
     start, end = await _period(spec.dataset_id, context)
-    charts = await _curated_charts(spec.dataset_id, context, start, end)
+    charts = await _curated_charts(
+        spec.dataset_id, context, start, end, titles=spec.charts
+    )
+    facts = await chart_facts(
+        spec.facts,
+        charts[0],
+        aoi_name=context.aoi["name"],
+        start=start,
+        end=end,
+        language=context.language,
+    )
     return BuiltWidget(
         widget=SectionWidget(
             widget_type="insight",
@@ -286,6 +310,7 @@ async def _build_chart(
         ),
         summary=f"chart: {record['dataset_name']}, {start} to {end}",
         charts=charts,
+        facts=facts,
         period=(start, end),
     )
 
@@ -351,24 +376,6 @@ async def _build_layer(
     )
 
 
-def _hectares(value: float) -> str:
-    """Whole hectares, grouped with a narrow no-break space. A comma or a
-    point would read as a decimal mark in some languages."""
-    if 0 < value < 1:
-        return "<1"
-    return f"{round(value):,}".replace(",", "\u202f")
-
-
-def _percent(part: float, whole: float) -> str:
-    """A whole percent that never rounds a small part to 0% or 100%."""
-    share = 100 * part / whole
-    if 0 < share < 1:
-        return "<1%"
-    if 99 < share < 100:
-        return ">99%"
-    return f"{round(share)}%"
-
-
 async def _build_natural_forest_loss(
     spec: NaturalForestLossWidgetSpec, context: BuildContext
 ) -> BuiltWidget:
@@ -425,9 +432,9 @@ async def _build_natural_forest_loss(
         fact = await t(
             "analysis_template.natural_forest_loss.share",
             context.language,
-            share=_percent(natural_ha, total_ha),
-            natural_ha=_hectares(natural_ha),
-            total_ha=_hectares(total_ha),
+            share=percent(natural_ha, total_ha),
+            natural_ha=hectares(natural_ha),
+            total_ha=hectares(total_ha),
             **values,
         )
     else:
@@ -526,7 +533,7 @@ async def _alerts_fact(
         "analysis_template.alerts.week",
         context.language,
         days=len(new_days),
-        area_ha=_hectares(math.fsum(row.total_ha for row in new_days)),
+        area_ha=hectares(math.fsum(row.total_ha for row in new_days)),
         **values,
     )
 
@@ -619,12 +626,31 @@ async def _build_imagery(
     )
 
 
+async def _build_text(
+    spec: TextWidgetSpec, context: BuildContext
+) -> BuiltWidget:
+    text = await t(spec.text_key, context.language)
+    # t() gives "" for an unknown key, which would write an empty card.
+    if not text.strip():
+        raise WidgetFailedError(f"The text '{spec.text_key}' is missing.")
+    return BuiltWidget(
+        widget=SectionWidget(
+            widget_type="text",
+            # Fixed copy, not AI output: the frontend captions it as curated.
+            config={"text": text, "source": "template"},
+        ),
+        # On one line, so the note stays one item of the prompt's list.
+        summary=f"fixed text: {' '.join(text.split())}",
+    )
+
+
 _BUILDERS: dict[str, Callable[..., Awaitable[BuiltWidget]]] = {
     "chart": _build_chart,
     "layer": _build_layer,
     "imagery": _build_imagery,
     "natural_forest_loss": _build_natural_forest_loss,
     "alerts": _build_alerts,
+    "text": _build_text,
 }
 
 
