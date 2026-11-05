@@ -15,7 +15,7 @@ To read them, see PR #840 and the git history of
 
 | Name | Widgets | Args |
 |---|---|---|
-| `nrt-monitoring` | Integrated alerts chart (daily), integrated alerts map layer, Sentinel-2 imagery | `days`: length of the period, counted back from today. Default 14, maximum 365. |
+| `nrt-monitoring` | Integrated alerts chart (daily stacked bars by confidence), integrated alerts list with its map, Sentinel-2 imagery | None. The period is the 30 days to the latest alert date, both ends counted, or to today when that date cannot be read. The chart's pills narrow it to the last 2 weeks, the last week or custom dates in the browser, with no request. |
 | `post-2020-forest-loss` | Tree cover loss per year from 2021 at 10% canopy density, split into natural forest and other tree cover (full width); tree cover loss map at 10% with the natural forest context layer, for the same years (half width); Sentinel-2 imagery of the last 30 days (half width) | None. The period runs from 2021-01-01 to today; the chart, the map and the section stop at the last year of loss data. |
 | `forest-loss-drivers` | Tree cover loss per year (full width); tree cover loss by dominant driver, a pie without "Unknown" (half width, optional), beside a fixed note on how to read the section (half width); tree cover loss by dominant driver map (full width) | None. The period runs from 2001-01-01 to today; the widgets and the section stop at the last year of loss data. |
 
@@ -53,19 +53,11 @@ English in every language, as in the chat.
     "args_schema": {
       "type": "object",
       "title": "NrtMonitoringArgs",
+      "description": "No arguments: the section always covers the 30 days to the latest alert date, …",
       "additionalProperties": false,
-      "properties": {
-        "days": {
-          "type": "integer",
-          "title": "Days",
-          "description": "Length of the period in days, counted back from today.",
-          "default": 14,
-          "minimum": 1,
-          "maximum": 365
-        }
-      }
+      "properties": {}
     },
-    "widgets": ["chart", "layer", "imagery"]
+    "widgets": ["chart", "alerts", "imagery"]
   }
 ]
 ```
@@ -73,15 +65,15 @@ English in every language, as in the chat.
 The `label` is in the user's language. `args_schema` is the JSON schema of
 the template arguments. Use it to make the form: it gives each argument, its
 default and its limits. `widgets` gives the widget kinds: `chart`,
-`natural_forest_loss` (a chart), `layer`, `imagery` or `text` (a fixed
-note).
+`natural_forest_loss` (a chart), `layer`, `alerts` (the alerts list with
+its map), `imagery` or `text` (a fixed note).
 
 ### Apply a template
 
 `POST /api/dashboards/{dashboard_id}/sections/from-template` (owner only)
 
 ```json
-{ "template": "nrt-monitoring", "args": { "days": 30 } }
+{ "template": "nrt-monitoring" }
 ```
 
 `args` is optional. An argument that you do not send gets its default. An
@@ -122,8 +114,8 @@ Each section in the dashboard response has a `template` field:
 ```json
 {
   "name": "nrt-monitoring",
-  "args": { "days": 14 },
-  "start_date": "2026-09-09",
+  "args": {},
+  "start_date": "2026-08-25",
   "end_date": "2026-09-23",
   "built_at": "2026-09-23T10:15:02"
 }
@@ -135,7 +127,7 @@ clamped to its datasets (a section of annual data ends with its last year).
 The field is `null` for a section that a user or the agent composed. It tells
 how the section started, not what it contains now. An edited section keeps
 it. You can use it to show, for example, "Built from Near-real-time
-monitoring, 2026-09-09 to 2026-09-23".
+monitoring, 2026-08-25 to 2026-09-23".
 
 ### Title and description
 

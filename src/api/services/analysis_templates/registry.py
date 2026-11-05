@@ -3,8 +3,6 @@
 from datetime import date, timedelta
 from typing import Optional
 
-from pydantic import Field
-
 from src.agent.datasets.config import DATASETS
 from src.agent.datasets.handlers.analytics_handler import (
     DEFAULT_CANOPY_COVER,
@@ -13,7 +11,6 @@ from src.agent.datasets.handlers.analytics_handler import (
     TREE_COVER_LOSS_BY_DRIVER_ID,
     TREE_COVER_LOSS_ID,
 )
-from src.api.schemas import ALERTS_MAX_DAYS
 from src.api.services.analysis_templates.models import (
     AlertsWidgetSpec,
     AnalysisTemplate,
@@ -27,25 +24,25 @@ from src.api.services.analysis_templates.models import (
 )
 from src.api.services.charts.tcl_natural_forest import FIRST_YEAR
 
+# The near real-time monitoring period in days, both ends counted: the
+# alerts list's Last 30 days, and the longest of the chart's period pills.
+NRT_MONITORING_DAYS = 30
+
 
 class NrtMonitoringArgs(TemplateArgs):
-    days: int = Field(
-        default=30,
-        ge=1,
-        # The template's days become the alerts widget's, which this bounds.
-        le=ALERTS_MAX_DAYS,
-        description="Length of the period in days, counted back from today.",
-    )
+    """No arguments: the section always covers the 30 days to the latest
+    alert date, which its chart's period pills and the alerts list count
+    back from."""
 
-    def period(self, today: date) -> tuple[date, date]:
-        return today - timedelta(days=self.days), today
+    def period(self, end: date) -> tuple[date, date]:
+        return end - timedelta(days=NRT_MONITORING_DAYS - 1), end
 
 
 class Post2020ForestLossArgs(TemplateArgs):
-    def period(self, today: date) -> tuple[date, date]:
+    def period(self, end: date) -> tuple[date, date]:
         # The chart and the map are clamped to the end of the loss data, and
         # so is the section. The imagery is of today.
-        return date(FIRST_YEAR, 1, 1), today
+        return date(FIRST_YEAR, 1, 1), end
 
 
 # The first day of tree cover loss data, from the catalog.
@@ -59,9 +56,9 @@ TREE_COVER_LOSS_START = date.fromisoformat(
 
 
 class ForestLossDriversArgs(TemplateArgs):
-    def period(self, today: date) -> tuple[date, date]:
+    def period(self, end: date) -> tuple[date, date]:
         # The widgets clamp the end to the last year of loss data.
-        return TREE_COVER_LOSS_START, today
+        return TREE_COVER_LOSS_START, end
 
 
 NRT_MONITORING_RULES = (
@@ -112,6 +109,7 @@ TEMPLATES: tuple[AnalysisTemplate, ...] = (
             "analysis_template.nrt_monitoring.description"
         ),
         args_model=NrtMonitoringArgs,
+        period_end="latest_alert",
         # The alerts widget's map is the alerts layer, so there is no
         # separate layer widget. The chart and the list share one period.
         widgets=(

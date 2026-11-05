@@ -3,6 +3,7 @@
 from datetime import date
 
 import pytest
+from pydantic import ValidationError
 
 from src.agent.datasets.config import DATASETS
 from src.agent.i18n import MESSAGES
@@ -104,13 +105,14 @@ def test_text_widget_note_is_in_each_language_without_placeholders(
         assert note.format().strip()
 
 
-def test_nrt_monitoring_covers_the_30_days_to_today():
+def test_nrt_monitoring_covers_the_30_days_to_the_latest_alert_date():
     template = get_template("nrt-monitoring")
-    today = date(2026, 10, 16)
+    latest = date(2026, 10, 16)
 
-    assert template.parse_args({}).period(today) == (
-        date(2026, 9, 16),
-        today,
+    assert template.period_end == "latest_alert"
+    assert template.parse_args({}).period(latest) == (
+        date(2026, 9, 17),
+        latest,
     )
     assert [widget.kind for widget in template.widgets] == [
         "chart",
@@ -119,10 +121,21 @@ def test_nrt_monitoring_covers_the_30_days_to_today():
     ]
 
 
+def test_nrt_monitoring_takes_no_arguments():
+    """The section always covers the 30 days to the latest alert date,
+    the period its chart's pills and the alerts list count back from."""
+    template = get_template("nrt-monitoring")
+
+    with pytest.raises(ValidationError):
+        template.parse_args({"days": 7})
+    assert not template.args_model.model_json_schema().get("properties")
+
+
 def test_post_2020_forest_loss_starts_at_the_natural_forest_baseline():
     template = get_template("post-2020-forest-loss")
     today = date(2026, 10, 7)
 
+    assert template.period_end == "today"
     assert template.parse_args({}).period(today) == (date(2021, 1, 1), today)
 
 

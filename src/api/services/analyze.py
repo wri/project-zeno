@@ -1,10 +1,28 @@
 from dataclasses import dataclass, field
 from typing import Optional, Sequence
 
+from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.base import DataPullResult, DataSourceHandler
 from src.agent.subagents.analyst.charts import InsightChart
 from src.api.services.charts import ChartGenerator, column_to_rows
 from src.api.services.charts.curated import build_curated_charts
+
+
+async def _chart_period(
+    start_date: str, end_date: str, dataset_id: int
+) -> tuple[str, str]:
+    """The period the charts span: the request's, clamped to the dates the
+    dataset covers, as the template builder clamps its own. A chart that
+    gives every day a slot then starts where the data does: integrated
+    alerts begin in December 2023, and the Analyses pane asks for 2001 to
+    2025. A dataset outside the catalog keeps the request's period."""
+    try:
+        start, end, _ = await revise_date_range(
+            start_date, end_date, dataset_id
+        )
+    except ValueError:
+        return start_date, end_date
+    return start, end
 
 
 @dataclass
@@ -58,6 +76,7 @@ class AnalyzeService:
                 column_to_rows(result.data),
                 language,
                 self._generators,
+                period=await _chart_period(start_date, end_date, dataset_id),
             )
 
         source_urls = (
