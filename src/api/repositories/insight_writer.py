@@ -15,8 +15,20 @@ from src.agent.subagents.analyst.charts.model import Insight
 from src.api.data_models import InsightChartOrm, InsightOrm
 from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger
+from src.shared.text_sanitize import clean_json, strip_control_chars
 
 logger = get_logger(__name__)
+
+
+# LLM-written text (narrative, follow-ups, chart labels) can contain NUL or
+# other control characters, e.g. Gemini writing "Piau\x00" for "Piauí".
+# Postgres rejects NUL and fails the whole write, so everything LLM-written is
+# cleaned on its way in. This is the last line of defense: the text stage
+# already keeps accented words away from the model.
+def _chart_row(chart) -> InsightChartOrm:
+    return InsightChartOrm(
+        **clean_json(chart.to_orm_kwargs(), field="chart_row")
+    )
 
 
 def add_insight_rows(
@@ -40,16 +52,18 @@ def add_insight_rows(
     insight_orm = InsightOrm(
         user_id=user_id,
         thread_id=thread_id,
-        insight_text=insight.primary_insight,
-        follow_up_suggestions=insight.follow_up_suggestions,
+        insight_text=strip_control_chars(
+            insight.primary_insight, field="insight_text"
+        ),
+        follow_up_suggestions=[
+            strip_control_chars(s, field="follow_up_suggestion")
+            for s in insight.follow_up_suggestions
+        ],
         statistics_ids=statistics_ids,
         codeact_types=[p["type"] for p in codeact_parts],
         codeact_contents=[p["content"] for p in codeact_parts],
         is_public=is_public,
-        charts=[
-            InsightChartOrm(**chart.to_orm_kwargs())
-            for chart in insight.charts
-        ],
+        charts=[_chart_row(chart) for chart in insight.charts],
     )
     session.add(insight_orm)
     return insight_orm
@@ -117,14 +131,16 @@ async def update_insight(insight_id: str, insight: Insight) -> bool:
         if insight_orm is None:
             return False
 
-        insight_orm.insight_text = insight.primary_insight
-        insight_orm.follow_up_suggestions = insight.follow_up_suggestions
+        insight_orm.insight_text = strip_control_chars(
+            insight.primary_insight, field="insight_text"
+        )
+        insight_orm.follow_up_suggestions = [
+            strip_control_chars(s, field="follow_up_suggestion")
+            for s in insight.follow_up_suggestions
+        ]
         # Reassigning the collection lets the delete-orphan cascade drop the old
         # chart rows and insert the revised ones in their place.
-        insight_orm.charts = [
-            InsightChartOrm(**chart.to_orm_kwargs())
-            for chart in insight.charts
-        ]
+        insight_orm.charts = [_chart_row(chart) for chart in insight.charts]
 
         await session.commit()
 
