@@ -1,14 +1,21 @@
 # Working in this repository
 
-## PR titles and commit history
+## PR titles and commit messages
 
-`main` is protected by a squash-only ruleset with required linear history: every PR collapses into a single commit on merge, and that commit's message is the PR title. Write PR titles accordingly.
+A PR title and a commit message do different jobs. Don't copy one into the other.
 
-- Use Conventional Commits format: `type(scope): summary`
+**PR title: links the work to Jira.** Start it with the ticket key:
+`PZB-1234: <summary>`. For several tickets use `PZB-1234, PZB-1240: <summary>`;
+for work with no ticket use `NO-TICKET: <summary>`. A CI check fails the PR otherwise.
+
+**Commit messages: the history.** Use Conventional Commits: `type(scope): summary`
 - Common types: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `perf`
 - Summary is imperative, lowercase after the colon, no trailing period
-- Put ticket references (e.g. `PZB-1234`) in the PR description, not the title
+
+**Squash merges.** `main` is squash-only. GitHub pre-fills the squash commit
+with the PR title when a PR has several commits. Replace it with a
+Conventional Commits message before merging.
 
 Examples:
-- `fix(geocoder): handle empty AOI results`
-- `feat(dashboards): add section grouping for widgets`
+- PR title: `PZB-1234: Handle empty AOI results in the geocoder`
+- Squash commit: `fix(geocoder): handle empty AOI results`
