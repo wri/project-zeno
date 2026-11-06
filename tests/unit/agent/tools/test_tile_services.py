@@ -20,6 +20,7 @@ from src.agent.datasets.handlers.analytics_handler import (
 from src.agent.subagents.pick_dataset.tool import (
     get_dataset_layers,
     get_tile_services_for_dataset,
+    retile_dataset,
 )
 
 IA_TILE = (
@@ -249,3 +250,67 @@ def test_get_dataset_layers_carries_title_and_description():
     assert agriculture.description == "Gross emissions."
     assert lulucf.title is None
     assert lulucf.description is None
+
+
+# --- retile_dataset -----------------------------------------------------------
+# pull_data can analyse a different date range from the one pick_dataset
+# resolved. retile_dataset rebuilds the dataset in state for that range, so
+# the map tiles and the legend dates follow the analysis.
+
+
+def test_retile_dataset_moves_integrated_alerts_tiles_to_new_range():
+    picked = {
+        "dataset_id": INTEGRATED_ALERTS_ID,
+        "dataset_name": "Integrated alerts",
+        "context_layer": None,
+        "selected_layer": None,
+        "parameters": None,
+        "start_date": "2023-12-01",
+        "end_date": "2026-11-06",
+        "tile_url": "https://tiles.example.com/old.png",
+        "layers": [
+            {
+                "name": "Integrated alerts",
+                "tile_url": "https://tiles.example.com/old.png",
+            }
+        ],
+        "context_layers": [],
+        "reason": "Alerts answer the question.",
+    }
+
+    retiled = retile_dataset(picked, "2025-03-01", "2025-03-31")
+
+    assert retiled["start_date"] == "2025-03-01"
+    assert retiled["end_date"] == "2025-03-31"
+    assert retiled["tile_url"].endswith(
+        "&start_date=2025-03-01&end_date=2025-03-31"
+    )
+    assert [layer["tile_url"] for layer in retiled["layers"]] == [
+        retiled["tile_url"]
+    ]
+    assert retiled["reason"] == picked["reason"]
+    assert picked["tile_url"] == "https://tiles.example.com/old.png"
+
+
+def test_retile_dataset_keeps_threshold_and_context_layer():
+    """A dataset selected in the UI can carry parameters without a
+    description; the canopy threshold and context layer must survive."""
+    picked = {
+        "dataset_id": TREE_COVER_LOSS_ID,
+        "dataset_name": "Tree cover loss",
+        "context_layer": "primary_forest",
+        "parameters": [{"name": "canopy_cover", "values": [50]}],
+        "start_date": "2001-01-01",
+        "end_date": "2025-12-31",
+        "tile_url": "https://tiles.example.com/old.png",
+    }
+
+    retiled = retile_dataset(picked, "2020-01-01", "2022-12-31")
+
+    assert "tree_cover_density_threshold=50" in retiled["tile_url"]
+    assert retiled["tile_url"].endswith("&start_year=2020&end_year=2022")
+    assert [layer["name"] for layer in retiled["context_layers"]] == [
+        "primary_forest",
+        "canopy_cover",
+    ]
+    assert retiled["parameters"] == picked["parameters"]
