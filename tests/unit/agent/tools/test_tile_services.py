@@ -318,6 +318,26 @@ def test_retile_dataset_keeps_threshold_and_context_layer():
     assert retiled["parameters"] == picked["parameters"]
 
 
+def test_retile_dataset_returns_the_validated_context_layer():
+    """The tiles are built from the validated selection, so the returned
+    fields must match it when the dataset in state is malformed."""
+    picked = {
+        "dataset_id": TREE_COVER_LOSS_ID,
+        "dataset_name": "Tree cover loss",
+        "context_layer": "not_a_context_layer",
+        "start_date": "2001-01-01",
+        "end_date": "2025-12-31",
+        "tile_url": "https://tiles.example.com/old.png",
+    }
+
+    retiled = retile_dataset(picked, "2020-01-01", "2022-12-31")
+
+    assert retiled["context_layer"] is None
+    assert "canopy_cover" in [
+        layer["name"] for layer in retiled["context_layers"]
+    ]
+
+
 @pytest.mark.parametrize(
     "dataset_id, context_layer",
     [

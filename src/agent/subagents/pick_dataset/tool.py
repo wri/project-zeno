@@ -805,6 +805,9 @@ def retile_dataset(dataset: dict, start_date: str, end_date: str) -> dict:
     )
     return {
         **dataset,
+        # The selection validated these, and the tiles follow it.
+        "context_layer": selection.context_layer,
+        "selected_layer": selection.selected_layer,
         "start_date": start_date,
         "end_date": end_date,
         "tile_url": tile_url,
