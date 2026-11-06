@@ -116,23 +116,16 @@ class InsightTextGenerator:
             "charts": charts_block,
         }
         # Gemini Flash sometimes writes a control character in place of an
-        # accented one ("Piau\x00" for "Piauí"). Keep non-ASCII place names out
-        # of the prompt so the model never has to copy them, and put the real
-        # names back in what it returns. Data fields go first because they
-        # teach the masker which words are names; prose fields (query,
-        # dataset notes) then only get names already known. The system prompt
-        # (wording guide and language name) is deliberately left alone.
+        # accented one ("Piau\x00" for "Piauí"). Keep the non-ASCII names of
+        # the areas of interest out of the prompt so the model never has to
+        # copy them, and put the real names back in what it returns. Only
+        # those names are masked: chart titles, labels and the user's own
+        # words are often in the user's language and must stay readable. The
+        # system prompt (wording guide and language name) is left alone too.
         masker = PlaceMasker.for_texts(place_names, *data.values())
-        masked = {
-            key: masker.mask(data[key], learn=True)
-            for key in ("charts", "executor_context")
-        }
-        masked.update(
-            {
-                key: masker.mask(data[key])
-                for key in ("query", "cautions", "presentation_instructions")
-            }
-        )
+        # Mask first: stand-ins are numbered as names are met, so the mapping
+        # (and with it the prompt note) is only known afterwards.
+        masked = {key: masker.mask(value) for key, value in data.items()}
         inputs = {
             "wording_guide": WORDING_GUIDE,
             "place_note": PLACE_NOTE if masker.mapping else "",

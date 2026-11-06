@@ -172,19 +172,162 @@ async def test_place_names_are_masked_in_prompt_and_restored():
 
 
 @pytest.mark.asyncio
-async def test_place_names_found_in_data_are_masked_without_being_listed():
+async def test_words_that_are_not_listed_area_names_are_left_alone():
     gen, chain = _echo_generator()
+
+    await gen.generate(
+        CHARTS,
+        DATASET,
+        query="Perda em Marabá no último ano",
+        executor_context="Marabá: 3,600 ha",
+        place_names=["Piauí"],
+    )
+
+    # Only listed area names are masked; everything else is sent as written.
+    assert chain.last_inputs["query"] == "Perda em Marabá no último ano"
+    assert chain.last_inputs["executor_context"] == "Marabá: 3,600 ha"
+    assert chain.last_inputs["place_note"] == ""
+
+
+class _ScriptedChain(_FakeChain):
+    """Answers with a fixed narrative, as a model that wrote it from the
+    prompt would."""
+
+    def __init__(self, narrative: str):
+        super().__init__()
+        self.narrative = narrative
+
+    async def ainvoke(self, inputs, config=None):
+        self.last_inputs = inputs
+        return InsightText(
+            primary_insight=self.narrative,
+            follow_up_suggestions=["Comparar PLACE_1 com outra área."],
+        )
+
+
+def _scripted_generator(narrative: str):
+    gen = InsightTextGenerator.__new__(InsightTextGenerator)
+    gen._chain = chain = _ScriptedChain(narrative)
+    return gen, chain
+
+
+@pytest.mark.asyncio
+async def test_portuguese_para_and_e_are_never_rewritten():
+    gen, chain = _scripted_generator(
+        "O PLACE_1 perdeu 3.600 ha entre 2021 e 2023. "
+        "Para comparar, a perda caiu."
+    )
 
     result = await gen.generate(
         CHARTS,
         DATASET,
-        query="Perda em Marabá",
-        executor_context="Marabá: 3,600 ha",
+        query="Qual é o desmatamento no Pará?",
+        executor_context="Total loss in Pará: 3,600 ha",
+        place_names=["Pará"],
     )
 
-    assert chain.last_inputs["executor_context"] == "PLACE_1: 3,600 ha"
-    assert chain.last_inputs["query"] == "Perda em PLACE_1"
-    assert result.primary_insight.startswith("Marabá lost 3,600 ha")
+    assert chain.last_inputs["query"] == "Qual é o desmatamento no PLACE_1?"
+    assert result.primary_insight == (
+        "O Pará perdeu 3.600 ha entre 2021 e 2023. "
+        "Para comparar, a perda caiu."
+    )
+    assert result.follow_up_suggestions == ["Comparar Pará com outra área."]
+
+
+@pytest.mark.asyncio
+async def test_spanish_esta_and_pérdida_are_never_rewritten():
+    gen, chain = _scripted_generator(
+        "esta región muestra una pérdida de 9 ha en PLACE_1; está claro."
+    )
+
+    result = await gen.generate(
+        CHARTS,
+        DATASET,
+        query="¿Cómo está la pérdida de bosque en Perú?",
+        place_names=["Perú"],
+    )
+
+    assert chain.last_inputs["query"] == (
+        "¿Cómo está la pérdida de bosque en PLACE_1?"
+    )
+    assert result.primary_insight == (
+        "esta región muestra una pérdida de 9 ha en Perú; está claro."
+    )
+
+
+@pytest.mark.asyncio
+async def test_non_latin_queries_reach_the_model_unchanged_but_for_the_name():
+    cases = [
+        (
+            "Московская область",
+            "Сколько леса потеряла Московская область в 2023 году?",
+            "Сколько леса потеряла PLACE_1 в 2023 году?",
+        ),
+        (
+            "云南省",
+            "中国云南省2023年的森林损失是多少？",
+            "中国PLACE_1 2023年的森林损失是多少？",
+        ),
+        (
+            "الجزائر",
+            "كم فقدت الجزائر من الغطاء الشجري في عام 2023؟",
+            "كم فقدت PLACE_1 من الغطاء الشجري في عام 2023؟",
+        ),
+        (
+            "उत्तराखंड",
+            "2023 में उत्तराखंड ने कितना वन खोया?",
+            "2023 में PLACE_1 ने कितना वन खोया?",
+        ),
+    ]
+    for name, query, expected in cases:
+        gen, chain = _scripted_generator("PLACE_1")
+        await gen.generate(CHARTS, DATASET, query=query, place_names=[name])
+        assert chain.last_inputs["query"] == expected, name
+
+
+@pytest.mark.asyncio
+async def test_chinese_name_directly_followed_by_text_is_restored():
+    gen, _ = _scripted_generator("PLACE_1的森林损失在2023年为12公顷")
+
+    result = await gen.generate(
+        CHARTS,
+        DATASET,
+        query="中国云南省2023年的森林损失是多少？",
+        place_names=["云南省"],
+    )
+
+    assert result.primary_insight == "云南省的森林损失在2023年为12公顷"
+
+
+@pytest.mark.asyncio
+async def test_localised_chart_text_stays_readable_in_the_prompt():
+    gen, chain = _echo_generator()
+    charts = [
+        InsightChart(
+            position=0,
+            title="Потеря лесного покрова: Московская область",
+            chart_type="bar",
+            x_axis="Год",
+            y_axis="Площадь (га)",
+            series_fields=["Естественный лес", "Плантации"],
+            chart_data=[{"Год": 2021, "Естественный лес": 120}],
+        )
+    ]
+
+    await gen.generate(
+        charts,
+        DATASET,
+        query="Сколько леса потеряла Московская область?",
+        place_names=["Московская область"],
+    )
+
+    sent = chain.last_inputs["charts"]
+    # The chart's own wording is untouched; only the area's name is masked.
+    for text in ("Потеря лесного покрова", "Год", "Площадь (га)", "Плантации"):
+        assert text in sent
+    assert "Московская область" not in sent
+    assert sent.count("PLACE_1") == 1
+    assert sent.count("PLACE_") == 1
 
 
 @pytest.mark.asyncio
