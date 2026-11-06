@@ -276,26 +276,6 @@ async def pull_data(
         tool_call_id=tool_call_id,
     )
 
-    update: dict[str, Any] = {
-        "start_date": effective_start,
-        "end_date": effective_end,
-        "messages": [tool_message],
-    }
-    # The map tiles and the legend show the range pick_dataset resolved. A
-    # later turn can analyse another range without a new pick, so move the
-    # dataset's tiles to the analysed range.
-    if (dataset.get("start_date"), dataset.get("end_date")) != (
-        effective_start,
-        effective_end,
-    ):
-        # Imported here: the subagents package imports the analyst, which
-        # imports this module.
-        from src.agent.subagents.pick_dataset import retile_dataset
-
-        update["dataset"] = retile_dataset(
-            dataset, effective_start, effective_end
-        )
-
     raw = result.data if isinstance(result.data, dict) else {}
     aoi_id_to_name = dict(zip(raw.get("aoi_id", []), raw.get("name", [])))
 
@@ -338,7 +318,28 @@ async def pull_data(
         statistics["id"] = str(statistics_row.id)
         await session.commit()
 
-    return Command(update={"statistics": [statistics], **update})
+    update: dict[str, Any] = {
+        "statistics": [statistics],
+        "start_date": effective_start,
+        "end_date": effective_end,
+        "messages": [tool_message],
+    }
+    # The map tiles and the legend show the range pick_dataset resolved. A
+    # later turn can analyse another range without a new pick, so move the
+    # dataset's tiles to the analysed range.
+    if (dataset.get("start_date"), dataset.get("end_date")) != (
+        effective_start,
+        effective_end,
+    ):
+        # Imported here: the subagents package imports the analyst, which
+        # imports this module.
+        from src.agent.subagents.pick_dataset import retile_dataset
+
+        update["dataset"] = retile_dataset(
+            dataset, effective_start, effective_end
+        )
+
+    return Command(update=update)
 
 
 SPEC = ToolSpec(
