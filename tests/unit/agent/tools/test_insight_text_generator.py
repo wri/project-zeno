@@ -7,10 +7,13 @@ honors the wording guide.
 
 import pytest
 import structlog.testing
+from langchain_core.language_models.fake_chat_models import FakeListChatModel
+from pydantic import Field
 
 from src.agent.subagents.analyst.charts.model import InsightChart
 from src.agent.subagents.analyst.text_generator import (
     InsightText,
+    InsightTextFormatError,
     InsightTextGenerator,
 )
 
@@ -114,250 +117,163 @@ async def test_config_is_forwarded_to_chain(generator):
     assert fake.last_config == cfg
 
 
-# --- non-ASCII words are kept out of the prompt ---------------------------
+# --- how the answer is requested and parsed ------------------------------
+#
+# Gemini's schema-constrained decoding (`with_structured_output`) corrupts
+# accented characters ("Piau\u0000"). The text stage therefore asks for JSON
+# with the JSON mime type and no schema, and parses the reply itself.
 
 
-class _EchoChain(_FakeChain):
-    """Answers with the stand-ins it was given, as a model that copies the
-    place tokens from the prompt would."""
+class _ScriptedModel(FakeListChatModel):
+    """Replies with the scripted texts in order and records every call."""
 
-    async def ainvoke(self, inputs, config=None):
-        self.last_inputs = inputs
-        return InsightText(
-            primary_insight="PLACE_1 lost 3,600 ha; PLACE_2 lost 10 ha.",
-            follow_up_suggestions=["Why did PLACE_1 change?"],
+    calls: list = Field(default_factory=list)
+
+    def _call(self, messages, stop=None, run_manager=None, **kwargs):
+        self.calls.append((messages, kwargs))
+        return super()._call(messages, stop, run_manager, **kwargs)
+
+    async def _acall(self, messages, stop=None, run_manager=None, **kwargs):
+        self.calls.append((messages, kwargs))
+        return await super()._acall(messages, stop, run_manager, **kwargs)
+
+
+GOOD_REPLY = (
+    '{"primary_insight": "Piauí lost 3,600 ha.", '
+    '"follow_up_suggestions": ["Compare Maranhão with Piauí."]}'
+)
+
+
+def _generator_for(*replies: str):
+    model = _ScriptedModel(responses=list(replies))
+    return InsightTextGenerator(model=model), model
+
+
+@pytest.mark.asyncio
+async def test_json_mime_type_is_requested_without_a_schema():
+    gen, model = _generator_for(GOOD_REPLY)
+
+    await gen.generate(CHARTS, DATASET, query="Loss?")
+
+    _, kwargs = model.calls[0]
+    assert kwargs == {"response_mime_type": "application/json"}
+
+
+@pytest.mark.asyncio
+async def test_prompt_asks_for_the_json_shape_in_the_requested_language():
+    gen, model = _generator_for(GOOD_REPLY)
+
+    await gen.generate(CHARTS, DATASET, query="Loss?", language="pt")
+
+    system = model.calls[0][0][0].content
+    assert "single JSON object" in system
+    assert '"primary_insight"' in system
+    assert '"follow_up_suggestions"' in system
+    assert "Português" in system
+
+
+@pytest.mark.asyncio
+async def test_accented_text_survives_parsing():
+    gen, _ = _generator_for(GOOD_REPLY)
+
+    result = await gen.generate(CHARTS, DATASET, query="Loss?")
+
+    assert result.primary_insight == "Piauí lost 3,600 ha."
+    assert result.follow_up_suggestions == ["Compare Maranhão with Piauí."]
+
+
+@pytest.mark.asyncio
+async def test_code_fences_around_the_json_are_tolerated():
+    gen, _ = _generator_for(f"```json\n{GOOD_REPLY}\n```")
+
+    result = await gen.generate(CHARTS, DATASET, query="Loss?")
+
+    assert result.primary_insight == "Piauí lost 3,600 ha."
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "bad_reply",
+    [
+        pytest.param("Piauí lost 3,600 ha.", id="not-json"),
+        pytest.param('{"primary_insight": "Cut off', id="truncated"),
+        pytest.param(
+            '{"primary_insight": "No follow-ups."}', id="missing-key"
+        ),
+        pytest.param(
+            '{"primary_insight": 5, "follow_up_suggestions": []}',
+            id="wrong-type",
+        ),
+        pytest.param(
+            '{"primary_insight": "  ", "follow_up_suggestions": []}',
+            id="empty-insight",
+        ),
+    ],
+)
+async def test_a_malformed_reply_is_retried_once(bad_reply):
+    gen, model = _generator_for(bad_reply, GOOD_REPLY)
+
+    with structlog.testing.capture_logs() as logs:
+        result = await gen.generate(CHARTS, DATASET, query="Loss?")
+
+    assert result.primary_insight == "Piauí lost 3,600 ha."
+    assert len(model.calls) == 2
+    assert [
+        log["log_level"]
+        for log in logs
+        if log["event"] == "insight_text_format_error"
+    ] == ["warning"]
+
+
+@pytest.mark.asyncio
+async def test_two_malformed_replies_raise_instead_of_looping():
+    gen, model = _generator_for("nope", "still nope", GOOD_REPLY)
+
+    with pytest.raises(InsightTextFormatError):
+        await gen.generate(CHARTS, DATASET, query="Loss?")
+
+    assert len(model.calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_the_real_gemini_request_has_the_mime_type_and_no_schema(
+    monkeypatch,
+):
+    """What reaches the Gemini request config, not just what we bind."""
+    from langchain_google_genai import ChatGoogleGenerativeAI
+
+    seen = []
+    original = ChatGoogleGenerativeAI._prepare_request
+
+    def spy(self, *args, **kwargs):
+        request = original(self, *args, **kwargs)
+        seen.append(request["config"])
+        raise RuntimeError("stop before any network call")
+
+    monkeypatch.setattr(ChatGoogleGenerativeAI, "_prepare_request", spy)
+    model = ChatGoogleGenerativeAI(
+        model="gemini-3-flash-preview", api_key="unused", thinking_level="low"
+    )
+
+    with pytest.raises(RuntimeError, match="stop before"):
+        await InsightTextGenerator(model=model).generate(
+            CHARTS, DATASET, query="Loss?"
         )
 
+    config = seen[0]
+    assert config.response_mime_type == "application/json"
+    assert config.response_schema is None
+    assert config.response_json_schema is None
 
-def _echo_generator():
-    gen = InsightTextGenerator.__new__(InsightTextGenerator)
-    gen._chain = chain = _EchoChain()
-    return gen, chain
 
-
-@pytest.mark.asyncio
-async def test_place_names_are_masked_in_prompt_and_restored():
-    gen, chain = _echo_generator()
-    charts = [
-        InsightChart(
-            position=0,
-            title="Perda de cobertura em Piauí",
-            chart_type="bar",
-            x_axis="year",
-            y_axis="area_ha",
-            chart_data=[{"year": 2020, "area_ha": 1.0}],
-        )
-    ]
-
-    result = await gen.generate(
-        charts,
-        {"cautions": "Dados de São Paulo são estimativas."},
-        query="Perda em Piauí",
-        executor_context="Piauí: 3,600 ha",
-        place_names=["Piauí", "São Paulo"],
-    )
-
-    sent = chain.last_inputs
-    # Data fields never carry a non-ASCII place name...
-    assert sent["charts"].isascii()
-    assert sent["executor_context"].isascii()
-    assert sent["query"] == "Perda em PLACE_1"
-    assert sent["cautions"] == "Dados de PLACE_2 são estimativas."
-    # ...and prose that is not a place name is left readable.
-    assert "são" in sent["cautions"]
-    assert (
-        result.primary_insight == "Piauí lost 3,600 ha; São Paulo lost 10 ha."
-    )
-    assert result.follow_up_suggestions == ["Why did Piauí change?"]
+# --- control characters the model writes anyway ---------------------------
 
 
 @pytest.mark.asyncio
-async def test_words_that_are_not_listed_area_names_are_left_alone():
-    gen, chain = _echo_generator()
-
-    await gen.generate(
-        CHARTS,
-        DATASET,
-        query="Perda em Marabá no último ano",
-        executor_context="Marabá: 3,600 ha",
-        place_names=["Piauí"],
-    )
-
-    # Only listed area names are masked; everything else is sent as written.
-    assert chain.last_inputs["query"] == "Perda em Marabá no último ano"
-    assert chain.last_inputs["executor_context"] == "Marabá: 3,600 ha"
-    assert chain.last_inputs["place_note"] == ""
-
-
-class _ScriptedChain(_FakeChain):
-    """Answers with a fixed narrative, as a model that wrote it from the
-    prompt would."""
-
-    def __init__(self, narrative: str):
-        super().__init__()
-        self.narrative = narrative
-
-    async def ainvoke(self, inputs, config=None):
-        self.last_inputs = inputs
-        return InsightText(
-            primary_insight=self.narrative,
-            follow_up_suggestions=["Comparar PLACE_1 com outra área."],
-        )
-
-
-def _scripted_generator(narrative: str):
-    gen = InsightTextGenerator.__new__(InsightTextGenerator)
-    gen._chain = chain = _ScriptedChain(narrative)
-    return gen, chain
-
-
-@pytest.mark.asyncio
-async def test_portuguese_para_and_e_are_never_rewritten():
-    gen, chain = _scripted_generator(
-        "O PLACE_1 perdeu 3.600 ha entre 2021 e 2023. "
-        "Para comparar, a perda caiu."
-    )
-
-    result = await gen.generate(
-        CHARTS,
-        DATASET,
-        query="Qual é o desmatamento no Pará?",
-        executor_context="Total loss in Pará: 3,600 ha",
-        place_names=["Pará"],
-    )
-
-    assert chain.last_inputs["query"] == "Qual é o desmatamento no PLACE_1?"
-    assert result.primary_insight == (
-        "O Pará perdeu 3.600 ha entre 2021 e 2023. "
-        "Para comparar, a perda caiu."
-    )
-    assert result.follow_up_suggestions == ["Comparar Pará com outra área."]
-
-
-@pytest.mark.asyncio
-async def test_spanish_esta_and_pérdida_are_never_rewritten():
-    gen, chain = _scripted_generator(
-        "esta región muestra una pérdida de 9 ha en PLACE_1; está claro."
-    )
-
-    result = await gen.generate(
-        CHARTS,
-        DATASET,
-        query="¿Cómo está la pérdida de bosque en Perú?",
-        place_names=["Perú"],
-    )
-
-    assert chain.last_inputs["query"] == (
-        "¿Cómo está la pérdida de bosque en PLACE_1?"
-    )
-    assert result.primary_insight == (
-        "esta región muestra una pérdida de 9 ha en Perú; está claro."
-    )
-
-
-@pytest.mark.asyncio
-async def test_non_latin_queries_reach_the_model_unchanged_but_for_the_name():
-    cases = [
-        (
-            "Московская область",
-            "Сколько леса потеряла Московская область в 2023 году?",
-            "Сколько леса потеряла PLACE_1 в 2023 году?",
-        ),
-        (
-            "云南省",
-            "中国云南省2023年的森林损失是多少？",
-            "中国PLACE_1 2023年的森林损失是多少？",
-        ),
-        (
-            "الجزائر",
-            "كم فقدت الجزائر من الغطاء الشجري في عام 2023؟",
-            "كم فقدت PLACE_1 من الغطاء الشجري في عام 2023؟",
-        ),
-        (
-            "उत्तराखंड",
-            "2023 में उत्तराखंड ने कितना वन खोया?",
-            "2023 में PLACE_1 ने कितना वन खोया?",
-        ),
-    ]
-    for name, query, expected in cases:
-        gen, chain = _scripted_generator("PLACE_1")
-        await gen.generate(CHARTS, DATASET, query=query, place_names=[name])
-        assert chain.last_inputs["query"] == expected, name
-
-
-@pytest.mark.asyncio
-async def test_chinese_name_directly_followed_by_text_is_restored():
-    gen, _ = _scripted_generator("PLACE_1的森林损失在2023年为12公顷")
-
-    result = await gen.generate(
-        CHARTS,
-        DATASET,
-        query="中国云南省2023年的森林损失是多少？",
-        place_names=["云南省"],
-    )
-
-    assert result.primary_insight == "云南省的森林损失在2023年为12公顷"
-
-
-@pytest.mark.asyncio
-async def test_localised_chart_text_stays_readable_in_the_prompt():
-    gen, chain = _echo_generator()
-    charts = [
-        InsightChart(
-            position=0,
-            title="Потеря лесного покрова: Московская область",
-            chart_type="bar",
-            x_axis="Год",
-            y_axis="Площадь (га)",
-            series_fields=["Естественный лес", "Плантации"],
-            chart_data=[{"Год": 2021, "Естественный лес": 120}],
-        )
-    ]
-
-    await gen.generate(
-        charts,
-        DATASET,
-        query="Сколько леса потеряла Московская область?",
-        place_names=["Московская область"],
-    )
-
-    sent = chain.last_inputs["charts"]
-    # The chart's own wording is untouched; only the area's name is masked.
-    for text in ("Потеря лесного покрова", "Год", "Площадь (га)", "Плантации"):
-        assert text in sent
-    assert "Московская область" not in sent
-    assert sent.count("PLACE_1") == 1
-    assert sent.count("PLACE_") == 1
-
-
-@pytest.mark.asyncio
-async def test_prompt_note_is_added_only_when_names_were_masked():
-    gen, chain = _echo_generator()
-
-    await gen.generate(CHARTS, DATASET, query="Loss in Brazil?")
-    assert chain.last_inputs["place_note"] == ""
-
-    await gen.generate(
-        CHARTS, DATASET, query="Loss in Piauí?", place_names=["Piauí"]
-    )
-    assert "PLACE_1" in chain.last_inputs["place_note"]
-
-
-@pytest.mark.asyncio
-async def test_ascii_place_names_are_not_masked():
-    gen, chain = _echo_generator()
-    await gen.generate(
-        CHARTS, DATASET, query="Loss in Brazil?", place_names=["Brazil"]
-    )
-    assert chain.last_inputs["query"] == "Loss in Brazil?"
-    assert chain.last_inputs["place_note"] == ""
-
-
-@pytest.mark.asyncio
-async def test_system_prompt_inputs_are_not_sanitized(generator):
+async def test_language_name_reaches_the_prompt_intact(generator):
     gen, fake = generator
     await gen.generate(CHARTS, DATASET, query="Perda em Piauí", language="pt")
-    # The language name tells the model what to write in; it must stay intact.
+    # The language name tells the model what to write in.
     assert fake.last_inputs["language"] == "Português"
 
 

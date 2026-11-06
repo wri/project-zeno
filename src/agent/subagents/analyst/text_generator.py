@@ -10,16 +10,16 @@ it nests as a span in the active Langfuse trace via the ambient
 `RunnableConfig`. Callers outside a traced context may pass an explicit `config`.
 """
 
-from typing import List, Optional, Sequence
+import re
+from typing import List, Optional
 
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnableConfig
-from pydantic import BaseModel, Field
+from langchain_core.runnables import RunnableConfig, RunnableLambda
+from pydantic import BaseModel, Field, ValidationError
 
 from src.agent.language import DEFAULT_LANGUAGE, language_name
 from src.agent.llms import SMALL_MODEL
 from src.agent.subagents.analyst.charts.model import InsightChart
-from src.agent.subagents.analyst.place_masker import PlaceMasker
 from src.agent.subagents.analyst.prompts import WORDING_GUIDE
 from src.shared.logging_config import get_logger
 from src.shared.text_sanitize import strip_control_chars
@@ -28,7 +28,7 @@ logger = get_logger(__name__)
 
 
 class InsightText(BaseModel):
-    """Structured output of the text stage."""
+    """The text stage's answer: the narrative and its follow-ups."""
 
     primary_insight: str = Field(
         description="Overall insight that ties the chart(s) together (2-3 sentences)"
@@ -37,6 +37,12 @@ class InsightText(BaseModel):
         description="1-2 follow-up suggestions based on the available data"
     )
 
+
+# Appended to the system prompt: the JSON mime type guarantees valid JSON, not
+# its shape, so the keys are spelled out. No braces, so it is safe in a template.
+JSON_REPLY_INSTRUCTION = """Reply with a single JSON object and nothing else, \
+with exactly these keys: "primary_insight" (a string) and \
+"follow_up_suggestions" (an array of strings). Do not wrap it in code fences."""
 
 _SYSTEM = """You write the narrative insight for one or two charts that have \
 already been produced from geospatial data. Describe what the data shows — do \
@@ -53,15 +59,9 @@ Write a 2-3 sentence `primary_insight` grounded in the numbers, and 1-2 \
 Write both in {language} — regardless of what language the query, dataset \
 cautions, or presentation instructions below are written in.
 
-{wording_guide}{place_note}"""
+{wording_guide}
 
-# Added to the system prompt only when place names were masked.
-PLACE_NOTE = """
-
-Place names appear in the input as tokens such as PLACE_1: the real names \
-were withheld. Each token stands for a real place, so write it exactly as \
-given, with the same spelling and capitalisation (for example "PLACE_1 lost \
-3,600 ha"). Do not translate, explain, abbreviate or invent them."""
+""" + JSON_REPLY_INSTRUCTION
 
 _USER = """## User query
 {query}
@@ -83,13 +83,60 @@ _PROMPT = ChatPromptTemplate.from_messages(
 )
 
 
+class InsightTextFormatError(ValueError):
+    """The model's reply was not the JSON object the prompt asked for."""
+
+
+_CODE_FENCE = re.compile(r"^```(?:json)?\s*|\s*```$")
+
+
+def _parse_insight_text(message) -> InsightText:
+    """Turn the model's reply into an ``InsightText``.
+
+    The reply is requested as JSON through the JSON mime type, without a
+    response schema, so the shape is checked here. Code fences are tolerated.
+    """
+    text = message if isinstance(message, str) else str(message.text)
+    try:
+        result = InsightText.model_validate_json(
+            _CODE_FENCE.sub("", text.strip())
+        )
+    except ValidationError as exc:
+        reason = f"{exc.error_count()} validation error(s)"
+        logger.warning(
+            "insight_text_format_error", reason=reason, length=len(text)
+        )
+        raise InsightTextFormatError(reason) from exc
+    if not result.primary_insight.strip():
+        logger.warning(
+            "insight_text_format_error", reason="empty", length=len(text)
+        )
+        raise InsightTextFormatError("primary_insight is empty")
+    return result
+
+
 class InsightTextGenerator:
     """Generates insight text from resolved charts."""
 
     def __init__(self, model=SMALL_MODEL):
+        # Not `with_structured_output`: Gemini's schema-constrained decoding
+        # intermittently replaces accented characters with control characters
+        # ("Piau\u0000"), in roughly 1 of 5 answers in our probe runs. The JSON
+        # mime type without a schema did not (0 of 300). The reply is parsed
+        # and validated here, and one malformed reply is retried.
         self._chain = (
-            _PROMPT | model.with_structured_output(InsightText)
-        ).with_config(run_name="generate_insight_text")
+            (
+                _PROMPT
+                | model.bind(response_mime_type="application/json")
+                | RunnableLambda(_parse_insight_text)
+            )
+            .with_retry(
+                retry_if_exception_type=(InsightTextFormatError,),
+                stop_after_attempt=2,
+                wait_exponential_jitter=False,
+            )
+            .with_config(run_name="generate_insight_text")
+        )
 
     async def generate(
         self,
@@ -99,7 +146,6 @@ class InsightTextGenerator:
         executor_context: Optional[str] = None,
         language: str = DEFAULT_LANGUAGE,
         config: Optional[RunnableConfig] = None,
-        place_names: Sequence[str] = (),
     ) -> InsightText:
         charts_block = "\n".join(
             c.model_dump_json(exclude={"insight"}) for c in charts
@@ -115,35 +161,22 @@ class InsightTextGenerator:
             ),
             "charts": charts_block,
         }
-        # Gemini Flash sometimes writes a control character in place of an
-        # accented one ("Piau\x00" for "Piauí"). Keep the non-ASCII names of
-        # the areas of interest out of the prompt so the model never has to
-        # copy them, and put the real names back in what it returns. Only
-        # those names are masked: chart titles, labels and the user's own
-        # words are often in the user's language and must stay readable. The
-        # system prompt (wording guide and language name) is left alone too.
-        masker = PlaceMasker.for_texts(place_names, *data.values())
-        # Mask first: stand-ins are numbered as names are met, so the mapping
-        # (and with it the prompt note) is only known afterwards.
-        masked = {key: masker.mask(value) for key, value in data.items()}
         inputs = {
             "wording_guide": WORDING_GUIDE,
-            "place_note": PLACE_NOTE if masker.mapping else "",
             "language": language_name(language),
-            **masked,
+            **data,
         }
         raw: InsightText = await self._chain.ainvoke(inputs, config=config)
-        # Anything still corrupt after the restore is a character the model
-        # wrote on its own. Strip it here so the text the agent and the user
-        # see is the same text that gets stored.
+        # Strip any control character the model wrote, and log it, so the text
+        # the agent and the user see is the same text that gets stored.
         result = InsightText(
             primary_insight=strip_control_chars(
-                masker.unmask(raw.primary_insight),
+                raw.primary_insight,
                 field="text_stage.primary_insight",
             ),
             follow_up_suggestions=[
                 strip_control_chars(
-                    masker.unmask(s),
+                    s,
                     field="text_stage.follow_up_suggestion",
                 )
                 for s in raw.follow_up_suggestions

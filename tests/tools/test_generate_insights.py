@@ -90,7 +90,6 @@ def mock_insight_text():
         executor_context=None,
         language="en",
         config=None,
-        place_names=(),
     ):
         return _Text()
 

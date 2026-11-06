@@ -26,8 +26,10 @@ asyncpg refusing the value, which a mocked session cannot show.
   output; the wire form is assumed to be the JSON escape). The control
   character is in the model's output, not added by our code.
 * ``test_text_generator_*``: the text stage against a model that reproduces
-  that fault for every non-ASCII character it writes. Place names are masked
-  with PLACE_n stand-ins in the prompt and restored in the response.
+  that fault for every non-ASCII character it writes. The stage asks for the
+  answer as JSON without a response schema (schema-constrained decoding is
+  what triggers the fault); if the model corrupts text anyway, the control
+  characters are stripped and logged.
 * ``test_persist_insight_*`` / ``test_update_insight_*``: the persistence
   boundary, the last line of defense. Whatever upstream stage corrupts the
   text, the write must not blow up and must not store control characters.
@@ -121,18 +123,15 @@ RAW_GEMINI_CASES = [
 class _ReplayModel:
     """Chat-model stand-in that replays a captured raw message.
 
-    ``with_structured_output`` mirrors what LangChain does for JSON-mode
-    structured output: the model's text goes through a Pydantic JSON parser,
-    which is where ``\\u0000`` becomes a real NUL character.
+    The text stage parses the reply as JSON, which is where ``\\u0000``
+    becomes a real NUL character.
     """
 
     def __init__(self, raw_text: str):
         self.raw_text = raw_text
 
-    def with_structured_output(self, schema, **_kwargs):
-        return RunnableLambda(
-            lambda _prompt: AIMessage(content=self.raw_text)
-        ) | PydanticOutputParser(pydantic_object=schema)
+    def bind(self, **_kwargs):
+        return RunnableLambda(lambda _prompt: AIMessage(content=self.raw_text))
 
 
 def _insight(primary_insight: str) -> Insight:
@@ -171,19 +170,14 @@ class _AccentGlitchModel:
 
     It writes a short narrative about the area named in the user query and,
     like the real model, replaces every non-ASCII character it has to emit
-    with a control character. It only ever sees the prompt it is given, so
-    a prompt that keeps non-ASCII place names out gives it nothing to corrupt.
-
-    Assumption (to be confirmed by the probe script): the fault is triggered
-    by accented words that appear in the prompt. Accents the model would
-    produce on its own are not simulated.
+    with a control character.
     """
 
     def __init__(self, glitch_char: str = "\x03"):
         self.glitch_char = glitch_char
         self.prompts: list[str] = []
 
-    def with_structured_output(self, schema, **_kwargs):
+    def bind(self, **_kwargs):
         def respond(prompt_value) -> AIMessage:
             prompt = prompt_value.to_string()
             self.prompts.append(prompt)
@@ -202,44 +196,41 @@ class _AccentGlitchModel:
                 )
             )
 
-        return RunnableLambda(respond) | PydanticOutputParser(
-            pydantic_object=schema
-        )
+        return RunnableLambda(respond)
 
 
 @pytest.mark.parametrize("glitch_char", ["\x00", "\x03"])
 @pytest.mark.parametrize(
     "name", [clean for clean, _ in CORRUPTED_NAMES], ids=lambda n: n
 )
-async def test_text_generator_survives_the_accent_glitch(name, glitch_char):
-    """Accented area names come back intact and free of control characters.
+async def test_text_generator_strips_what_a_glitching_model_writes(
+    name, glitch_char
+):
+    """If the model corrupts accents anyway, nothing corrupt gets out.
 
-    The model corrupts any non-ASCII character it has to write. The text
-    stage must keep accented place names out of the prompt and restore them in the
-    response, so the narrative reads "Piauí" and not "Piau\\x00".
+    This is the fallback, not the fix: the model's own text loses the accented
+    letters ("Paraná" -> "Paran"), but no control character is returned and
+    the corruption is logged so a rise in it can be noticed.
     """
     model = _AccentGlitchModel(glitch_char)
     generator = InsightTextGenerator(model=model)
 
-    result = await generator.generate(
-        charts=[],
-        dataset={},
-        query=f"Tree cover loss in {name}",
-        executor_context=f"Total loss in {name}: 3,600 ha",
-        place_names=[name],
-    )
+    with structlog.testing.capture_logs() as logs:
+        result = await generator.generate(
+            charts=[],
+            dataset={},
+            query=f"Tree cover loss in {name}",
+            executor_context=f"Total loss in {name}: 3,600 ha",
+        )
 
     assert_clean(result.primary_insight)
     for suggestion in result.follow_up_suggestions:
         assert_clean(suggestion)
-    assert result.primary_insight == f"{name} lost 3,600 ha in total."
-    assert result.follow_up_suggestions[0] == (
-        f"Compare {name} with a neighbouring area."
-    )
-    # The prompt itself carried no accented characters from the data.
-    assert "## User query" in model.prompts[0]
-    data_section = model.prompts[0].split("## User query", 1)[1]
-    assert data_section.isascii()
+    plain = re.sub(r"[^\x00-\x7f]", "", name)
+    assert result.primary_insight == f"{plain} lost 3,600 ha in total."
+    assert any(log["event"] == "control_chars_stripped" for log in logs)
+    # The real name is sent as it is: nothing is masked or transliterated.
+    assert f"Tree cover loss in {name}" in model.prompts[0]
 
 
 @pytest.mark.parametrize("clean, corrupted", CORRUPTED_NAMES)
@@ -300,8 +291,7 @@ async def test_analyze_with_corrupted_model_output(user, raw_text, clean):
 
     The code executor is stubbed to return a chart for the accented area, and
     the text stage's model replays the raw message in which Gemini wrote a
-    control character itself (it ignores the prompt, so masking the input
-    cannot help). The flow must still persist an insight, with no control
+    control character itself (it ignores the prompt). The flow must still persist an insight, with no control
     characters in the stored text or in the text returned to the agent.
     """
     charts = [
@@ -465,55 +455,3 @@ async def test_persist_logs_what_it_strips(user):
         if log["event"] == "control_chars_stripped"
     )
     assert fields == ["follow_up_suggestion", "insight_text"]
-
-
-async def test_analyze_passes_the_area_names_to_the_text_stage(user):
-    """The areas of interest reach the text stage, so it can mask their names."""
-    chart = InsightChart(
-        position=0,
-        title="Annual tree cover loss",
-        chart_type="bar",
-        x_axis="year",
-        y_axis="loss",
-        chart_data=[{"year": 2020, "loss": 5}],
-    )
-    statistics = [
-        {"id": "s1", "dataset_id": "tcl", "aoi_names": ["Piauí"]},
-        {"id": "s2", "dataset_id": "tcl", "aoi_names": ["São Paulo", "Pará"]},
-        {"id": "s3", "dataset_id": "tcl"},
-    ]
-    generate = AsyncMock(
-        return_value=SimpleNamespace(
-            primary_insight="Loss rose.", follow_up_suggestions=[]
-        )
-    )
-
-    with (
-        bound_user_id(user.id),
-        patch.object(
-            Analyst,
-            "_resolve_charts",
-            AsyncMock(return_value=([chart], [], "", None)),
-        ),
-        patch(
-            "src.agent.subagents.analyst.tool.InsightTextGenerator.generate",
-            generate,
-        ),
-        patch(
-            "src.agent.subagents.analyst.tool.persist_insight",
-            AsyncMock(return_value="insight-1"),
-        ),
-        patch(
-            "src.agent.subagents.analyst.tool._build_tool_message",
-            AsyncMock(return_value="ok"),
-        ),
-    ):
-        await Analyst().analyze(
-            query="Loss?", statistics=statistics, dataset={}, tool_call_id="c"
-        )
-
-    assert generate.await_args.kwargs["place_names"] == [
-        "Piauí",
-        "São Paulo",
-        "Pará",
-    ]
