@@ -26,6 +26,8 @@ from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
 from sqlalchemy.orm import declarative_base, relationship
 
+from src.api.services.subscription import Dataset, SubscriptionMode
+
 # Add Any declaration so mypy knows Base is a class.
 Base: Any = declarative_base()
 
@@ -584,6 +586,14 @@ class DashboardOrm(Base):
         cascade="all, delete-orphan",
         order_by="DashboardSectionOrm.position",
     )
+    # passive_deletes: the FK's ON DELETE CASCADE clears the rows, so a
+    # dashboard delete needn't load them first.
+    subscriptions = relationship(
+        "SubscriptionOrm",
+        back_populates="dashboard",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
 
 class DashboardAoiOrm(Base):
@@ -615,6 +625,67 @@ class DashboardAoiOrm(Base):
     position = Column(Integer, nullable=False, server_default="0")
 
     dashboard = relationship("DashboardOrm", back_populates="aois")
+
+
+class SubscriptionOrm(Base):
+    """One alert mode a dashboard owner turned on for one dataset. A row
+    means the mode is on; turning it off deletes the row."""
+
+    __tablename__ = "subscriptions"
+    __table_args__ = (
+        UniqueConstraint(
+            "dashboard_id",
+            "dataset",
+            "mode",
+            name="uq_subscriptions_dashboard_dataset_mode",
+        ),
+    )
+
+    id = Column(
+        PostgresUUID,
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    dashboard_id = Column(
+        PostgresUUID,
+        ForeignKey("dashboards.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    # The dashboard's own AOI row for now: per dashboard, deleted with it.
+    aoi_id = Column(
+        PostgresUUID,
+        ForeignKey("dashboard_aois.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    dataset = Column(
+        Enum(
+            Dataset,
+            native_enum=False,
+            create_constraint=True,
+            values_callable=lambda e: [m.value for m in e],
+            name="subscription_dataset",
+        ),
+        nullable=False,
+    )
+    mode = Column(
+        Enum(
+            SubscriptionMode,
+            native_enum=False,
+            create_constraint=True,
+            values_callable=lambda e: [m.value for m in e],
+            name="subscription_mode",
+        ),
+        nullable=False,
+    )
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.now,
+        server_default=text("now()"),
+    )
+
+    dashboard = relationship("DashboardOrm", back_populates="subscriptions")
 
 
 class DashboardSectionOrm(Base):

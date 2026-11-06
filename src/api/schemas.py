@@ -16,6 +16,7 @@ from pydantic import (
 from typing_extensions import TypedDict
 
 from src.api.data_models import UserType
+from src.api.services.subscription import Dataset, SubscriptionMode
 from src.api.user_profile_configs.countries import COUNTRIES
 from src.api.user_profile_configs.gis_expertise import GIS_EXPERTISE_LEVELS
 from src.api.user_profile_configs.languages import LANGUAGES
@@ -981,6 +982,11 @@ class DashboardWidgetResponse(BaseModel):
     insight: Optional[InsightResponse] = None
 
 
+class DashboardDatasetAlerts(BaseModel):
+    # Empty when nothing is on. Email is never on without in-app.
+    modes: List[SubscriptionMode] = []
+
+
 class DashboardResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -996,6 +1002,19 @@ class DashboardResponse(BaseModel):
     # (`section_id`); ungrouped widgets render above the first section.
     sections: List[DashboardSectionResponse] = []
     widgets: List[DashboardWidgetResponse] = []
+    # The alert modes that are on, per dataset. Only the owner and
+    # superusers get this; for anyone else the key is left out.
+    alerts: Optional[Dict[Dataset, DashboardDatasetAlerts]] = Field(
+        default=None, exclude_if=lambda alerts: alerts is None
+    )
+
+
+class DashboardSubscriptionsRequest(BaseModel):
+    """The desired alert modes for each listed dataset. Turning email on
+    also turns in-app on; leaving in-app out turns email off too."""
+
+    datasets: List[Dataset] = Field(min_length=1)
+    modes: List[SubscriptionMode]
 
 
 class AnalysisTemplateResponse(BaseModel):

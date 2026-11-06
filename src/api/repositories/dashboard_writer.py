@@ -141,6 +141,7 @@ async def get_dashboard(dashboard_id) -> Optional[DashboardOrm]:
                 selectinload(DashboardOrm.aois),
                 selectinload(DashboardOrm.sections),
                 selectinload(DashboardOrm.widgets),
+                selectinload(DashboardOrm.subscriptions),
             )
             .where(DashboardOrm.id == target)
         )
