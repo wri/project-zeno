@@ -25,10 +25,14 @@ jobs:
         env:
           TITLE: ${{ github.event.pull_request.title }}
         run: |
-          if printf '%s' "$TITLE" | grep -Eq '^(PZB-[0-9]+(, PZB-[0-9]+)*|NO-TICKET): [^ ]'; then
-            echo "OK: $TITLE"
+          if [[ "$TITLE" == *$'\n'* || "$TITLE" == *$'\r'* ]]; then
+            echo "::error title=PR title must be a single line::Remove line breaks from the PR title."
+            exit 1
+          fi
+          if printf '%s' "$TITLE" | grep -Eq '^(PZB-[0-9]+(, PZB-[0-9]+)*|NO-TICKET): [^[:space:]]'; then
+            printf 'OK: %s\n' "$TITLE"
             exit 0
           fi
           echo "::error title=PR title needs a Jira key::Start the PR title with the PZB ticket key, e.g. 'PZB-1234: Handle empty AOI results'. Several tickets: 'PZB-1234, PZB-1240: …'. No ticket: 'NO-TICKET: …'. Edit the title and this check re-runs."
-          echo "Title was: $TITLE"
+          printf 'Title was: %s\n' "$TITLE"
           exit 1
