@@ -26,7 +26,7 @@ description: What Global Nature Watch can and cannot do, and how to use the app.
 | Tree cover loss by dominant driver | 2001 to 2025 | One total for the whole period | Cannot be split by year. Classes: permanent agriculture (cattle, oil palm, soy and other crops together, not separated), hard commodities (mining and energy only), shifting cultivation, logging, wildfire, settlements and infrastructure, other natural disturbances. |
 | Tree cover | 2000 | One year | No other years and no annual series. For change since 2000, pair it with annual tree cover loss. Not for custom areas or concessions. |
 | Tree cover gain | 2000 to 2020 | Four 5-year periods | Cumulative. Never subtract loss from gain for a net change: the two use different methods. Not for custom areas or concessions. |
-| Forest greenhouse gas net flux | 2001 to 2025 | One total (annual average) | Cannot be given for a shorter period or by year. A flow (emissions minus removals), not carbon stock. |
+| Forest greenhouse gas net flux | 2001 to 2025 | One total for the whole period | Cannot be given for a shorter period or by year. The total divided by 25 is an average per year over 2001 to 2025, not a figure for any shorter period. A flow (emissions minus removals), not carbon stock. |
 | Global land cover | 2015 and 2024 | Two years | No other years. Start and end states only. Classes include cropland, built-up, short vegetation, tree cover, wetland and water. |
 | Natural grassland extent | 2000 to 2022 | Annual | No data after 2022. Extent only, not grazing or condition. |
 | SBTN Natural Lands Map | 2020 | One year | Natural and non-natural land classes. |
