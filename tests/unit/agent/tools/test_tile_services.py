@@ -13,6 +13,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from src.agent.datasets.config import DATASETS
+from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import (
     INTEGRATED_ALERTS_ID,
     TREE_COVER_LOSS_ID,
@@ -314,3 +316,26 @@ def test_retile_dataset_keeps_threshold_and_context_layer():
         "canopy_cover",
     ]
     assert retiled["parameters"] == picked["parameters"]
+
+
+@pytest.mark.parametrize(
+    "dataset_id, context_layer",
+    [
+        (ds["dataset_id"], context_layer)
+        for ds in DATASETS
+        for context_layer in [None]
+        + [layer["value"] for layer in ds.get("context_layers") or []]
+    ],
+)
+async def test_every_catalog_dataset_can_be_retiled(dataset_id, context_layer):
+    """pull_data retiles whatever dataset is in state, so a catalog entry
+    that cannot be retiled would break every pull of it."""
+    start, end, _ = await revise_date_range(
+        None, None, dataset_id, context_layer
+    )
+
+    retiled = retile_dataset(
+        {"dataset_id": dataset_id, "context_layer": context_layer}, start, end
+    )
+
+    assert (retiled["start_date"], retiled["end_date"]) == (start, end)
