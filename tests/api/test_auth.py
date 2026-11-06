@@ -7,7 +7,7 @@ import pytest
 
 from src.api.auth.dependencies import _user_info_cache
 from src.api.cli import create_api_key, create_machine_user
-from src.api.data_models import UserOrm
+from src.api.data_models import UserOrm, UserType
 from tests.api.mock import mock_rw_api_response, mock_rw_me_response
 from tests.conftest import async_session_maker
 
@@ -97,6 +97,37 @@ async def test_first_login_records_rw_apps_and_first_seen_at(client, apps):
     row = await _user_row("rw-origin")
     assert row.rw_apps == apps
     assert row.first_seen_at == first_seen_at
+
+
+@pytest.mark.asyncio
+async def test_first_login_starts_updated_at_at_the_login(client):
+    # The mock's updatedAt (2024) is the RW account's last change, which can
+    # be a GFW edit. GNW's "last updated" starts at the first GNW login.
+    before = datetime.now()
+    response = await _login(client, mock_rw_me_response("rw-updated"))
+    after = datetime.now()
+
+    assert response.status_code == 200
+    row = await _user_row("rw-updated")
+    assert before <= row.updated_at <= after
+
+
+@pytest.mark.asyncio
+async def test_first_login_keeps_gnw_owned_fields_out_of_the_rw_payload(
+    client,
+):
+    rw_me = mock_rw_me_response("rw-extra")
+    rw_me.json_data.update(
+        {"userType": "superuser", "hasProfile": True, "termsVersion": "x"}
+    )
+
+    response = await _login(client, rw_me)
+
+    assert response.status_code == 200
+    row = await _user_row("rw-extra")
+    assert row.user_type == UserType.REGULAR.value
+    assert row.has_profile is False
+    assert row.terms_version is None
 
 
 @pytest.mark.asyncio
