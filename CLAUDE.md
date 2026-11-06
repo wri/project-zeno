@@ -13,8 +13,8 @@ for work with no ticket use `NO-TICKET: <summary>`. A CI check fails the PR othe
 - Summary is imperative, lowercase after the colon, no trailing period
 
 **Squash merges.** `main` is squash-only. GitHub pre-fills the squash commit
-with the PR title when a PR has several commits. Replace it with a
-Conventional Commits message before merging.
+with the PR title when a PR has several commits. In the squash-merge dialog,
+replace that commit message (not the PR title) with a Conventional Commits message.
 
 Examples:
 - PR title: `PZB-1234: Handle empty AOI results in the geocoder`
