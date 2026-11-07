@@ -1,0 +1,91 @@
+{
+  "1": {
+    "aoi_id": "string",
+    "aoi_type": "string",
+    "land_cover_class": "string",
+    "area_ha": "number",
+    "name": "string",
+    "land_cover_class_start": "string",
+    "land_cover_class_end": "string"
+  },
+  "2": {
+    "year": "integer",
+    "area_ha": "number",
+    "aoi_id": "string",
+    "aoi_type": "string",
+    "name": "string"
+  },
+  "3": {
+    "natural_lands_class": "string",
+    "area_ha": "number",
+    "aoi_id": "string",
+    "aoi_type": "string",
+    "name": "string"
+  },
+  "4": {
+    "aoi_id": "string",
+    "aoi_type": "string",
+    "tree_cover_loss_year": "integer",
+    "area_ha": "number",
+    "carbon_emissions_MgCO2e": "number",
+    "name": "string"
+  },
+  "5": {
+    "aoi_id": "string",
+    "aoi_type": "string",
+    "tree_cover_gain_period": "string",
+    "area_ha": "number",
+    "name": "string"
+  },
+  "6": {
+    "aoi_id": "string",
+    "aoi_type": "string",
+    "carbon_net_flux_Mg_CO2e": "number",
+    "carbon_gross_emissions_Mg_CO2e": "number",
+    "carbon_gross_removals_Mg_CO2e": "number",
+    "name": "string"
+  },
+  "7": {
+    "aoi_id": "string",
+    "aoi_type": "string",
+    "area_ha": "number",
+    "name": "string"
+  },
+  "8": {
+    "aoi_id": "string",
+    "aoi_type": "string",
+    "tree_cover_loss_driver": "string",
+    "area_ha": "number",
+    "carbon_emissions_MgCO2e": "number",
+    "name": "string"
+  },
+  "9": {
+    "aoi_id": "string",
+    "aoi_type": "string",
+    "crop_type": "string",
+    "gas_type": "string",
+    "year": "integer",
+    "emissions_factor_tCO2e_per_tonne_production": "number",
+    "emissions_tCO2e": "number",
+    "production_tonnes": "number",
+    "name": "string"
+  },
+  "10": {
+    "aoi_id": "string",
+    "aoi_type": "string",
+    "tree_cover_loss_year": "integer",
+    "area_ha": "number",
+    "carbon_emissions_MgCO2e": "number",
+    "tree_cover_loss_from_fires_area_ha": "number",
+    "tree_cover_loss_non_fires_area_ha": "number",
+    "name": "string"
+  },
+  "11": {
+    "aoi_id": "string",
+    "alert_date": "string",
+    "alert_confidence": "string",
+    "area_ha": "number",
+    "aoi_type": "string",
+    "name": "string"
+  }
+}

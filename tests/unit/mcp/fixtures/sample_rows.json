@@ -1,0 +1,1108 @@
+{
+ "1": [
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "land_cover_class": "Bare and sparse vegetation",
+   "area_ha": 2612432.0,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "land_cover_class": "Built-up",
+   "area_ha": 30389976.0,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "land_cover_class": "Cropland",
+   "area_ha": 66458680.0,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "land_cover_class": "Cultivated grasslands",
+   "area_ha": 117016296.0,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "land_cover_class": "Short vegetation",
+   "area_ha": 68500360.0,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "land_cover_class": "Tree cover",
+   "area_ha": 479457152.0,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "land_cover_class": "Water",
+   "area_ha": 13793064.0,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "land_cover_class": "Wetland – short vegetation",
+   "area_ha": 18600568.0,
+   "name": "Brazil"
+  }
+ ],
+ "2": [
+  {
+   "year": 2021,
+   "area_ha": 61882935.65139143,
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "year": 2022,
+   "area_ha": 61616114.48280795,
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "name": "Brazil"
+  }
+ ],
+ "3": [
+  {
+   "natural_lands_class": "Bare",
+   "area_ha": 2667635.3878747746,
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "natural_lands_class": "Built-up",
+   "area_ha": 4559641.189420879,
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "natural_lands_class": "Cropland",
+   "area_ha": 93888351.03666803,
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "natural_lands_class": "Mangroves",
+   "area_ha": 1030256.8652838767,
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "natural_lands_class": "Natural forests",
+   "area_ha": 380934913.9171999,
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "natural_lands_class": "Natural peat forests",
+   "area_ha": 20712057.248789236,
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "natural_lands_class": "Natural peat short vegetation",
+   "area_ha": 4653040.235382482,
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "natural_lands_class": "Natural short vegetation",
+   "area_ha": 109956926.8041212,
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "natural_lands_class": "Natural water",
+   "area_ha": 15811950.70054631,
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "natural_lands_class": "Non-natural bare",
+   "area_ha": 1123811.2849216014,
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "natural_lands_class": "Non-natural short vegetation",
+   "area_ha": 160360953.81985176,
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "natural_lands_class": "Non-natural peat short vegetation",
+   "area_ha": 323760.5836431384,
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "natural_lands_class": "Non-natural peat tree cover",
+   "area_ha": 27886.554351881146,
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "natural_lands_class": "Non-natural tree cover",
+   "area_ha": 10972029.42220112,
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "natural_lands_class": "Non-natural water",
+   "area_ha": 55605.54261817038,
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "natural_lands_class": "Wetland natural forests",
+   "area_ha": 27355829.07221044,
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "natural_lands_class": "Wetland natural short vegetation",
+   "area_ha": 15029117.655686535,
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "natural_lands_class": "Wetland non-natural short vegetation",
+   "area_ha": 71.73563346266747,
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "natural_lands_class": "Wetland non-natural tree cover",
+   "area_ha": 4.452641107141972,
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "name": "Brazil"
+  }
+ ],
+ "4": [
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "tree_cover_loss_year": 2024,
+   "area_ha": 4391700.219573207,
+   "carbon_emissions_MgCO2e": 2117828071.2218451,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "tree_cover_loss_year": 2025,
+   "area_ha": 2868132.8788061365,
+   "carbon_emissions_MgCO2e": 1483758265.6978638,
+   "name": "Brazil"
+  }
+ ],
+ "5": [
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "tree_cover_gain_period": "2015-2020",
+   "area_ha": 2112304.7954101562,
+   "name": "Brazil"
+  }
+ ],
+ "6": [
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "carbon_net_flux_Mg_CO2e": -4020198198.8015447,
+   "carbon_gross_emissions_Mg_CO2e": 39751077417.57075,
+   "carbon_gross_removals_Mg_CO2e": 43771275616.0756,
+   "name": "Brazil"
+  }
+ ],
+ "7": [
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "area_ha": 519056540.3686485,
+   "name": "Brazil"
+  }
+ ],
+ "8": [
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "tree_cover_loss_driver": "Hard commodities",
+   "area_ha": 47807.49264252338,
+   "carbon_emissions_MgCO2e": 32549920.698005676,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "tree_cover_loss_driver": "Settlements and infrastructure",
+   "area_ha": 13200.705469299273,
+   "carbon_emissions_MgCO2e": 7286338.5380887985,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "tree_cover_loss_driver": "Logging",
+   "area_ha": 355354.23032433575,
+   "carbon_emissions_MgCO2e": 458234257.4422183,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "tree_cover_loss_driver": "Permanent agriculture",
+   "area_ha": 3222573.59563361,
+   "carbon_emissions_MgCO2e": 2032498408.237011,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "tree_cover_loss_driver": "Unknown",
+   "area_ha": 6023.724305278848,
+   "carbon_emissions_MgCO2e": 2976420.3885337114,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "tree_cover_loss_driver": "Wildfire",
+   "area_ha": 3369188.7997780778,
+   "carbon_emissions_MgCO2e": 930587858.099216,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "tree_cover_loss_driver": "Other natural disturbances",
+   "area_ha": 101933.52341610222,
+   "carbon_emissions_MgCO2e": 43493620.441663384,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "tree_cover_loss_driver": "Shifting cultivation",
+   "area_ha": 143751.02681011683,
+   "carbon_emissions_MgCO2e": 93959513.07497215,
+   "name": "Brazil"
+  }
+ ],
+ "9": [
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Arabica Coffee",
+   "gas_type": "CH4",
+   "year": 2023,
+   "emissions_factor_tCO2e_per_tonne_production": 0.01637,
+   "emissions_tCO2e": 20145.32516036444,
+   "production_tonnes": 1230462.6932934634,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Arabica Coffee",
+   "gas_type": "CH4",
+   "year": 2024,
+   "emissions_factor_tCO2e_per_tonne_production": 0.01676,
+   "emissions_tCO2e": 20623.001704204573,
+   "production_tonnes": 1230462.6932934634,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Arabica Coffee",
+   "gas_type": "CO2",
+   "year": 2023,
+   "emissions_factor_tCO2e_per_tonne_production": 3.33,
+   "emissions_tCO2e": 4097548.795352847,
+   "production_tonnes": 1230462.6932934634,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Arabica Coffee",
+   "gas_type": "CO2",
+   "year": 2024,
+   "emissions_factor_tCO2e_per_tonne_production": 3.401,
+   "emissions_tCO2e": 4185126.834889381,
+   "production_tonnes": 1230462.6932934634,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Arabica Coffee",
+   "gas_type": "CO2e",
+   "year": 2023,
+   "emissions_factor_tCO2e_per_tonne_production": 3.356,
+   "emissions_tCO2e": 4129637.3357126303,
+   "production_tonnes": 1230462.6932934634,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Arabica Coffee",
+   "gas_type": "CO2e",
+   "year": 2024,
+   "emissions_factor_tCO2e_per_tonne_production": 3.427,
+   "emissions_tCO2e": 4217050.17808728,
+   "production_tonnes": 1230462.6932934634,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Arabica Coffee",
+   "gas_type": "N2O",
+   "year": 2023,
+   "emissions_factor_tCO2e_per_tonne_production": 0.009706,
+   "emissions_tCO2e": 11943.215199418932,
+   "production_tonnes": 1230462.6932934634,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Arabica Coffee",
+   "gas_type": "N2O",
+   "year": 2024,
+   "emissions_factor_tCO2e_per_tonne_production": 0.009184,
+   "emissions_tCO2e": 11300.341493694536,
+   "production_tonnes": 1230462.6932934634,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Banana",
+   "gas_type": "CH4",
+   "year": 2023,
+   "emissions_factor_tCO2e_per_tonne_production": 0.009279,
+   "emissions_tCO2e": 41983.31556329839,
+   "production_tonnes": 4524369.703601321,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Banana",
+   "gas_type": "CH4",
+   "year": 2024,
+   "emissions_factor_tCO2e_per_tonne_production": 0.01068,
+   "emissions_tCO2e": 48521.32883251125,
+   "production_tonnes": 4543668.789749116,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Banana",
+   "gas_type": "CO2",
+   "year": 2023,
+   "emissions_factor_tCO2e_per_tonne_production": 1.989,
+   "emissions_tCO2e": 9000135.717650887,
+   "production_tonnes": 4524369.703601321,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Banana",
+   "gas_type": "CO2",
+   "year": 2024,
+   "emissions_factor_tCO2e_per_tonne_production": 2.055,
+   "emissions_tCO2e": 9337976.462885976,
+   "production_tonnes": 4543668.789749116,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Banana",
+   "gas_type": "CO2e",
+   "year": 2023,
+   "emissions_factor_tCO2e_per_tonne_production": 2.004,
+   "emissions_tCO2e": 9064698.200716276,
+   "production_tonnes": 4524369.703601321,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Banana",
+   "gas_type": "CO2e",
+   "year": 2024,
+   "emissions_factor_tCO2e_per_tonne_production": 2.071,
+   "emissions_tCO2e": 9409562.822580218,
+   "production_tonnes": 4543668.789749116,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Banana",
+   "gas_type": "N2O",
+   "year": 2023,
+   "emissions_factor_tCO2e_per_tonne_production": 0.004991,
+   "emissions_tCO2e": 22579.16750209067,
+   "production_tonnes": 4524369.703601321,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Banana",
+   "gas_type": "N2O",
+   "year": 2024,
+   "emissions_factor_tCO2e_per_tonne_production": 0.005076,
+   "emissions_tCO2e": 23065.030861730003,
+   "production_tonnes": 4543668.789749116,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Barley",
+   "gas_type": "CH4",
+   "year": 2023,
+   "emissions_factor_tCO2e_per_tonne_production": 0.01208,
+   "emissions_tCO2e": 2208.573862465591,
+   "production_tonnes": 182858.71549555397,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Barley",
+   "gas_type": "CH4",
+   "year": 2024,
+   "emissions_factor_tCO2e_per_tonne_production": 0.01048,
+   "emissions_tCO2e": 2137.4341010281237,
+   "production_tonnes": 203943.6420146853,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Barley",
+   "gas_type": "CO2",
+   "year": 2023,
+   "emissions_factor_tCO2e_per_tonne_production": 1.815,
+   "emissions_tCO2e": 331899.78777645284,
+   "production_tonnes": 182858.71549555397,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Barley",
+   "gas_type": "CO2",
+   "year": 2024,
+   "emissions_factor_tCO2e_per_tonne_production": 1.6,
+   "emissions_tCO2e": 326398.62619128346,
+   "production_tonnes": 203943.6420146853,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Barley",
+   "gas_type": "CO2e",
+   "year": 2023,
+   "emissions_factor_tCO2e_per_tonne_production": 1.836,
+   "emissions_tCO2e": 335714.4691265892,
+   "production_tonnes": 182858.71549555397,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Barley",
+   "gas_type": "CO2e",
+   "year": 2024,
+   "emissions_factor_tCO2e_per_tonne_production": 1.618,
+   "emissions_tCO2e": 330023.2974194963,
+   "production_tonnes": 203943.6420146853,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Barley",
+   "gas_type": "N2O",
+   "year": 2023,
+   "emissions_factor_tCO2e_per_tonne_production": 0.008783,
+   "emissions_tCO2e": 1606.1074876707323,
+   "production_tonnes": 182858.71549555397,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Barley",
+   "gas_type": "N2O",
+   "year": 2024,
+   "emissions_factor_tCO2e_per_tonne_production": 0.007292,
+   "emissions_tCO2e": 1487.237127184677,
+   "production_tonnes": 203943.6420146853,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Bean",
+   "gas_type": "CH4",
+   "year": 2023,
+   "emissions_factor_tCO2e_per_tonne_production": 0.01496,
+   "emissions_tCO2e": 14639.013465821332,
+   "production_tonnes": 978638.6177174248,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Bean",
+   "gas_type": "CH4",
+   "year": 2024,
+   "emissions_factor_tCO2e_per_tonne_production": 0.01513,
+   "emissions_tCO2e": 14768.5298178314,
+   "production_tonnes": 976112.5124833628,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Bean",
+   "gas_type": "CO2",
+   "year": 2023,
+   "emissions_factor_tCO2e_per_tonne_production": 3.614,
+   "emissions_tCO2e": 3536737.854247949,
+   "production_tonnes": 978638.6177174248,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Bean",
+   "gas_type": "CO2",
+   "year": 2024,
+   "emissions_factor_tCO2e_per_tonne_production": 3.483,
+   "emissions_tCO2e": 3399920.044128382,
+   "production_tonnes": 976112.5124833628,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Bean",
+   "gas_type": "CO2e",
+   "year": 2023,
+   "emissions_factor_tCO2e_per_tonne_production": 3.64,
+   "emissions_tCO2e": 3562201.7639824688,
+   "production_tonnes": 978638.6177174248,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Bean",
+   "gas_type": "CO2e",
+   "year": 2024,
+   "emissions_factor_tCO2e_per_tonne_production": 3.508,
+   "emissions_tCO2e": 3424320.9288126957,
+   "production_tonnes": 976112.5124833628,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Bean",
+   "gas_type": "N2O",
+   "year": 2023,
+   "emissions_factor_tCO2e_per_tonne_production": 0.01106,
+   "emissions_tCO2e": 10824.896268698374,
+   "production_tonnes": 978638.6177174248,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Bean",
+   "gas_type": "N2O",
+   "year": 2024,
+   "emissions_factor_tCO2e_per_tonne_production": 0.009868,
+   "emissions_tCO2e": 9632.354866482085,
+   "production_tonnes": 976112.5124833628,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Cassava",
+   "gas_type": "CH4",
+   "year": 2023,
+   "emissions_factor_tCO2e_per_tonne_production": 0.005241,
+   "emissions_tCO2e": 51610.67129148423,
+   "production_tonnes": 9848269.456599774,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Cassava",
+   "gas_type": "CH4",
+   "year": 2024,
+   "emissions_factor_tCO2e_per_tonne_production": 0.006071,
+   "emissions_tCO2e": 59189.33784646912,
+   "production_tonnes": 9749551.546149451,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Cassava",
+   "gas_type": "CO2",
+   "year": 2023,
+   "emissions_factor_tCO2e_per_tonne_production": 1.595,
+   "emissions_tCO2e": 15709386.460402254,
+   "production_tonnes": 9848269.456599774,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Cassava",
+   "gas_type": "CO2",
+   "year": 2024,
+   "emissions_factor_tCO2e_per_tonne_production": 1.605,
+   "emissions_tCO2e": 15651528.072776845,
+   "production_tonnes": 9749551.546149451,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Cassava",
+   "gas_type": "CO2e",
+   "year": 2023,
+   "emissions_factor_tCO2e_per_tonne_production": 1.604,
+   "emissions_tCO2e": 15795513.948452586,
+   "production_tonnes": 9848269.456599774,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Cassava",
+   "gas_type": "CO2e",
+   "year": 2024,
+   "emissions_factor_tCO2e_per_tonne_production": 1.615,
+   "emissions_tCO2e": 15744233.393363426,
+   "production_tonnes": 9749551.546149451,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Cassava",
+   "gas_type": "N2O",
+   "year": 2023,
+   "emissions_factor_tCO2e_per_tonne_production": 0.003505,
+   "emissions_tCO2e": 34516.81675884696,
+   "production_tonnes": 9848269.456599774,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "crop_type": "Cassava",
+   "gas_type": "N2O",
+   "year": 2024,
+   "emissions_factor_tCO2e_per_tonne_production": 0.003438,
+   "emissions_tCO2e": 33515.98274011285,
+   "production_tonnes": 9749551.546149451,
+   "name": "Brazil"
+  }
+ ],
+ "10": [
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "tree_cover_loss_year": 2024,
+   "area_ha": 4391700.219573207,
+   "carbon_emissions_MgCO2e": 2117828071.2218451,
+   "tree_cover_loss_from_fires_area_ha": 2326884.6243577125,
+   "tree_cover_loss_non_fires_area_ha": 2064815.5952154947,
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "aoi_type": "admin",
+   "tree_cover_loss_year": 2025,
+   "area_ha": 2868132.8788061365,
+   "carbon_emissions_MgCO2e": 1483758265.6978638,
+   "tree_cover_loss_from_fires_area_ha": 1307895.6282050076,
+   "tree_cover_loss_non_fires_area_ha": 1560237.250601129,
+   "name": "Brazil"
+  }
+ ],
+ "11": [
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-01",
+   "alert_confidence": "high",
+   "area_ha": 105365.6480768567,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-01",
+   "alert_confidence": "highest",
+   "area_ha": 1699.8494012016045,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-01",
+   "alert_confidence": "low",
+   "area_ha": 2.2357815162658694,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-02",
+   "alert_confidence": "high",
+   "area_ha": 80687.68460501812,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-02",
+   "alert_confidence": "highest",
+   "area_ha": 6485.949843131223,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-02",
+   "alert_confidence": "low",
+   "area_ha": 14.954152668762207,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-03",
+   "alert_confidence": "high",
+   "area_ha": 37014.719795001256,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-03",
+   "alert_confidence": "highest",
+   "area_ha": 2577.380917810822,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-03",
+   "alert_confidence": "low",
+   "area_ha": 1.2718503242492678,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-04",
+   "alert_confidence": "high",
+   "area_ha": 58182.59895577766,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-04",
+   "alert_confidence": "highest",
+   "area_ha": 1253.6694639343257,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-04",
+   "alert_confidence": "low",
+   "area_ha": 1.276479058074951,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-05",
+   "alert_confidence": "high",
+   "area_ha": 27682.233191416966,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-05",
+   "alert_confidence": "highest",
+   "area_ha": 330.8115384269714,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-05",
+   "alert_confidence": "low",
+   "area_ha": 4.3445330978393555,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-06",
+   "alert_confidence": "high",
+   "area_ha": 49536.773937079524,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-06",
+   "alert_confidence": "highest",
+   "area_ha": 333.07268242492677,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-06",
+   "alert_confidence": "low",
+   "area_ha": 1.83404891204834,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-07",
+   "alert_confidence": "high",
+   "area_ha": 59398.067797359385,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-07",
+   "alert_confidence": "highest",
+   "area_ha": 168.63600909576402,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-07",
+   "alert_confidence": "low",
+   "area_ha": 6.948318835449219,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-08",
+   "alert_confidence": "high",
+   "area_ha": 76193.88513185122,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-08",
+   "alert_confidence": "highest",
+   "area_ha": 332.0229827018736,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-08",
+   "alert_confidence": "low",
+   "area_ha": 1.3119360099792479,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-09",
+   "alert_confidence": "high",
+   "area_ha": 75908.36029336773,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-09",
+   "alert_confidence": "highest",
+   "area_ha": 2102.6776890289316,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-09",
+   "alert_confidence": "low",
+   "area_ha": 2.211311506652832,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-10",
+   "alert_confidence": "high",
+   "area_ha": 50962.841343257445,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-10",
+   "alert_confidence": "highest",
+   "area_ha": 635.1907725708012,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-10",
+   "alert_confidence": "low",
+   "area_ha": 2.7263552207946775,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-11",
+   "alert_confidence": "high",
+   "area_ha": 78459.66195287912,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-11",
+   "alert_confidence": "highest",
+   "area_ha": 1208.1084055267336,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-11",
+   "alert_confidence": "low",
+   "area_ha": 0.9302483055114745,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-12",
+   "alert_confidence": "high",
+   "area_ha": 90463.5521306691,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-12",
+   "alert_confidence": "highest",
+   "area_ha": 2537.3028823112877,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-12",
+   "alert_confidence": "low",
+   "area_ha": 7.727020818328857,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-13",
+   "alert_confidence": "high",
+   "area_ha": 26495.323965149655,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-13",
+   "alert_confidence": "highest",
+   "area_ha": 952.0733043762077,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-13",
+   "alert_confidence": "low",
+   "area_ha": 2.9554487312316895,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  },
+  {
+   "aoi_id": "BRA",
+   "alert_date": "2025-01-14",
+   "alert_confidence": "high",
+   "area_ha": 58275.089401333484,
+   "aoi_type": "admin",
+   "name": "Brazil"
+  }
+ ]
+}

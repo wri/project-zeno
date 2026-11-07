@@ -1,0 +1,689 @@
+{
+  "1/change_over_time": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA"
+        ],
+        "type": "admin"
+      }
+    },
+    "url": "/v0/land_change/land_cover_change/analytics"
+  },
+  "1/country": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA"
+        ],
+        "type": "admin"
+      }
+    },
+    "url": "/v0/land_change/land_cover_composition/analytics"
+  },
+  "1/two-states": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA.14",
+          "BRA.14"
+        ],
+        "type": "admin"
+      }
+    },
+    "url": "/v0/land_change/land_cover_composition/analytics"
+  },
+  "10/canopy_cover=75": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA"
+        ],
+        "type": "admin"
+      },
+      "canopy_cover": 75,
+      "end_year": "2020",
+      "forest_filter": null,
+      "intersections": [
+        "fire"
+      ],
+      "start_year": "2015"
+    },
+    "url": "/v0/land_change/tree_cover_loss/analytics"
+  },
+  "10/context_layer=intact_forest": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA"
+        ],
+        "type": "admin"
+      },
+      "canopy_cover": 30,
+      "end_year": "2020",
+      "forest_filter": "intact_forest",
+      "intersections": [
+        "fire"
+      ],
+      "start_year": "2015"
+    },
+    "url": "/v0/land_change/tree_cover_loss/analytics"
+  },
+  "10/context_layer=primary_forest": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA"
+        ],
+        "type": "admin"
+      },
+      "canopy_cover": 30,
+      "end_year": "2020",
+      "forest_filter": "primary_forest",
+      "intersections": [
+        "fire"
+      ],
+      "start_year": "2015"
+    },
+    "url": "/v0/land_change/tree_cover_loss/analytics"
+  },
+  "10/country": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA"
+        ],
+        "type": "admin"
+      },
+      "canopy_cover": 30,
+      "end_year": "2020",
+      "forest_filter": null,
+      "intersections": [
+        "fire"
+      ],
+      "start_year": "2015"
+    },
+    "url": "/v0/land_change/tree_cover_loss/analytics"
+  },
+  "10/two-states": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA.14",
+          "BRA.14"
+        ],
+        "type": "admin"
+      },
+      "canopy_cover": 30,
+      "end_year": "2020",
+      "forest_filter": null,
+      "intersections": [
+        "fire"
+      ],
+      "start_year": "2015"
+    },
+    "url": "/v0/land_change/tree_cover_loss/analytics"
+  },
+  "11/context_layer=natural_lands": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA"
+        ],
+        "type": "admin"
+      },
+      "end_date": "2020-12-31",
+      "land_filter": "natural_lands",
+      "start_date": "2015-01-01"
+    },
+    "url": "/v0/land_change/integrated_alerts/analytics"
+  },
+  "11/country": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA"
+        ],
+        "type": "admin"
+      },
+      "end_date": "2020-12-31",
+      "land_filter": null,
+      "start_date": "2015-01-01"
+    },
+    "url": "/v0/land_change/integrated_alerts/analytics"
+  },
+  "11/two-states": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA.14",
+          "BRA.14"
+        ],
+        "type": "admin"
+      },
+      "end_date": "2020-12-31",
+      "land_filter": null,
+      "start_date": "2015-01-01"
+    },
+    "url": "/v0/land_change/integrated_alerts/analytics"
+  },
+  "12/country": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA"
+        ],
+        "type": "admin"
+      }
+    },
+    "url": "/v0/land_change/land_ghg_inventory/analytics"
+  },
+  "12/two-states": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA.14",
+          "BRA.14"
+        ],
+        "type": "admin"
+      }
+    },
+    "url": "/v0/land_change/land_ghg_inventory/analytics"
+  },
+  "2/country": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA"
+        ],
+        "type": "admin"
+      },
+      "end_year": "2020",
+      "start_year": "2015"
+    },
+    "url": "/v0/land_change/grasslands/analytics"
+  },
+  "2/two-states": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA.14",
+          "BRA.14"
+        ],
+        "type": "admin"
+      },
+      "end_year": "2020",
+      "start_year": "2015"
+    },
+    "url": "/v0/land_change/grasslands/analytics"
+  },
+  "3/country": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA"
+        ],
+        "type": "admin"
+      }
+    },
+    "url": "/v0/land_change/natural_lands/analytics"
+  },
+  "3/two-states": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA.14",
+          "BRA.14"
+        ],
+        "type": "admin"
+      }
+    },
+    "url": "/v0/land_change/natural_lands/analytics"
+  },
+  "4/canopy_cover=75": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA"
+        ],
+        "type": "admin"
+      },
+      "canopy_cover": 75,
+      "end_year": "2020",
+      "forest_filter": null,
+      "intersections": [],
+      "start_year": "2015"
+    },
+    "url": "/v0/land_change/tree_cover_loss/analytics"
+  },
+  "4/context_layer=intact_forest": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA"
+        ],
+        "type": "admin"
+      },
+      "canopy_cover": 30,
+      "end_year": "2020",
+      "forest_filter": "intact_forest",
+      "intersections": [],
+      "start_year": "2015"
+    },
+    "url": "/v0/land_change/tree_cover_loss/analytics"
+  },
+  "4/context_layer=natural_forest": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA"
+        ],
+        "type": "admin"
+      },
+      "canopy_cover": 10,
+      "end_year": "2020",
+      "forest_filter": "natural_forest_only",
+      "intersections": [],
+      "start_year": "2015"
+    },
+    "url": "/v0/land_change/tree_cover_loss/analytics"
+  },
+  "4/context_layer=primary_forest": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA"
+        ],
+        "type": "admin"
+      },
+      "canopy_cover": 30,
+      "end_year": "2020",
+      "forest_filter": "primary_forest",
+      "intersections": [],
+      "start_year": "2015"
+    },
+    "url": "/v0/land_change/tree_cover_loss/analytics"
+  },
+  "4/country": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA"
+        ],
+        "type": "admin"
+      },
+      "canopy_cover": 30,
+      "end_year": "2020",
+      "forest_filter": null,
+      "intersections": [],
+      "start_year": "2015"
+    },
+    "url": "/v0/land_change/tree_cover_loss/analytics"
+  },
+  "4/kba": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "19363"
+        ],
+        "type": "key_biodiversity_area"
+      },
+      "canopy_cover": 30,
+      "end_year": "2020",
+      "forest_filter": null,
+      "intersections": [],
+      "start_year": "2015"
+    },
+    "url": "/v0/land_change/tree_cover_loss/analytics"
+  },
+  "4/landmark": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "1234"
+        ],
+        "type": "indigenous_land"
+      },
+      "canopy_cover": 30,
+      "end_year": "2020",
+      "forest_filter": null,
+      "intersections": [],
+      "start_year": "2015"
+    },
+    "url": "/v0/land_change/tree_cover_loss/analytics"
+  },
+  "4/two-states": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA.14",
+          "BRA.14"
+        ],
+        "type": "admin"
+      },
+      "canopy_cover": 30,
+      "end_year": "2020",
+      "forest_filter": null,
+      "intersections": [],
+      "start_year": "2015"
+    },
+    "url": "/v0/land_change/tree_cover_loss/analytics"
+  },
+  "4/wdpa": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "555622"
+        ],
+        "type": "protected_area"
+      },
+      "canopy_cover": 30,
+      "end_year": "2020",
+      "forest_filter": null,
+      "intersections": [],
+      "start_year": "2015"
+    },
+    "url": "/v0/land_change/tree_cover_loss/analytics"
+  },
+  "5/country": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA"
+        ],
+        "type": "admin"
+      },
+      "end_year": "2020",
+      "forest_filter": null,
+      "start_year": "2015"
+    },
+    "url": "/v0/land_change/tree_cover_gain/analytics"
+  },
+  "5/two-states": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA.14",
+          "BRA.14"
+        ],
+        "type": "admin"
+      },
+      "end_year": "2020",
+      "forest_filter": null,
+      "start_year": "2015"
+    },
+    "url": "/v0/land_change/tree_cover_gain/analytics"
+  },
+  "6/canopy_cover=75": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA"
+        ],
+        "type": "admin"
+      },
+      "canopy_cover": 75
+    },
+    "url": "/v0/land_change/carbon_flux/analytics"
+  },
+  "6/country": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA"
+        ],
+        "type": "admin"
+      },
+      "canopy_cover": 30
+    },
+    "url": "/v0/land_change/carbon_flux/analytics"
+  },
+  "6/two-states": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA.14",
+          "BRA.14"
+        ],
+        "type": "admin"
+      },
+      "canopy_cover": 30
+    },
+    "url": "/v0/land_change/carbon_flux/analytics"
+  },
+  "7/canopy_cover=75": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA"
+        ],
+        "type": "admin"
+      },
+      "canopy_cover": 75,
+      "forest_filter": null
+    },
+    "url": "/v0/land_change/tree_cover/analytics"
+  },
+  "7/context_layer=primary_forest": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA"
+        ],
+        "type": "admin"
+      },
+      "canopy_cover": 30,
+      "forest_filter": "primary_forest"
+    },
+    "url": "/v0/land_change/tree_cover/analytics"
+  },
+  "7/country": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA"
+        ],
+        "type": "admin"
+      },
+      "canopy_cover": 30,
+      "forest_filter": null
+    },
+    "url": "/v0/land_change/tree_cover/analytics"
+  },
+  "7/two-states": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA.14",
+          "BRA.14"
+        ],
+        "type": "admin"
+      },
+      "canopy_cover": 30,
+      "forest_filter": null
+    },
+    "url": "/v0/land_change/tree_cover/analytics"
+  },
+  "8/canopy_cover=75": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA"
+        ],
+        "type": "admin"
+      },
+      "canopy_cover": 75,
+      "end_year": "2020",
+      "forest_filter": null,
+      "intersections": [
+        "driver"
+      ],
+      "start_year": "2015"
+    },
+    "url": "/v0/land_change/tree_cover_loss/analytics"
+  },
+  "8/country": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA"
+        ],
+        "type": "admin"
+      },
+      "canopy_cover": 30,
+      "end_year": "2020",
+      "forest_filter": null,
+      "intersections": [
+        "driver"
+      ],
+      "start_year": "2015"
+    },
+    "url": "/v0/land_change/tree_cover_loss/analytics"
+  },
+  "8/two-states": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA.14",
+          "BRA.14"
+        ],
+        "type": "admin"
+      },
+      "canopy_cover": 30,
+      "end_year": "2020",
+      "forest_filter": null,
+      "intersections": [
+        "driver"
+      ],
+      "start_year": "2015"
+    },
+    "url": "/v0/land_change/tree_cover_loss/analytics"
+  },
+  "9/country": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA"
+        ],
+        "type": "admin"
+      },
+      "crop_types": [
+        "Banana",
+        "Barley",
+        "Bean",
+        "Cassava",
+        "Chickpea",
+        "Coconut",
+        "Cocoa",
+        "Arabica Coffee",
+        "Robusta Coffee",
+        "Cotton",
+        "Cowpea",
+        "Groundnut",
+        "Lentil",
+        "Maize",
+        "Pearl Millet",
+        "Small Millet",
+        "Oil Palm",
+        "Pigeon Pea",
+        "Plantain",
+        "Potato",
+        "Rapeseed",
+        "Rice",
+        "Sesame Seed",
+        "Sorghum",
+        "Soybean",
+        "Sugarbeet",
+        "Sugarcane",
+        "Sunflower",
+        "Sweet Potato",
+        "Tea",
+        "Tobacco",
+        "Wheat",
+        "Yams",
+        "Other Cereals",
+        "Other Fibre Crops",
+        "Other Oil Crops",
+        "Other Pulses",
+        "Other Roots",
+        "Rest of Crops",
+        "Temperate Fruit",
+        "Tropical Fruit",
+        "Vegetables"
+      ],
+      "end_year": "2020",
+      "gas_types": [
+        "CO2e",
+        "CO2",
+        "CH4",
+        "N2O"
+      ],
+      "start_year": "2015"
+    },
+    "url": "/v0/land_change/deforestation_luc_emissions_factor/analytics"
+  },
+  "9/two-states": {
+    "json": {
+      "aoi": {
+        "ids": [
+          "BRA.14",
+          "BRA.14"
+        ],
+        "type": "admin"
+      },
+      "crop_types": [
+        "Banana",
+        "Barley",
+        "Bean",
+        "Cassava",
+        "Chickpea",
+        "Coconut",
+        "Cocoa",
+        "Arabica Coffee",
+        "Robusta Coffee",
+        "Cotton",
+        "Cowpea",
+        "Groundnut",
+        "Lentil",
+        "Maize",
+        "Pearl Millet",
+        "Small Millet",
+        "Oil Palm",
+        "Pigeon Pea",
+        "Plantain",
+        "Potato",
+        "Rapeseed",
+        "Rice",
+        "Sesame Seed",
+        "Sorghum",
+        "Soybean",
+        "Sugarbeet",
+        "Sugarcane",
+        "Sunflower",
+        "Sweet Potato",
+        "Tea",
+        "Tobacco",
+        "Wheat",
+        "Yams",
+        "Other Cereals",
+        "Other Fibre Crops",
+        "Other Oil Crops",
+        "Other Pulses",
+        "Other Roots",
+        "Rest of Crops",
+        "Temperate Fruit",
+        "Tropical Fruit",
+        "Vegetables"
+      ],
+      "end_year": "2020",
+      "gas_types": [
+        "CO2e",
+        "CO2",
+        "CH4",
+        "N2O"
+      ],
+      "start_year": "2015"
+    },
+    "url": "/v0/land_change/deforestation_luc_emissions_factor/analytics"
+  }
+}
