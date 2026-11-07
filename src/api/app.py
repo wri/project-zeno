@@ -28,6 +28,8 @@ from src.api.routers import (
     users,
     zap,
 )
+from src.mcp.server import ExactMountPath
+from src.mcp.server import build_app as build_mcp_app
 from src.shared.config import SharedSettings
 from src.shared.database import close_global_pool, initialize_global_pool
 from src.shared.logging_config import get_logger
@@ -48,6 +50,11 @@ def _add_cors_headers_for_error(request: Request, response: Response) -> None:
             response.headers["Vary"] = f"{vary}, Origin"
     else:
         response.headers["Vary"] = "Origin"
+
+
+# The open MCP server (src/mcp). Its session manager runs in the API's
+# lifespan below.
+mcp_app = build_mcp_app()
 
 
 @asynccontextmanager
@@ -71,7 +78,8 @@ async def lifespan(app: FastAPI):
         )
     await initialize_global_pool()
     await get_checkpointer_pool()
-    yield
+    async with mcp_app.lifespan(app):
+        yield
     await close_global_pool()
     await close_checkpointer_pool()
 
@@ -191,3 +199,5 @@ app.include_router(admin.router)
 app.include_router(traces.router)
 app.include_router(zap.router)
 app.include_router(mosaic.router, prefix="/mosaic", tags=["Map Tiles"])
+app.mount("/mcp", mcp_app)
+app.add_middleware(ExactMountPath, path="/mcp")

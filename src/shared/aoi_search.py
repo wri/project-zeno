@@ -684,6 +684,7 @@ async def search_aois(
     limit: int = 50,
     offset: int = 0,
     mode: SearchMode = "search",
+    include_custom: bool = True,
 ) -> pd.DataFrame:
     """Search AOIs across sources by name and/or source type.
 
@@ -707,6 +708,11 @@ async def search_aois(
             with the last one as a prefix), needs at least
             ``AUTOCOMPLETE_MIN_CHARS`` characters, takes no offset and never
             corrects a typo.
+        include_custom: False leaves custom areas out of the default sources
+            and refuses an explicit ``custom`` source, so a caller with no
+            user identity (the MCP server) can search without one. True
+            keeps the default behaviour: custom areas are searched for
+            ``user_id``, and a missing ``user_id`` raises.
 
     Returns:
         DataFrame with columns ``src_id, name, subtype, source, bbox, tier,
@@ -743,8 +749,9 @@ async def search_aois(
             ``MAX_SEARCH_NAME_CHARS`` or holding a NUL, a limit under 1, an
             offset outside ``0..MAX_SEARCH_OFFSET``, or an autocomplete with
             too short a name or a non-zero offset.
-        ValueError: For an invalid source, or for a missing ``user_id`` when
-            ``custom`` is searched.
+        ValueError: For an invalid source, for a missing ``user_id`` when
+            ``custom`` is searched, or for ``custom`` with ``include_custom``
+            False.
     """
     if sources:
         requested = {normalize_aoi_source(s) for s in sources}
@@ -752,7 +759,11 @@ async def search_aois(
         # Concessions are subregions only: the build gives them no search
         # columns, and a browse of every source leaves them out too.
         requested = set(VALID_AOI_SOURCES) - set(CONCESSION_SOURCES)
+        if not include_custom:
+            requested.discard("custom")
 
+    if "custom" in requested and not include_custom:
+        raise ValueError("custom areas are not available here")
     if "custom" in requested and not user_id:
         raise ValueError("user_id required for custom areas")
 

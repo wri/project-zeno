@@ -1,5 +1,6 @@
 dataset_id: 6
 dataset_name: Forest greenhouse gas net flux
+selection_card: "Forest greenhouse gas net flux (2001-2025). Forest carbon balance at 30 m: greenhouse gas emissions from forest disturbance, carbon removals by forest growth, and the net flux between them (MgCO2e). Negative net flux means a carbon sink, positive means a source. One value for the whole 2001-2025 period (total or annual average); no year-by-year values."
 context_layers: null
 parameters:
 - name: canopy_cover

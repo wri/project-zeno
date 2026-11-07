@@ -1,5 +1,6 @@
 dataset_id: 3
 dataset_name: SBTN Natural Lands Map
+selection_card: "SBTN Natural Lands Map (2020). Baseline map of natural and non-natural land in 2020 at 30 m. Natural classes: natural forest, mangrove, natural peat forest, wetland natural forest, natural short vegetation, natural water, bare, snow. Non-natural classes: crop, built-up, non-natural tree cover, non-natural short vegetation. Gives the area of each class in 2020. Used for no-conversion (SBTN) targets. One year only, no change over time."
 context_layers: null
 parameters: null
 variables: binary, classification
