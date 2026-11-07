@@ -13,6 +13,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from src.agent.datasets.config import DATASETS
+from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import (
     INTEGRATED_ALERTS_ID,
     TREE_COVER_LOSS_ID,
@@ -20,6 +22,7 @@ from src.agent.datasets.handlers.analytics_handler import (
 from src.agent.subagents.pick_dataset.tool import (
     get_dataset_layers,
     get_tile_services_for_dataset,
+    retile_dataset,
 )
 
 IA_TILE = (
@@ -249,3 +252,113 @@ def test_get_dataset_layers_carries_title_and_description():
     assert agriculture.description == "Gross emissions."
     assert lulucf.title is None
     assert lulucf.description is None
+
+
+def test_retile_dataset_moves_integrated_alerts_tiles_to_new_range():
+    picked = {
+        "dataset_id": INTEGRATED_ALERTS_ID,
+        "dataset_name": "Integrated alerts",
+        "context_layer": None,
+        "selected_layer": None,
+        "parameters": None,
+        "start_date": "2023-12-01",
+        "end_date": "2026-11-06",
+        "tile_url": "https://tiles.example.com/old.png",
+        "layers": [
+            {
+                "name": "Integrated alerts",
+                "tile_url": "https://tiles.example.com/old.png",
+            }
+        ],
+        "context_layers": [],
+        "reason": "Alerts answer the question.",
+    }
+
+    retiled = retile_dataset(picked, "2025-03-01", "2025-03-31")
+
+    assert retiled["start_date"] == "2025-03-01"
+    assert retiled["end_date"] == "2025-03-31"
+    assert retiled["tile_url"].endswith(
+        "&start_date=2025-03-01&end_date=2025-03-31"
+    )
+    assert [layer["tile_url"] for layer in retiled["layers"]] == [
+        retiled["tile_url"]
+    ]
+    assert retiled["reason"] == picked["reason"]
+    assert picked["tile_url"] == "https://tiles.example.com/old.png"
+
+
+def test_retile_dataset_keeps_threshold_and_context_layer():
+    """A dataset selected in the UI can carry parameters without a
+    description; the canopy threshold and context layer must survive."""
+    picked = {
+        "dataset_id": TREE_COVER_LOSS_ID,
+        "dataset_name": "Tree cover loss",
+        "context_layer": "primary_forest",
+        "parameters": [{"name": "canopy_cover", "values": [50]}],
+        "start_date": "2001-01-01",
+        "end_date": "2025-12-31",
+        "tile_url": "https://tiles.example.com/old.png",
+    }
+
+    retiled = retile_dataset(picked, "2020-01-01", "2022-12-31")
+
+    assert "tree_cover_density_threshold=50" in retiled["tile_url"]
+    assert retiled["tile_url"].endswith("&start_year=2020&end_year=2022")
+    assert [layer["name"] for layer in retiled["context_layers"]] == [
+        "primary_forest",
+        "canopy_cover",
+    ]
+    assert retiled["parameters"] == [
+        {"name": "canopy_cover", "description": "", "values": [50]}
+    ]
+
+
+def test_retile_dataset_returns_the_validated_selection():
+    """The tiles are built from the validated selection, so the returned
+    fields must match it when the dataset in state is malformed."""
+    picked = {
+        "dataset_id": TREE_COVER_LOSS_ID,
+        "dataset_name": "Tree cover loss",
+        "context_layer": "not_a_context_layer",
+        "parameters": [
+            {"name": "canopy_cover", "values": [50, 999]},
+            {"name": "not_a_parameter", "values": [1]},
+        ],
+        "start_date": "2001-01-01",
+        "end_date": "2025-12-31",
+        "tile_url": "https://tiles.example.com/old.png",
+    }
+
+    retiled = retile_dataset(picked, "2020-01-01", "2022-12-31")
+
+    assert retiled["context_layer"] is None
+    assert retiled["parameters"] == [
+        {"name": "canopy_cover", "description": "", "values": [50]}
+    ]
+    assert "canopy_cover" in [
+        layer["name"] for layer in retiled["context_layers"]
+    ]
+
+
+@pytest.mark.parametrize(
+    "dataset_id, context_layer",
+    [
+        (ds["dataset_id"], context_layer)
+        for ds in DATASETS
+        for context_layer in [None]
+        + [layer["value"] for layer in ds.get("context_layers") or []]
+    ],
+)
+async def test_every_catalog_dataset_can_be_retiled(dataset_id, context_layer):
+    """pull_data retiles whatever dataset is in state, so a catalog entry
+    that cannot be retiled would break every pull of it."""
+    start, end, _ = await revise_date_range(
+        None, None, dataset_id, context_layer
+    )
+
+    retiled = retile_dataset(
+        {"dataset_id": dataset_id, "context_layer": context_layer}, start, end
+    )
+
+    assert (retiled["start_date"], retiled["end_date"]) == (start, end)

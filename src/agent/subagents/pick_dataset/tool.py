@@ -42,6 +42,8 @@ from src.agent.subagents.pick_dataset.prompts import DATASET_SELECTOR_PROMPT
 from src.agent.subagents.pick_dataset.schema import (
     ContextLayer,
     DatasetLayer,
+    DatasetOption,
+    DatasetParameter,
     DatasetSelectionResponse,
     DatasetSelectionResult,
 )
@@ -770,6 +772,50 @@ def get_tile_services_for_dataset(
     layers = get_dataset_layers(selected_row, tile_url)
 
     return tile_url, context_layers, layers
+
+
+def retile_dataset(dataset: dict, start_date: str, end_date: str) -> dict:
+    """The dataset in state, with its map tiles rebuilt for another date
+    range.
+
+    pick_dataset builds the tiles for the range it resolved. pull_data can
+    analyse a different range on a later turn without a new pick, and the
+    map and the legend must then show that range. The selection is rebuilt
+    from state; a dataset selected in the UI can carry parameters without a
+    description.
+    """
+    selection = DatasetOption(
+        dataset_id=dataset["dataset_id"],
+        context_layer=dataset.get("context_layer"),
+        selected_layer=dataset.get("selected_layer"),
+        parameters=[
+            DatasetParameter(
+                name=param["name"],
+                description=param.get("description") or "",
+                values=param["values"],
+            )
+            for param in dataset.get("parameters") or []
+        ],
+        reason=dataset.get("reason") or "",
+    )
+    record = pd.Series(_catalog_by_id()[dataset["dataset_id"]])
+    tile_url, context_layers, layers = get_tile_services_for_dataset(
+        selection, record, start_date, end_date
+    )
+    return {
+        **dataset,
+        # The selection validated these, and the tiles follow it.
+        "context_layer": selection.context_layer,
+        "selected_layer": selection.selected_layer,
+        "parameters": [param.model_dump() for param in selection.parameters]
+        if selection.parameters
+        else None,
+        "start_date": start_date,
+        "end_date": end_date,
+        "tile_url": tile_url,
+        "layers": [layer.model_dump() for layer in layers],
+        "context_layers": [layer.model_dump() for layer in context_layers],
+    }
 
 
 def to_dataset_layers(raw_layers: list[dict]) -> list[DatasetLayer]:

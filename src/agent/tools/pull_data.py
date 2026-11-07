@@ -1,5 +1,5 @@
 import asyncio
-from typing import Annotated, Dict, Optional
+from typing import Annotated, Any, Dict, Optional
 
 import httpx
 import structlog
@@ -318,14 +318,28 @@ async def pull_data(
         statistics["id"] = str(statistics_row.id)
         await session.commit()
 
-    return Command(
-        update={
-            "statistics": [statistics],
-            "start_date": effective_start,
-            "end_date": effective_end,
-            "messages": [tool_message],
-        },
-    )
+    update: dict[str, Any] = {
+        "statistics": [statistics],
+        "start_date": effective_start,
+        "end_date": effective_end,
+        "messages": [tool_message],
+    }
+    # The map tiles and the legend show the range pick_dataset resolved. A
+    # later turn can analyse another range without a new pick, so move the
+    # dataset's tiles to the analysed range.
+    if (dataset.get("start_date"), dataset.get("end_date")) != (
+        effective_start,
+        effective_end,
+    ):
+        # Imported here: the subagents package imports the analyst, which
+        # imports this module.
+        from src.agent.subagents.pick_dataset import retile_dataset
+
+        update["dataset"] = retile_dataset(
+            dataset, effective_start, effective_end
+        )
+
+    return Command(update=update)
 
 
 SPEC = ToolSpec(
