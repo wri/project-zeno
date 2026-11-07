@@ -2,8 +2,8 @@
 
 Global Nature Watch data on the command line, as files an analysis can
 repeat. It is meant for coding agents (Claude Code, Codex, Gemini CLI) and
-the people who work with them: chat clients use the GNW MCP server
-instead.
+the people who work with them: chat clients use the GNW MCP server and its
+views instead.
 
 ```sh
 uv tool install "git+https://github.com/wri/project-zeno#subdirectory=cli"
