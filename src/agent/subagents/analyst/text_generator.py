@@ -44,7 +44,8 @@ JSON_REPLY_INSTRUCTION = """Reply with a single JSON object and nothing else, \
 with exactly these keys: "primary_insight" (a string) and \
 "follow_up_suggestions" (an array of strings). Do not wrap it in code fences."""
 
-_SYSTEM = """You write the narrative insight for one or two charts that have \
+_SYSTEM = (
+    """You write the narrative insight for one or two charts that have \
 already been produced from geospatial data. Describe what the data shows — do \
 not invent numbers, and do not redescribe the chart mechanics.
 
@@ -61,7 +62,9 @@ cautions, or presentation instructions below are written in.
 
 {wording_guide}
 
-""" + JSON_REPLY_INSTRUCTION
+"""
+    + JSON_REPLY_INSTRUCTION
+)
 
 _USER = """## User query
 {query}
