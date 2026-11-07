@@ -795,8 +795,7 @@ def retile_dataset(dataset: dict, start_date: str, end_date: str) -> dict:
                 values=param["values"],
             )
             for param in dataset.get("parameters") or []
-        ]
-        or None,
+        ],
         reason=dataset.get("reason") or "",
     )
     record = pd.Series(_catalog_by_id()[dataset["dataset_id"]])
@@ -808,6 +807,9 @@ def retile_dataset(dataset: dict, start_date: str, end_date: str) -> dict:
         # The selection validated these, and the tiles follow it.
         "context_layer": selection.context_layer,
         "selected_layer": selection.selected_layer,
+        "parameters": [param.model_dump() for param in selection.parameters]
+        if selection.parameters
+        else None,
         "start_date": start_date,
         "end_date": end_date,
         "tile_url": tile_url,

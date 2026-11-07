@@ -254,12 +254,6 @@ def test_get_dataset_layers_carries_title_and_description():
     assert lulucf.description is None
 
 
-# --- retile_dataset -----------------------------------------------------------
-# pull_data can analyse a different date range from the one pick_dataset
-# resolved. retile_dataset rebuilds the dataset in state for that range, so
-# the map tiles and the legend dates follow the analysis.
-
-
 def test_retile_dataset_moves_integrated_alerts_tiles_to_new_range():
     picked = {
         "dataset_id": INTEGRATED_ALERTS_ID,
@@ -315,16 +309,22 @@ def test_retile_dataset_keeps_threshold_and_context_layer():
         "primary_forest",
         "canopy_cover",
     ]
-    assert retiled["parameters"] == picked["parameters"]
+    assert retiled["parameters"] == [
+        {"name": "canopy_cover", "description": "", "values": [50]}
+    ]
 
 
-def test_retile_dataset_returns_the_validated_context_layer():
+def test_retile_dataset_returns_the_validated_selection():
     """The tiles are built from the validated selection, so the returned
     fields must match it when the dataset in state is malformed."""
     picked = {
         "dataset_id": TREE_COVER_LOSS_ID,
         "dataset_name": "Tree cover loss",
         "context_layer": "not_a_context_layer",
+        "parameters": [
+            {"name": "canopy_cover", "values": [50, 999]},
+            {"name": "not_a_parameter", "values": [1]},
+        ],
         "start_date": "2001-01-01",
         "end_date": "2025-12-31",
         "tile_url": "https://tiles.example.com/old.png",
@@ -333,6 +333,9 @@ def test_retile_dataset_returns_the_validated_context_layer():
     retiled = retile_dataset(picked, "2020-01-01", "2022-12-31")
 
     assert retiled["context_layer"] is None
+    assert retiled["parameters"] == [
+        {"name": "canopy_cover", "description": "", "values": [50]}
+    ]
     assert "canopy_cover" in [
         layer["name"] for layer in retiled["context_layers"]
     ]
