@@ -370,6 +370,37 @@ class AnalyticsHandler(DataSourceHandler):
         else:
             return {"type": aoi_type}
 
+    async def _read_feature_collection_aoi(self, aois: list[dict]) -> dict:
+        """Read the areas' geometries and return them as a feature collection
+        AOI."""
+        features = []
+        for aoi in aois:
+            geometry_data = await get_geometry_data(
+                aoi.get("source", "custom"), aoi["src_id"]
+            )
+            if not geometry_data:
+                raise ValueError(
+                    f"{aoi.get('source', 'custom')} area not found: "
+                    f"{aoi['src_id']}"
+                )
+            features.append(
+                {
+                    "type": "Feature",
+                    "geometry": geometry_data["geometry"],
+                    "properties": {
+                        "name": geometry_data["name"],
+                        "id": geometry_data["src_id"],
+                    },
+                }
+            )
+        return {
+            "type": "feature_collection",
+            "feature_collection": {
+                "type": "FeatureCollection",
+                "features": features,
+            },
+        }
+
     async def _build_payload(
         self,
         dataset: dict,
@@ -388,37 +419,8 @@ class AnalyticsHandler(DataSourceHandler):
         # Areas sent as geometry (custom areas for most datasets, and
         # concessions) go as a feature collection
         if aoi_type["type"] == "feature_collection":
-            features = []
-            for aoi in aois:
-                geometry_data = await get_geometry_data(
-                    aoi.get("source", "custom"), aoi["src_id"]
-                )
-                if not geometry_data:
-                    raise ValueError(
-                        f"{aoi.get('source', 'custom')} area not found: "
-                        f"{aoi['src_id']}"
-                    )
-                features.append(
-                    {
-                        "type": "Feature",
-                        "geometry": geometry_data["geometry"],
-                        "properties": {
-                            "name": geometry_data["name"],
-                            "id": geometry_data["src_id"],
-                        },
-                    }
-                )
-
-            feature_collection = {
-                "type": "FeatureCollection",
-                "features": features,
-            }
-
             base_payload = {
-                "aoi": {
-                    "type": aoi_type["type"],
-                    "feature_collection": feature_collection,
-                }
+                "aoi": await self._read_feature_collection_aoi(aois)
             }
         else:
             aoi_ids = [format_id(aoi["src_id"]) for aoi in aois]
