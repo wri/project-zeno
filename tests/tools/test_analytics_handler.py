@@ -1,5 +1,6 @@
 import pytest
 
+from src.agent.datasets.handlers import analytics_handler
 from src.agent.datasets.handlers.analytics_handler import (
     INTEGRATED_ALERTS_ID,
     TREE_COVER_LOSS_ID,
@@ -128,6 +129,39 @@ async def test_build_payload_integrated_alerts_land_filter(
     )
 
     assert payload.get("land_filter") == land_filter
+
+
+async def test_integrated_alerts_payload_sends_a_custom_area_by_id(
+    monkeypatch,
+):
+    async def fail_on_geometry_read(*args, **kwargs):
+        raise AssertionError("a saved custom area's geometry is not needed")
+
+    monkeypatch.setattr(
+        analytics_handler, "get_geometry_data", fail_on_geometry_read
+    )
+    area_id = "f1ab3512-e8b8-4a28-abfc-3dbb745fff21"
+    dataset = {
+        "dataset_id": INTEGRATED_ALERTS_ID,
+        "dataset_name": "Integrated alerts",
+    }
+    aois = [
+        {
+            "name": "My area",
+            "subtype": "custom-area",
+            "source": "custom",
+            "src_id": area_id,
+        }
+    ]
+
+    payload = await AnalyticsHandler()._build_payload(
+        dataset=dataset,
+        aois=aois,
+        start_date="2026-07-01",
+        end_date="2026-10-01",
+    )
+
+    assert payload["aoi"] == {"type": "custom_aoi", "ids": [area_id]}
 
 
 @pytest.mark.parametrize(

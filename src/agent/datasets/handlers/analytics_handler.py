@@ -173,6 +173,9 @@ GEOMETRY_UNSUPPORTED_IDS = {
     TREE_COVER_ID,
     LAND_GHG_INVENTORY_ID,
 }
+# Datasets the analytics API serves for saved custom areas by id, so their
+# geometry needn't be sent.
+SAVED_CUSTOM_AOI_DATASET_IDS = {INTEGRATED_ALERTS_ID}
 # The API accepts a feature collection with this context layer, but the
 # analysis then fails.
 GEOMETRY_UNSUPPORTED_CONTEXT_LAYERS = {"intact_forest"}
@@ -337,10 +340,15 @@ class AnalyticsHandler(DataSourceHandler):
             LAND_GHG_INVENTORY_ID,
         ]
 
-    def _get_aoi_type(self, aoi: Dict) -> dict[str, str]:
+    def _get_aoi_type(self, aoi: Dict, dataset: dict) -> dict[str, str]:
         """Get the type of the AOI"""
 
-        if aoi["subtype"] in ADMIN_SUBTYPES:
+        if (
+            aoi["subtype"] == "custom-area"
+            and dataset.get("dataset_id") in SAVED_CUSTOM_AOI_DATASET_IDS
+        ):
+            aoi_type = "custom_aoi"
+        elif aoi["subtype"] in ADMIN_SUBTYPES:
             aoi_type = "admin"
         elif aoi["subtype"] in NAMED_AOI_TYPES:
             aoi_type = NAMED_AOI_TYPES[aoi["subtype"]]
@@ -371,13 +379,14 @@ class AnalyticsHandler(DataSourceHandler):
     ) -> Dict:
         """Build the API payload based on dataset type"""
         # Base payload structure common to all endpoints
-        aoi_type = self._get_aoi_type(aois[0])
+        aoi_type = self._get_aoi_type(aois[0], dataset)
         # Fix for GADM IDs which come with a _1 suffix
         for aoi in aois:
             if aoi["src_id"][-2:] in ["_1", "_2", "_3", "_4", "_5"]:
                 aoi["src_id"] = aoi["src_id"][:-2]
 
-        # Custom areas and concessions are sent as a feature collection
+        # Areas sent as geometry (custom areas for most datasets, and
+        # concessions) go as a feature collection
         if aoi_type["type"] == "feature_collection":
             features = []
             for aoi in aois:
