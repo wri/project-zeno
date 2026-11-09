@@ -79,9 +79,9 @@ class SubscriptionService:
     ) -> None:
         """Saves the requested channels for each dataset. Nothing is saved
         if email is asked for on a dashboard that can't have email alerts."""
-        # ponytail: eligibility is read before the write, without a lock, so
-        # a widget removed in between can leave email on; lock the dashboard
-        # row if that ever matters.
+        # Eligibility is read before the write without a lock, so a widget
+        # removed in between can leave email on. Lock the dashboard row if
+        # that matters.
         if (
             SubscriptionMode.EMAIL in requested
             and not target.eligible_for_subscription
