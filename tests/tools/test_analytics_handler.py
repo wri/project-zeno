@@ -451,3 +451,77 @@ async def test_poll_ignores_unparseable_retry_after(monkeypatch):
 
     assert result is None
     assert sleeps == [1.0]
+
+
+def _patch_post(monkeypatch, status_codes):
+    """Answer httpx POSTs with these status codes in order; return the payloads
+    posted."""
+    posted, codes = [], iter(status_codes)
+
+    class _Response:
+        def __init__(self, status_code):
+            self.status_code = status_code
+
+    class _Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        async def post(self, url, headers=None, json=None):
+            posted.append(json)
+            return _Response(next(codes))
+
+    monkeypatch.setattr(
+        "src.agent.datasets.handlers.analytics_handler.httpx.AsyncClient",
+        _Client,
+    )
+    return posted
+
+
+async def test_a_custom_area_the_analytics_api_lacks_is_sent_again_as_geometry(
+    monkeypatch,
+):
+    area_id = "f1ab3512-e8b8-4a28-abfc-3dbb745fff21"
+    geometry = {
+        "type": "Polygon",
+        "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 0]]],
+    }
+
+    async def read_geometry(source, src_id):
+        return {"name": "My area", "src_id": src_id, "geometry": geometry}
+
+    monkeypatch.setattr(analytics_handler, "get_geometry_data", read_geometry)
+    posted = _patch_post(monkeypatch, [404, 202])
+    payload = {
+        "aoi": {"type": "custom_aoi", "ids": [area_id]},
+        "start_date": "2026-07-01",
+    }
+    aois = [{"subtype": "custom-area", "source": "custom", "src_id": area_id}]
+
+    response = await AnalyticsHandler()._post_analysis(
+        "http://analytics/x", {}, payload, aois
+    )
+
+    assert response.status_code == 202
+    assert posted[0] == payload
+    retried_aoi = posted[1]["aoi"]
+    assert retried_aoi["type"] == "feature_collection"
+    (feature,) = retried_aoi["feature_collection"]["features"]
+    assert feature["geometry"] == geometry
+    assert feature["properties"]["id"] == area_id
+    assert posted[1]["start_date"] == "2026-07-01"
+
+
+async def test_a_404_for_other_aoi_types_is_not_retried(monkeypatch):
+    posted = _patch_post(monkeypatch, [404])
+    payload = {"aoi": {"type": "admin", "ids": ["IDN"]}}
+    aois = [{"subtype": "country", "src_id": "IDN"}]
+
+    response = await AnalyticsHandler()._post_analysis(
+        "http://analytics/x", {}, payload, aois
+    )
+
+    assert response.status_code == 404
+    assert posted == [payload]

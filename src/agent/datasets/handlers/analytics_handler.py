@@ -562,6 +562,33 @@ class AnalyticsHandler(DataSourceHandler):
 
         return payload
 
+    async def _post_analysis(
+        self, endpoint_url: str, headers: dict, payload: dict, aois: list[dict]
+    ) -> httpx.Response:
+        """Post an analysis request, sending saved custom areas again as their
+        geometry if the analytics API doesn't have them yet."""
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                endpoint_url, headers=headers, json=payload
+            )
+            if (
+                response.status_code == 404
+                and payload["aoi"]["type"] == "custom_aoi"
+            ):
+                # A just-saved area may not have reached the analytics API yet.
+                logger.warning(
+                    "Saved custom areas not found by the analytics API; "
+                    f"sending their geometry instead: {payload['aoi']['ids']}"
+                )
+                geometry_payload = {
+                    **payload,
+                    "aoi": await self._read_feature_collection_aoi(aois),
+                }
+                response = await client.post(
+                    endpoint_url, headers=headers, json=geometry_payload
+                )
+        return response
+
     async def _poll_for_completion(
         self,
         resource_link: str,
@@ -775,10 +802,9 @@ class AnalyticsHandler(DataSourceHandler):
             logger.info(f"Analytics API Request - Headers: {redacted_headers}")
             logger.info(f"Analytics API Request - Payload: {payload}")
 
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    endpoint_url, headers=headers, json=payload
-                )
+            response = await self._post_analysis(
+                endpoint_url, headers, payload, aois
+            )
 
             # Debug logging for response
             logger.info(
