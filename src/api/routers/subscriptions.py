@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth.dependencies import require_auth
 from src.api.repositories import dashboard_writer
-from src.api.repositories.email_eligibility import DashboardEmailEligibility
 from src.api.repositories.subscription_repository import (
     PostgresSubscriptionRepository,
 )
@@ -28,9 +27,7 @@ router = APIRouter()
 
 
 def get_subscription_service() -> SubscriptionService:
-    return SubscriptionService(
-        PostgresSubscriptionRepository(), DashboardEmailEligibility()
-    )
+    return SubscriptionService(PostgresSubscriptionRepository())
 
 
 @router.put(
@@ -44,12 +41,11 @@ async def set_dashboard_subscriptions(
     service: SubscriptionService = Depends(get_subscription_service),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
-    """Sets which alert modes are on for the listed datasets. Only the
+    """Sets which alert channels are on for the listed datasets. Only the
     dashboard owner can change them.
 
-    The body lists the modes that should be on, so an empty list turns
-    everything off. Asking for email also turns in-app on. Email needs an
-    integrated alerts chart and a GADM admin area on the dashboard, or 409.
+    The body lists the channels that should be on, so an empty list turns
+    them all off. Email needs a dashboard that can have email alerts, or 409.
     """
     dashboard = await dashboard_writer.get_dashboard(dashboard_id)
     if dashboard is None or dashboard.user_id != user.id:
@@ -62,7 +58,10 @@ async def set_dashboard_subscriptions(
         )
 
     target = SubscriptionTarget(
-        dashboard_id=dashboard.id, aoi_id=aoi.id, user_id=dashboard.user_id
+        dashboard_id=dashboard.id,
+        aoi_id=aoi.id,
+        user_id=dashboard.user_id,
+        eligible_for_subscription=dashboard.eligible_for_subscription,
     )
     try:
         await service.update(target, set(body.datasets), set(body.modes))

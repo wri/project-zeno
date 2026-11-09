@@ -10,6 +10,7 @@ class AoiType(str, Enum):
     KEY_BIODIVERSITY_AREA = "key_biodiversity_area"
     INDIGENOUS_LAND = "indigenous_land"
     CUSTOM = "custom"
+    CONCESSION = "concession"
 
 
 class Dataset(str, Enum):
@@ -18,7 +19,6 @@ class Dataset(str, Enum):
 
 class SubscriptionMode(str, Enum):
     EMAIL = "email"
-    IN_APP = "in-app"
 
 
 @dataclass
@@ -39,13 +39,14 @@ class SubscriptionTarget:
     dashboard_id: UUID
     aoi_id: UUID
     user_id: str
+    eligible_for_subscription: bool
 
 
 class EmailAlertsUnavailableError(Exception):
     def __init__(self):
         super().__init__(
-            "Email alerts need an integrated alerts chart and a GADM admin "
-            "area on the dashboard"
+            "Email alerts need an integrated alerts chart or map on the "
+            "dashboard"
         )
 
 
@@ -56,11 +57,6 @@ class SubscriptionRepository(ABC):
 
 class SubscriptionModeRepository(ABC):
     @abstractmethod
-    async def list_modes(
-        self, dashboard_id: UUID, dataset: Dataset
-    ) -> set[SubscriptionMode]: ...
-
-    @abstractmethod
     async def set_modes(
         self,
         target: SubscriptionTarget,
@@ -69,29 +65,11 @@ class SubscriptionModeRepository(ABC):
     ) -> None: ...
 
 
-class EmailEligibility(ABC):
-    @abstractmethod
-    async def allows_email(self, dashboard_id: UUID) -> bool: ...
-
-
-def modes_to_store(requested: set[SubscriptionMode]) -> set[SubscriptionMode]:
-    """The modes to save for a request. Email can't be on without in-app, so
-    asking for email turns in-app on too."""
-    if SubscriptionMode.EMAIL in requested:
-        return requested | {SubscriptionMode.IN_APP}
-    return requested
-
-
 class SubscriptionService:
-    """Turns a dashboard's alert modes on or off."""
+    """Turns a dashboard's alert channels on or off."""
 
-    def __init__(
-        self,
-        repository: SubscriptionModeRepository,
-        eligibility: EmailEligibility,
-    ):
+    def __init__(self, repository: SubscriptionModeRepository):
         self.repository = repository
-        self.eligibility = eligibility
 
     async def update(
         self,
@@ -99,22 +77,15 @@ class SubscriptionService:
         datasets: set[Dataset],
         requested: set[SubscriptionMode],
     ) -> None:
-        """Saves the requested modes for each dataset. Nothing is saved if
-        email would turn on for a dashboard that can't have email alerts."""
-        changes = {}
-        email_turns_on = False
-        for dataset in datasets:
-            current = await self.repository.list_modes(
-                target.dashboard_id, dataset
-            )
-            changes[dataset] = modes_to_store(requested)
-            if SubscriptionMode.EMAIL in changes[dataset] - current:
-                email_turns_on = True
-
-        if email_turns_on and not await self.eligibility.allows_email(
-            target.dashboard_id
+        """Saves the requested channels for each dataset. Nothing is saved
+        if email is asked for on a dashboard that can't have email alerts."""
+        # ponytail: eligibility is read before the write, without a lock, so
+        # a widget removed in between can leave email on; lock the dashboard
+        # row if that ever matters.
+        if (
+            SubscriptionMode.EMAIL in requested
+            and not target.eligible_for_subscription
         ):
             raise EmailAlertsUnavailableError()
-
-        for dataset, modes in changes.items():
-            await self.repository.set_modes(target, dataset, modes)
+        for dataset in datasets:
+            await self.repository.set_modes(target, dataset, requested)

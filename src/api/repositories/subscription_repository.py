@@ -1,11 +1,11 @@
 """Dashboard alert subscriptions stored in Postgres. Each row is one alert
-mode turned on for one dataset of a dashboard."""
+channel turned on for one dataset of a dashboard."""
 
 from uuid import UUID
 
-from sqlalchemy import delete, exists, select
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.orm import aliased
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.data_models import DashboardAoiOrm, SubscriptionOrm, UserOrm
 from src.api.services.subscription import (
@@ -18,36 +18,30 @@ from src.api.services.subscription import (
     SubscriptionTarget,
 )
 from src.shared.database import get_session_from_pool
+from src.shared.geocoding_helpers import CONCESSION_SOURCES
 
 
 class PostgresSubscriptionRepository(
     SubscriptionRepository, SubscriptionModeRepository
 ):
     async def list_active(self) -> list[Subscription]:
-        """Lists active subscriptions: email on, with in-app also on."""
-        email = aliased(SubscriptionOrm)
-        in_app = aliased(SubscriptionOrm)
+        """Lists the subscriptions with email on."""
         query = (
             select(
-                email.id,
-                email.dashboard_id,
-                email.user_id,
+                SubscriptionOrm.id,
+                SubscriptionOrm.dashboard_id,
+                SubscriptionOrm.user_id,
                 UserOrm.email,
                 DashboardAoiOrm.source,
                 DashboardAoiOrm.src_id,
-                email.dataset,
+                SubscriptionOrm.dataset,
             )
-            .join(UserOrm, UserOrm.id == email.user_id)
-            .join(DashboardAoiOrm, DashboardAoiOrm.id == email.aoi_id)
-            .where(
-                email.mode == SubscriptionMode.EMAIL,
-                exists().where(
-                    in_app.dashboard_id == email.dashboard_id,
-                    in_app.dataset == email.dataset,
-                    in_app.mode == SubscriptionMode.IN_APP,
-                ),
+            .join(UserOrm, UserOrm.id == SubscriptionOrm.user_id)
+            .join(
+                DashboardAoiOrm, DashboardAoiOrm.id == SubscriptionOrm.aoi_id
             )
-            .order_by(email.created_at)
+            .where(SubscriptionOrm.mode == SubscriptionMode.EMAIL)
+            .order_by(SubscriptionOrm.created_at)
         )
         async with get_session_from_pool() as session:
             rows = (await session.execute(query)).all()
@@ -59,6 +53,8 @@ class PostgresSubscriptionRepository(
             "landmark": AoiType.INDIGENOUS_LAND,
             "custom": AoiType.CUSTOM,
         }
+        for source in CONCESSION_SOURCES:
+            aoi_types[source] = AoiType.CONCESSION
         return [
             Subscription(
                 subscription_id=row.id,
@@ -72,26 +68,14 @@ class PostgresSubscriptionRepository(
             for row in rows
         ]
 
-    async def list_modes(
-        self, dashboard_id: UUID, dataset: Dataset
-    ) -> set[SubscriptionMode]:
-        async with get_session_from_pool() as session:
-            result = await session.execute(
-                select(SubscriptionOrm.mode).where(
-                    SubscriptionOrm.dashboard_id == dashboard_id,
-                    SubscriptionOrm.dataset == dataset,
-                )
-            )
-            return set(result.scalars().all())
-
     async def set_modes(
         self,
         target: SubscriptionTarget,
         dataset: Dataset,
         modes: set[SubscriptionMode],
     ) -> None:
-        """Saves exactly these modes for the dashboard's dataset. Rows that
-        are already in that state are left alone."""
+        """Saves exactly these channels for the dashboard's dataset. Rows
+        that are already in that state are left alone."""
         async with get_session_from_pool() as session:
             await session.execute(
                 delete(SubscriptionOrm).where(
@@ -119,6 +103,19 @@ class PostgresSubscriptionRepository(
                     )
                 )
             await session.commit()
+
+
+async def remove_email_subscriptions(
+    session: AsyncSession, dashboard_id: UUID
+) -> None:
+    """Turns email off for every dataset of a dashboard, inside the
+    caller's transaction."""
+    await session.execute(
+        delete(SubscriptionOrm).where(
+            SubscriptionOrm.dashboard_id == dashboard_id,
+            SubscriptionOrm.mode == SubscriptionMode.EMAIL,
+        )
+    )
 
 
 def get_subscription_repository() -> SubscriptionRepository:

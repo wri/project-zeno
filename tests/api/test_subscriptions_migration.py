@@ -1,9 +1,11 @@
-"""The subscriptions migration upgrades and downgrades cleanly.
+"""The subscriptions migration upgrades and downgrades cleanly, and marks the
+existing dashboards that can have email alerts.
 
 The rest of the suite builds its schema with ``create_all``, which never runs
-a migration. This test builds everything except ``subscriptions`` the same
-way in a throwaway database, stamps it at the previous head and runs this
-revision both ways, so it doesn't depend on replaying the whole history.
+a migration. This test builds the schema the same way in a throwaway
+database, minus what this revision adds, stamps it at the previous head and
+runs this revision both ways, so it doesn't depend on replaying the whole
+history.
 """
 
 import uuid
@@ -15,7 +17,16 @@ from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import make_url
 
-from src.api.data_models import Base, SubscriptionOrm
+from src.agent.datasets.handlers.analytics_handler import INTEGRATED_ALERTS_ID
+from src.api.data_models import (
+    Base,
+    DashboardOrm,
+    DashboardWidgetOrm,
+    InsightChartOrm,
+    InsightOrm,
+    SubscriptionOrm,
+    UserOrm,
+)
 from src.shared.aoi_search_sql import SEARCH_DDL
 from tests.conftest import TEST_DB_URL
 
@@ -45,6 +56,11 @@ def migration_db_url(monkeypatch):
                 for t in Base.metadata.sorted_tables
                 if t.name != SubscriptionOrm.__tablename__
             ],
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE dashboards DROP COLUMN eligible_for_subscription"
+            )
         )
     engine.dispose()
 
@@ -81,7 +97,77 @@ def test_subscriptions_migration_up_and_down(migration_db_url):
 
     command.downgrade(config, PREVIOUS)
     assert not inspect(engine).has_table("subscriptions")
+    assert "eligible_for_subscription" not in {
+        c["name"] for c in inspect(engine).get_columns("dashboards")
+    }
 
     command.upgrade(config, REVISION)
     assert inspect(engine).has_table("subscriptions")
     engine.dispose()
+
+
+def _insert(conn, table, **values):
+    return conn.execute(
+        table.__table__.insert().values(**values).returning(table.id)
+    ).scalar_one()
+
+
+def _dashboard_with_widget(conn, *, chart_dataset=None, layer_dataset=None):
+    dashboard = _insert(conn, DashboardOrm, user_id="owner", name="Area")
+    insight = None
+    if chart_dataset is not None:
+        insight = _insert(conn, InsightOrm, insight_text="Alerts")
+        _insert(
+            conn,
+            InsightChartOrm,
+            insight_id=insight,
+            title="Alerts",
+            chart_type="line",
+            chart_data=[],
+            dataset_id=chart_dataset,
+        )
+    config = {}
+    if layer_dataset is not None:
+        config = {"dataset": {"dataset_id": layer_dataset}}
+    _insert(
+        conn,
+        DashboardWidgetOrm,
+        dashboard_id=dashboard,
+        widget_type="insight" if insight else "alerts",
+        insight_id=insight,
+        config=config,
+    )
+    return dashboard
+
+
+def test_upgrade_marks_dashboards_with_an_integrated_alerts_widget(
+    migration_db_url,
+):
+    config = Config(str(DB_DIR / "alembic.ini"))
+    config.set_main_option("script_location", str(DB_DIR / "alembic"))
+    engine = create_engine(migration_db_url)
+    with engine.begin() as conn:
+        _insert(conn, UserOrm, id="owner", name="owner", email="o@example.com")
+        with_chart = _dashboard_with_widget(
+            conn, chart_dataset=INTEGRATED_ALERTS_ID
+        )
+        with_layer = _dashboard_with_widget(
+            conn, layer_dataset=INTEGRATED_ALERTS_ID
+        )
+        other_dataset = _dashboard_with_widget(conn, chart_dataset=1)
+
+    command.stamp(config, PREVIOUS)
+    command.upgrade(config, REVISION)
+
+    with engine.connect() as conn:
+        eligible = dict(
+            conn.execute(
+                text("SELECT id, eligible_for_subscription FROM dashboards")
+            ).all()
+        )
+    engine.dispose()
+    assert eligible == {
+        with_chart: True,
+        with_layer: True,
+        other_dataset: False,
+    }

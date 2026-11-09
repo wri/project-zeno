@@ -1,4 +1,4 @@
-"""Turning dashboard alert modes on and off, and who can see them."""
+"""Turning dashboard email alerts on and off, and who can see them."""
 
 import pytest
 from sqlalchemy import select
@@ -22,8 +22,7 @@ KBA = {
     "name": "Serra do Mar",
 }
 OFF = {"integrated_alerts": {"modes": []}}
-IN_APP = {"integrated_alerts": {"modes": ["in-app"]}}
-BOTH = {"integrated_alerts": {"modes": ["email", "in-app"]}}
+EMAIL_ON = {"integrated_alerts": {"modes": ["email"]}}
 
 
 async def _put(client, dashboard_id, modes, datasets=("integrated_alerts",)):
@@ -60,10 +59,10 @@ async def _rows(dashboard_id) -> list[SubscriptionOrm]:
 
 
 # ---------------------------------------------------------------------------
-# Writes and the coupling rule
+# Writes
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_new_dashboard_has_everything_off(client, auth_override):
+async def test_new_dashboard_has_email_off(client, auth_override):
     dashboard = await _owned_dashboard(client, auth_override, "subs-new")
 
     assert dashboard["alerts"] == OFF
@@ -71,56 +70,25 @@ async def test_new_dashboard_has_everything_off(client, auth_override):
 
 
 @pytest.mark.asyncio
-async def test_email_on_turns_in_app_on(client, auth_override):
+async def test_email_on_and_off(client, auth_override):
     dashboard = await _owned_dashboard(client, auth_override, "subs-email")
 
-    response = await _put(client, dashboard["id"], ["email"])
+    on = await _put(client, dashboard["id"], ["email"])
+    off = await _put(client, dashboard["id"], [])
 
-    assert response.status_code == 200
-    assert response.json()["alerts"] == BOTH
-    assert [r.mode.value for r in await _rows(dashboard["id"])] == [
-        "email",
-        "in-app",
-    ]
-
-
-@pytest.mark.asyncio
-async def test_email_off_leaves_in_app_on(client, auth_override):
-    dashboard = await _owned_dashboard(client, auth_override, "subs-off")
-    await _put(client, dashboard["id"], ["email", "in-app"])
-
-    response = await _put(client, dashboard["id"], ["in-app"])
-
-    assert response.json()["alerts"] == IN_APP
+    assert on.status_code == 200
+    assert on.json()["alerts"] == EMAIL_ON
+    assert off.json()["alerts"] == OFF
+    assert await _rows(dashboard["id"]) == []
 
 
 @pytest.mark.asyncio
-async def test_sending_email_again_keeps_both_on(client, auth_override):
-    dashboard = await _owned_dashboard(client, auth_override, "subs-again")
-    await _put(client, dashboard["id"], ["email"])
-
-    response = await _put(client, dashboard["id"], ["email"])
-
-    assert response.json()["alerts"] == BOTH
-
-
-@pytest.mark.asyncio
-async def test_empty_modes_turn_everything_off(client, auth_override):
-    dashboard = await _owned_dashboard(client, auth_override, "subs-empty")
-    await _put(client, dashboard["id"], ["email", "in-app"])
-
-    response = await _put(client, dashboard["id"], [])
-
-    assert response.json()["alerts"] == OFF
-
-
-@pytest.mark.asyncio
-async def test_setting_the_same_value_keeps_the_rows(client, auth_override):
+async def test_setting_the_same_value_keeps_the_row(client, auth_override):
     dashboard = await _owned_dashboard(client, auth_override, "subs-same")
-    await _put(client, dashboard["id"], ["email", "in-app"])
+    await _put(client, dashboard["id"], ["email"])
     before = [r.id for r in await _rows(dashboard["id"])]
 
-    response = await _put(client, dashboard["id"], ["email", "in-app"])
+    response = await _put(client, dashboard["id"], ["email"])
 
     assert response.status_code == 200
     assert [r.id for r in await _rows(dashboard["id"])] == before
@@ -132,7 +100,7 @@ async def test_rows_point_at_the_dashboard_area_and_owner(
 ):
     dashboard = await _owned_dashboard(client, auth_override, "subs-row")
 
-    await _put(client, dashboard["id"], ["in-app"])
+    await _put(client, dashboard["id"], ["email"])
 
     (row,) = await _rows(dashboard["id"])
     assert str(row.aoi_id) == dashboard["aois"][0]["id"]
@@ -144,7 +112,7 @@ async def test_rows_point_at_the_dashboard_area_and_owner(
     "body",
     [
         {"datasets": ["tree_cover_loss"], "modes": ["email"]},
-        {"datasets": ["integrated_alerts"], "modes": ["sms"]},
+        {"datasets": ["integrated_alerts"], "modes": ["in-app"]},
     ],
 )
 @pytest.mark.asyncio
@@ -164,7 +132,7 @@ async def test_unknown_dataset_or_mode_is_rejected(
 
 
 # ---------------------------------------------------------------------------
-# Eligibility (email only)
+# Eligibility
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_email_on_without_alerts_chart_is_409(client, auth_override):
@@ -172,15 +140,15 @@ async def test_email_on_without_alerts_chart_is_409(client, auth_override):
         client, auth_override, "subs-nochart", eligible=False
     )
 
-    response = await _put(client, dashboard["id"], ["email", "in-app"])
+    response = await _put(client, dashboard["id"], ["email"])
 
     assert response.status_code == 409
-    assert "integrated alerts chart" in response.json()["detail"]
+    assert "integrated alerts" in response.json()["detail"]
     assert await _rows(dashboard["id"]) == []
 
 
 @pytest.mark.asyncio
-async def test_email_on_for_a_non_gadm_area_is_409(client, auth_override):
+async def test_email_on_for_a_non_admin_area(client, auth_override):
     user = await _create_user("subs-kba")
     auth_override(user.id)
     dashboard = await _create_dashboard(client, aois=[KBA])
@@ -188,41 +156,8 @@ async def test_email_on_for_a_non_gadm_area_is_409(client, auth_override):
 
     response = await _put(client, dashboard["id"], ["email"])
 
-    assert response.status_code == 409
-
-
-@pytest.mark.asyncio
-async def test_in_app_needs_no_eligibility(client, auth_override):
-    dashboard = await _owned_dashboard(
-        client, auth_override, "subs-inapp-any", eligible=False
-    )
-
-    response = await _put(client, dashboard["id"], ["in-app"])
-
     assert response.status_code == 200
-    assert response.json()["alerts"] == IN_APP
-
-
-@pytest.mark.asyncio
-async def test_email_can_be_kept_or_turned_off_once_ineligible(
-    client, auth_override
-):
-    dashboard = await _owned_dashboard(client, auth_override, "subs-lost")
-    await _put(client, dashboard["id"], ["email"])
-    (widget,) = (
-        await client.get(f"/api/dashboards/{dashboard['id']}", headers=AUTH)
-    ).json()["widgets"]
-    await client.delete(
-        f"/api/dashboards/{dashboard['id']}/widgets/{widget['id']}",
-        headers=AUTH,
-    )
-
-    # Eligibility is checked only when email turns on.
-    kept = await _put(client, dashboard["id"], ["email", "in-app"])
-    off = await _put(client, dashboard["id"], ["in-app"])
-
-    assert kept.status_code == 200
-    assert off.json()["alerts"] == IN_APP
+    assert response.json()["alerts"] == EMAIL_ON
 
 
 # ---------------------------------------------------------------------------
@@ -235,7 +170,7 @@ async def test_put_requires_auth(client, auth_override):
 
     response = await client.put(
         f"/api/dashboards/{dashboard['id']}/subscriptions",
-        json={"datasets": ["integrated_alerts"], "modes": ["in-app"]},
+        json={"datasets": ["integrated_alerts"], "modes": ["email"]},
     )
 
     assert response.status_code == 401
@@ -252,7 +187,7 @@ async def test_other_users_get_404(
 
     for user in (other, admin, superuser):
         auth_override(user.id)
-        response = await _put(client, dashboard["id"], ["in-app"])
+        response = await _put(client, dashboard["id"], ["email"])
         assert response.status_code == 404, user.id
 
     assert await _rows(dashboard["id"]) == []
@@ -285,11 +220,12 @@ async def test_alerts_shown_to_owner_and_superuser_only(
     _sign_out()
     anonymous_view = (await client.get(url)).json()
 
-    assert owner_detail["alerts"] == BOTH
-    assert owner_list[0]["alerts"] == BOTH
-    assert superuser_view["alerts"] == BOTH
+    assert owner_detail["alerts"] == EMAIL_ON
+    assert owner_list[0]["alerts"] == EMAIL_ON
+    assert superuser_view["alerts"] == EMAIL_ON
     for view in (admin_view, other_view, anonymous_view):
         assert "alerts" not in view
+        assert view["eligible_for_subscription"] is True
 
 
 # ---------------------------------------------------------------------------

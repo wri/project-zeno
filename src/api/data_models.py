@@ -560,6 +560,11 @@ class DashboardOrm(Base):
     name = Column(String, nullable=False)
     description = Column(String, nullable=True)
     is_public = Column(Boolean, nullable=False, server_default="false")
+    # True when the dashboard has an integrated alerts widget, which email
+    # alerts need. The backend updates it whenever the widgets change.
+    eligible_for_subscription = Column(
+        Boolean, nullable=False, server_default="false"
+    )
     created_at = Column(DateTime, nullable=False, default=datetime.now)
     updated_at = Column(
         DateTime,
@@ -628,8 +633,8 @@ class DashboardAoiOrm(Base):
 
 
 class SubscriptionOrm(Base):
-    """One alert mode a dashboard owner turned on for one dataset. A row
-    means the mode is on; turning it off deletes the row."""
+    """One alert channel a dashboard owner turned on for one dataset. A row
+    means the channel is on; turning it off deletes the row."""
 
     __tablename__ = "subscriptions"
     __table_args__ = (

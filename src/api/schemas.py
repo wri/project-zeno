@@ -972,7 +972,7 @@ class DashboardWidgetResponse(BaseModel):
 
 
 class DashboardDatasetAlerts(BaseModel):
-    # Empty when nothing is on. Email is never on without in-app.
+    # Empty when nothing is on.
     modes: List[SubscriptionMode] = []
 
 
@@ -984,6 +984,9 @@ class DashboardResponse(BaseModel):
     name: str
     description: Optional[str] = None
     is_public: bool
+    # Whether the owner can turn email alerts on: the dashboard has an
+    # integrated alerts widget.
+    eligible_for_subscription: bool = False
     created_at: datetime
     updated_at: datetime
     aois: List[DashboardAoiResponse] = []
@@ -991,7 +994,7 @@ class DashboardResponse(BaseModel):
     # (`section_id`); ungrouped widgets render above the first section.
     sections: List[DashboardSectionResponse] = []
     widgets: List[DashboardWidgetResponse] = []
-    # The alert modes that are on, per dataset. Only the owner and
+    # The alert channels that are on, per dataset. Only the owner and
     # superusers get this; for anyone else the key is left out.
     alerts: Optional[Dict[Dataset, DashboardDatasetAlerts]] = Field(
         default=None, exclude_if=lambda alerts: alerts is None
@@ -999,8 +1002,8 @@ class DashboardResponse(BaseModel):
 
 
 class DashboardSubscriptionsRequest(BaseModel):
-    """The desired alert modes for each listed dataset. Turning email on
-    also turns in-app on; leaving in-app out turns email off too."""
+    """The alert channels that should be on for each listed dataset. An
+    empty list turns them all off."""
 
     datasets: List[Dataset] = Field(min_length=1)
     modes: List[SubscriptionMode]

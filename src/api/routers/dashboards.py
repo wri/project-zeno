@@ -103,7 +103,7 @@ def _sees_alerts(row: DashboardOrm, user: Optional[UserModel]) -> bool:
 
 
 def _alerts_response(row: DashboardOrm) -> dict:
-    """The alert modes that are on, listed for every dataset."""
+    """The alert channels that are on, listed for every dataset."""
     on = {(s.dataset, s.mode) for s in row.subscriptions}
     return {
         dataset: DashboardDatasetAlerts(
@@ -131,6 +131,7 @@ def _row_to_response(
         name=row.name,
         description=row.description,
         is_public=row.is_public,
+        eligible_for_subscription=row.eligible_for_subscription,
         created_at=row.created_at,
         updated_at=row.updated_at,
         aois=[

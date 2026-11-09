@@ -4,8 +4,12 @@ Revision ID: b5e2a9c41d07
 Revises: f3a8c1d5b204
 Create Date: 2026-11-04 10:00:00.000000
 
-Dashboard alert subscriptions: one row per dashboard, dataset and mode, and a
-row means the mode is on. Both modes start off, so the table starts empty.
+Dashboard alert subscriptions: one row per dashboard, dataset and channel,
+and a row means the channel is on. Email is the only channel and starts off,
+so the table starts empty.
+
+Also marks which dashboards can have email alerts: those with an integrated
+alerts widget, either an insight chart or a map or alerts layer.
 """
 
 from typing import Sequence, Union
@@ -20,8 +24,40 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+# The integrated alerts dataset id in the dataset catalog.
+INTEGRATED_ALERTS_DATASET_ID = 11
+
+
 def upgrade() -> None:
     """Upgrade schema."""
+    op.add_column(
+        "dashboards",
+        sa.Column(
+            "eligible_for_subscription",
+            sa.Boolean(),
+            server_default="false",
+            nullable=False,
+        ),
+    )
+    op.execute(
+        sa.text(
+            """
+            UPDATE dashboards SET eligible_for_subscription = true
+            WHERE EXISTS (
+                SELECT 1
+                FROM dashboard_widgets AS widget
+                LEFT JOIN insight_charts AS chart
+                    ON chart.insight_id = widget.insight_id
+                WHERE widget.dashboard_id = dashboards.id
+                AND (
+                    chart.dataset_id = :dataset_id
+                    OR widget.config -> 'dataset' ->> 'dataset_id'
+                        = CAST(:dataset_id AS text)
+                )
+            )
+            """
+        ).bindparams(dataset_id=INTEGRATED_ALERTS_DATASET_ID)
+    )
     op.create_table(
         "subscriptions",
         sa.Column(
@@ -47,7 +83,6 @@ def upgrade() -> None:
             "mode",
             sa.Enum(
                 "email",
-                "in-app",
                 name="subscription_mode",
                 native_enum=False,
                 create_constraint=True,
@@ -81,3 +116,4 @@ def downgrade() -> None:
     """Downgrade schema."""
     # The enums are VARCHAR + CHECK, so there are no types to drop.
     op.drop_table("subscriptions")
+    op.drop_column("dashboards", "eligible_for_subscription")
