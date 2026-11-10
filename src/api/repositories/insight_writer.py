@@ -21,10 +21,9 @@ logger = get_logger(__name__)
 
 
 # LLM-written text (narrative, follow-ups, chart labels) can contain NUL or
-# other control characters, e.g. Gemini writing "Piau\x00" for "Piauí".
+# other control characters, e.g. Gemini Flash writing "Piau\x00" for "Piauí".
 # Postgres rejects NUL and fails the whole write, so everything LLM-written is
-# cleaned on its way in. This is the last line of defense: the text stage
-# already keeps accented words away from the model.
+# cleaned on its way in. This is the last line of defense.
 def _chart_row(chart) -> InsightChartOrm:
     return InsightChartOrm(
         **clean_json(chart.to_orm_kwargs(), field="chart_row")
