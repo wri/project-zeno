@@ -1,3 +1,4 @@
+import asyncio
 from typing import Annotated, Dict, Optional
 
 import httpx
@@ -29,6 +30,11 @@ from src.shared.request_context import current_user_id
 
 logger = get_logger(__name__)
 
+# The analytics API occasionally stalls for several seconds (PZB-1410).
+FETCH_MAX_RETRIES = 3
+FETCH_INITIAL_DELAY = 1.0
+FETCH_BACKOFF_FACTOR = 2.0
+
 
 async def fetch_statistics_from_url(source_url: str) -> dict:
     """Fetch raw result data from an analytics source URL.
@@ -36,13 +42,28 @@ async def fetch_statistics_from_url(source_url: str) -> dict:
     The analytics API returns JSON with shape
     ``{"data": {"result": {...}}}``.  Returns the inner ``result`` dict
     so callers never need to deal with the response envelope.
+
+    Transport errors (timeouts, dropped connections) are retried with
+    exponential backoff.
     """
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            source_url, headers=analytics_api_headers()
-        )
-        response.raise_for_status()
-        return response.json()["data"]["result"]
+    for attempt in range(FETCH_MAX_RETRIES + 1):
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    source_url, headers=analytics_api_headers()
+                )
+            break
+        except httpx.TransportError as e:
+            if attempt == FETCH_MAX_RETRIES:
+                raise
+            delay = FETCH_INITIAL_DELAY * FETCH_BACKOFF_FACTOR**attempt
+            logger.warning(
+                f"Statistics fetch attempt {attempt + 1} failed: {e!r}, "
+                f"retrying in {delay:.1f}s"
+            )
+            await asyncio.sleep(delay)
+    response.raise_for_status()
+    return response.json()["data"]["result"]
 
 
 class DataPullOrchestrator:

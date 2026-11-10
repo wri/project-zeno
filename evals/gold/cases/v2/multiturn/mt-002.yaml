@@ -1,0 +1,16 @@
+id: mt-002
+uid: 5f35540166be74af
+status: ready
+group: multiturn
+turns:
+- query: Select an area named Puri
+  expected:
+    nudge_options: Uíge, Angola;Odisha, India
+- query: Puri in Odisha, India
+  expected:
+    aoi_source: gadm
+  deltas:
+    changed:
+    - aoi_ids
+notes:
+  scenario: nudge -> accept; T1 mirrors case 1-105

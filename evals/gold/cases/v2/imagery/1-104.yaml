@@ -1,0 +1,16 @@
+id: 1-104
+uid: ce209c126ebe9ace
+status: done
+group: imagery
+query: Show me satellite imagery for the Comunidad de Madrid, Spain for the first two weeks
+  of January 2021.
+expected:
+  aoi_ids: ESP.8_1
+  aoi_source: gadm
+  text: Returns Sentinel-2 imagery covering the first two weeks of January 2021
+notes:
+  rewrite: 'Named the admin level. ''Madrid, Spain'' resolved to ESP.8_1 (Comunidad,
+    similarity 0.50) on 3 trials and ESP.8.1.3.10_1 (Madrid locality, similarity 0.38) on
+    2 — both weak, i.e. the geocoder was guessing. ;-alternatives cannot express this: aoi_ids
+    splits on '';'' into a SET compared by set-equality, which is how sibling rows list children,
+    so a two-level either-or is unexpressable. The imagery path itself is healthy.'

@@ -147,10 +147,25 @@ async def test_title_is_cut_to_the_limit():
 async def test_default_rules_and_no_facts_block():
     model = _FakeModel(SectionText(title="T", description="D"))
 
-    await _generate(model)
+    await _generate(
+        model, template=NRT.model_copy(update={"description_rules": None})
+    )
 
     assert DEFAULT_DESCRIPTION_RULES in model.inputs
     assert "## Facts" not in model.inputs
+
+
+@pytest.mark.asyncio
+async def test_nrt_rules_point_to_the_list_and_the_map():
+    model = _FakeModel(SectionText(title="T", description="D"))
+
+    await _generate(model)
+
+    assert (
+        "Pick a period to see the list and the map for the same dates"
+        in model.inputs
+    )
+    assert DEFAULT_DESCRIPTION_RULES not in model.inputs
 
 
 @pytest.mark.asyncio

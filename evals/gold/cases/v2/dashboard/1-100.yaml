@@ -1,0 +1,13 @@
+id: 1-100
+uid: 60b6030c1f1d27a0
+status: done
+group: dashboard
+query: Create a dashboard for Brazil with an insight on annual deforestation trends, an explainer
+  text block, and a satellite imagery map
+expected:
+  aoi_ids: BRA
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  dashboard_created: 'TRUE'
+  dashboard_widgets: insight;map;text

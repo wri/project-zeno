@@ -1,0 +1,19 @@
+id: mt-008
+uid: 91cecdd149d9ac47
+status: ready
+group: multiturn
+turns:
+- query: How much tree cover loss did Brazil have in 2022?
+  expected:
+    dataset_id: '4'
+    scope: analyse
+    dashboard_created: 'FALSE'
+- query: Add that to a dashboard
+  expected:
+    dashboard_created: 'TRUE'
+  deltas:
+    retain:
+    - aoi_ids
+    - dataset_id
+notes:
+  scenario: scope escalation (Output, Scope)

@@ -15,17 +15,29 @@ To read them, see PR #840 and the git history of
 
 | Name | Widgets | Args |
 |---|---|---|
-| `nrt-monitoring` | Integrated alerts chart (daily), integrated alerts map layer, Sentinel-2 imagery | `days`: length of the period, counted back from today. Default 14, maximum 365. |
-| `post-2020-forest-loss` | Tree cover loss per year from 2021, split into natural forest and other tree cover (full width); tree cover loss map with the natural forest context layer, for the same years (half width); Sentinel-2 imagery of the last 30 days (half width) | None. The period runs from 2021-01-01 to today; the chart, the map and the section stop at the last year of loss data. |
+| `nrt-monitoring` | Integrated alerts chart (daily stacked bars by confidence), integrated alerts list with its map, Sentinel-2 imagery | None. The period is the 30 days to the latest alert date, both ends counted, or to today when that date cannot be read. The chart's pills narrow it to the last 2 weeks, the last week or custom dates in the browser, with no request. |
+| `post-2020-forest-loss` | Tree cover loss per year from 2021 at 10% canopy density, split into natural forest and other tree cover (full width); tree cover loss map at 10% with the natural forest context layer, for the same years (half width); Sentinel-2 imagery of the last 30 days (half width) | None. The period runs from 2021-01-01 to today; the chart, the map and the section stop at the last year of loss data. |
+| `forest-loss-drivers` | Tree cover loss per year (full width); tree cover loss by dominant driver, a pie without "Unknown" (half width, optional), beside a fixed note on how to read the section (half width); tree cover loss by dominant driver map (full width) | None. The period runs from 2001-01-01 to today; the widgets and the section stop at the last year of loss data. |
 
 A template uses the first area of the dashboard. Each template has its own
 arguments (`args`). The arguments set the period of the widgets.
 
-`post-2020-forest-loss` pulls tree cover loss grouped by SBTN Natural Lands
-Map class, with no canopy threshold. "Other tree cover" is Non-natural
-Forest plus Unknown. The chart series are the legend names in the user's
-language, and `color_map` is keyed by them. The map config sets `size` and
-`dataset.context_layer`.
+`post-2020-forest-loss` uses a 10% canopy density threshold for the chart
+and the map, the natural forest default of the chat path. The chart makes
+two tree cover loss pulls at 10%: one with the `natural_forest` context layer
+(SBTN Natural Forest only) and one of all tree cover. "Other tree cover" is
+the difference: non-natural forest plus loss outside the 2020 forest
+classes. Two pulls, because the analytics API rejects a canopy threshold
+with its split by natural forest class (`forest_filter="natural_forest"`).
+At 10% the API returns no emissions, and the section shows none. The chart
+series are the legend names in the user's language, and `color_map` is
+keyed by them. The map config sets `size` and `dataset.context_layer`.
+
+`forest-loss-drivers` uses the default 30% canopy threshold. Its facts are
+computed from the chart data: the total loss, the year with the most loss,
+and the leading driver with its share of the loss with a known driver. An
+area with no loss gets no pie, with a warning. The driver names are in
+English in every language, as in the chat.
 
 ## API
 
@@ -41,19 +53,11 @@ language, and `color_map` is keyed by them. The map config sets `size` and
     "args_schema": {
       "type": "object",
       "title": "NrtMonitoringArgs",
+      "description": "No arguments: the section always covers the 30 days to the latest alert date, …",
       "additionalProperties": false,
-      "properties": {
-        "days": {
-          "type": "integer",
-          "title": "Days",
-          "description": "Length of the period in days, counted back from today.",
-          "default": 14,
-          "minimum": 1,
-          "maximum": 365
-        }
-      }
+      "properties": {}
     },
-    "widgets": ["chart", "layer", "imagery"]
+    "widgets": ["chart", "alerts", "imagery"]
   }
 ]
 ```
@@ -61,14 +65,15 @@ language, and `color_map` is keyed by them. The map config sets `size` and
 The `label` is in the user's language. `args_schema` is the JSON schema of
 the template arguments. Use it to make the form: it gives each argument, its
 default and its limits. `widgets` gives the widget kinds: `chart`,
-`natural_forest_loss` (a chart), `layer` or `imagery`.
+`natural_forest_loss` (a chart), `layer`, `alerts` (the alerts list with
+its map), `imagery` or `text` (a fixed note).
 
 ### Apply a template
 
 `POST /api/dashboards/{dashboard_id}/sections/from-template` (owner only)
 
 ```json
-{ "template": "nrt-monitoring", "args": { "days": 30 } }
+{ "template": "nrt-monitoring" }
 ```
 
 `args` is optional. An argument that you do not send gets its default. An
@@ -109,8 +114,8 @@ Each section in the dashboard response has a `template` field:
 ```json
 {
   "name": "nrt-monitoring",
-  "args": { "days": 14 },
-  "start_date": "2026-09-09",
+  "args": {},
+  "start_date": "2026-08-25",
   "end_date": "2026-09-23",
   "built_at": "2026-09-23T10:15:02"
 }
@@ -122,7 +127,7 @@ clamped to its datasets (a section of annual data ends with its last year).
 The field is `null` for a section that a user or the agent composed. It tells
 how the section started, not what it contains now. An edited section keeps
 it. You can use it to show, for example, "Built from Near-real-time
-monitoring, 2026-09-09 to 2026-09-23".
+monitoring, 2026-08-25 to 2026-09-23".
 
 ### Title and description
 
@@ -169,16 +174,21 @@ section by hand for all other requests.
 3. Add the three i18n keys (label, fallback title, fallback description) to
    `src/agent/i18n.py`. The fallback text can use `{aoi_name}`,
    `{start_date}` and `{end_date}`. The widget facts go before the fallback
-   description.
+   description. A text widget needs one more key, its note, which takes no
+   placeholders.
 4. Run `tests/unit/api/analysis_templates/test_templates.py`. It checks that
    each chart dataset has a curated chart generator, that each layer dataset
    has a tile layer, that the i18n keys exist and that the default arguments
    are valid.
 
 You do not have to write code if the template uses the widget kinds `chart`,
-`natural_forest_loss`, `layer` and `imagery`. A layer widget can set a
-`context_layer`; every widget can set its `size`. A template can set
-`description_rules` for a longer description. For a new widget kind, add a
+`natural_forest_loss`, `layer`, `imagery` and `text`. A layer widget can set a
+`context_layer`; every widget can set its `size`. A text widget shows the
+markdown of its `text_key` in the user's language, for example how to read
+the charts; its config carries `source: "template"`, so the frontend
+captions it as curated rather than AI-assisted. The text model sees the note, so `description_rules` can tell it
+not to repeat it. A template can set `description_rules` for a longer
+description. For a new widget kind, add a
 spec class to `models.py` and a builder function to `builder.py`.
 
 ## Limits

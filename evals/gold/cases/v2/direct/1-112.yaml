@@ -1,0 +1,36 @@
+id: 1-112
+uid: 88d8747649779fb8
+status: not doing
+group: direct
+query: How much emissions were there from forests in India?
+expected:
+  aoi_ids: IND
+  aoi_source: gadm
+  dataset_id: '12'
+  dataset_name: Land GHG Monitoring System (LGMS)
+  text: Reports emissions figures in MgCO2e (tonnes of CO2 equivalent)
+  scope: analyse
+notes:
+  aoi_type: gadm 0
+  sheet_group: LGMS 1
+  source_tab: gid:0
+  authored: '2026-08-07: from sheet row 1-112 (LGMS 1). Smoke-tests LGMS (dataset 12) as the
+    DEFAULT routing for a GHG-emissions question with no time period, per the catalog selection_hints.
+    No date expectations: LGMS is an annual dataset (2016-2024) and the agent may pull the
+    full range and slice in code.'
+  no_answer_rationale: 'Deliberately no expected answer. "Emissions from forests" is an aggregation
+    the agent composes in pandas (fill run 20260807T125843Z: headline 1,189,415,948 MgCO2e
+    = vegetation forest classes + soil, 2016-2024), and LGMS charts are the full pass-through
+    inventory table — a computed aggregate is never a chart candidate, so any numeric answer
+    expectation fails charts_answer deterministically (closest candidate this run was 55%
+    off). The text expectation carries the presentation-instruction surface instead.'
+  env_gated: LGMS (dataset 12) is hidden from the default profile; use the `lgms` profile
+    (`--ff lgms`), not `experimental`, to reveal it.
+  status_reason: '2026-08-31: not doing while gold runs target the default profile. Needs
+    a 3-trial ff=lgms pass at the final uid for done.'
+  curated_only_conflict: '2026-09-16: wri/project-zeno#827 (open at writing) makes LGMS a
+    curated-charts-only dataset: the agent shows the four standard charts and is instructed
+    to state no figures from them. This row''s text expectation ("Reports emissions figures
+    in MgCO2e") is then unsatisfiable by design, not broken. If #827 ships as written, retire
+    or rewrite this expectation in the same cycle - see 1-123, which encodes the new behaviour
+    for a single GADM area.'

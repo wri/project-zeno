@@ -1,0 +1,17 @@
+id: 1-107
+uid: a4b115ea2533bb7a
+status: ready
+group: nudge
+query: Pick a dataset showing urban land cover
+expected:
+  text: Offers a choice between the Global land cover and SBTN Natural Lands datasets rather
+    than picking one unprompted
+  nudge_options: Global land cover;SBTN
+  scope: suggest
+notes:
+  status_reason: 'confirmed working 2026-08-03: nudge_match 6/6 across the 08-01
+    and 08-02 runs; the 07-31 failure was against an earlier harness build, before scope_match
+    classified a dataset_choice nudge as suggest (see rewrite).'
+  rewrite: 'scope clarify -> suggest: scope_match classifies a dataset_choice nudge as
+    suggest, not clarify, and the agent emits exactly that nudge 6/6. Without this fix the
+    check would convert a passing row into a regression.'

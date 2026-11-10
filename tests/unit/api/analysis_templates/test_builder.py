@@ -1,14 +1,19 @@
 """Tests for the analysis template builder, with the data sources mocked."""
 
-from datetime import date
+import asyncio
+import json
+from datetime import date, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
+from urllib.parse import parse_qsl, urlsplit
 from uuid import uuid4
 
 import pytest
 
 from src.agent.datasets.handlers.analytics_handler import (
     INTEGRATED_ALERTS_ID,
+    INTEGRATED_ALERTS_LAND_FILTERS,
+    TREE_COVER_LOSS_BY_DRIVER_ID,
     TREE_COVER_LOSS_ID,
 )
 from src.agent.datasets.handlers.base import DataPullResult
@@ -23,19 +28,32 @@ from src.api.services.analysis_templates.builder import (
     apply_template,
 )
 from src.api.services.analysis_templates.models import (
+    AlertsWidgetSpec,
+    ChartFact,
+    ChartWidgetSpec,
     ImageryWidgetSpec,
     LayerWidgetSpec,
     NaturalForestLossWidgetSpec,
+    TemplateArgs,
+    TextWidgetSpec,
 )
 from src.api.services.analysis_templates.registry import (
     Post2020ForestLossArgs,
     get_template,
 )
+from src.api.services.dashboard_alerts import AlertsUnavailableError
+from src.api.user_profile_configs.languages import LANGUAGES
 from tests.unit.api.analysis_templates.test_text import _FakeModel
-from tests.unit.api.services.test_chart_generators import NATURAL_FOREST_DATA
+from tests.unit.api.services.test_alerts_list import FakeHandler, FakeLatest
+from tests.unit.api.services.test_chart_generators import (
+    ALL_LOSS_DATA,
+    NATURAL_FOREST_DATA,
+)
 
 NRT = get_template("nrt-monitoring")
 TODAY = date(2026, 9, 23)
+# A Monday: the alerts list's new week is 15 to 21 September.
+LATEST = date(2026, 9, 21)
 ROWS = {
     "alert_date": ["2026-09-10", "2026-09-10", "2026-09-12"],
     "alert_confidence": ["high", "high", "low"],
@@ -83,10 +101,18 @@ def _imagery():
     )
 
 
-def _patches(pull=None, imagery=None, written=("section-1", ["w1", "w2"])):
-    """Mock the analytics pull, the mosaic search and the database write."""
+def _patches(
+    pull=None,
+    imagery=None,
+    written=("section-1", ["w1", "w2"]),
+    latest=None,
+):
+    """Mock the analytics pull and latest alert date, the mosaic search and
+    the database write."""
+    latest = latest or FakeLatest(LATEST)
     mocks = SimpleNamespace(
         pull=AsyncMock(return_value=pull or _pull()),
+        latest=AsyncMock(side_effect=latest.latest_alert_date),
         imagery=AsyncMock(return_value=imagery or _imagery()),
         write=AsyncMock(return_value=written),
         text=AsyncMock(return_value=("Alerts in Paraná", "What it shows.")),
@@ -105,6 +131,9 @@ def _patches(pull=None, imagery=None, written=("section-1", ["w1", "w2"])):
         patch.object(
             builder.AnalyticsHandler, "pull_data", mocks.pull, create=True
         ),
+        patch.object(
+            builder.AnalyticsAlertsSource, "latest_alert_date", mocks.latest
+        ),
         patch.object(builder._IMAGERY_PROVIDER, "get_imagery", mocks.imagery),
         patch.object(
             builder.dashboard_writer, "add_section_with_widgets", mocks.write
@@ -115,7 +144,9 @@ def _patches(pull=None, imagery=None, written=("section-1", ["w1", "w2"])):
     return mocks, stack
 
 
-async def _apply(stack, dashboard=None, args=None, template=NRT):
+async def _apply(
+    stack, dashboard=None, args=None, template=NRT, language="en"
+):
     for p in stack:
         p.start()
     try:
@@ -124,7 +155,7 @@ async def _apply(stack, dashboard=None, args=None, template=NRT):
             template,
             template.parse_args(args),
             "user-1",
-            "en",
+            language,
         )
     finally:
         for p in stack:
@@ -145,12 +176,14 @@ async def test_builds_three_widgets_in_template_order():
     )
     kwargs = mocks.write.await_args.kwargs
     widgets = kwargs["widgets"]
-    assert [w.widget_type for w in widgets] == ["insight", "map", "map"]
+    assert [w.widget_type for w in widgets] == ["insight", "alerts", "map"]
     chart = widgets[0].insight.charts[0]
     assert chart.dataset_id == INTEGRATED_ALERTS_ID
     assert chart.x_axis == "alert_date"
     assert widgets[1].config["dataset"]["dataset_id"] == INTEGRATED_ALERTS_ID
-    assert widgets[1].config["dataset"]["end_date"] == "2026-09-23"
+    assert widgets[1].config["dataset"]["end_date"] == "2026-09-21"
+    assert widgets[1].config["alerts"]["days"] == 30
+    assert widgets[1].insight is None
     assert widgets[2].config["imagery"]["mosaic_id"] == "mosaic-1"
     assert kwargs["user_id"] == "user-1"
     # nrt-monitoring sets no size and no context layer.
@@ -193,17 +226,76 @@ async def test_layer_with_a_context_layer_and_a_size():
     assert dataset["tile_url"].endswith("&start_year=2021&end_year=2025")
 
 
+async def _apply_loss_chart(spec, loss):
+    """Build a template of the one tree cover loss chart ``spec``, from
+    2021, with ``loss`` as the pulled rows."""
+    template = NRT.model_copy(
+        update={"args_model": Post2020ForestLossArgs, "widgets": (spec,)}
+    )
+    mocks, stack = _patches(
+        pull=_pull(data=loss), written=("section-1", ["w1"])
+    )
+    await _apply(stack, template=template)
+    return mocks
+
+
+@pytest.mark.asyncio
+async def test_chart_widget_keeps_only_the_named_charts():
+    loss = {
+        "tree_cover_loss_year": [2021, 2022],
+        "area_ha": [10.0, 20.0],
+        "carbon_emissions_MgCO2e": [1.0, 2.0],
+    }
+    mocks = await _apply_loss_chart(
+        ChartWidgetSpec(
+            dataset_id=TREE_COVER_LOSS_ID, charts=("charts.tcl.annual_loss",)
+        ),
+        loss,
+    )
+
+    (widget,) = mocks.write.await_args.kwargs["widgets"]
+    # Tree cover loss makes two charts; the emissions chart is left out.
+    (chart,) = widget.insight.charts
+    assert (chart.y_axis, chart.position) == ("area_ha", 0)
+
+
+@pytest.mark.asyncio
+async def test_chart_widget_facts_go_to_the_text_model_in_order():
+    spec = ChartWidgetSpec(
+        dataset_id=TREE_COVER_LOSS_ID,
+        charts=("charts.tcl.annual_loss",),
+        facts=(
+            ChartFact(kind="peak", text_key="test.peak"),
+            ChartFact(kind="total", text_key="test.total"),
+        ),
+    )
+    loss = {"tree_cover_loss_year": [2021, 2022], "area_ha": [10.0, 20.0]}
+    sentences = {
+        "test.peak": {"en": "Peak {category}."},
+        "test.total": {"en": "{total} ha from {start_year} to {end_year}."},
+    }
+
+    with patch.dict(MESSAGES, sentences):
+        mocks = await _apply_loss_chart(spec, loss)
+
+    # The period is clamped to the end of the loss data.
+    assert mocks.text.await_args.kwargs["facts"] == [
+        "Peak 2022.",
+        "30 ha from 2021 to 2025.",
+    ]
+
+
 @pytest.mark.asyncio
 async def test_template_record_and_one_today():
     mocks, stack = _patches(written=("section-1", ["w1", "w2", "w3"]))
 
-    await _apply(stack, args={"days": 30})
+    await _apply(stack)
 
     record = mocks.write.await_args.kwargs["template"]
     assert record["name"] == "nrt-monitoring"
-    assert record["args"] == {"days": 30}
-    assert record["start_date"] == "2026-08-24"
-    assert record["end_date"] == "2026-09-23"
+    assert record["args"] == {}
+    assert record["start_date"] == "2026-08-23"
+    assert record["end_date"] == "2026-09-21"
     assert mocks.today.calls == 1
 
 
@@ -216,19 +308,53 @@ async def test_a_section_with_no_dated_data_keeps_the_requested_period():
 
     record = mocks.write.await_args.kwargs["template"]
     assert (record["start_date"], record["end_date"]) == (
-        "2026-09-09",
+        "2026-08-23",
+        "2026-09-21",
+    )
+
+
+@pytest.mark.asyncio
+async def test_nrt_period_is_the_30_days_to_the_latest_alert_date():
+    """Counted from the latest alert date, not today: alerts arrive days
+    after they are detected, so the days before today are not yet quiet."""
+    mocks, stack = _patches()
+
+    await _apply(stack)
+
+    pull = mocks.pull.await_args.kwargs
+    assert (pull["start_date"], pull["end_date"]) == (
+        "2026-08-23",
+        "2026-09-21",
+    )
+
+
+@pytest.mark.asyncio
+async def test_without_a_latest_alert_date_the_period_ends_today():
+    unreadable = FakeLatest(error=AlertsUnavailableError("timed out"))
+    mocks, stack = _patches(
+        written=("section-1", ["w1", "w2", "w3"]), latest=unreadable
+    )
+
+    await _apply(stack)
+
+    record = mocks.write.await_args.kwargs["template"]
+    assert (record["start_date"], record["end_date"]) == (
+        "2026-08-25",
         "2026-09-23",
     )
 
 
 @pytest.mark.asyncio
-async def test_args_default_to_the_template_default():
+async def test_the_chart_has_a_slot_for_every_day_of_the_period():
     mocks, stack = _patches()
 
     await _apply(stack)
 
-    assert mocks.write.await_args.kwargs["template"]["args"] == {"days": 14}
-    assert mocks.pull.await_args.kwargs["start_date"] == "2026-09-09"
+    chart = mocks.write.await_args.kwargs["widgets"][0].insight.charts[0]
+    days = [row["alert_date"] for row in chart.chart_data]
+    assert len(days) == 30
+    assert (days[0], days[-1]) == ("2026-08-23", "2026-09-21")
+    assert chart.chart_type == "stacked-bar"
 
 
 @pytest.mark.asyncio
@@ -263,7 +389,7 @@ async def test_optional_failure_gives_a_warning_and_drops_the_widget():
 
     assert result.warnings == ["No cloud-free imagery in the period."]
     widgets = mocks.write.await_args.kwargs["widgets"]
-    assert [w.widget_type for w in widgets] == ["insight", "map"]
+    assert [w.widget_type for w in widgets] == ["insight", "alerts"]
 
 
 @pytest.mark.asyncio
@@ -281,17 +407,22 @@ async def test_each_builder_gets_its_own_aoi_copy():
 
     (request,) = mocks.imagery.await_args.args
     assert request.aois[0]["src_id"] == "BRA.16_1"
-    assert request.target_date == TODAY
+    # The imagery is of the period's end, the latest alert date.
+    assert request.target_date == LATEST
+    alerts = mocks.write.await_args.kwargs["widgets"][1]
+    assert alerts.config["alerts"]["aoi"]["src_id"] == "BRA.16_1"
 
 
 @pytest.mark.asyncio
-async def test_empty_period_builds_an_empty_chart():
+async def test_empty_period_builds_a_chart_of_quiet_days():
     mocks, stack = _patches(pull=_pull(data={}))
 
     await _apply(stack)
 
     widgets = mocks.write.await_args.kwargs["widgets"]
-    assert widgets[0].insight.charts[0].chart_data == []
+    rows = widgets[0].insight.charts[0].chart_data
+    assert len(rows) == 30
+    assert all(set(row) == {"alert_date"} for row in rows)
 
 
 @pytest.mark.asyncio
@@ -312,6 +443,355 @@ async def test_dashboard_deleted_during_the_build():
         await _apply(stack)
 
 
+def _pull_args(**change):
+    return {
+        "query": "",
+        "dataset": {"dataset_id": INTEGRATED_ALERTS_ID},
+        "start_date": "2026-08-24",
+        "end_date": "2026-09-23",
+        "change_over_time_query": False,
+        "aois": [
+            {
+                "source": "gadm",
+                "src_id": "BRA.16_1",
+                "subtype": "state-province",
+            }
+        ],
+        **change,
+    }
+
+
+@pytest.mark.asyncio
+async def test_concurrent_identical_pulls_share_one_request():
+    inner = FakeHandler(ROWS)
+    shared = builder._SharedPulls(inner)
+    args = _pull_args()
+
+    first, second = await asyncio.gather(
+        shared.pull_data(**args), shared.pull_data(**args)
+    )
+
+    assert len(inner.calls) == 1
+    assert first is second
+    # The caller's area is left alone; the handler got a copy.
+    assert args["aois"][0]["src_id"] == "BRA.16_1"
+
+
+@pytest.mark.asyncio
+async def test_different_pulls_are_separate_requests():
+    inner = FakeHandler(ROWS)
+    shared = builder._SharedPulls(inner)
+
+    await shared.pull_data(**_pull_args())
+    await shared.pull_data(**_pull_args(start_date="2026-09-09"))
+    await shared.pull_data(
+        **_pull_args(
+            dataset={
+                "dataset_id": TREE_COVER_LOSS_ID,
+                "context_layer": "natural_forest",
+            }
+        )
+    )
+
+    assert len(inner.calls) == 3
+
+
+@pytest.mark.asyncio
+async def test_a_failed_shared_pull_fails_every_caller():
+    inner = FakeHandler(error=RuntimeError("boom"))
+    shared = builder._SharedPulls(inner)
+    args = _pull_args()
+
+    results = await asyncio.gather(
+        shared.pull_data(**args),
+        shared.pull_data(**args),
+        return_exceptions=True,
+    )
+
+    assert len(inner.calls) == 1
+    assert all(isinstance(r, RuntimeError) for r in results)
+
+
+@pytest.mark.asyncio
+async def test_widgets_of_one_build_share_a_pull():
+    template = NRT.model_copy(
+        update={
+            "widgets": (
+                ChartWidgetSpec(dataset_id=INTEGRATED_ALERTS_ID),
+                ChartWidgetSpec(dataset_id=INTEGRATED_ALERTS_ID),
+            )
+        }
+    )
+    mocks, stack = _patches(written=("section-1", ["w1", "w2"]))
+
+    await _apply(stack, template=template)
+
+    assert mocks.pull.await_count == 1
+    widgets = mocks.write.await_args.kwargs["widgets"]
+    assert [w.widget_type for w in widgets] == ["insight", "insight"]
+
+
+# The list's new week is the 7 days to LATEST, 15 to 21 September.
+WEEK_ROWS = {
+    "alert_date": [
+        "2026-09-18",
+        "2026-09-18",
+        "2026-09-16",
+        "2026-09-16",
+        "2026-09-14",
+    ],
+    "alert_confidence": ["highest", "low", "high", "highest", "high"],
+    "area_ha": [1.0, 9.0, 2.0, 1.0, 4.0],
+}
+WEEK_FACT = (
+    "From 2026-09-15 to 2026-09-21, Paraná had 2 alert day(s) with 4 ha of "
+    "high and highest confidence integrated alerts."
+)
+NO_ALERTS_FACT = (
+    "No high or highest confidence integrated alerts were recorded in "
+    "Paraná from 2026-09-15 to 2026-09-21."
+)
+ALERTS = NRT.model_copy(update={"widgets": (AlertsWidgetSpec(),)})
+
+
+class _DaysArgs(TemplateArgs):
+    """The ``days`` to the period end, for alerts facts over periods that
+    nrt-monitoring, always 30 days to the latest alert date, does not
+    build."""
+
+    days: int
+
+    def period(self, end: date) -> tuple[date, date]:
+        return end - timedelta(days=self.days), end
+
+
+ALERTS_TO_TODAY = ALERTS.model_copy(
+    update={"args_model": _DaysArgs, "period_end": "today"}
+)
+
+
+async def _apply_alerts(
+    data=WEEK_ROWS, template=ALERTS, latest=None, **kwargs
+):
+    mocks, stack = _patches(
+        pull=_pull(data=data),
+        written=("section-1", ["w1", "w2"]),
+        latest=latest,
+    )
+    await _apply(stack, template=template, **kwargs)
+    return mocks
+
+
+@pytest.mark.asyncio
+async def test_alerts_widget_stores_the_area_the_period_and_the_layer():
+    mocks = await _apply_alerts()
+
+    (widget,) = mocks.write.await_args.kwargs["widgets"]
+    assert widget.widget_type == "alerts"
+    assert widget.insight is None
+    assert widget.config["alerts"] == {
+        "aoi": {
+            "source": "gadm",
+            "src_id": "BRA.16_1",
+            "subtype": "state-province",
+            "name": "Paraná",
+        },
+        "days": 30,
+    }
+    dataset = widget.config["dataset"]
+    assert dataset["dataset_id"] == INTEGRATED_ALERTS_ID
+    assert dataset["context_layer"] is None
+    # One inactive land overlay per land filter of the list, named after it.
+    overlays = {o["name"]: o["tile_url"] for o in dataset["context_layers"]}
+    assert set(overlays) == {"natural_lands", "natural_forests"}
+    assert overlays["natural_lands"].endswith(
+        _catalog_tile(INTEGRATED_ALERTS_ID, "natural_lands")
+    )
+    # Natural forests: the same layer, drawing only the natural forest
+    # classes, in the catalog's colours.
+    lands, forests = (
+        urlsplit(overlays[name])
+        for name in ("natural_lands", "natural_forests")
+    )
+    assert forests.path == lands.path
+    lands_query = dict(parse_qsl(lands.query))
+    forests_query = dict(parse_qsl(forests.query))
+    assert json.loads(forests_query.pop("colormap")) == {
+        key: colour
+        for key, colour in json.loads(lands_query.pop("colormap")).items()
+        if key in {"2", "5", "8", "9"}
+    }
+    assert forests_query.pop("expression") == (
+        "asset*(asset==2)+asset*(asset==5)+asset*(asset==8)+asset*(asset==9)"
+    )
+    lands_query.pop("expression")
+    assert forests_query == lands_query
+
+    assert (dataset["start_date"], dataset["end_date"]) == (
+        "2026-08-23",
+        "2026-09-21",
+    )
+    assert dataset["tile_url"].endswith(
+        "&start_date=2026-08-23&end_date=2026-09-21"
+    )
+    assert set(widget.config) == {"alerts", "dataset"}
+
+
+def _catalog_tile(dataset_id, context_layer):
+    (layer,) = [
+        c
+        for c in builder._dataset_record(dataset_id)["context_layers"]
+        if c["value"] == context_layer
+    ]
+    return layer["tile_url"]
+
+
+def test_every_land_filter_of_the_list_has_an_overlay():
+    assert set(builder.ALERTS_LAND_OVERLAYS) == set(
+        INTEGRATED_ALERTS_LAND_FILTERS
+    )
+
+
+@pytest.mark.asyncio
+async def test_alerts_fact_is_the_latest_week_without_low_confidence():
+    mocks = await _apply_alerts()
+
+    assert mocks.text.await_args.kwargs["facts"] == [WEEK_FACT]
+    assert any(
+        s.startswith("alerts list and map: Integrated alerts")
+        for s in mocks.text.await_args.kwargs["widget_summaries"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_no_alerts_in_the_week_is_a_fact():
+    mocks = await _apply_alerts(data={})
+
+    assert mocks.text.await_args.kwargs["facts"] == [NO_ALERTS_FACT]
+
+
+@pytest.mark.asyncio
+async def test_without_a_latest_alert_date_the_fact_is_the_calendar_week():
+    unreadable = FakeLatest(error=AlertsUnavailableError("timed out"))
+
+    mocks = await _apply_alerts(latest=unreadable)
+
+    # TODAY is a Wednesday: the latest full alert week is 13 to 19 September.
+    assert mocks.text.await_args.kwargs["facts"] == [
+        "From 2026-09-13 to 2026-09-19, Paraná had 3 alert day(s) with 8 ha "
+        "of high and highest confidence integrated alerts."
+    ]
+    mocks.write.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_a_period_that_covers_part_of_the_week_gives_its_own_dates():
+    # The analytics API returns the rows of the period it was asked for.
+    in_period = {
+        "alert_date": ["2026-09-18"],
+        "alert_confidence": ["highest"],
+        "area_ha": [1.0],
+    }
+
+    mocks = await _apply_alerts(
+        data=in_period, template=ALERTS_TO_TODAY, args={"days": 7}
+    )
+
+    assert mocks.pull.await_args.kwargs["start_date"] == "2026-09-16"
+    assert mocks.text.await_args.kwargs["facts"] == [
+        "From 2026-09-16 to 2026-09-21, Paraná had 1 alert day(s) with 1 ha "
+        "of high and highest confidence integrated alerts."
+    ]
+
+
+@pytest.mark.asyncio
+async def test_a_period_after_the_week_gives_no_fact():
+    mocks = await _apply_alerts(template=ALERTS_TO_TODAY, args={"days": 1})
+
+    assert mocks.text.await_args.kwargs["facts"] == []
+
+
+@pytest.mark.asyncio
+async def test_alerts_and_chart_share_one_pull():
+    template = NRT.model_copy(
+        update={
+            "widgets": (
+                ChartWidgetSpec(dataset_id=INTEGRATED_ALERTS_ID),
+                AlertsWidgetSpec(),
+            )
+        }
+    )
+
+    mocks = await _apply_alerts(template=template)
+
+    assert mocks.pull.await_count == 1
+    chart, alerts = mocks.write.await_args.kwargs["widgets"]
+    assert (chart.widget_type, alerts.widget_type) == ("insight", "alerts")
+
+
+@pytest.mark.asyncio
+async def test_alerts_widget_for_a_key_biodiversity_area():
+    kba = SimpleNamespace(
+        source="kba",
+        src_id="8111",
+        subtype="key-biodiversity-area",
+        name="Serra do Mar",
+        position=0,
+    )
+
+    mocks = await _apply_alerts(dashboard=_dashboard(aois=[kba]))
+
+    (widget,) = mocks.write.await_args.kwargs["widgets"]
+    assert widget.config["alerts"]["aoi"]["subtype"] == (
+        "key-biodiversity-area"
+    )
+
+
+@pytest.mark.asyncio
+async def test_alerts_widget_for_an_unsupported_area_writes_nothing():
+    town = SimpleNamespace(
+        source="gadm",
+        src_id="BRA.16.137.1_1",
+        subtype="municipality",
+        name="Somewhere",
+        position=0,
+    )
+    mocks, stack = _patches()
+
+    with pytest.raises(WidgetFailedError, match="municipality"):
+        await _apply(stack, dashboard=_dashboard(aois=[town]), template=ALERTS)
+
+    mocks.pull.assert_not_awaited()
+    mocks.write.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_a_failed_alerts_pull_names_the_area_and_the_reason():
+    mocks, stack = _patches(pull=_pull(success=False, message="API down"))
+
+    with pytest.raises(WidgetFailedError, match="Paraná.*API down"):
+        await _apply(stack, template=ALERTS)
+
+    mocks.write.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    "key",
+    ["analysis_template.alerts.week", "analysis_template.alerts.no_alerts"],
+)
+def test_alerts_facts_cover_every_language_with_their_placeholders(key):
+    values = {
+        "aoi_name": "A",
+        "start_date": "2026-09-13",
+        "end_date": "2026-09-19",
+        "days": 2,
+        "area_ha": "4",
+    }
+    assert set(LANGUAGES) <= set(MESSAGES[key])
+    for message in MESSAGES[key].values():
+        assert "A" in message.format(**values)
+
+
 SHARE_FACT = (
     "From 2021 to 2025, 84% of the tree cover loss in Paraná was in "
     "natural forest: 4\u202f423 ha of 5\u202f286 ha."
@@ -324,35 +804,52 @@ SPLIT = NRT.model_copy(
 )
 
 
-def _split_pull(classes_and_areas):
-    """A breakdown answer with one row per (class, area), all in 2022."""
-    return _pull(
-        data={
-            "tree_cover_loss_year": [2022] * len(classes_and_areas),
-            "natural_forests_class": [c for c, _ in classes_and_areas],
-            "area_ha": [a for _, a in classes_and_areas],
-        }
-    )
+def _split_pulls(natural=NATURAL_FOREST_DATA, all_loss=ALL_LOSS_DATA):
+    """The analytics answers of the natural forest split: ``natural`` for
+    the pull with the natural_forest context layer, ``all_loss`` for the
+    pull of all tree cover."""
+
+    def pull(**kwargs):
+        in_natural_forest = (
+            kwargs["dataset"].get("context_layer") == "natural_forest"
+        )
+        return _pull(data=natural if in_natural_forest else all_loss)
+
+    return pull
+
+
+def _loss_2022(area_ha):
+    return {"tree_cover_loss_year": [2022], "area_ha": [area_ha]}
+
+
+def _split_patches(natural=NATURAL_FOREST_DATA, all_loss=ALL_LOSS_DATA):
+    mocks, stack = _patches(written=("section-1", ["w1"]))
+    mocks.pull.side_effect = _split_pulls(natural, all_loss)
+    return mocks, stack
 
 
 @pytest.mark.asyncio
-async def test_natural_forest_loss_pulls_the_breakdown_from_2021():
-    mocks, stack = _patches(
-        pull=_pull(data=NATURAL_FOREST_DATA), written=("section-1", ["w1"])
-    )
+async def test_natural_forest_loss_pulls_natural_forest_and_all_loss_at_10():
+    mocks, stack = _split_patches()
 
     await _apply(stack, template=SPLIT)
 
-    pull = mocks.pull.await_args.kwargs
-    assert pull["dataset"] == {
-        "dataset_id": TREE_COVER_LOSS_ID,
-        "forest_breakdown": "natural_forest",
-    }
+    pulls = [call.kwargs for call in mocks.pull.await_args_list]
+    canopy_cover = [{"name": "canopy_cover", "values": [10]}]
+    assert sorted(
+        (pull["dataset"] for pull in pulls), key=lambda d: len(d)
+    ) == [
+        {"dataset_id": TREE_COVER_LOSS_ID, "parameters": canopy_cover},
+        {
+            "dataset_id": TREE_COVER_LOSS_ID,
+            "context_layer": "natural_forest",
+            "parameters": canopy_cover,
+        },
+    ]
     # From the natural forest baseline to the last year of loss data.
-    assert (pull["start_date"], pull["end_date"]) == (
-        "2021-01-01",
-        "2025-12-31",
-    )
+    assert {(pull["start_date"], pull["end_date"]) for pull in pulls} == {
+        ("2021-01-01", "2025-12-31")
+    }
     (widget,) = mocks.write.await_args.kwargs["widgets"]
     assert (widget.widget_type, widget.config) == ("insight", {})
     (chart,) = widget.insight.charts
@@ -365,9 +862,7 @@ async def test_natural_forest_loss_pulls_the_breakdown_from_2021():
 
 @pytest.mark.asyncio
 async def test_natural_forest_share_is_a_computed_fact():
-    mocks, stack = _patches(
-        pull=_pull(data=NATURAL_FOREST_DATA), written=("section-1", ["w1"])
-    )
+    mocks, stack = _split_patches()
 
     await _apply(stack, template=SPLIT)
 
@@ -377,7 +872,7 @@ async def test_natural_forest_share_is_a_computed_fact():
 
 @pytest.mark.asyncio
 async def test_no_loss_is_a_fact_and_a_chart_of_zeros():
-    mocks, stack = _patches(pull=_pull(data={}), written=("section-1", ["w1"]))
+    mocks, stack = _split_patches(natural={}, all_loss={})
 
     await _apply(stack, template=SPLIT)
 
@@ -409,8 +904,10 @@ async def test_no_loss_is_a_fact_and_a_chart_of_zeros():
 async def test_a_small_part_never_rounds_to_0_or_100_percent(
     natural_ha, other_ha, fact_end
 ):
-    pull = _split_pull([("Natural Forest", natural_ha), ("Unknown", other_ha)])
-    mocks, stack = _patches(pull=pull, written=("section-1", ["w1"]))
+    mocks, stack = _split_patches(
+        natural=_loss_2022(natural_ha),
+        all_loss=_loss_2022(natural_ha + other_ha),
+    )
 
     await _apply(stack, template=SPLIT)
 
@@ -419,11 +916,12 @@ async def test_a_small_part_never_rounds_to_0_or_100_percent(
 
 
 @pytest.mark.asyncio
-async def test_unknown_natural_forest_class_writes_nothing():
-    pull = _split_pull([("Natural Grassland", 10.0)])
-    mocks, stack = _patches(pull=pull, written=("section-1", ["w1"]))
+async def test_pulls_that_do_not_match_write_nothing():
+    mocks, stack = _split_patches(
+        natural=_loss_2022(10.0), all_loss=_loss_2022(9.0)
+    )
 
-    with pytest.raises(WidgetFailedError, match="natural forest class"):
+    with pytest.raises(WidgetFailedError, match="more than all tree cover"):
         await _apply(stack, template=SPLIT)
 
     mocks.write.assert_not_awaited()
@@ -449,22 +947,67 @@ def test_natural_forest_facts_take_their_placeholders_in_every_language(key):
         assert "A" in message.format(**values)
 
 
+NOTE_KEY = "analysis_template.test.note"
+NOTE = {
+    "en": "**How to read this.**\nLoss is not deforestation.",
+    "es": "**Cómo leer esto.**\nLa pérdida no es deforestación.",
+}
+NOTES = NRT.model_copy(
+    update={"widgets": (TextWidgetSpec(text_key=NOTE_KEY, size="double"),)}
+)
+
+
+@pytest.mark.asyncio
+async def test_text_widget_is_the_note_in_the_users_language():
+    mocks, stack = _patches(written=("section-1", ["w1"]))
+
+    with patch.dict(MESSAGES, {NOTE_KEY: NOTE}):
+        await _apply(stack, template=NOTES, language="es")
+
+    (widget,) = mocks.write.await_args.kwargs["widgets"]
+    assert widget.widget_type == "text"
+    assert widget.config == {
+        "text": NOTE["es"],
+        "source": "template",
+        "size": "double",
+    }
+    assert widget.insight is None
+    # The text model sees the note, on one line, so the description need
+    # not repeat it.
+    assert mocks.text.await_args.kwargs["widget_summaries"] == [
+        "fixed text: **Cómo leer esto.** La pérdida no es deforestación."
+    ]
+
+
+@pytest.mark.asyncio
+async def test_a_missing_note_writes_nothing():
+    mocks, stack = _patches(written=("section-1", ["w1"]))
+
+    with pytest.raises(WidgetFailedError, match=NOTE_KEY):
+        await _apply(stack, template=NOTES)
+
+    mocks.write.assert_not_awaited()
+
+
 POST_2020 = get_template("post-2020-forest-loss")
 
 
-async def _apply_post_2020():
-    # A model that records its prompt, then fails, so the section gets the
-    # fallback text.
+def _with_fallback_text(mocks):
+    """A text model that records its prompt, then fails, so the section
+    gets the fallback text."""
     model = _FakeModel(RuntimeError("no model in unit tests"))
-    mocks, stack = _patches(
-        pull=_pull(data=NATURAL_FOREST_DATA),
-        written=("section-1", ["w1", "w2", "w3"]),
-    )
 
     async def _text(*args, **kwargs):
         return await text.generate_section_text(*args, model=model, **kwargs)
 
     mocks.text.side_effect = _text
+    return model
+
+
+async def _apply_post_2020():
+    mocks, stack = _patches(written=("section-1", ["w1", "w2", "w3"]))
+    mocks.pull.side_effect = _split_pulls()
+    model = _with_fallback_text(mocks)
     result = await _apply(stack, template=POST_2020)
     return result, mocks, model
 
@@ -514,6 +1057,9 @@ async def test_post_2020_prompt_has_the_share_and_the_clamped_years():
         "2021-01-01 to 2025-12-31"
     ) in model.inputs
     assert "Take every figure and every year from the facts" in model.inputs
+    # The chart line and the rules give the threshold of the chart and map.
+    assert "other tree cover, 10% canopy density threshold" in model.inputs
+    assert "the chart and the map use a 10% canopy density" in model.inputs
 
 
 @pytest.mark.asyncio
@@ -524,4 +1070,134 @@ async def test_post_2020_fallback_states_the_share_then_the_caveats():
     assert result.description.startswith(
         f"{SHARE_FACT} The SBTN Natural Lands Map is a 2020 baseline"
     )
+    assert "A 10% canopy density threshold applies" in result.description
     assert "30%" in result.description
+
+
+FOREST_LOSS_DRIVERS = get_template("forest-loss-drivers")
+LOSS = {
+    "tree_cover_loss_year": [2001, 2002, 2003],
+    "area_ha": [1000.0, 2500.4, 1500.0],
+    "carbon_emissions_MgCO2e": [1.0, 2.0, 3.0],
+}
+DRIVERS = {
+    "tree_cover_loss_driver": [
+        "Permanent agriculture",
+        "Logging",
+        "Unknown",
+    ],
+    "area_ha": [3000.0, 1000.0, 500.0],
+}
+LOSS_FACTS = [
+    "From 2001 to 2025, Paraná lost 5\u202f000 ha of tree cover.",
+    "The most tree cover loss was in 2002, with 2\u202f500 ha.",
+    "The leading driver was Permanent agriculture: 75% of the loss with a "
+    "known driver (3\u202f000 ha of 4\u202f000 ha).",
+]
+
+
+async def _apply_forest_loss_drivers(loss=LOSS, drivers=DRIVERS):
+    mocks, stack = _patches(written=("section-1", ["w1", "w2", "w3", "w4"]))
+
+    async def pull(**kwargs):
+        if kwargs["dataset"]["dataset_id"] == TREE_COVER_LOSS_BY_DRIVER_ID:
+            return _pull(data=drivers)
+        return _pull(data=loss)
+
+    mocks.pull.side_effect = pull
+    model = _with_fallback_text(mocks)
+    result = await _apply(stack, template=FOREST_LOSS_DRIVERS)
+    return result, mocks, model
+
+
+@pytest.mark.asyncio
+async def test_forest_loss_drivers_builds_its_four_widgets():
+    result, mocks, _ = await _apply_forest_loss_drivers()
+
+    assert result.warnings == []
+    kwargs = mocks.write.await_args.kwargs
+    loss, drivers, note, layer = kwargs["widgets"]
+    # Annual loss only, without the emissions chart.
+    (loss_chart,) = loss.insight.charts
+    assert (loss_chart.dataset_id, loss_chart.y_axis) == (
+        TREE_COVER_LOSS_ID,
+        "area_ha",
+    )
+    assert "size" not in loss.config
+    (pie,) = drivers.insight.charts
+    assert pie.chart_type == "pie"
+    assert [row["tree_cover_loss_driver"] for row in pie.chart_data] == [
+        "Permanent agriculture",
+        "Logging",
+    ]
+    # The pie and the note share the row under the loss chart; the map
+    # comes last at the full width.
+    assert drivers.config["size"] == note.config["size"] == "single"
+    assert "size" not in layer.config
+    dataset = layer.config["dataset"]
+    assert dataset["dataset_id"] == TREE_COVER_LOSS_BY_DRIVER_ID
+    assert dataset["context_layer"] is None
+    assert (dataset["start_date"], dataset["end_date"]) == (
+        "2001-01-01",
+        "2025-12-31",
+    )
+    assert note.widget_type == "text"
+    assert note.config["text"].startswith("**How to read this section**")
+    assert (
+        kwargs["template"]["start_date"],
+        kwargs["template"]["end_date"],
+    ) == ("2001-01-01", "2025-12-31")
+
+
+@pytest.mark.asyncio
+async def test_forest_loss_drivers_pulls_loss_and_drivers_for_the_period():
+    _, mocks, _ = await _apply_forest_loss_drivers()
+
+    pulls = {
+        call.kwargs["dataset"]["dataset_id"]: call.kwargs
+        for call in mocks.pull.await_args_list
+    }
+    assert set(pulls) == {TREE_COVER_LOSS_ID, TREE_COVER_LOSS_BY_DRIVER_ID}
+    for pull in pulls.values():
+        assert (pull["start_date"], pull["end_date"]) == (
+            "2001-01-01",
+            "2025-12-31",
+        )
+
+
+@pytest.mark.asyncio
+async def test_forest_loss_drivers_prompt_has_the_facts_and_the_note():
+    _, mocks, model = await _apply_forest_loss_drivers()
+
+    assert mocks.text.await_args.kwargs["facts"] == LOSS_FACTS
+    for fact in LOSS_FACTS:
+        assert f"- {fact}" in model.inputs
+    assert "- fixed text: **How to read this section** Tree cover loss" in (
+        model.inputs
+    )
+    assert "do not repeat its explanations" in model.inputs
+
+
+@pytest.mark.asyncio
+async def test_forest_loss_drivers_fallback_gives_the_facts_first():
+    result, _, _ = await _apply_forest_loss_drivers()
+
+    assert result.title == "Tree cover loss and drivers in Paraná"
+    assert result.description.startswith(" ".join(LOSS_FACTS))
+    assert result.description.endswith(
+        "Tree cover loss is not the same as deforestation."
+    )
+
+
+@pytest.mark.asyncio
+async def test_forest_loss_drivers_with_no_loss_drops_the_pie():
+    result, mocks, _ = await _apply_forest_loss_drivers(loss={}, drivers={})
+
+    assert result.warnings == [
+        "No chart is available for Tree cover loss by dominant driver."
+    ]
+    widgets = mocks.write.await_args.kwargs["widgets"]
+    assert [w.widget_type for w in widgets] == ["insight", "text", "map"]
+    assert mocks.text.await_args.kwargs["facts"] == [
+        "No tree cover loss was recorded in Paraná from 2001 to 2025."
+    ]

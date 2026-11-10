@@ -18,7 +18,7 @@ from langchain_core.runnables import RunnableConfig, RunnableLambda
 from pydantic import BaseModel, Field, ValidationError
 
 from src.agent.language import DEFAULT_LANGUAGE, language_name
-from src.agent.llms import SMALL_MODEL
+from src.agent.llms import resilient_structured_output
 from src.agent.subagents.analyst.charts.model import InsightChart
 from src.agent.subagents.analyst.prompts import WORDING_GUIDE
 from src.shared.logging_config import get_logger
@@ -121,7 +121,7 @@ def _parse_insight_text(message) -> InsightText:
 class InsightTextGenerator:
     """Generates insight text from resolved charts."""
 
-    def __init__(self, model=SMALL_MODEL):
+    def __init__(self, model=None):
         # Not `with_structured_output`: Gemini's schema-constrained decoding
         # intermittently replaces accented characters with control characters
         # ("Piau\u0000"), in roughly 1 of 5 answers in our probe runs. The JSON

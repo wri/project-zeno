@@ -16,11 +16,19 @@ from src.api.services.charts import (
     column_to_rows,
 )
 from src.api.services.charts.curated import build_curated_charts
+from src.api.services.charts.integrated_alerts import (
+    HIGH_SERIES,
+    HIGHEST_SERIES,
+    LOW_SERIES,
+)
 from src.api.services.charts.tcl_natural_forest import (
+    NATURAL_COLUMN,
     NATURAL_SERIES,
+    OTHER_COLUMN,
     OTHER_SERIES,
     TCLNaturalForestChartGenerator,
     natural_forest_totals,
+    split_by_year,
 )
 
 TCL_DATA = {
@@ -63,6 +71,13 @@ def test_loss_chart_is_bar_with_correct_axes():
     assert chart.to_orm_kwargs()["y_axis"] == "area_ha"
 
 
+def test_loss_bars_take_the_colour_of_the_loss_map_layer():
+    loss, emissions = TCLChartGenerator().generate(TCL_ROWS)
+    # The catalog series_color the map legend shows for tree cover loss.
+    assert loss.to_frontend_dict()["seriesColor"] == "#DC6C9A"
+    assert emissions.series_color is None
+
+
 def test_emissions_chart_is_separate_bar_with_correct_axes():
     chart = TCLChartGenerator().generate(TCL_ROWS)[1]
     fe = chart.to_frontend_dict()
@@ -97,57 +112,37 @@ def test_sorts_rows_by_year():
         assert years == [2001, 2004, 2010, 2021, 2023]
 
 
-# --- Tree cover loss split by natural forest class --------------------------
-# Shaped like the analytics answer for BRA.14.1 with
-# forest_filter="natural_forest": one row per year and class, in arbitrary
-# order. 2022 is the live sample; 2024 has no rows.
+# --- Tree cover loss split by natural forest -------------------------------
+# Shaped like the two analytics answers for BRA.14.1 at a 10% threshold, as
+# the handler gives them: tree cover loss with the natural_forest context
+# layer, and all tree cover loss. One row per year, in arbitrary order;
+# 2024 has no rows. Below 30% there are no emissions.
 NATURAL_FOREST_DATA = {
-    "aoi_id": ["BRA.14.1"] * 10,
-    "aoi_type": ["admin"] * 10,
-    "tree_cover_loss_year": [
-        2023,
-        2022,
-        2021,
-        2022,
-        2025,
-        2021,
-        2022,
-        2023,
-        2025,
-        2021,
-    ],
-    "natural_forests_class": [
-        "Unknown",
-        "Natural Forest",
-        "Non-natural Forest",
-        "Unknown",
-        "Natural Forest",
-        "Natural Forest",
-        "Non-natural Forest",
-        "Natural Forest",
-        "Unknown",
-        "Unknown",
-    ],
-    "area_ha": [
-        200.0,
-        1222.35,
-        80.25,
-        230.15,
-        800.0,
-        900.5,
-        103.11,
-        1500.0,
-        99.5,
-        150.0,
-    ],
-    "carbon_emissions_MgCO2e": [1.0] * 10,
+    "aoi_id": ["BRA.14.1"] * 4,
+    "aoi_type": ["admin"] * 4,
+    "tree_cover_loss_year": [2023, 2021, 2025, 2022],
+    "area_ha": [1500.0, 900.5, 800.0, 1222.35],
+    "carbon_emissions_MgCO2e": [None] * 4,
 }
-NATURAL_FOREST_ROWS = column_to_rows(NATURAL_FOREST_DATA)
+ALL_LOSS_DATA = {
+    "aoi_id": ["BRA.14.1"] * 4,
+    "aoi_type": ["admin"] * 4,
+    "tree_cover_loss_year": [2022, 2021, 2023, 2025],
+    "area_ha": [1555.61, 1130.75, 1700.0, 899.5],
+    "carbon_emissions_MgCO2e": [None] * 4,
+}
+SPLIT_ROWS = split_by_year(
+    column_to_rows(NATURAL_FOREST_DATA), column_to_rows(ALL_LOSS_DATA)
+)
 
 
-def _split_chart(rows=NATURAL_FOREST_ROWS):
+def _split_chart(rows=SPLIT_ROWS):
     (chart,) = TCLNaturalForestChartGenerator(2021, 2025).generate(rows)
     return chart
+
+
+def _loss(year, area_ha):
+    return {"tree_cover_loss_year": year, "area_ha": area_ha}
 
 
 def test_natural_forest_split_is_one_stacked_bar_per_year():
@@ -165,17 +160,24 @@ def test_natural_forest_split_is_one_stacked_bar_per_year():
     ]
 
 
-def test_natural_forest_split_folds_non_natural_and_unknown_into_other():
+def test_other_tree_cover_is_all_loss_minus_natural_forest_loss():
     by_year = {
         row["tree_cover_loss_year"]: row for row in _split_chart().chart_data
     }
 
     assert by_year[2022][NATURAL_SERIES] == 1222.35
-    assert by_year[2022][OTHER_SERIES] == pytest.approx(230.15 + 103.11)
+    assert by_year[2022][OTHER_SERIES] == pytest.approx(1555.61 - 1222.35)
     assert by_year[2023][OTHER_SERIES] == 200.0
     # A year with no loss still has its bar, at zero.
     assert by_year[2024][NATURAL_SERIES] == 0.0
     assert by_year[2024][OTHER_SERIES] == 0.0
+
+
+def test_a_year_with_loss_outside_natural_forest_only():
+    (row,) = split_by_year([], [_loss(2022, 40.0)])
+
+    assert row[NATURAL_COLUMN] == 0.0
+    assert row[OTHER_COLUMN] == 40.0
 
 
 def test_natural_forest_is_on_top_of_the_stack_with_its_colours():
@@ -190,34 +192,37 @@ def test_natural_forest_is_on_top_of_the_stack_with_its_colours():
 
 
 def test_natural_forest_split_with_no_rows_has_a_zero_bar_per_year():
-    chart = _split_chart(rows=[])
+    rows = split_by_year([], [])
+    chart = _split_chart(rows=rows)
 
     assert len(chart.chart_data) == 5
     assert all(row[NATURAL_SERIES] == 0.0 for row in chart.chart_data)
-    assert natural_forest_totals([]) == (0.0, 0.0)
+    assert natural_forest_totals(rows) == (0.0, 0.0)
 
 
 @pytest.mark.parametrize(
-    "row",
+    ("natural", "all_loss"),
     [
-        {"tree_cover_loss_year": 2022, "area_ha": 1.0},
-        {
-            "tree_cover_loss_year": 2022,
-            "natural_forests_class": "Natural Grassland",
-            "area_ha": 1.0,
-        },
+        ([_loss(2022, 10.0)], [_loss(2022, 9.0)]),
+        ([_loss(2022, 10.0)], []),
     ],
 )
-def test_natural_forest_split_rejects_an_unknown_class(row):
-    with pytest.raises(ValueError, match="natural forest class"):
-        _split_chart(rows=[row])
+def test_more_natural_forest_loss_than_all_loss_raises(natural, all_loss):
+    with pytest.raises(ValueError, match="more than all tree cover loss"):
+        split_by_year(natural, all_loss)
+
+
+def test_float_noise_in_the_two_sums_is_no_other_tree_cover():
+    (row,) = split_by_year([_loss(2022, 1000.0000001)], [_loss(2022, 1000.0)])
+
+    assert row[OTHER_COLUMN] == 0.0
 
 
 def test_natural_forest_totals():
-    natural, total = natural_forest_totals(NATURAL_FOREST_ROWS)
+    natural, total = natural_forest_totals(SPLIT_ROWS)
 
-    assert natural == pytest.approx(900.5 + 1222.35 + 1500.0 + 800.0)
-    assert total == pytest.approx(sum(NATURAL_FOREST_DATA["area_ha"]))
+    assert natural == pytest.approx(sum(NATURAL_FOREST_DATA["area_ha"]))
+    assert total == pytest.approx(sum(ALL_LOSS_DATA["area_ha"]))
 
 
 def test_natural_forest_split_is_not_the_default_tree_cover_loss_chart():
@@ -230,7 +235,7 @@ def test_natural_forest_split_is_not_the_default_tree_cover_loss_chart():
 async def test_natural_forest_split_legend_and_colours_are_localised():
     (chart,) = await build_curated_charts(
         TREE_COVER_LOSS_ID,
-        NATURAL_FOREST_ROWS,
+        SPLIT_ROWS,
         "es",
         [TCLNaturalForestChartGenerator(2021, 2025)],
     )
@@ -248,13 +253,13 @@ async def test_natural_forest_split_legend_and_colours_are_localised():
 
 # --- Integrated Alerts -------------------------------------------------------
 IA_DATA = {
-    # Two rows share 2024-04-05: the analytics API returns one row per
+    # Two rows share 2024-03-05: the analytics API returns one row per
     # intersecting geometry, so a day can appear more than once.
     "alert_date": [
         "2024-03-01",
         "2024-03-01",
-        "2024-04-05",
-        "2024-04-05",
+        "2024-03-05",
+        "2024-03-05",
     ],
     "alert_confidence": ["high", "low", "high", "high"],
     "area_ha": [10.0, 5.0, 20.0, 2.5],
@@ -262,6 +267,13 @@ IA_DATA = {
     "aoi_type": ["admin"] * 4,
 }
 IA_ROWS = column_to_rows(IA_DATA)
+
+
+def _alerts(*days: tuple[str, str, float]) -> list[dict]:
+    return [
+        {"alert_date": day, "alert_confidence": confidence, "area_ha": area}
+        for day, confidence, area in days
+    ]
 
 
 def test_can_handle_integrated_alerts_dataset():
@@ -277,44 +289,51 @@ def test_integrated_alerts_generator_registered():
     )
 
 
-def test_ia_generates_one_line_chart_by_confidence():
-    chart = IntegratedAlertsChartGenerator().generate(IA_ROWS)[0]
+def test_ia_is_a_daily_stacked_bar_highest_to_low_in_the_map_colours():
+    (chart,) = IntegratedAlertsChartGenerator().generate(IA_ROWS)
     fe = chart.to_frontend_dict()
-    assert fe["type"] == "line"
+
+    assert fe["type"] == "stacked-bar"
     assert fe["xAxis"] == "alert_date"
     assert fe["yAxis"] == "area_ha"
-    assert fe["colorField"] == "alert_confidence"
-    # snake_case persistence parity
-    assert chart.to_orm_kwargs()["color_field"] == "alert_confidence"
-
-
-def test_ia_aggregates_area_by_day_and_confidence():
-    """Daily, not monthly: it is the resolution the data arrives at, and a
-    monthly bucket would collapse the default two-week window to one point."""
-    chart = IntegratedAlertsChartGenerator().generate(IA_ROWS)[0]
-    by_key = {
-        (r["alert_date"], r["alert_confidence"]): r["area_ha"]
-        for r in chart.chart_data
+    assert fe["colorField"] == ""
+    # The first series is the bottom of the stack.
+    assert chart.series_fields == [HIGHEST_SERIES, HIGH_SERIES, LOW_SERIES]
+    assert chart.color_map == {
+        HIGHEST_SERIES: "#C92A6D",
+        HIGH_SERIES: "#DC6699",
+        LOW_SERIES: "#EDA4C2",
     }
-    # Same day, different confidence: kept apart.
-    assert by_key[("2024-03-01", "high")] == 10.0
-    assert by_key[("2024-03-01", "low")] == 5.0
-    # Same day, same confidence, two geometries: summed.
-    assert by_key[("2024-04-05", "high")] == 22.5
-    # A month is never a bucket.
-    assert all(len(r["alert_date"]) == 10 for r in chart.chart_data)
+
+
+def test_ia_sums_each_tier_per_day():
+    (chart,) = IntegratedAlertsChartGenerator().generate(IA_ROWS)
+
+    assert chart.chart_data == [
+        {
+            "alert_date": "2024-03-01",
+            LOW_SERIES: 5.0,
+            HIGH_SERIES: 10.0,
+            HIGHEST_SERIES: 0.0,
+        },
+        # Same day, same tier, two geometries: summed.
+        {
+            "alert_date": "2024-03-05",
+            LOW_SERIES: 0.0,
+            HIGH_SERIES: 22.5,
+            HIGHEST_SERIES: 0.0,
+        },
+    ]
 
 
 def test_ia_days_are_chronological():
-    chart = IntegratedAlertsChartGenerator().generate(
-        column_to_rows(
-            {
-                "alert_date": ["2024-04-05", "2024-03-01", "2024-03-20"],
-                "alert_confidence": ["high"] * 3,
-                "area_ha": [1.0, 2.0, 3.0],
-            }
+    (chart,) = IntegratedAlertsChartGenerator().generate(
+        _alerts(
+            ("2024-04-05", "high", 1.0),
+            ("2024-03-01", "high", 2.0),
+            ("2024-03-20T00:00:00", "high", 3.0),
         )
-    )[0]
+    )
 
     assert [r["alert_date"] for r in chart.chart_data] == [
         "2024-03-01",
@@ -323,20 +342,99 @@ def test_ia_days_are_chronological():
     ]
 
 
-def test_ia_absent_days_are_not_zero_filled():
-    """The API reports what it detected; a fabricated zero is a claim about
-    a day nobody looked at that way."""
-    chart = IntegratedAlertsChartGenerator().generate(
-        column_to_rows(
-            {
-                "alert_date": ["2024-03-01", "2024-03-05"],
-                "alert_confidence": ["high", "high"],
-                "area_ha": [1.0, 2.0],
-            }
-        )
-    )[0]
+def test_ia_without_a_period_has_rows_for_the_alert_days_only():
+    (chart,) = IntegratedAlertsChartGenerator().generate(IA_ROWS)
 
-    assert len(chart.chart_data) == 2
+    assert [r["alert_date"] for r in chart.chart_data] == [
+        "2024-03-01",
+        "2024-03-05",
+    ]
+
+
+def test_ia_gives_every_day_of_the_period_a_slot_and_no_value():
+    """A day with no alerts holds its place on the axis as a gap, not a
+    zero: the API reports what it detected, and a fabricated zero is a claim
+    about a day nobody looked at that way."""
+    generator = IntegratedAlertsChartGenerator().for_period(
+        "2024-02-28", "2024-03-06"
+    )
+    (chart,) = generator.generate(IA_ROWS)
+
+    assert [r["alert_date"] for r in chart.chart_data] == [
+        "2024-02-28",
+        "2024-02-29",
+        "2024-03-01",
+        "2024-03-02",
+        "2024-03-03",
+        "2024-03-04",
+        "2024-03-05",
+        "2024-03-06",
+    ]
+    quiet = [r for r in chart.chart_data if r["alert_date"] == "2024-03-02"]
+    assert quiet == [{"alert_date": "2024-03-02"}]
+
+
+def test_ia_with_no_alerts_in_the_period_still_spans_it():
+    generator = IntegratedAlertsChartGenerator().for_period(
+        "2024-03-01", "2024-03-03"
+    )
+    (chart,) = generator.generate([])
+
+    assert chart.chart_data == [
+        {"alert_date": "2024-03-01"},
+        {"alert_date": "2024-03-02"},
+        {"alert_date": "2024-03-03"},
+    ]
+
+
+def test_ia_unknown_confidence_raises():
+    with pytest.raises(ValueError, match="Unknown alert confidence"):
+        IntegratedAlertsChartGenerator().generate(
+            _alerts(("2024-03-01", "medium", 1.0))
+        )
+
+
+async def test_ia_legend_and_colours_are_localised():
+    (chart,) = await build_curated_charts(
+        INTEGRATED_ALERTS_ID,
+        IA_ROWS,
+        "es",
+        period=("2024-03-01", "2024-03-02"),
+    )
+
+    low, high, highest = [
+        await t(key, "es") for key in (LOW_SERIES, HIGH_SERIES, HIGHEST_SERIES)
+    ]
+    assert (low, high, highest) == (
+        "Confianza baja",
+        "Confianza alta",
+        "Confianza máxima",
+    )
+    assert chart.series_fields == [highest, high, low]
+    assert chart.color_map == {
+        low: "#EDA4C2",
+        high: "#DC6699",
+        highest: "#C92A6D",
+    }
+    assert chart.chart_data[0] == {
+        "alert_date": "2024-03-01",
+        low: 5.0,
+        high: 10.0,
+        highest: 0.0,
+    }
+    # The period is passed through: the day after has a slot.
+    assert chart.chart_data[1] == {"alert_date": "2024-03-02"}
+
+
+async def test_a_period_leaves_other_charts_as_they_are():
+    rows = column_to_rows(TCL_DATA)
+
+    with_period = await build_curated_charts(
+        TREE_COVER_LOSS_ID, rows, period=("2020-01-01", "2022-12-31")
+    )
+    without = await build_curated_charts(TREE_COVER_LOSS_ID, rows)
+
+    assert with_period == without
 
 
 # --- LGMS ---------------------------------------------------------------

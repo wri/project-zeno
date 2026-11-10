@@ -1,10 +1,28 @@
 from dataclasses import dataclass, field
 from typing import Optional, Sequence
 
+from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.base import DataPullResult, DataSourceHandler
 from src.agent.subagents.analyst.charts import InsightChart
 from src.api.services.charts import ChartGenerator, column_to_rows
 from src.api.services.charts.curated import build_curated_charts
+
+
+async def _chart_period(
+    start_date: str, end_date: str, dataset_id: int
+) -> tuple[str, str]:
+    """The period the charts span: the request's, clamped to the dates the
+    dataset covers, as the template builder clamps its own. A chart that
+    gives every day a slot then starts where the data does: integrated
+    alerts begin in December 2023, and the Analyses pane asks for 2001 to
+    2025. A dataset outside the catalog keeps the request's period."""
+    try:
+        start, end, _ = await revise_date_range(
+            start_date, end_date, dataset_id
+        )
+    except ValueError:
+        return start_date, end_date
+    return start, end
 
 
 @dataclass
@@ -32,12 +50,9 @@ class AnalyzeService:
         language: Optional[str] = None,
         context_layer: Optional[str] = None,
         canopy_cover: Optional[int] = None,
-        forest_breakdown: Optional[str] = None,
     ) -> AnalyzeResult:
         # The same dataset fields the agent's pick_dataset sets: the handler
         # reads the forest filter and the canopy cover threshold from them.
-        # The forest breakdown is the one field only the analysis templates
-        # set.
         dataset: dict = {"dataset_id": dataset_id}
         if context_layer:
             dataset["context_layer"] = context_layer
@@ -45,8 +60,6 @@ class AnalyzeService:
             dataset["parameters"] = [
                 {"name": "canopy_cover", "values": [canopy_cover]}
             ]
-        if forest_breakdown:
-            dataset["forest_breakdown"] = forest_breakdown
         result = await self._handler.pull_data(
             query="",
             dataset=dataset,
@@ -63,6 +76,7 @@ class AnalyzeService:
                 column_to_rows(result.data),
                 language,
                 self._generators,
+                period=await _chart_period(start_date, end_date, dataset_id),
             )
 
         source_urls = (

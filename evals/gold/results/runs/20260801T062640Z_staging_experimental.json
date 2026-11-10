@@ -1,0 +1,120 @@
+{
+  "run_id": "20260801T062640Z_staging_experimental",
+  "started": "2026-08-01T06:26:40Z",
+  "environment": "staging",
+  "build": "staging-20260801",
+  "ff": "experimental",
+  "harness": {
+    "repo": "gnw-gold-evals",
+    "sha": "a054668"
+  },
+  "judge_model": "claude-haiku-4-5",
+  "num_trials": 1,
+  "caseset_version": "d564c1b3b4786bc0",
+  "results": [
+    {
+      "uid": "6226a0caaf487e4b",
+      "id": "1-001",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "data_pull_exists": 1.0,
+        "date_coverage": 1.0,
+        "date_extraction": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null,
+        "chart_produced": 1.0,
+        "answered_without_data": 1.0,
+        "web_fallback": 1.0,
+        "pull_source_match": 1.0,
+        "class_value_match": null,
+        "chart_integrity": 1.0,
+        "answer_traceability": 1.0,
+        "chart_well_formed": 1.0,
+        "chart_type_match": null,
+        "scope_match": 1.0
+      },
+      "reasons": {
+        "charts_answer": "The chart correctly displays monthly disturbance alert area (in hectares) for Mount Hakusan in August and September 2024, with appropriate line chart type and data structure that directly supports answering whether August had more high confidence disturbance alerts area than September.",
+        "agent_answer": "The expected answer is TRUE and the actual insight explicitly states \"**True.**\" at the beginning, confirming that August 2024 had higher disturbance alerts (4.76 ha) than September 2024 (4.41 ha), which is an exact semantic match.",
+        "answer_traceability": "deterministic check: the chart's closest figure to the expected 4.76 is 4.76462, a 0.10% difference, within the 2% tolerance"
+      },
+      "latency_s": 34.4,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/2d8dcea1eed5bd55e54b66d5eb1bf19e"
+    }
+  ],
+  "buckets": {
+    "retrieval": {
+      "dedicated": {
+        "passed": 6,
+        "evaluated": 6
+      },
+      "shared": {
+        "passed": 0,
+        "evaluated": 0
+      },
+      "rows_covered": 1
+    },
+    "analysis": {
+      "dedicated": {
+        "passed": 1,
+        "evaluated": 1
+      },
+      "shared": {
+        "passed": 2,
+        "evaluated": 2
+      },
+      "rows_covered": 1
+    },
+    "explanation": {
+      "dedicated": {
+        "passed": 2,
+        "evaluated": 2
+      },
+      "shared": {
+        "passed": 1,
+        "evaluated": 1
+      },
+      "rows_covered": 1
+    },
+    "output": {
+      "dedicated": {
+        "passed": 2,
+        "evaluated": 2
+      },
+      "shared": {
+        "passed": 1,
+        "evaluated": 1
+      },
+      "rows_covered": 1
+    },
+    "scope": {
+      "dedicated": {
+        "passed": 1,
+        "evaluated": 1
+      },
+      "shared": {
+        "passed": 0,
+        "evaluated": 0
+      },
+      "rows_covered": 1
+    },
+    "rows_total": 1,
+    "verdicts": {
+      "pass": 1,
+      "fail": 0,
+      "error": 0,
+      "uncovered": 0
+    }
+  }
+}

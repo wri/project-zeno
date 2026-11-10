@@ -1,0 +1,17 @@
+id: 1-119
+uid: bb9037bc4660887e
+status: not doing
+group: imagery
+query: Show me alerts and imagery from {current_month} for Tabatinga, Amazonas, Brazil.
+expected:
+  aoi_source: gadm
+  dataset_id: 0;11
+  dataset_name: Integrated alerts
+  text: Returns Sentinel-2 imagery for the requested period
+notes:
+  planet_routing: Planet MVP (wri/project-zeno#800) — tests that a current-month date routes
+    to Sentinel-2, not Planet, because Planet publishes only completed monthly mosaics and
+    has no current-month imagery. Uses {current_month} template so the prompt stays current
+    without relative-date phrasing.
+  aoi_pending: AOI ID unverified — Tabatinga may resolve to different admin levels; add aoi_ids
+    after first validation run.

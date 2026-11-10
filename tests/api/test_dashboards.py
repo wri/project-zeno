@@ -620,6 +620,70 @@ async def test_text_widget_config_validated(client, auth_override):
     assert widgets[-1]["insight"] is None
 
 
+ALERTS_TILE_URL = (
+    "https://tiles.globalforestwatch.org/gfw_integrated_dist_alerts/latest/"
+    "dynamic/{z}/{x}/{y}.png?render_type=true_color"
+    "&start_date=2026-09-16&end_date=2026-10-16"
+)
+
+
+@pytest.mark.asyncio
+async def test_alerts_widget_config_accepted(client, auth_override):
+    user = await _create_user("alerts-widget-ok")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    config = {
+        "alerts": {"aoi": PARANA, "days": 30},
+        "dataset": {
+            "dataset_id": INTEGRATED_ALERTS_ID,
+            "dataset_name": "Integrated alerts",
+            "tile_url": ALERTS_TILE_URL,
+            "context_layer": None,
+            "context_layers": [],
+            "start_date": "2026-09-16",
+            "end_date": "2026-10-16",
+        },
+    }
+
+    response = await client.post(
+        f"/api/dashboards/{dashboard['id']}/widgets",
+        headers=AUTH,
+        json={"widget_type": "alerts", "config": config},
+    )
+    assert response.status_code == 201
+
+    # The config comes back as written, the GFW tile URL included.
+    rendered = await client.get(
+        f"/api/dashboards/{dashboard['id']}", headers=AUTH
+    )
+    (widget,) = rendered.json()["widgets"]
+    assert widget["widget_type"] == "alerts"
+    assert widget["config"] == config
+    assert widget["insight"] is None
+
+
+@pytest.mark.asyncio
+async def test_alerts_widget_config_validated(client, auth_override):
+    user = await _create_user("alerts-widget-bad")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    url = f"/api/dashboards/{dashboard['id']}/widgets"
+    layer = {"tile_url": ALERTS_TILE_URL}
+
+    bad_configs = [
+        None,
+        {"dataset": layer},
+        {"alerts": {"aoi": {"source": "gadm"}, "days": 30}, "dataset": layer},
+        {"alerts": {"aoi": PARANA, "days": 0}, "dataset": layer},
+        {"alerts": {"aoi": PARANA, "days": 30}},
+    ]
+    for config in bad_configs:
+        response = await client.post(
+            url, headers=AUTH, json={"widget_type": "alerts", "config": config}
+        )
+        assert response.status_code == 422, config
+
+
 @pytest.mark.asyncio
 async def test_widget_add_reorder_remove(client, auth_override):
     user = await _create_user("widget-lifecycle")

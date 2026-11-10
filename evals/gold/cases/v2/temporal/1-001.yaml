@@ -1,0 +1,17 @@
+id: 1-001
+uid: 6226a0caaf487e4b
+status: done
+group: temporal
+query: 'True or false: Mount Hakusan biodiversity area had more area with high confidence
+  disturbance alerts in August 2024 than September 2024'
+expected:
+  aoi_ids: '15060'
+  aoi_source: kba
+  dataset_id: '11'
+  dataset_name: Integrated alerts
+  start_date: '2024-08-01'
+  end_date: '2024-09-30'
+  answer: 'TRUE'
+  scope: analyse
+notes:
+  aoi_type: kba

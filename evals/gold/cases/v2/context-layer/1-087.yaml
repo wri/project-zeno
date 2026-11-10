@@ -1,0 +1,16 @@
+id: 1-087
+uid: 743a4f6170aad334
+status: done
+group: context-layer
+query: How much tree cover loss in intact forests in Russia in 2025?
+expected:
+  aoi_ids: RUS
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  context_layer: intact_forest
+  answer: 588,849 hectares
+  scope: analyse
+notes:
+  depth: '2026-08-04: answer + scope added to clear a depth violation. 588,849 ha on 13/13
+    committed trials across 5 runs.'

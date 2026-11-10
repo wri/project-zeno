@@ -10,7 +10,10 @@ from typing import Annotated, Any, ClassVar, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.agent.datasets.handlers.analytics_handler import TREE_COVER_LOSS_ID
+from src.agent.datasets.handlers.analytics_handler import (
+    INTEGRATED_ALERTS_ID,
+    TREE_COVER_LOSS_ID,
+)
 
 
 class TemplateArgs(BaseModel):
@@ -23,8 +26,9 @@ class TemplateArgs(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    def period(self, today: date) -> tuple[date, date]:
-        """The start and end dates that the widgets cover."""
+    def period(self, end: date) -> tuple[date, date]:
+        """The start and end dates that the widgets cover, for a period
+        ending on ``end``, the day the template's ``period_end`` names."""
         raise NotImplementedError
 
 
@@ -41,11 +45,34 @@ class _WidgetSpec(BaseModel):
     size: Optional[Literal["single", "double"]] = None
 
 
+class ChartFact(BaseModel):
+    """A sentence with a figure from a chart widget's first chart, computed
+    in code (``facts``), that the description must give."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    # total: the sum of the areas, as {total}. peak: the x value with the
+    # largest area, as {category}, and that area, as {value}. top_share: the
+    # same, plus its share of the sum, as {share}, and the sum, as {total}.
+    kind: Literal["total", "peak", "top_share"]
+    # i18n key of the sentence. It can also use {aoi_name}, {start_year}
+    # and {end_year}.
+    text_key: str
+    # i18n key of the sentence when the chart has no area, with those three
+    # placeholders only. None leaves the fact out.
+    empty_key: Optional[str] = None
+
+
 class ChartWidgetSpec(_WidgetSpec):
     """A curated chart of one dataset, from the analytics pull."""
 
     kind: Literal["chart"] = "chart"
     dataset_id: int
+    # The title keys of the dataset's curated charts to keep, for a dataset
+    # with more than one (tree cover loss has annual loss and annual
+    # emissions). None keeps them all.
+    charts: Optional[tuple[str, ...]] = None
+    facts: tuple[ChartFact, ...] = ()
 
 
 class LayerWidgetSpec(_WidgetSpec):
@@ -78,11 +105,35 @@ class NaturalForestLossWidgetSpec(_WidgetSpec):
     dataset_id: ClassVar[int] = TREE_COVER_LOSS_ID
 
 
+class AlertsWidgetSpec(_WidgetSpec):
+    """A live list of integrated alert days next to the alerts map of the
+    same period. The widget stores the area, the period length and the map
+    layer; the frontend fetches the rows when it shows them. The 7 days to
+    the latest alert date are a fact for the description."""
+
+    kind: Literal["alerts"] = "alerts"
+    # The list is of integrated alerts only. dataset_ids() reads it for the
+    # dataset presentation rules.
+    dataset_id: ClassVar[int] = INTEGRATED_ALERTS_ID
+
+
+class TextWidgetSpec(_WidgetSpec):
+    """A fixed markdown note, such as how to read the charts or what the
+    data cannot tell. The text model sees it, so the description need not
+    repeat it."""
+
+    kind: Literal["text"] = "text"
+    # i18n key of the markdown. It takes no placeholders.
+    text_key: str
+
+
 WidgetSpec = Annotated[
     ChartWidgetSpec
     | LayerWidgetSpec
     | ImageryWidgetSpec
-    | NaturalForestLossWidgetSpec,
+    | NaturalForestLossWidgetSpec
+    | AlertsWidgetSpec
+    | TextWidgetSpec,
     Field(discriminator="kind"),
 ]
 
@@ -108,6 +159,11 @@ class AnalysisTemplate(BaseModel):
     # Validates the arguments of a request.
     args_model: type[TemplateArgs]
     widgets: tuple[WidgetSpec, ...]
+    # The day the period ends on: today, or the latest integrated alert date
+    # (today when it cannot be read), the day the alerts list counts back
+    # from. Alerts arrive days after they are detected, so the days before
+    # today are not yet quiet.
+    period_end: Literal["today", "latest_alert"] = "today"
 
     def parse_args(self, raw: dict[str, Any] | None) -> TemplateArgs:
         """The validated arguments. Raises ``pydantic.ValidationError``."""

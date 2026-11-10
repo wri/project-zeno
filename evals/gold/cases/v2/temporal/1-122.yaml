@@ -1,0 +1,34 @@
+id: 1-122
+uid: 439a98af199c5d91
+status: ready
+group: temporal
+query: How much area had high-confidence disturbance alerts in Tabatinga municipality, Amazonas,
+  Brazil in 2026?
+expected:
+  aoi_ids: BRA.4.56_2
+  aoi_source: gadm
+  dataset_id: '11'
+  dataset_name: Integrated alerts
+  scope: analyse
+notes:
+  aoi_type: gadm
+  capability: route a bare CURRENT-YEAR request ("in 2026") to the alert dataset whose content_date
+    ends in "present", and pull it. Every other alert row (1-001, 1-002, mt-003) uses a 2024
+    window, so none detects a selector that believes the current year lies in the future.
+  origin: 'production trace 099ba22993ccae4e61056626213ee5f0 (2026-09-15, Land & Carbon Lab
+    account): "Now add disturbance alerts to the map for 2026" -> pick_dataset "No dataset
+    selected: ... no data available for that year"; the agent then told the user alerts run
+    only "up to the present (late 2024)". Root cause: the selector prompt carried no date.
+    Fix: project-zeno PR #824 (fix(pick_dataset): anchor the selector on today''s date). mt-009
+    is the multi-turn replica of the same thread.'
+  design: 'routing + scope only, deliberately no dates and no answer: for a bare year the
+    agent legitimately clamps end_date to today (staging probe 2026-09-15 pulled 2023-12-01..2026-09-15),
+    and 2026 alert totals are still being revised. Tabatinga is the GADM municipality from
+    the same session where the alert pull succeeded; a protected-area AOI was avoided because
+    WDPA pulls fail for an unrelated reason (PZB-1406). A closed window inside 2026 ("between
+    1 January 2026 and 31 August 2026") did NOT trip the selector on staging or prod, so the
+    bare year is the trigger.'
+  status_reason: '2026-09-15 landed as ready. The refusal is stochastic on builds without
+    project-zeno PR #824 (local reproduction of the selector call: 2/2 refusals; staging 1-trial
+    smoke the same day: selected and analysed) - see the 3-trial prod smoke in the PR that
+    added this case. Promote to done after a 3-trial pass once #824 is deployed.'

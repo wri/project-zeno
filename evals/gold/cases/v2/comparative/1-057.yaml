@@ -1,0 +1,15 @@
+id: 1-057
+uid: 67053564c5717807
+status: done
+group: comparative
+query: In 2000, which state had the most tree cover between Oregon and Washington?
+expected:
+  aoi_ids: USA.38_1;USA.48_1
+  aoi_source: gadm
+  dataset_id: '7'
+  dataset_name: tree cover
+  answer: Oregon
+  scope: analyse
+notes:
+  aoi_type: gadm 1
+  value_1: 9.72 million hectares

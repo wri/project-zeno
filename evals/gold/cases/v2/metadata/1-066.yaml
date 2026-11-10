@@ -1,0 +1,8 @@
+id: 1-066
+uid: baaa1c81665e7cb7
+status: done
+group: metadata
+query: What's the geographic coverage of the tree cover loss data?
+expected:
+  text: Tree cover loss covers global land area. Optionally mentions excluding Antarctica
+    and other Arctic islands.

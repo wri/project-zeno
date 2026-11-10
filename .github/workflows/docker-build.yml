@@ -1,9 +1,37 @@
+# gold-ephemeral.yaml starts after this workflow completes on main, matching
+# it by this name.
 name: Build and Publish Docker Image
+
+# Builds the image for one commit and pushes it tagged with its SHA. Every push
+# to main builds and moves `latest`; gold-ephemeral.yaml also calls this for
+# PRs it evaluates.
 
 on:
   push:
     branches:
       - main
+  workflow_call:
+    inputs:
+      sha:
+        description: Commit SHA to build and tag
+        required: true
+        type: string
+      push_latest:
+        description: Also tag the image `latest` (main only)
+        required: false
+        default: false
+        type: boolean
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Commit SHA to build and tag
+        required: true
+        type: string
+      push_latest:
+        description: Also tag the image `latest` (main only)
+        required: false
+        default: false
+        type: boolean
 
 env:
   REGISTRY: public.ecr.aws/b7u8b0a6
@@ -14,10 +42,16 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      # Inputs are empty on push.
+      SHA: ${{ inputs.sha || github.sha }}
+      PUSH_LATEST: ${{ inputs.push_latest || github.event_name == 'push' }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SHA }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -26,20 +60,36 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
+      # A re-run, or a PR marked ready again, finds its image already built.
+      - name: Check for an existing image
+        id: existing
+        run: |
+          if aws ecr-public describe-images \
+              --region us-east-1 \
+              --repository-name "${{ env.IMAGE_NAME }}" \
+              --image-ids imageTag="${{ env.SHA }}" >/dev/null 2>&1; then
+            echo "Image for ${{ env.SHA }} already exists"
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Login to Amazon ECR Public
+        if: steps.existing.outputs.found == 'false' || env.PUSH_LATEST == 'true'
         id: login-ecr-public
         uses: aws-actions/amazon-ecr-login@v2
         with:
           registry-type: public
 
       - name: Build and push Docker image
+        if: steps.existing.outputs.found == 'false'
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.SHA }}
+            ${{ env.PUSH_LATEST == 'true' && format('{0}/{1}:latest', env.REGISTRY, env.IMAGE_NAME) || '' }}
           # WRI Insights corpus + sgrep index, pulled from S3 during the build
           # by scripts/wri_insights_snapshot.py (see Dockerfile). Creds are
           # passed as build secrets so they never land in image layers.
@@ -48,3 +98,11 @@ jobs:
           secrets: |
             aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}
             aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      # The build was skipped, but `latest` must still follow main.
+      - name: Move latest to the existing image
+        if: steps.existing.outputs.found == 'true' && env.PUSH_LATEST == 'true'
+        run: |
+          docker buildx imagetools create \
+            --tag "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.SHA }}"

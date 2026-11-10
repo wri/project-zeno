@@ -1,0 +1,19 @@
+id: 1-043
+uid: be74ef9c8efa1e1d
+status: done
+group: parent-child
+query: Which region of New Zealand had the highest total gross greenhouse gas emissions from
+  tree cover loss between 2005 and 2020?
+expected:
+  aoi_ids: NZL.13_1;NZL.14_1;NZL.12_1;NZL.4_1;NZL.3_1;NZL.9_1;NZL.19_1;NZL.18_1;NZL.8_1;NZL.16_1;NZL.15_1;NZL.6_1;NZL.7_1;NZL.5_1;NZL.2_1;NZL.17_1;NZL.10_1;NZL.11_1;NZL.1_1
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Forest GHG emissions
+  answer: Waikato
+  scope: analyse
+notes:
+  aoi_type: gadm 0
+  rewrite: 'Named the gas basis (gross emissions from tree cover loss) — the
+    old wording nudged between datasets 4 and 6 on 5/8 trials. ''region'' not ''state'': GADM
+    level 1 for NZL is regions, as the agent''s own nudge said. answer Waikato is provisional
+    pending a run that actually analyses.'

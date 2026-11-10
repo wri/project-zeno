@@ -1,0 +1,22 @@
+id: 1-054
+uid: c53631b7aac17921
+status: done
+group: direct
+query: Based on net forest greenhouse gas flux, are the Canary Islands (Canarias, Spain) a
+  net source or a net sink?
+expected:
+  aoi_ids: ESP.14_1
+  aoi_source: gadm
+  dataset_id: '6'
+  dataset_name: Forest greenhouse gas net flux
+  answer: Sink
+  text: States that the Canary Islands are a net sink, with a net flux of approximately -2,793,765
+    Mg CO2e
+  scope: analyse
+notes:
+  aoi_type: gadm 1
+  rewrite: '''deforestation related emissions'' pointed at dataset 4; named
+    the net-flux basis instead. text figure corrected — the old -286,993.68 was 1-055''s Las
+    Palmas PROVINCE value pasted into this archipelago row. Verified on run 20260803T195628Z:
+    the agent reports -2,793,765 MgCO2e, reconciling with its own chart (gross emissions 1,580,945
+    + gross removals -4,374,710).'

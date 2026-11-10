@@ -1,0 +1,13 @@
+id: 1-090
+uid: 98ff258bc3be8557
+status: done
+group: multilingual
+query: Cuánta superficie forestal se perdió en España en 2022?
+expected:
+  aoi_ids: ESP
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  answer: 137,821 hectares
+  text: Provides good response in the same language as the prompt
+  scope: analyse

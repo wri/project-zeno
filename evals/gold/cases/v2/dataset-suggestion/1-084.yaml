@@ -1,0 +1,47 @@
+id: 1-084
+uid: a0e498080969981e
+status: done
+group: dataset-suggestion
+query: Show me trends in natural forest loss in Gabon
+expected:
+  aoi_ids: GAB
+  aoi_source: gadm
+  clarification: 'FALSE'
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  context_layer: natural_forest
+  answer: 104,789.14 hectares
+  scope: analyse
+notes:
+  aoi_type: gadm 0
+  value_2: 70,485,772.62 MgCO2e (emissions the agent reports alongside the area figure; not
+    asserted in expected since the query only asks about loss, not emissions)
+  rewrite: '2026-10-08: project-zeno#853 (2026-10-06) added a natural_forest context layer
+    to the Tree cover loss dataset (SBTN Natural Lands Map-based, loss from 2021 onward only),
+    created specifically to give "natural forest" queries an unambiguous, non-nudging target.
+    Retargeted this case from "natural land loss" (which exercised the old 4-way dataset_choice
+    nudge: Global land cover/grassland/SBTN/Tree cover loss) to "natural forest loss", to
+    test whether the new layer resolves the ambiguity outright rather than being one more
+    option the agent must choose between.
+
+    Confirmed: 9/9 trials (run 20261008T191127Z_staging) routed to dataset_id=4 + context_layer=natural_forest
+    with clarification_requested=False and scope=analyse — no nudge in any trial. 8 of 9 trials
+    produced the identical figure (104,841.67 ha / 70,485,772.62 MgCO2e, 2021-2025); the ninth
+    trial flaked on chart_produced only (the ~8.6% baseline chart- generation flakiness documented
+    elsewhere this session), not a routing or data problem. This closes out the former 1-084
+    regression finding (2026-10-08 run 20261008T165349Z_staging: the old "natural land loss"
+    wording had drifted from always-nudging to usually-not — 9/12 trials skipped clarification
+    against a clean 2026-09-24 baseline) by moving the case onto a wording the new capability
+    was built to serve, rather than re-fighting the old ambiguity.'
+  threshold: '2026-10-09: answer moved from 104,841.67 to 104,789.14 ha, the natural forest
+    figure at the expected 10% canopy threshold (analytics API, staging: natural_forest_only
+    + canopy_cover=10; 2021 16,523.87; 2022 25,826.66; 2023 17,453.48; 2024 25,637.53; 2025
+    19,347.60). The old figure matched natural_forest_only with no canopy_cover to the hectare,
+    i.e. the agent currently runs natural forest loss unthresholded, which AJ confirmed is
+    wrong. The two are 0.05% apart, so this row passes before and after that fix; 1-130 is
+    the row that detects it. value_2 (emissions) goes away with the fix: the API returns no
+    carbon below 30% canopy.'
+  status_reason: 're-verified 2026-10-09 at the new uid after the answer moved to the 10%
+    figure: run 20261009T101010Z_staging_experimental (3 trials, ff=experimental) passed every
+    check on 3/3. The agent''s 104,842 ha is still the unthresholded figure, 0.05% from the
+    expected 104,789.14.'

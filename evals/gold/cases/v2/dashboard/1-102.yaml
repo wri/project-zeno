@@ -1,0 +1,10 @@
+id: 1-102
+uid: e549e69bc1700085
+status: done
+group: dashboard
+query: Add tree cover loss to the map
+expected:
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  dashboard_created: 'FALSE'

@@ -1,0 +1,23 @@
+id: 1-027
+uid: 12fafcc85ace2b62
+status: todo
+group: direct
+query: Break down the natural land classes by area in the Murgia Alta WDPA in Italy — how
+  much natural short vegetation is there?
+expected:
+  aoi_source: wdpa
+  dataset_id: '3'
+  dataset_name: SBTN Natural Lands Map
+  answer: 679.17 ha
+  scope: analyse
+  class_values: natural short vegetation=679.17 ha
+notes:
+  status_reason: CHART aggregates results, hiding requested class
+  aoi_type: wdpa
+  class_1: natural short vegetation
+  rewrite: 'The prose was right on 7/7 (679.16-679.28 vs 679.17, max drift
+    0.016%) but the chart was a pie of Natural 2,123.93 vs Non-natural 123,810.97, so the
+    requested class figure appeared nowhere in it — a verdict staked on chart choice, which
+    cases/README.md forbids. Asking for the breakdown forces the class-level chart, as sibling
+    1-026 (a ranking) already does at 0.00% support. class_values added from the verified
+    figure.'

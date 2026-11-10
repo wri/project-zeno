@@ -1,0 +1,38 @@
+# PR title check (PDSA-1). The PR title links the work to Jira; it is not a commit message.
+# Commit messages (and the squash subject the merger writes) follow the repo's own convention.
+#
+# Passes:  "PZB-1234: Summary"   "PZB-1234, PZB-1240: Summary"   "NO-TICKET: Summary"
+# Skipped (counts as passing): bots, and PRs whose base is not the repo's default branch
+#   (so release promotions develop→main and stacked PRs into feature branches are not checked).
+name: PR title
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+
+permissions: {}
+
+jobs:
+  pr-title:
+    name: pr-title
+    if: >-
+      github.event.pull_request.user.type != 'Bot' &&
+      github.event.pull_request.base.ref == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Title starts with a PZB key or NO-TICKET
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          if [[ "$TITLE" == *$'\n'* || "$TITLE" == *$'\r'* ]]; then
+            echo "::error title=PR title must be a single line::Remove line breaks from the PR title."
+            exit 1
+          fi
+          if printf '%s' "$TITLE" | grep -Eq '^(PZB-[0-9]+(, PZB-[0-9]+)*|NO-TICKET): [^[:space:]]'; then
+            printf 'OK: %s\n' "$TITLE"
+            exit 0
+          fi
+          echo "::error title=PR title needs a Jira key::Start the PR title with the PZB ticket key, e.g. 'PZB-1234: Handle empty AOI results'. Several tickets: 'PZB-1234, PZB-1240: …'. No ticket: 'NO-TICKET: …'. Edit the title and this check re-runs."
+          printf 'Title was: %s\n' "$TITLE"
+          exit 1

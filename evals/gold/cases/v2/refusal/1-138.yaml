@@ -1,0 +1,40 @@
+id: 1-138
+uid: b99f918a3a730013
+status: todo
+group: refusal
+query: How much tree cover gain was there between 2000 and 2020 in the oil palm concessions
+  in Kuantan Singingi, Riau, Indonesia?
+expected:
+  aoi_source: oil_palm
+  dataset_id: '5'
+  dataset_name: Tree cover gain
+  text: Says tree cover gain cannot be analysed for concessions, rather than saying no data
+    was found, gives no gain figure, and offers a different dataset or a non-concession area
+  scope: refuse;suggest
+notes:
+  authored: '2026-10-15: temporary row for the geometry guard in wri/project-zeno#864 (commit
+    c54187f7). Concessions and custom areas go to the analytics API as a feature collection,
+    which the tree cover gain, tree cover and LGMS endpoints reject. pull_data now stops before
+    the request and appends the reason to its no-data message. Kuantan Singingi is the PR''s
+    own test query (20 oil palm concessions).'
+  catches: Without the guard, the upstream 4xx is retried until the job fails and the agent
+    sees only "No data found for the selected AOIs and dataset Tree cover gain." Without the
+    pull_data.py change, the agent sees the same line with no reason. Either way the text
+    check fails. Analysing the whole district instead of the concessions fails scope.
+  design: aoi_source documents the intent but no check reads it outside dashboards, so this
+    row cannot tell a wrong AOI pick from a guard failure on its own until aoi_ids is pinned
+    (see status_reason). scope is
+    refuse;suggest because the guard message invites the agent to offer another dataset, which
+    it may do as a dataset_choice nudge.
+  retire_when: 'The guard is a stopgap for contract 7. When project-zeno-data-infra accepts
+    a feature collection on the tree cover gain endpoint, the guard comes out: flip this row
+    to scope analyse with a verified answer, or park it.'
+  status_reason: 'todo 2026-10-15: blocked on the concession ingest on staging. #864 is deployed
+    there (/api/metadata lists the five concession sources), but GET /api/aois?source=oil_palm
+    returns no rows, and prod does not have #864 yet. Smoke run 20261015T173835Z_staging (1
+    trial, default profile, not committed): pick_aoi found no concessions, the agent fell back
+    to the Kuantan Singingi district (IDN.24.7_1), and pick_dataset offered tree cover gain
+    as a dataset_choice nudge because there is no concessions layer to filter by. text and
+    scope passed and dataset_id_match failed (a nudge leaves no dataset on state), so the guard
+    never ran. Rerun once ingest_concessions.py and build-aois have run on staging; pin aoi_ids
+    to the concession ids that run resolves if they are stable over 3 trials.'

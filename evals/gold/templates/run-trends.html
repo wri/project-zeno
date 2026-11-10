@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GOLD trends — capability over time</title>
+<!-- Performance ticker across every ledger run.
+
+     tools/render_trends.py injects {runs: [...]} into the RUN_PAYLOAD tag;
+     opened raw the page accepts run JSONs by drag-and-drop instead.
+
+     Honesty rules baked into the chart, mirroring the repo's comparison
+     rules: the pass-rate line NEVER connects across a differing ff (each ff
+     is its own series), caseset_version changes are marked on the x-axis,
+     and tiny smoke runs are excluded by default (the "full runs" filter)
+     so a 1-case rerun cannot crater the trend. Spacing is per-run, not
+     proportional to elapsed time: this reads run-over-run, like releases. -->
+<style>
+  .viz-root {
+    color-scheme: light;
+    --plane: #f9f9f7; --surface-1: #fcfcfb;
+    --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #898781;
+    --grid: #e1e0d9; --baseline: #c3c2b7;
+    --border: rgba(11,11,11,0.10);
+    --series-1: #2a78d6;          /* first ff series drawn, or the only one */
+    --series-2: #eb6834;          /* every further ff series */
+    --delta-good: #006300; --delta-bad: #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --plane: #0d0d0d; --surface-1: #1a1a19;
+      --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #898781;
+      --grid: #2c2c2a; --baseline: #383835;
+      --border: rgba(255,255,255,0.10);
+      --series-1: #3987e5; --series-2: #d95926;
+      --delta-good: #0ca30c; --delta-bad: #d03b3b;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --plane: #0d0d0d; --surface-1: #1a1a19;
+    --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #898781;
+    --grid: #2c2c2a; --baseline: #383835;
+    --border: rgba(255,255,255,0.10);
+    --series-1: #3987e5; --series-2: #d95926;
+    --delta-good: #0ca30c; --delta-bad: #d03b3b;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body.viz-root {
+    background: var(--plane); color: var(--text-primary);
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 1100px; margin: 0 auto; padding: 2rem 1rem 4rem; }
+  h1 { font-size: 1.35rem; margin: 0 0 .2rem; }
+  h2 { font-size: 1rem; margin: 2rem 0 .2rem; }
+  .sub { color: var(--text-secondary); font-size: .85rem; margin: 0 0 .6rem; }
+  .note { color: var(--text-muted); font-size: .78rem; margin: .3rem 0 0; }
+  .card { background: var(--surface-1); border: 1px solid var(--border);
+          border-radius: 10px; padding: 14px 16px; }
+  /* filters: one row, above everything they scope */
+  .filters { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center;
+             margin: 1rem 0; }
+  .filters label { font-size: .78rem; color: var(--text-secondary); }
+  .filters select { background: var(--surface-1); color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: 6px; padding: .28rem .5rem;
+    font-size: .8rem; margin-left: .25rem; }
+  /* KPI row */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+           gap: 10px; margin: 0 0 1.2rem; }
+  .tile .l { font-size: .78rem; color: var(--text-secondary); }
+  .tile .v { font-size: 26px; font-weight: 600; }
+  .tile .d { font-size: .78rem; font-weight: 600; }
+  .tile .d.good { color: var(--delta-good); }
+  .tile .d.bad { color: var(--delta-bad); }
+  .tile .d.flat { color: var(--text-muted); font-weight: 400; }
+  .tile svg { display: block; margin-top: 6px; }
+  /* charts */
+  .chartwrap { position: relative; }
+  svg text { font: 11px system-ui, -apple-system, "Segoe UI", sans-serif;
+             fill: var(--text-muted); }
+  svg .axis { stroke: var(--baseline); stroke-width: 1; }
+  svg .grid { stroke: var(--grid); stroke-width: 1; }
+  svg .marker { stroke: var(--surface-1); stroke-width: 2; }
+  svg .csline { stroke: var(--baseline); stroke-width: 1; }
+  svg .cslabel { font-size: 10px; fill: var(--text-muted); }
+  svg .crosshair { stroke: var(--baseline); stroke-width: 1; }
+  .legend { display: flex; gap: 1rem; font-size: .78rem;
+            color: var(--text-secondary); margin: .4rem 0 .2rem; }
+  .legend i { display: inline-block; width: 16px; height: 0;
+              border-top: 2px solid; border-radius: 2px;
+              vertical-align: middle; margin-right: 5px; }
+  .multiples { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+               gap: 10px; }
+  .panel h3 { font-size: .8rem; font-weight: 600; margin: 0 0 2px; }
+  .panel .k { display: block; font-size: .68rem; color: var(--text-muted);
+              font-weight: 400; }
+  /* tooltip */
+  #tip { position: absolute; pointer-events: none; z-index: 10;
+         background: var(--surface-1); border: 1px solid var(--border);
+         border-radius: 8px; padding: 8px 10px; font-size: .76rem;
+         box-shadow: 0 4px 14px rgba(0,0,0,.15); max-width: 340px; }
+  #tip .when { font-weight: 600; margin-bottom: 2px; }
+  #tip .row { display: flex; gap: 6px; align-items: baseline; }
+  #tip .key { display: inline-block; width: 12px; border-top: 2px solid;
+              border-radius: 2px; transform: translateY(-3px); }
+  #tip .val { font-weight: 600; }
+  #tip .meta { color: var(--text-secondary); margin-top: 3px; }
+  /* table view */
+  details.tableview { margin-top: 1rem; }
+  details.tableview summary { cursor: pointer; font-size: .85rem;
+                              color: var(--text-secondary); }
+  .tablewrap { overflow-x: auto; margin-top: .5rem; }
+  table { border-collapse: collapse; font-size: .78rem; width: 100%; }
+  th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--grid);
+           white-space: nowrap; }
+  th { color: var(--text-secondary); font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .mono { font-family: ui-monospace, Menlo, monospace; font-size: .72rem; }
+  #drop { border: 2px dashed var(--baseline); border-radius: 10px; padding: 2.5rem;
+          text-align: center; color: var(--text-secondary); margin: 2rem 0; }
+  #loadmsg { color: var(--delta-bad); font-size: .8rem; margin: .3rem 0; }
+  .hidden { display: none; }
+</style>
+</head>
+<body class="viz-root">
+<main>
+  <h1>GOLD trends</h1>
+  <p class="sub">The capability smoke-test set, run over run: does the pass rate
+    hold as the agent changes? Newest run on the right.</p>
+  <p id="loadmsg" class="hidden"></p>
+  <div id="drop" class="hidden">Drop <code>results/runs/*.json</code> ledger
+    files here to chart them.</div>
+
+  <div id="content" class="hidden">
+    <div class="filters" id="filters">
+      <label>environment <select id="f-env"></select></label>
+      <label>ff <select id="f-ff"></select></label>
+      <label>trials <select id="f-trials">
+        <option value="all">all</option>
+        <option value="3">3-trial only (regression grade)</option>
+      </select></label>
+      <label>size <select id="f-size">
+        <option value="full" selected>full runs (≥ 50 cases)</option>
+        <option value="all">all runs, incl. smoke</option>
+      </select></label>
+      <span class="note" id="f-count"></span>
+    </div>
+
+    <div class="tiles" id="tiles"></div>
+
+    <h2>Overall pass rate</h2>
+    <p class="sub">Share of questions that passed every gating check. One line
+      per <code>ff</code> profile — a trend is never drawn across differing
+      tool profiles, and ▲ marks a question-set version change (numbers either
+      side of it are not strictly comparable).</p>
+    <div class="card chartwrap" id="mainwrap">
+      <div class="legend" id="mainlegend"></div>
+      <div id="mainchart"></div>
+    </div>
+
+    <h2>The five stages, over time</h2>
+    <p class="sub">Dedicated-check pass share per stage (shared checks
+      excluded). A panel gap means that run evaluated no dedicated checks for
+      the stage.</p>
+    <div class="multiples" id="multiples"></div>
+
+    <details class="tableview">
+      <summary>Table view — every filtered run, every metric</summary>
+      <div class="tablewrap" id="tablewrap"></div>
+    </details>
+    <p class="note" id="genline"></p>
+  </div>
+</main>
+
+<script id="run-payload" type="application/json">__RUN_PAYLOAD__</script>
+<script>
+"use strict";
+/* ---------- payload ---------- */
+let RUNS = [];
+let GENERATED = "locally";
+{
+  const raw = document.getElementById("run-payload").textContent.trim();
+  if (raw && raw !== "__RUN" + "_PAYLOAD__") {
+    try {
+      const payload = JSON.parse(raw);
+      RUNS = (payload.runs || (payload.run ? [payload.run] : [])).slice();
+      GENERATED = payload.generated || GENERATED;
+    } catch (e) {}
+  }
+}
+
+/* ---------- metrics ---------- */
+const BUCKETS = [
+  ["retrieval", "Understanding the question"],
+  ["analysis", "Doing the maths"],
+  ["explanation", "Explaining honestly"],
+  ["output", "Presenting results"],
+  ["scope", "Doing the right amount"],
+];
+
+function flapped(entry) {
+  const trials = entry.trials || [];
+  if (trials.length < 2) return false;
+  return Object.keys(entry.checks || {}).some(name =>
+    new Set(trials.map(t => (t.checks || {})[name])).size > 1);
+}
+
+function metricsOf(run) {
+  const b = run.buckets || {}, verdicts = b.verdicts || {};
+  const entries = run.results || [];
+  const n = b.rows_total ?? entries.length;
+  const scoredRows = n - (verdicts.error ?? 0) - (verdicts.uncovered ?? 0);
+  const lats = entries.map(e => e.latency_s).filter(v => v != null);
+  const hasTrials = (run.num_trials || 1) > 1 && entries.some(e => e.trials);
+  const buckets = {};
+  for (const [name] of BUCKETS) {
+    const d = (b[name] || {}).dedicated || {};
+    buckets[name] = d.evaluated ? d.passed / d.evaluated : null;
+  }
+  return {
+    id: run.run_id, when: run.started, env: run.environment,
+    ff: run.ff == null ? "default" : String(run.ff),
+    build: run.build, caseset: run.caseset_version,
+    trials: run.num_trials || 1, n,
+    passRate: scoredRows > 0 ? (verdicts.pass ?? 0) / scoredRows : null,
+    pass: verdicts.pass ?? 0, fail: verdicts.fail ?? 0,
+    errors: verdicts.error ?? 0, uncovered: verdicts.uncovered ?? 0,
+    avgLat: lats.length ? lats.reduce((a, v) => a + v, 0) / lats.length : null,
+    flakyShare: hasTrials && n
+      ? entries.filter(flapped).length / n : null,
+    buckets,
+  };
+}
+
+/* ---------- filters ---------- */
+const sel = id => document.getElementById(id);
+
+function optionsFor(values, allLabel) {
+  return [`<option value="__all__">${allLabel}</option>`,
+          ...values.map(v => `<option value="${v}">${v}</option>`)].join("");
+}
+
+function initFilters(metrics) {
+  sel("f-env").innerHTML = optionsFor(
+    [...new Set(metrics.map(m => m.env))].sort(), "all");
+  sel("f-ff").innerHTML = optionsFor(
+    [...new Set(metrics.map(m => m.ff))].sort(), "all");
+}
+
+function filtered(metrics) {
+  const env = sel("f-env").value, ff = sel("f-ff").value;
+  const trials = sel("f-trials").value, size = sel("f-size").value;
+  return metrics.filter(m =>
+    (env === "__all__" || m.env === env) &&
+    (ff === "__all__" || m.ff === ff) &&
+    (trials === "all" || m.trials >= 3) &&
+    (size === "all" || m.n >= 50));
+}
+
+/* ---------- formatting ---------- */
+const fmtPct = v => v == null ? "—" : Math.round(v * 100) + "%";
+const fmtWhen = iso => {
+  const d = new Date(iso);
+  return isNaN(d) ? String(iso)
+    : d.toLocaleString("en-GB", { day: "numeric", month: "short",
+        hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "UTC" });
+};
+const fmtWhenFull = iso => {
+  const d = new Date(iso);
+  return isNaN(d) ? String(iso)
+    : d.toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric",
+        hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "UTC" }) + " UTC";
+};
+
+/* ---------- KPI tiles ---------- */
+function sparkline(values, w, h) {
+  const pts = values.map((v, i) => v == null ? null
+    : [values.length < 2 ? w / 2 : i * (w - 8) / (values.length - 1) + 4,
+       h - 3 - v * (h - 6)]).filter(Boolean);
+  if (!pts.length) return "";
+  const path = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join("");
+  const last = pts[pts.length - 1];
+  return `<svg width="${w}" height="${h}" aria-hidden="true">
+    <path d="${path}" fill="none" stroke="var(--grid)" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${last[0]}" cy="${last[1]}" r="3.5" fill="var(--series-1)"
+      class="marker"/></svg>`;
+}
+
+function tile(label, value, delta, spark) {
+  return `<div class="card tile"><div class="l">${label}</div>
+    <div class="v">${value}</div>${delta}${spark}</div>`;
+}
+
+function deltaLine(curr, prev, fmt, upIsGood) {
+  if (curr == null || prev == null)
+    return `<div class="d flat">no previous comparable run</div>`;
+  const diff = curr - prev;
+  if (Math.abs(diff) < 1e-9)
+    return `<div class="d flat">= unchanged vs previous</div>`;
+  const good = (diff > 0) === upIsGood;
+  return `<div class="d ${good ? "good" : "bad"}">${diff > 0 ? "▲ +" : "▼ −"}${
+    fmt(Math.abs(diff))} vs previous</div>`;
+}
+
+function renderTiles(ms) {
+  const latest = ms[ms.length - 1];
+  if (!latest) { sel("tiles").innerHTML = ""; return; }
+  // deltas compare within the same ff series only
+  const series = ms.filter(m => m.ff === latest.ff);
+  const prev = series.length > 1 ? series[series.length - 2] : null;
+  const norm = vals => {
+    const nums = vals.filter(v => v != null);
+    const max = Math.max(...nums, 1e-9);
+    return vals.map(v => v == null ? null : v / max);
+  };
+  const pctPts = v => (v * 100).toFixed(v * 100 < 2 ? 1 : 0) + " pts";
+  sel("tiles").innerHTML =
+    tile(`pass rate — latest ${latest.ff === "default" ? "default-ff" : "ff " + latest.ff} run`,
+         fmtPct(latest.passRate),
+         deltaLine(latest.passRate, prev && prev.passRate, pctPts, true),
+         sparkline(series.map(m => m.passRate), 150, 34)) +
+    tile("errored rows (tooling, not the AI)", String(latest.errors),
+         deltaLine(latest.errors, prev && prev.errors, v => String(v), false),
+         sparkline(norm(series.map(m => m.errors)), 150, 34)) +
+    tile("average answer time", latest.avgLat == null ? "—"
+           : Math.round(latest.avgLat) + "s",
+         deltaLine(latest.avgLat, prev && prev.avgLat,
+                   v => Math.round(v) + "s", false),
+         sparkline(norm(series.map(m => m.avgLat)), 150, 34)) +
+    tile("unstable rows (trials disagreed)", fmtPct(latest.flakyShare),
+         deltaLine(latest.flakyShare, prev && prev.flakyShare, pctPts, false),
+         sparkline(series.map(m => m.flakyShare), 150, 34));
+}
+
+/* ---------- line chart (shared by main + multiples) ---------- */
+const SERIES_VAR = { 0: "var(--series-1)", 1: "var(--series-2)" };
+
+function lineChart(ms, seriesDefs, opts) {
+  // seriesDefs: [{name, color, value(m) -> 0..1|null}]
+  const W = opts.width, H = opts.height;
+  const L = 38, R = opts.compact ? 12 : 34, T = 10, B = opts.compact ? 22 : 40;
+  const iw = W - L - R, ih = H - T - B;
+  const x = i => ms.length < 2 ? L + iw / 2 : L + i * iw / (ms.length - 1);
+  const y = v => T + (1 - v) * ih;
+  let g = "";
+  for (const tick of [0, 0.25, 0.5, 0.75, 1]) {
+    g += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(tick)}" y2="${y(tick)}"/>`;
+    if (!opts.compact || tick === 0 || tick === 1)
+      g += `<text x="${L - 6}" y="${y(tick) + 3.5}" text-anchor="end">${tick * 100}</text>`;
+  }
+  g += `<line class="axis" x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}"/>`;
+  // caseset-version change markers
+  if (opts.casesetMarks) {
+    for (let i = 1; i < ms.length; i++) {
+      if (ms[i].caseset !== ms[i - 1].caseset) {
+        const mx = (x(i - 1) + x(i)) / 2;
+        g += `<line class="csline" x1="${mx}" x2="${mx}" y1="${T}" y2="${y(0)}"/>` +
+             `<text class="cslabel" x="${mx}" y="${y(0) + 12}" text-anchor="middle">▲</text>`;
+      }
+    }
+  }
+  // x tick labels (main chart only)
+  if (!opts.compact) {
+    const step = Math.max(1, Math.ceil(ms.length / 7));
+    ms.forEach((m, i) => {
+      if (i % step && i !== ms.length - 1) return;
+      const last = i === ms.length - 1 && ms.length > 1;
+      g += `<text x="${x(i)}" y="${H - 6}" text-anchor="${last ? "end" : "middle"}">${
+        fmtWhen(m.when)}</text>`;
+    });
+  }
+  // series lines + markers (line breaks at nulls)
+  seriesDefs.forEach(def => {
+    let path = "", pen = false;
+    ms.forEach((m, i) => {
+      const v = def.value(m);
+      if (v == null) { pen = false; return; }
+      path += `${pen ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`;
+      pen = true;
+    });
+    if (path) g += `<path d="${path}" fill="none" stroke="${def.color}"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+    ms.forEach((m, i) => {
+      const v = def.value(m);
+      if (v == null) return;
+      g += `<circle class="marker" cx="${x(i)}" cy="${y(v)}" r="4"
+        fill="${def.color}"/>`;
+    });
+  });
+  return { svg: `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img"
+      aria-label="${opts.ariaLabel}">${g}</svg>`, x, y, left: L, right: W - R };
+}
+
+/* ---------- main chart with crosshair + tooltip ---------- */
+let TIP = null;
+function tipShow(html, px, py, host) {
+  if (!TIP) { TIP = document.createElement("div"); TIP.id = "tip"; }
+  if (TIP.parentNode !== host) host.appendChild(TIP);
+  TIP.innerHTML = html;   // built below exclusively from esc()'d strings
+  const hw = host.getBoundingClientRect().width;
+  TIP.style.left = Math.min(px + 14, Math.max(0, hw - 350)) + "px";
+  TIP.style.top = (py + 14) + "px";
+}
+function tipHide() { if (TIP && TIP.parentNode) TIP.parentNode.removeChild(TIP); }
+
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function renderMain(ms) {
+  const wrap = sel("mainwrap"), target = sel("mainchart");
+  const ffs = [...new Set(ms.map(m => m.ff))];
+  const seriesDefs = ffs.map((ff, k) => ({
+    name: ff === "default" ? "default toolset (no ff)" : `ff ${ff}`,
+    color: SERIES_VAR[Math.min(k, 1)],
+    value: m => m.ff === ff ? m.passRate : null,
+  }));
+  sel("mainlegend").innerHTML = seriesDefs.length > 1
+    ? seriesDefs.map(d =>
+        `<span><i style="border-color:${d.color}"></i>${esc(d.name)}</span>`).join("")
+    : "";
+  const width = Math.max(560, Math.min(1060, target.clientWidth || 1060));
+  const chart = lineChart(ms, seriesDefs, {
+    width, height: 300, casesetMarks: true,
+    ariaLabel: "Overall pass rate per run, one line per ff profile",
+  });
+  target.innerHTML = chart.svg;
+
+  const svg = target.querySelector("svg");
+  let hair = null;
+  const onmove = ev => {
+    if (!ms.length) return;
+    const box = svg.getBoundingClientRect();
+    const sx = (ev.clientX - box.left) * width / box.width;
+    let best = 0;
+    ms.forEach((m, i) => {
+      if (Math.abs(chart.x(i) - sx) < Math.abs(chart.x(best) - sx)) best = i;
+    });
+    const m = ms[best];
+    if (!hair) {
+      hair = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      hair.setAttribute("class", "crosshair");
+      svg.appendChild(hair);
+    }
+    hair.setAttribute("x1", chart.x(best)); hair.setAttribute("x2", chart.x(best));
+    hair.setAttribute("y1", 10); hair.setAttribute("y2", 260);
+    const rows = seriesDefs.map(d => {
+      const v = d.value(m);
+      return v == null ? "" : `<div class="row"><span class="key"
+        style="border-color:${d.color}"></span><span class="val">${fmtPct(v)}</span>
+        <span>${esc(d.name)}</span></div>`;
+    }).join("");
+    tipShow(`<div class="when">${esc(fmtWhenFull(m.when))}</div>${rows}
+      <div class="meta">${esc(m.build)} · ${m.n} case(s) × ${m.trials} trial(s)
+        · ${m.pass} pass / ${m.fail} fail / ${m.errors} error
+        · caseset <span class="mono">${esc(m.caseset)}</span><br>
+        <span class="mono">${esc(m.id)}</span></div>`,
+      ev.clientX - wrap.getBoundingClientRect().left,
+      ev.clientY - wrap.getBoundingClientRect().top, wrap);
+  };
+  svg.addEventListener("pointermove", onmove);
+  svg.addEventListener("pointerleave", () => {
+    tipHide();
+    if (hair) { hair.remove(); hair = null; }
+  });
+}
+
+/* ---------- small multiples ---------- */
+function renderMultiples(ms) {
+  sel("multiples").innerHTML = BUCKETS.map(([key, label]) => {
+    const chart = lineChart(ms, [{
+      name: label, color: "var(--series-1)", value: m => m.buckets[key],
+    }], { width: 240, height: 120, compact: true,
+          ariaLabel: `${label} dedicated pass share per run` });
+    const latest = [...ms].reverse().find(m => m.buckets[key] != null);
+    return `<div class="card panel"><h3>${label}
+      <span class="k">${key} · latest ${fmtPct(latest ? latest.buckets[key] : null)}</span></h3>
+      ${chart.svg}</div>`;
+  }).join("");
+}
+
+/* ---------- table view (the no-hover channel) ---------- */
+function renderTable(ms) {
+  const head = `<tr><th>run</th><th>build</th><th>ff</th>
+    <th class="num">cases</th><th class="num">trials</th>
+    <th class="num">pass rate</th><th class="num">fail</th><th class="num">error</th>
+    ${BUCKETS.map(([k]) => `<th class="num">${k}</th>`).join("")}
+    <th class="num">avg s</th><th class="num">unstable</th><th>caseset</th></tr>`;
+  const rows = [...ms].reverse().map(m => `<tr>
+    <td>${esc(fmtWhenFull(m.when))}<br><span class="mono">${esc(m.id)}</span></td>
+    <td>${esc(m.build)}</td><td>${esc(m.ff)}</td>
+    <td class="num">${m.n}</td><td class="num">${m.trials}</td>
+    <td class="num">${fmtPct(m.passRate)}</td>
+    <td class="num">${m.fail}</td><td class="num">${m.errors}</td>
+    ${BUCKETS.map(([k]) => `<td class="num">${fmtPct(m.buckets[k])}</td>`).join("")}
+    <td class="num">${m.avgLat == null ? "—" : Math.round(m.avgLat)}</td>
+    <td class="num">${fmtPct(m.flakyShare)}</td>
+    <td class="mono">${esc(m.caseset)}</td></tr>`).join("");
+  sel("tablewrap").innerHTML = `<table>${head}${rows}</table>`;
+}
+
+/* ---------- top-level render ---------- */
+let METRICS = [];
+function renderAll() {
+  const ms = filtered(METRICS);
+  sel("f-count").textContent =
+    `${ms.length} of ${METRICS.length} run(s) shown`;
+  renderTiles(ms);
+  renderMain(ms);
+  renderMultiples(ms);
+  renderTable(ms);
+  sel("genline").textContent = `Generated ${GENERATED}. Spacing is per-run, `
+    + `not proportional to elapsed time. Pass rate excludes errored and `
+    + `uncovered rows from its denominator.`;
+}
+
+function boot() {
+  if (!RUNS.length) {
+    sel("drop").classList.remove("hidden");
+    return;
+  }
+  RUNS.sort((a, b) =>
+    String(a.started || a.run_id).localeCompare(String(b.started || b.run_id)));
+  METRICS = RUNS.map(metricsOf);
+  sel("content").classList.remove("hidden");
+  sel("drop").classList.add("hidden");
+  initFilters(METRICS);
+  renderAll();
+}
+
+document.getElementById("filters").addEventListener("change", renderAll);
+window.addEventListener("resize", () => { if (METRICS.length) renderAll(); });
+document.addEventListener("dragover", e => e.preventDefault());
+document.addEventListener("drop", e => {
+  e.preventDefault();
+  const files = [...e.dataTransfer.files];
+  if (!files.length) return;
+  Promise.all(files.map(f => f.text())).then(texts => {
+    for (const text of texts) {
+      const run = JSON.parse(text);
+      if (!run || !run.run_id) throw new Error("no run_id — not a ledger run");
+      RUNS = RUNS.filter(r => r.run_id !== run.run_id).concat([run]);
+    }
+    boot();
+  }).catch(err => {
+    const msg = sel("loadmsg");
+    msg.textContent = `Could not read that file as a run JSON: ${err.message}`;
+    msg.classList.remove("hidden");
+  });
+});
+boot();
+</script>
+</body>
+</html>

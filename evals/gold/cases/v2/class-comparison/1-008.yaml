@@ -1,0 +1,19 @@
+id: 1-008
+uid: e8b61a62e383f16e
+status: not doing
+group: class-comparison
+query: What type of natural ecosystem in Uganda had the most disturbances in 2025?
+expected:
+  aoi_ids: UGA
+  aoi_source: gadm
+  dataset_id: '0'
+  dataset_name: Global All Ecosystem Disturbance Alerts (DIST-ALERT)
+  start_date: '2025-01-01'
+  end_date: '2025-12-31'
+  answer: natural short vegetation
+  scope: analyse
+notes:
+  aoi_type: gadm 0
+  value_2: 2,847.8 hectares
+  status_reason: 'parked 2026-08-27: DIST-ALERT (dataset 0) removed from agent; case is solely
+    about DIST-ALERT and cannot be answered without it.'

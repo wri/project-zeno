@@ -1,0 +1,7 @@
+id: 1-068
+uid: 0f3bbfa460906894
+status: done
+group: metadata
+query: How can I cite the Tree cover loss dataset in my research?
+expected:
+  text: Hansen et al., 2013. "High-Resolution Global Maps of 21st-Century Forest Cover Change."

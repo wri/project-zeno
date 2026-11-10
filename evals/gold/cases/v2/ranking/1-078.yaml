@@ -1,0 +1,12 @@
+id: 1-078
+uid: 16b61f12da5fda45
+status: done
+group: ranking
+query: List the top ten countries with the largest area of tropical primary rainforest loss
+  in 2025
+expected:
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  answer: Brazil, Bolivia, Democratic Republic of Congo, Indonesia, Peru, Cameroon, Madagascar,
+    Colombia, Laos, Malaysia
+  scope: analyse

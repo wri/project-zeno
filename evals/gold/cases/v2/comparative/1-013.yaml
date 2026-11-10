@@ -1,0 +1,31 @@
+id: 1-013
+uid: 4c71ccd0b95bcbe3
+status: done
+group: comparative
+query: Looking at land cover composition, which had more cropland area in 2024, Nigeria or
+  Ghana?
+expected:
+  aoi_ids: NGA;GHA
+  aoi_source: gadm
+  dataset_id: '1'
+  dataset_name: Global land cover
+  answer: Nigeria
+  scope: analyse
+notes:
+  aoi_type: gadm 0
+  class_1: cropland
+  value_2: 374,000 km² (37.4 million ha) — was 924,000 km², which is Nigeria's land area,
+    not its cropland
+  rewrite: '2026-09-17: prefixed "Looking at land cover composition, " — the mirror-image
+    technique to 1-026/1-031, but pulling the other direction: those lean on SBTN''s own
+    natural/non-natural framing to route TO SBTN; this leans on Global Land Cover''s own
+    framing ("land cover composition" is literally its selection_hints language, a single-year
+    or year-to-year composition/change product, no natural/non-natural distinction) to route
+    AWAY from SBTN. Old wording ("Which had more cropland area in 2024...") nudged/misrouted
+    to SBTN at 14/36 dataset_id_match failures (~39%) across historical full runs — plausible
+    since SBTN''s non-natural classes include "Crop", despite SBTN structurally being unable
+    to answer a year-specific 2024 question at all (fixed 2020 baseline). New wording: 0/18
+    failures across two independent 9-trial batches (runs 20260917T031923Z_staging and
+    20260917T032621Z_staging) — dataset_id_match, agent_answer, data_pull_exists, scope_match
+    all 1.0 every trial, spot-checked against the raw per-run history to rule out a
+    coincidence in the matching failure count.'

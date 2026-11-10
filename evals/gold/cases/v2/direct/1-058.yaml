@@ -1,0 +1,16 @@
+id: 1-058
+uid: 3dd92e59c37107a2
+status: done
+group: direct
+query: In 2000, how much tree cover did Dja et Lobo Cameroon have?
+expected:
+  aoi_ids: CMR.10.1_1
+  aoi_source: gadm
+  dataset_id: '7'
+  dataset_name: tree cover
+  answer: 1,988,171 hectares
+  scope: analyse
+notes:
+  aoi_type: gadm 2
+  depth: '2026-08-04: answer + scope added to clear a depth violation (retrieval-only before).
+    1,988,171 ha is stable on 12 of 13 committed trials across 5 runs.'

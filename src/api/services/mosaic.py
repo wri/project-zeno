@@ -291,6 +291,20 @@ async def _load_geometry(recipe: MosaicRecipe) -> dict:
     return mapping(union_all(shapes))
 
 
+def search_geometry(geometry: dict) -> dict:
+    """The geometry that the STAC search uses: the convex hull of the AOI.
+
+    The earth-search API stores footprints in Elasticsearch, which rejects
+    some rings that shapely accepts. A repeated vertex or a zero-width spike
+    gives HTTP 400 "invalid_shape_exception: Cannot determine orientation".
+    Uploaded custom areas often contain these. A convex hull is always a
+    valid ring and has few vertices. The hull covers the AOI, so the search
+    can return some more scenes, but it does not miss a scene that touches
+    the AOI.
+    """
+    return mapping(shape(geometry).convex_hull)
+
+
 async def create_sentinel2_mosaic(recipe: MosaicRecipe) -> MosaicResult:
     """Build the mosaic for a recipe and persist it to S3.
 
@@ -343,7 +357,7 @@ async def create_sentinel2_mosaic(recipe: MosaicRecipe) -> MosaicResult:
         catalog = pystac_client.Client.open(STAC_URL)
         search = catalog.search(
             collections=[SENTINEL2_COLLECTION],
-            intersects=geometry,
+            intersects=search_geometry(geometry),
             datetime=f"{actual_start}/{actual_end}",
             query={"eo:cloud_cover": {"lt": recipe.max_cloud_cover}},
             max_items=recipe.max_items,

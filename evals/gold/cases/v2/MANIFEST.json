@@ -1,0 +1,878 @@
+{
+  "caseset_version": "295e4a6f3b7f8f11",
+  "case_count": 145,
+  "source": "gold-live.csv",
+  "uid_includes_deltas": true,
+  "cases": [
+    {
+      "id": "1-001",
+      "uid": "6226a0caaf487e4b",
+      "group": "temporal",
+      "status": "done"
+    },
+    {
+      "id": "1-002",
+      "uid": "33251684549f20a2",
+      "group": "direct",
+      "status": "done"
+    },
+    {
+      "id": "1-003",
+      "uid": "c8c477045d9f6593",
+      "group": "parent-child",
+      "status": "ready"
+    },
+    {
+      "id": "1-004",
+      "uid": "989821bd935975d6",
+      "group": "comparative",
+      "status": "done"
+    },
+    {
+      "id": "1-005",
+      "uid": "6c8b9a9d674922d2",
+      "group": "parent-child",
+      "status": "not doing"
+    },
+    {
+      "id": "1-006",
+      "uid": "21207fde86bdc738",
+      "group": "class-comparison",
+      "status": "not doing"
+    },
+    {
+      "id": "1-007",
+      "uid": "b336cdfe8b3ea20e",
+      "group": "class-comparison",
+      "status": "not doing"
+    },
+    {
+      "id": "1-008",
+      "uid": "e8b61a62e383f16e",
+      "group": "class-comparison",
+      "status": "not doing"
+    },
+    {
+      "id": "1-009",
+      "uid": "eff330e9e3130aa7",
+      "group": "class-comparison",
+      "status": "done"
+    },
+    {
+      "id": "1-010",
+      "uid": "c3d61476d0cc3fa3",
+      "group": "temporal",
+      "status": "done"
+    },
+    {
+      "id": "1-011",
+      "uid": "8b4135b1aedc2ec5",
+      "group": "parent-child",
+      "status": "not doing"
+    },
+    {
+      "id": "1-012",
+      "uid": "b4ac95ef09acbd00",
+      "group": "direct",
+      "status": "done"
+    },
+    {
+      "id": "1-013",
+      "uid": "4c71ccd0b95bcbe3",
+      "group": "comparative",
+      "status": "done"
+    },
+    {
+      "id": "1-014",
+      "uid": "3c4a5827fdf3cab6",
+      "group": "temporal",
+      "status": "done"
+    },
+    {
+      "id": "1-015",
+      "uid": "2c40cfd206ff2757",
+      "group": "parent-child",
+      "status": "done"
+    },
+    {
+      "id": "1-016",
+      "uid": "563a24c88bb41ff0",
+      "group": "class-comparison",
+      "status": "done"
+    },
+    {
+      "id": "1-017",
+      "uid": "36d745d7b2073d9b",
+      "group": "direct",
+      "status": "done"
+    },
+    {
+      "id": "1-018",
+      "uid": "7bdad9eaabf10663",
+      "group": "temporal",
+      "status": "done"
+    },
+    {
+      "id": "1-019",
+      "uid": "8b2984c432bf7197",
+      "group": "direct",
+      "status": "done"
+    },
+    {
+      "id": "1-020",
+      "uid": "040a04675f98f126",
+      "group": "parent-child",
+      "status": "done"
+    },
+    {
+      "id": "1-021",
+      "uid": "f0a5f23c12a8fea4",
+      "group": "parent-child",
+      "status": "done"
+    },
+    {
+      "id": "1-022",
+      "uid": "50b52979fd6325df",
+      "group": "temporal",
+      "status": "done"
+    },
+    {
+      "id": "1-023",
+      "uid": "98b824fc7837819f",
+      "group": "comparative",
+      "status": "done"
+    },
+    {
+      "id": "1-024",
+      "uid": "e3d6ad96ca778daf",
+      "group": "comparative",
+      "status": "done"
+    },
+    {
+      "id": "1-025",
+      "uid": "a1e60287bee28804",
+      "group": "temporal",
+      "status": "done"
+    },
+    {
+      "id": "1-026",
+      "uid": "12080066c6e4f3d4",
+      "group": "class-comparison",
+      "status": "done"
+    },
+    {
+      "id": "1-027",
+      "uid": "12fafcc85ace2b62",
+      "group": "direct",
+      "status": "todo"
+    },
+    {
+      "id": "1-028",
+      "uid": "74480949fc017432",
+      "group": "direct",
+      "status": "not doing"
+    },
+    {
+      "id": "1-029",
+      "uid": "e373d86ac3bdf70a",
+      "group": "parent-child",
+      "status": "done"
+    },
+    {
+      "id": "1-030",
+      "uid": "f78daf0baa3a7407",
+      "group": "comparative",
+      "status": "todo"
+    },
+    {
+      "id": "1-031",
+      "uid": "43c1fe0c65332041",
+      "group": "class-comparison",
+      "status": "done"
+    },
+    {
+      "id": "1-032",
+      "uid": "24654c156e645c81",
+      "group": "temporal",
+      "status": "done"
+    },
+    {
+      "id": "1-033",
+      "uid": "703163c80e077978",
+      "group": "direct",
+      "status": "done"
+    },
+    {
+      "id": "1-034",
+      "uid": "e52c28e867147021",
+      "group": "direct",
+      "status": "done"
+    },
+    {
+      "id": "1-035",
+      "uid": "8f62c9e6bb8f8363",
+      "group": "parent-child",
+      "status": "done"
+    },
+    {
+      "id": "1-036",
+      "uid": "303b2af3c3402585",
+      "group": "temporal",
+      "status": "done"
+    },
+    {
+      "id": "1-037",
+      "uid": "ea93ce88e6587f89",
+      "group": "comparative",
+      "status": "done"
+    },
+    {
+      "id": "1-038",
+      "uid": "863ba6a140088907",
+      "group": "comparative",
+      "status": "done"
+    },
+    {
+      "id": "1-039",
+      "uid": "15954d1359ba5a73",
+      "group": "comparative",
+      "status": "done"
+    },
+    {
+      "id": "1-040",
+      "uid": "f5f18132c4662d74",
+      "group": "temporal",
+      "status": "done"
+    },
+    {
+      "id": "1-041",
+      "uid": "2544dd07dab514ae",
+      "group": "direct",
+      "status": "done"
+    },
+    {
+      "id": "1-042",
+      "uid": "98a07007f57e6829",
+      "group": "direct",
+      "status": "done"
+    },
+    {
+      "id": "1-043",
+      "uid": "be74ef9c8efa1e1d",
+      "group": "parent-child",
+      "status": "done"
+    },
+    {
+      "id": "1-044",
+      "uid": "e6f2436769d4a94f",
+      "group": "temporal",
+      "status": "done"
+    },
+    {
+      "id": "1-045",
+      "uid": "9ffb79b5a677c2ba",
+      "group": "comparative",
+      "status": "done"
+    },
+    {
+      "id": "1-046",
+      "uid": "20c73adad1bea602",
+      "group": "direct",
+      "status": "ready"
+    },
+    {
+      "id": "1-047",
+      "uid": "77093531222f6f06",
+      "group": "direct",
+      "status": "done"
+    },
+    {
+      "id": "1-048",
+      "uid": "00bb3895326ac32a",
+      "group": "temporal",
+      "status": "done"
+    },
+    {
+      "id": "1-049",
+      "uid": "7f73ddd1f9e3c884",
+      "group": "direct",
+      "status": "not doing"
+    },
+    {
+      "id": "1-050",
+      "uid": "7b6e0b653649793a",
+      "group": "comparative",
+      "status": "done"
+    },
+    {
+      "id": "1-051",
+      "uid": "abb5da3d94e10151",
+      "group": "parent-child",
+      "status": "done"
+    },
+    {
+      "id": "1-052",
+      "uid": "91cb2a767c23fc94",
+      "group": "direct",
+      "status": "done"
+    },
+    {
+      "id": "1-053",
+      "uid": "7a45e7b8b2e1d0e1",
+      "group": "comparative",
+      "status": "done"
+    },
+    {
+      "id": "1-054",
+      "uid": "c53631b7aac17921",
+      "group": "direct",
+      "status": "done"
+    },
+    {
+      "id": "1-055",
+      "uid": "b8002a1ddf7b76f9",
+      "group": "direct",
+      "status": "done"
+    },
+    {
+      "id": "1-056",
+      "uid": "7a7e8cbd2482b2f4",
+      "group": "dataset-suggestion",
+      "status": "done"
+    },
+    {
+      "id": "1-057",
+      "uid": "67053564c5717807",
+      "group": "comparative",
+      "status": "done"
+    },
+    {
+      "id": "1-058",
+      "uid": "3dd92e59c37107a2",
+      "group": "direct",
+      "status": "done"
+    },
+    {
+      "id": "1-059",
+      "uid": "70be2a6faeef4ef4",
+      "group": "parent-child",
+      "status": "done"
+    },
+    {
+      "id": "1-060",
+      "uid": "807f6dfcfea8683f",
+      "group": "parent-child",
+      "status": "done"
+    },
+    {
+      "id": "1-061",
+      "uid": "b2d47495ed86ff9a",
+      "group": "parent-child",
+      "status": "done"
+    },
+    {
+      "id": "1-062",
+      "uid": "6bc5b10a4a3f4284",
+      "group": "comparative",
+      "status": "todo"
+    },
+    {
+      "id": "1-063",
+      "uid": "b67ce54fbd0a6641",
+      "group": "class-comparison",
+      "status": "done"
+    },
+    {
+      "id": "1-064",
+      "uid": "e3b8acd95fe9c6fb",
+      "group": "class-comparison",
+      "status": "done"
+    },
+    {
+      "id": "1-065",
+      "uid": "8229668942233037",
+      "group": "metadata",
+      "status": "done"
+    },
+    {
+      "id": "1-066",
+      "uid": "baaa1c81665e7cb7",
+      "group": "metadata",
+      "status": "done"
+    },
+    {
+      "id": "1-067",
+      "uid": "8c512724d73a8fb4",
+      "group": "metadata",
+      "status": "done"
+    },
+    {
+      "id": "1-068",
+      "uid": "0f3bbfa460906894",
+      "group": "metadata",
+      "status": "done"
+    },
+    {
+      "id": "1-069",
+      "uid": "37ff8ee88ab32434",
+      "group": "parent-child",
+      "status": "done"
+    },
+    {
+      "id": "1-070",
+      "uid": "b00b22aa8fe7903b",
+      "group": "direct",
+      "status": "done"
+    },
+    {
+      "id": "1-071",
+      "uid": "ea82abbf1cd347c2",
+      "group": "temporal",
+      "status": "done"
+    },
+    {
+      "id": "1-072",
+      "uid": "ab97d4aa0671848e",
+      "group": "metadata",
+      "status": "done"
+    },
+    {
+      "id": "1-073",
+      "uid": "0ab14c56d2159549",
+      "group": "direct",
+      "status": "done"
+    },
+    {
+      "id": "1-074",
+      "uid": "d78f1fc485f498ba",
+      "group": "direct",
+      "status": "done"
+    },
+    {
+      "id": "1-075",
+      "uid": "2b4e103df3c17e7e",
+      "group": "direct",
+      "status": "done"
+    },
+    {
+      "id": "1-076",
+      "uid": "3684831b6c373d2d",
+      "group": "direct",
+      "status": "done"
+    },
+    {
+      "id": "1-077",
+      "uid": "1eb80386fe2714ff",
+      "group": "direct",
+      "status": "done"
+    },
+    {
+      "id": "1-078",
+      "uid": "16b61f12da5fda45",
+      "group": "ranking",
+      "status": "done"
+    },
+    {
+      "id": "1-079",
+      "uid": "bce4877b54b94b65",
+      "group": "temporal",
+      "status": "done"
+    },
+    {
+      "id": "1-080",
+      "uid": "9e3ec4c5af5803c7",
+      "group": "temporal",
+      "status": "done"
+    },
+    {
+      "id": "1-082",
+      "uid": "fcf8804e97e16b19",
+      "group": "dataset-suggestion",
+      "status": "done"
+    },
+    {
+      "id": "1-083",
+      "uid": "9198d265bbfde9e0",
+      "group": "dataset-suggestion",
+      "status": "done"
+    },
+    {
+      "id": "1-084",
+      "uid": "a0e498080969981e",
+      "group": "dataset-suggestion",
+      "status": "done"
+    },
+    {
+      "id": "1-085",
+      "uid": "e7dc8c471352d6f5",
+      "group": "dataset-suggestion",
+      "status": "not doing"
+    },
+    {
+      "id": "1-086",
+      "uid": "ae8e62af3bc353ba",
+      "group": "dataset-suggestion",
+      "status": "done"
+    },
+    {
+      "id": "1-087",
+      "uid": "743a4f6170aad334",
+      "group": "context-layer",
+      "status": "done"
+    },
+    {
+      "id": "1-088",
+      "uid": "dc1b3d52d49b28b2",
+      "group": "context-layer",
+      "status": "not doing"
+    },
+    {
+      "id": "1-089",
+      "uid": "ffc6b164922dfc42",
+      "group": "refusal",
+      "status": "done"
+    },
+    {
+      "id": "1-090",
+      "uid": "98ff258bc3be8557",
+      "group": "multilingual",
+      "status": "done"
+    },
+    {
+      "id": "1-091",
+      "uid": "f114e0cca389d316",
+      "group": "multilingual",
+      "status": "done"
+    },
+    {
+      "id": "1-092",
+      "uid": "d1c2a4f1b4add263",
+      "group": "multilingual",
+      "status": "done"
+    },
+    {
+      "id": "1-093",
+      "uid": "14d2332465d48c5d",
+      "group": "multilingual",
+      "status": "done"
+    },
+    {
+      "id": "1-094",
+      "uid": "387d2fec71402027",
+      "group": "multilingual",
+      "status": "done"
+    },
+    {
+      "id": "1-095",
+      "uid": "445b4bb1fae102ed",
+      "group": "dataset-parameters",
+      "status": "done"
+    },
+    {
+      "id": "1-096",
+      "uid": "1478765e0688e778",
+      "group": "dashboard",
+      "status": "done"
+    },
+    {
+      "id": "1-097",
+      "uid": "94bf6616bb145a3b",
+      "group": "dashboard",
+      "status": "done"
+    },
+    {
+      "id": "1-098",
+      "uid": "3e12d2e5d7cd79b7",
+      "group": "dashboard",
+      "status": "done"
+    },
+    {
+      "id": "1-099",
+      "uid": "954e901dfc103ec9",
+      "group": "dashboard",
+      "status": "done"
+    },
+    {
+      "id": "1-100",
+      "uid": "60b6030c1f1d27a0",
+      "group": "dashboard",
+      "status": "done"
+    },
+    {
+      "id": "1-101",
+      "uid": "15954ef596fb8fd3",
+      "group": "dashboard",
+      "status": "done"
+    },
+    {
+      "id": "1-102",
+      "uid": "e549e69bc1700085",
+      "group": "dashboard",
+      "status": "done"
+    },
+    {
+      "id": "1-103",
+      "uid": "edf7fc39b6789b92",
+      "group": "dataset-suggestion",
+      "status": "done"
+    },
+    {
+      "id": "1-104",
+      "uid": "ce209c126ebe9ace",
+      "group": "imagery",
+      "status": "done"
+    },
+    {
+      "id": "1-105",
+      "uid": "1aaeeba8c987a8fc",
+      "group": "nudge",
+      "status": "ready"
+    },
+    {
+      "id": "1-107",
+      "uid": "a4b115ea2533bb7a",
+      "group": "nudge",
+      "status": "ready"
+    },
+    {
+      "id": "1-108",
+      "uid": "2113af0ee5d2bd98",
+      "group": "direct",
+      "status": "not doing"
+    },
+    {
+      "id": "1-112",
+      "uid": "88d8747649779fb8",
+      "group": "direct",
+      "status": "not doing"
+    },
+    {
+      "id": "1-113",
+      "uid": "426c2d3acd2083ce",
+      "group": "temporal",
+      "status": "not doing"
+    },
+    {
+      "id": "1-114",
+      "uid": "8bb4a04e1d9f780a",
+      "group": "refusal",
+      "status": "not doing"
+    },
+    {
+      "id": "1-115",
+      "uid": "24ca3663de0cb044",
+      "group": "direct",
+      "status": "not doing"
+    },
+    {
+      "id": "1-116",
+      "uid": "9eb1c3b8104ae74a",
+      "group": "refusal",
+      "status": "not doing"
+    },
+    {
+      "id": "1-117",
+      "uid": "afc11a22d898e7e3",
+      "group": "dataset-suggestion",
+      "status": "not doing"
+    },
+    {
+      "id": "1-118",
+      "uid": "cc887d4637b0c8cb",
+      "group": "imagery",
+      "status": "not doing"
+    },
+    {
+      "id": "1-119",
+      "uid": "bb9037bc4660887e",
+      "group": "imagery",
+      "status": "not doing"
+    },
+    {
+      "id": "1-120",
+      "uid": "0658d8517285c63a",
+      "group": "imagery",
+      "status": "not doing"
+    },
+    {
+      "id": "1-121",
+      "uid": "49e6011c7b4db2e7",
+      "group": "imagery",
+      "status": "not doing"
+    },
+    {
+      "id": "1-122",
+      "uid": "439a98af199c5d91",
+      "group": "temporal",
+      "status": "ready"
+    },
+    {
+      "id": "1-123",
+      "uid": "3d2132cebbe36916",
+      "group": "direct",
+      "status": "not doing"
+    },
+    {
+      "id": "1-124",
+      "uid": "f9431156b1b59300",
+      "group": "refusal",
+      "status": "not doing"
+    },
+    {
+      "id": "1-125",
+      "uid": "ab11c24d6b51cc52",
+      "group": "comparative",
+      "status": "not doing"
+    },
+    {
+      "id": "1-127",
+      "uid": "4caeed10d6effd61",
+      "group": "refusal",
+      "status": "not doing"
+    },
+    {
+      "id": "1-128",
+      "uid": "60bed919dd513c0d",
+      "group": "direct",
+      "status": "not doing"
+    },
+    {
+      "id": "1-129",
+      "uid": "e99ac0c7d7e74b59",
+      "group": "direct",
+      "status": "not doing"
+    },
+    {
+      "id": "1-130",
+      "uid": "3c9c0d75e289d3e6",
+      "group": "context-layer",
+      "status": "todo"
+    },
+    {
+      "id": "1-131",
+      "uid": "74df5e6d4419d99f",
+      "group": "context-layer",
+      "status": "done"
+    },
+    {
+      "id": "1-132",
+      "uid": "769b0c77264acbf0",
+      "group": "context-layer",
+      "status": "done"
+    },
+    {
+      "id": "1-133",
+      "uid": "b88bde23a5901295",
+      "group": "context-layer",
+      "status": "done"
+    },
+    {
+      "id": "1-134",
+      "uid": "0ef69c6073c2f303",
+      "group": "context-layer",
+      "status": "done"
+    },
+    {
+      "id": "1-135",
+      "uid": "6d82092519d275bd",
+      "group": "context-layer",
+      "status": "done"
+    },
+    {
+      "id": "1-136",
+      "uid": "c96b42225c643254",
+      "group": "context-layer",
+      "status": "done"
+    },
+    {
+      "id": "1-137",
+      "uid": "9237ca294507119f",
+      "group": "context-layer",
+      "status": "done"
+    },
+    {
+      "id": "1-138",
+      "uid": "b99f918a3a730013",
+      "group": "refusal",
+      "status": "todo"
+    },
+    {
+      "id": "1-139",
+      "uid": "3114d208350601e7",
+      "group": "context-layer",
+      "status": "todo"
+    },
+    {
+      "id": "mt-001",
+      "uid": "f07fd985deb76c61",
+      "group": "multiturn",
+      "status": "ready"
+    },
+    {
+      "id": "mt-002",
+      "uid": "5f35540166be74af",
+      "group": "multiturn",
+      "status": "ready"
+    },
+    {
+      "id": "mt-003",
+      "uid": "fd8d8489361a6e5b",
+      "group": "multiturn",
+      "status": "ready"
+    },
+    {
+      "id": "mt-004",
+      "uid": "636fc19f46d767a6",
+      "group": "multiturn",
+      "status": "ready"
+    },
+    {
+      "id": "mt-005",
+      "uid": "f04c442b6ce8ebe0",
+      "group": "multiturn",
+      "status": "ready"
+    },
+    {
+      "id": "mt-006",
+      "uid": "9a38ae9cae58fb9b",
+      "group": "multiturn",
+      "status": "ready"
+    },
+    {
+      "id": "mt-007",
+      "uid": "6e91deceb728f283",
+      "group": "multiturn",
+      "status": "not doing"
+    },
+    {
+      "id": "mt-008",
+      "uid": "91cecdd149d9ac47",
+      "group": "multiturn",
+      "status": "ready"
+    },
+    {
+      "id": "mt-009",
+      "uid": "effa17a9c754708b",
+      "group": "multiturn",
+      "status": "ready"
+    },
+    {
+      "id": "mt-010",
+      "uid": "cb5217c8dbf2cef5",
+      "group": "multiturn",
+      "status": "not doing"
+    },
+    {
+      "id": "mt-011",
+      "uid": "6c3916f0efddfd97",
+      "group": "multiturn",
+      "status": "not doing"
+    },
+    {
+      "id": "mt-012",
+      "uid": "6e376cfa37e3d1d0",
+      "group": "multiturn",
+      "status": "not doing"
+    }
+  ]
+}

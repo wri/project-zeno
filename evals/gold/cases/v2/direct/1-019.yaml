@@ -1,0 +1,14 @@
+id: 1-019
+uid: 8b2984c432bf7197
+status: done
+group: direct
+query: 'Which year had the most natural grassland in the Blackfeet Indian reservation in Montana
+  USA: 2015 or 2000?'
+expected:
+  aoi_source: landmark
+  dataset_id: '2'
+  dataset_name: Natural/Semi-Natural Grasslands
+  answer: '2015'
+  scope: analyse
+notes:
+  aoi_type: Landmark

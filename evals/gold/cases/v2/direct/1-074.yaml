@@ -1,0 +1,11 @@
+id: 1-074
+uid: d78f1fc485f498ba
+status: done
+group: direct
+query: Using a 10% canopy density threshold, how much tree cover was lost in Finland in 2025?
+expected:
+  aoi_ids: FIN
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  answer: 241,370.32 hectares
+  scope: analyse

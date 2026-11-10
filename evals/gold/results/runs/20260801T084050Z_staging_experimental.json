@@ -1,0 +1,2875 @@
+{
+  "run_id": "20260801T084050Z_staging_experimental",
+  "started": "2026-08-01T08:40:50Z",
+  "environment": "staging",
+  "build": "staging-20260801",
+  "ff": "experimental",
+  "harness": {
+    "repo": "gnw-evals",
+    "sha": "5a377cd"
+  },
+  "judge_model": "claude-haiku-4-5",
+  "num_trials": 1,
+  "caseset_version": "d564c1b3b4786bc0",
+  "results": [
+    {
+      "uid": "6226a0caaf487e4b",
+      "id": "1-001",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "The chart correctly displays high confidence disturbance alert areas (in hectares) for Mount Hakusan across August and September 2024, with data values (4.764615 ha vs 4.405217 ha) that directly support answering whether August had more area than September, and the line chart type is appropriate for comparing values across two time periods.",
+        "agent_answer": "The expected answer is TRUE and the actual insight explicitly states \"**True.**\" at the beginning, confirming that high confidence disturbance alerts covered a larger area in August 2024 (4.76 ha) than in September 2024 (4.41 ha), which is an exact semantic match."
+      },
+      "latency_s": 43.4,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/e9d795c294369c8b6d03062ff6b58cd2"
+    },
+    {
+      "uid": "1d5d3e04685ceac9",
+      "id": "1-002",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 0.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "deterministic check: the chart's closest figure to the expected 1,319,600 is 1,299,279.96, a 1.54% difference, within the 2% tolerance. The chart includes all three confidence levels (high, highest, and low) in a pie chart, but the user query specifically asks for \"high confidence alerts only,\" which should exclude the \"highest\" confidence level data and show only the \"high\" category; the chart structure does not isolate or highlight the single \"high\" confidence category needed to answer the que",
+        "agent_answer": "The expected answer is 1,319,600 hectares, but the actual insight reports 1,299,278.14 hectares. The difference is |1,299,278.14 - 1,319,600| / 1,319,600 = 20,321.86 / 1,319,600 = 0.0154 or 1.54%, which is within the 2% tolerance threshold."
+      },
+      "latency_s": 39.1,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/a630fe2de77505f42bc5ca2502bfa6aa"
+    },
+    {
+      "uid": "6fc8f4c3f62762c0",
+      "id": "1-003",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": null,
+        "dataset_id_match": 0.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "latency_s": 42.5,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/298fd219d54eabd51653c035a491eaac"
+    },
+    {
+      "uid": "e7997bd40a4bc6e1",
+      "id": "1-004",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 0.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 0.0,
+        "data_pull_exists": 0.0,
+        "charts_answer": null,
+        "agent_answer": 0.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "agent_answer": "The expected answer is \"Brazil\" (a country/named entity), but the actual insight discusses both Australia and Brazil without identifying either as the answer to the comparison question, instead asking which dataset to use; the insight does not clearly identify Brazil as the primary answer."
+      },
+      "latency_s": 16.8,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/1cf62d9fc4e75e630e80fcce94c848c4"
+    },
+    {
+      "uid": "85c044795857542e",
+      "id": "1-005",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 0.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "latency_s": 16.2,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/88ecc2027d1e1305357fa54e4e808c07"
+    },
+    {
+      "uid": "21207fde86bdc738",
+      "id": "1-006",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": 1.0,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "deterministic check: the chart's closest figure to the expected 8.57% is 8.40852%, a 1.88% difference, within the 2% tolerance. The pie chart correctly displays the distribution of disturbance alerts by driver in Occitanie for September 2024, with Crop management as one of the five categories, allowing users to visually verify that it represents approximately 8.57% of the total disturbance area.",
+        "agent_answer": "The expected answer is 8.57% and the actual insight states crop management was responsible for approximately 8.4% (also shown as 8.41% in the table). The difference is |8.41 - 8.57| / 8.57 = 0.16 / 8.57 = 0.0187 or 1.87%, which is within the 2% tolerance threshold."
+      },
+      "latency_s": 36.4,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/58372777b38f26436dc8e1078f399472"
+    },
+    {
+      "uid": "d8e53dddfeb1a93b",
+      "id": "1-007",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 0.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 0.0,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "latency_s": 13.4,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/76181bffaf5c8e34c479cad9c09c8e73"
+    },
+    {
+      "uid": "e8b61a62e383f16e",
+      "id": "1-008",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "The pie chart correctly displays the distribution of disturbances by natural ecosystem type in Uganda for 2025, with \"Natural short vegetation\" shown as the largest segment (507,742 ha), directly answering which ecosystem type had the most disturbances.",
+        "agent_answer": "The expected answer \"natural short vegetation\" is a land cover/ecosystem type that is explicitly and prominently identified in the actual insight as the ecosystem with the most disturbances, demonstrating a clear semantic match."
+      },
+      "latency_s": 46.7,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/0914d3c88c3d7f6342185034540c4c70"
+    },
+    {
+      "uid": "06567da9ff5ebd32",
+      "id": "1-009",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "deterministic check: the chart's closest figure to the expected 4% is 3.92813%, a 1.80% difference, within the 2% tolerance. The pie chart correctly displays disturbance area by confidence level for Sara, Bolivia in July 2025, with \"highest\" confidence (multi-system detections) as a distinct category that allows verification of the 4.00% expected answer.",
+        "agent_answer": "The expected answer is 4.00% and the actual insight states 3.93%, which represents a difference of |3.93 - 4.00| / 4.00 = 0.00175 or 0.175%, well within the 2% tolerance threshold."
+      },
+      "latency_s": 43.8,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/17e1632deed613d63ff01c79ccff496f"
+    },
+    {
+      "uid": "276dd5ff3dab3e82",
+      "id": "1-010",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": null,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 0.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 0.0,
+        "agent_answer": 0.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "deterministic check: the chart's closest figure to the expected 16,359 is 26,663.61, a 62.99% difference, exceeding the 2% tolerance. The chart is a pie chart showing all land cover classes in 2024, but the user query asks specifically for the wetland area value (16,359 hectares); the chart data shows only 110.10 ha of \"Wetland – short vegetation,\" which is a single category within the broader land cover composition and does not match the expected answer, indicating either a data mismatch or tha",
+        "agent_answer": "The expected answer is 16,359 hectares, but the actual insight provides 110.10 hectares as the main answer for wetland short vegetation. The difference is |110.10 - 16,359| / 16,359 = 99.3%, which far exceeds the 2% tolerance threshold."
+      },
+      "latency_s": 38.9,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/68beca6274d2da7d45b3d608ee397a7c"
+    },
+    {
+      "uid": "7c631607116c8c4d",
+      "id": "1-012",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": null,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": 1.0,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "deterministic check: the chart's closest figure to the expected 19.16 is 19.1552, a 0.02% difference, within the 2% tolerance. The pie chart correctly displays the land cover composition for Alto Rio Negro Indigenous Territory (2024) with cultivated grasslands included as a data category with value 19.155235043735946 hectares, which matches the expected answer of 19.16 hectares, and the chart structure appropriately shows all land cover categories to provide context for the queried metric.",
+        "agent_answer": "The expected answer is 19.16 hectares and the actual insight explicitly states \"approximately 19.16 hectares\" of cultivated grasslands, which is an exact match within the 2% tolerance threshold (0% difference).",
+        "expected_text_match": "The actual response includes the expected value 19.155 (presented as 19.16 hectares of cultivated grasslands), which is semantically equivalent and represents the same data point with appropriate rounding for presentation purposes."
+      },
+      "latency_s": 43.5,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/7c7321215980b989987bfed804205cc6"
+    },
+    {
+      "uid": "7f751fa8bce053e5",
+      "id": "1-013",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 0.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": null,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "agent_answer": "The expected answer is \"Nigeria\" and the actual insight clearly identifies Nigeria as the country with significantly more agricultural land than Ghana, directly matching the expected named entity."
+      },
+      "latency_s": 33.3,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/d08470dd881e989eef31da24bd8d2700"
+    },
+    {
+      "uid": "3c4a5827fdf3cab6",
+      "id": "1-014",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": null,
+        "dataset_id_match": 0.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 0.0,
+        "charts_answer": null,
+        "agent_answer": 0.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "agent_answer": "The expected answer is FALSE, but the actual insight does not provide a clear boolean answer; instead, it asks a clarifying question about which California is meant, failing to directly answer the yes/no question with a matching false/negative response."
+      },
+      "latency_s": 15.9,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/630cc3b7c6a9946c216f3451479b4721"
+    },
+    {
+      "uid": "0f0db06a7f4ae3a7",
+      "id": "1-015",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "Chart 0 is a bar chart showing short vegetation area by Welsh county for 2024, with Powys clearly displayed as the highest value (53,497.625 ha), directly answering the user query about which Welsh county had the most short vegetation; the data structure, axes, and filtering are correct for this comparison.",
+        "agent_answer": "The expected answer \"Powys\" is a Welsh county name, and the actual insight clearly identifies and emphasizes Powys as the answer, stating it \"had the largest area of short vegetation among Welsh counties,\" which directly matches the expected entity."
+      },
+      "latency_s": 48.6,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/4db02ce9cfec6d0478ff7cc8cd66bfb4"
+    },
+    {
+      "uid": "35b0dc5875fea7d8",
+      "id": "1-016",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 0.0,
+        "agent_answer": 0.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "deterministic check: the chart's closest figure to the expected 8,368.74 is 14,069.87, a 68.12% difference, exceeding the 2% tolerance. The chart shows 2024 land cover composition (a snapshot), but the user query asks for land cover transitions from 2015 to 2024, which requires a transition matrix or change analysis chart, not a pie chart of current composition.",
+        "agent_answer": "The expected answer specifies a numeric transition value of 8368.74 hectares (tree cover to built-up), but the actual insight provides only 2024 land cover composition data without explicitly identifying or calculating this specific transition value, making it impossible to verify the expected numeric answer."
+      },
+      "latency_s": 82.7,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/98f39a2a00a5bfe66b4b5d316c495293"
+    },
+    {
+      "uid": "36d745d7b2073d9b",
+      "id": "1-017",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": null,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "deterministic check: the chart's closest figure to the expected 18,494.80 is 18,494.73, a 0.00% difference, within the 2% tolerance. The chart specification correctly displays natural grassland extent for Bulgan Tal in 2019 with the appropriate metric (area_ha), location filter (Bulgan Tal), year (2019), and bar chart type suitable for showing a single data point, and the underlying code confirms proper data extraction and filtering.",
+        "agent_answer": "The expected answer of 18494.8 ha matches the actual insight's figure of 18,495 hectares within the 2% tolerance threshold (0.01% difference)."
+      },
+      "latency_s": 28.0,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/f9221a4bb54b087866e70deb41f1c50e"
+    },
+    {
+      "uid": "9aedc6984f2df38a",
+      "id": "1-018",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": null,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "The bar chart correctly displays natural grassland extent in hectares for Hwange National Park from 2017 to 2022, with accurate data points that clearly show a net decrease from 997,397 ha in 2017 to 851,520 ha in 2022, directly answering the user's yes/no question.",
+        "agent_answer": "The expected answer is \"no\" and the actual insight begins with \"**No.**\" - both are negative boolean values that match semantically."
+      },
+      "latency_s": 43.3,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/0136b97dfd435bdb95752ffa8504be9e"
+    },
+    {
+      "uid": "50f04e58d163410f",
+      "id": "1-019",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": null,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "The line chart correctly displays natural/semi-natural grassland extent in hectares for the Blackfeet Reservation across 2000-2015, with data points for both comparison years (2000: 537,976.35 ha and 2015: 548,790.65 ha) clearly visible, enabling direct verification that 2015 had more grassland than 2000.",
+        "agent_answer": "The expected answer is the year 2015, and the actual insight explicitly states \"2015\" as the answer to which year had more natural grassland in the Blackfeet Indian Reservation, achieving an exact match."
+      },
+      "latency_s": 31.1,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/9907a7a7ff30b893f9ae21341656127c"
+    },
+    {
+      "uid": "361d30f06b16437c",
+      "id": "1-021",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 0.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 0.0,
+        "data_pull_exists": 0.0,
+        "charts_answer": null,
+        "agent_answer": 0.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "agent_answer": "The expected answer \"Pais Vasco\" is a specific region, but the actual insight does not provide a direct answer to the question—instead it asks for clarification about which type of grassland data to use, failing to identify any community as having the least grassland."
+      },
+      "latency_s": 14.5,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/e2c2fbed999d14e1ca86acfe2dd9606c"
+    },
+    {
+      "uid": "07614bc87b1513ca",
+      "id": "1-022",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "The bar chart correctly displays natural grassland coverage in hectares for Bolivia across all years from 2001-2022, with the data showing 2013 as the minimum value (15,994,092.28 ha), allowing users to visually verify the expected answer.",
+        "agent_answer": "The expected answer is 2013 and the actual insight explicitly states that Bolivia had the least natural and semi-natural grassland coverage in 2013, which is an exact match."
+      },
+      "latency_s": 32.1,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/28ca477c491b9690794e4b75538c3f67"
+    },
+    {
+      "uid": "5513eaee4860bf18",
+      "id": "1-023",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "The pie chart correctly displays natural grassland coverage in 2000 for both North Dakota (6,668,238.84 ha) and South Dakota (11,438,496.24 ha), allowing direct visual comparison to answer which state had more coverage, with South Dakota clearly shown as the larger value.",
+        "agent_answer": "The expected answer \"South Dakota\" is clearly identified and emphasized in the actual insight as the state with significantly more natural and semi-natural grassland coverage, matching the expected named entity."
+      },
+      "latency_s": 32.0,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/d56dd9a3149646ccf7739dae100a62ec"
+    },
+    {
+      "uid": "e3d6ad96ca778daf",
+      "id": "1-024",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "The pie chart correctly displays natural grassland distribution by district in Salto, Uruguay for 2001, with all six districts and their accurate area values, allowing clear identification that San Antonio has the least grassland (15,918.97 ha).",
+        "agent_answer": "The expected answer \"San Antonio\" is a named entity (place/district), and the actual insight clearly identifies San Antonio as the district with the least natural and semi-natural grassland in 2001, providing a direct semantic match."
+      },
+      "latency_s": 35.1,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/9b14a139e1bd3f6aacd549c104f9963d"
+    },
+    {
+      "uid": "3eaef783721b8cb7",
+      "id": "1-025",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 0.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 0.0,
+        "data_pull_exists": 0.0,
+        "charts_answer": null,
+        "agent_answer": 0.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "agent_answer": "The actual insight does not provide a definitive boolean answer (true/false) to the question about whether Pocho gained natural grasslands between 2020 and 2021; instead, it asks which dataset to use for the analysis, which is a procedural response rather than an affirmative or negative answer to the expected TRUE value."
+      },
+      "latency_s": 12.1,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/246e99114672de492245a8d89acf6b17"
+    },
+    {
+      "uid": "00b7bcb79abcc5ed",
+      "id": "1-026",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": null,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "The bar chart correctly displays all natural land classes in Plaine de Villefagnan sorted by area, with \"Natural short vegetation\" (52.54 ha) clearly shown as the second largest category after \"Natural forests\" (343.14 ha), directly answering the user's query.",
+        "agent_answer": "The expected answer \"natural short vegetation\" is a land cover type that is explicitly and prominently identified in the actual insight as \"Natural short vegetation,\" which is the second largest natural land class in the area, demonstrating a clear semantic match."
+      },
+      "latency_s": 30.9,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/b34a06a91828cd2c0f8634603470dd2f"
+    },
+    {
+      "uid": "369692d7d64e157e",
+      "id": "1-027",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": null,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": 0.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "deterministic check: the chart's closest figure to the expected 679.17 is 2,123.93, a 212.72% difference, exceeding the 2% tolerance. The chart shows Natural vs Non-natural land proportions, but the user query specifically asks for the area of \"natural short vegetation\" (679.17 ha), which requires a breakdown by land cover class, not an aggregated Natural/Non-natural binary categorization that obscures the specific class requested.",
+        "agent_answer": "The expected answer is 679.17 ha and the actual insight states 679.16 ha for natural short vegetation; the difference is 0.01 ha, which equals 0.0147% (well within the 2% tolerance threshold)."
+      },
+      "latency_s": 34.2,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/5aae570a45ce9ac4d7e70d339bd88141"
+    },
+    {
+      "uid": "e373d86ac3bdf70a",
+      "id": "1-029",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "The bar chart correctly displays the top 10 Indonesian states by natural peat forest area (2020), with Papua clearly shown as the leading state with 5,121,559 hectares, directly answering the user query about which state has the most natural peat forest.",
+        "agent_answer": "The expected answer \"Papua\" is a named entity (region), and the actual insight clearly identifies Papua as the answer, stating it \"has the most natural peat forest in Indonesia,\" which directly matches the expected entity."
+      },
+      "latency_s": 39.6,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/e7beea0185e18f2fa32ba5d3c7fbd7be"
+    },
+    {
+      "uid": "f78daf0baa3a7407",
+      "id": "1-030",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 0.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 0.0,
+        "charts_answer": null,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "agent_answer": "The expected answer \"Ziguinchor\" is clearly identified and emphasized multiple times throughout the actual insight as the primary region with the largest and most dense mangrove extent in Senegal, directly matching the expected entity."
+      },
+      "latency_s": 30.0,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/d6c33d66b425e7b1ef394d27f64a9d09"
+    },
+    {
+      "uid": "06988e33f4f6f8ea",
+      "id": "1-031",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": 0.0,
+        "agent_answer": 0.0,
+        "expected_text_match": 0.0,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "The chart data excludes \"Mangroves\" as a separate category, instead combining it into \"Natural forests,\" which prevents users from identifying mangroves as the second largest natural land class by area as expected; the codeact reasoning shows mangroves (15,444.07 ha) should be visible separately to answer the query correctly.",
+        "agent_answer": "The expected answer \"mangroves\" is a land cover type that is mentioned within the actual insight as a component of \"Natural forests\" (which includes natural forests, mangroves, and peat forests), but the actual insight does not identify mangroves as the second largest natural land class—it identifies \"Natural water\" as the second largest. The insight acknowledges mangroves exist but does not answer that mangroves are the second largest natural land class.",
+        "expected_text_match": "The response mentions mangroves only as part of the broader \"Natural forests\" category (~174,867 ha total) but does not isolate or state mangroves separately with the specific figure of 15,444 hectares as expected."
+      },
+      "latency_s": 46.5,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/55af94633847679b0050b1930a024226"
+    },
+    {
+      "uid": "24654c156e645c81",
+      "id": "1-032",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": null,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "Both charts correctly display annual tree cover loss data for the Upper Stung Sen Catchment from 2020-2024 with appropriate bar chart types and correct metrics (area_ha and carbon_emissions_MgCO2e), allowing users to verify that tree cover loss decreased rather than increased over this period.",
+        "agent_answer": "The expected answer is FALSE and the actual insight explicitly states \"**False.** Tree cover loss in the Upper Stung Sen Catchment KBA has **decreased** from 2020 to 2024,\" which directly matches the expected boolean value."
+      },
+      "latency_s": 28.6,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/2bce0474c38dc1ae2c025d39b4981db4"
+    },
+    {
+      "uid": "ded1e88efcdf341c",
+      "id": "1-034",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": null,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": 0.0,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 0.0,
+        "agent_answer": 0.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "deterministic check: the chart's closest figure to the expected 10,765.60 is 13,359.47, a 24.09% difference, exceeding the 2% tolerance — overriding the judge, which said: Chart 0 correctly displays annual tree cover loss in hectares for Champoton from 2001-2024 with all 24 data points properly encoded, allowing users to sum the loss_area_ha values to verify the expected total of 10,765.60 ha (or the code-derived 13,359.47 ha depending on data source filtering).",
+        "agent_answer": "The expected answer is 10,765.60 ha, but the actual insight reports 13,359.47 ha as the total tree cover loss, which represents a 24.1% difference—far exceeding the 2% tolerance threshold."
+      },
+      "latency_s": 37.2,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/f9b18dccb2b00d70882a9cf9214220af"
+    },
+    {
+      "uid": "c6d844c8a0c38ae5",
+      "id": "1-035",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "Both charts correctly display annual tree cover loss data (in hectares) and associated emissions for Belgium's three states (Bruxelles, Vlaanderen, Wallonie) from 2005-2015, with the data clearly showing Bruxelles had the least deforestation, allowing users to verify the expected answer.",
+        "agent_answer": "The expected answer \"Bruxelles (Brussels)\" is clearly identified and emphasized in the actual insight as the region with the least tree cover loss, demonstrating a semantic match of the same geographic entity."
+      },
+      "latency_s": 46.2,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/1ad37e93f03863c641cd3e05e68af99d"
+    },
+    {
+      "uid": "303b2af3c3402585",
+      "id": "1-036",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "Both charts correctly display annual tree cover loss data for Gabon from 2001-2024 with the appropriate bar chart type and metrics (loss_area_ha and emissions_mgco2e), allowing users to visually identify that 2014 had the maximum tree cover loss of 48,752.34 hectares as shown in the underlying data.",
+        "agent_answer": "The expected answer is the year 2014, and the actual insight explicitly identifies 2014 as the year Gabon experienced the most tree cover loss, providing an exact match."
+      },
+      "latency_s": 43.3,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/3ca05732834153e7a0aae6571a5e9226"
+    },
+    {
+      "uid": "a0f0a84c4c433913",
+      "id": "1-037",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 0.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "Both charts correctly display 2004 deforestation data for the three Canadian provinces/territories beginning with 'N' (Newfoundland and Labrador, Northwest Territories, Nunavut), with the first chart showing forest loss area in hectares and the second showing associated GHG emissions, allowing verification that Northwest Territories had the most deforestation at 99,293.74 hectares.",
+        "agent_answer": "The expected answer \"Northwest Territories\" is a named entity (region), and the actual insight clearly identifies and emphasizes \"Northwest Territories\" as the answer to the question about which Canadian province/territory beginning with \"N\" had the most intact forest loss in 2004, achieving a perfect semantic match."
+      },
+      "latency_s": 35.6,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/00cf7fe71a757abfc73fb599b898ccd1"
+    },
+    {
+      "uid": "863ba6a140088907",
+      "id": "1-038",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": 0.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "deterministic check: the chart's closest figure to the expected 1,206,405.47 is 1,013,145.86, a 16.02% difference, exceeding the 2% tolerance — overriding the judge, which said: Both charts contain the correct 2024 data for Alberta and Manitoba tree cover loss (1,013,145.86 ha + 193,259.61 ha = 1,206,405.47 ha), use appropriate stacked-bar chart types to show the combined totals, include all necessary fields and time ranges, and are structurally sound for answering the user's query about the sum",
+        "agent_answer": "The expected answer is 1,206,405.47 hectares and the actual insight states 1,206,405 hectares (also shown as 1,206,406 in the table), with a difference of 0.47 hectares or 0.00004%, well within the 2% tolerance threshold."
+      },
+      "latency_s": 43.0,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/d9b9d710fc18d9ce36821cc355562999"
+    },
+    {
+      "uid": "15954d1359ba5a73",
+      "id": "1-039",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "Both charts correctly display annual tree cover loss data (in hectares) for Sheffield and Wakefield from 2001-2024 with proper grouping by city, allowing direct visual comparison to answer which location had more total tree cover loss; the underlying data shows Sheffield with 593.37 ha versus Wakefield with 32.66 ha, confirming Sheffield as the expected answer.",
+        "agent_answer": "The expected answer \"Sheffield\" is a named entity (place), and the actual insight clearly identifies Sheffield as the location with significantly more tree cover loss, directly matching the expected answer."
+      },
+      "latency_s": 34.9,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/f804182fcf41fb83ad390a62409e67ad"
+    },
+    {
+      "uid": "7fe4846142a0f70d",
+      "id": "1-040",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": null,
+        "dataset_id_match": 0.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "latency_s": 14.7,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/870d450f34b52645bd766715c3ee6265"
+    },
+    {
+      "uid": "a4bd954b9701ee85",
+      "id": "1-042",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": null,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "latency_s": 35.5,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/c6524ba55eb3178d3fde24394ff7cf09"
+    },
+    {
+      "uid": "a87f73a5cc1bb4bc",
+      "id": "1-043",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 0.0,
+        "agent_answer": 0.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "The charts show West Coast as the highest state with 2,097,325 MgCO2e in emissions, but the expected answer is Waikato, indicating the chart data does not match the query's expected answer and therefore cannot be used to verify or understand it.",
+        "agent_answer": "The expected answer is \"Waikato\" (a region in New Zealand), but the actual insight identifies \"West Coast\" as the region with the highest carbon emissions from tree cover loss between 2005-2020, which is a different region entirely."
+      },
+      "latency_s": 42.0,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/8a445e645030b5a6f0c468db3c35b777"
+    },
+    {
+      "uid": "e6f2436769d4a94f",
+      "id": "1-044",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "Chart_1 directly answers the query by displaying annual GHG emissions from tree cover loss in Indonesia (2001-2024) with the correct metric (ghg_emissions_mgco2e on y-axis) and time range, allowing users to identify 2003 as the year with the lowest emissions value of 444,611,630.6 MgCO2e.",
+        "agent_answer": "The expected answer is 2003 and the actual insight explicitly states that 2003 was the year with the lowest emissions due to tree cover loss in Indonesia, providing an exact match."
+      },
+      "latency_s": 39.8,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/538bb82d7ad8b6c0465cfd4fb95d0772"
+    },
+    {
+      "uid": "980753f8735d62b4",
+      "id": "1-045",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 0.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "Both charts correctly display deforestation-related carbon emissions and tree cover loss for Bouenza and Cuvette in 2021, with the first chart (emissions_mgco2e) directly answering the user's query by showing Cuvette (2,770,365 MgCO2e) had higher emissions than Bouenza (1,078,505 MgCO2e), supporting the FALSE answer.",
+        "agent_answer": "The expected answer is FALSE and the actual insight explicitly states \"**False.**\" at the beginning, providing an exact semantic match of the boolean value."
+      },
+      "latency_s": 35.9,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/d29290b42c58124a706911ac2db52a6a"
+    },
+    {
+      "uid": "cf98ea5d8d7d7811",
+      "id": "1-046",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "deterministic check: the chart's closest figure to the expected 658,571 is 658,496.56, a 0.01% difference, within the 2% tolerance. Chart_1 correctly displays annual GHG emissions from tree cover loss in Ihorombe, Madagascar with emissions_mgco2e on the y-axis, allowing users to verify the 2019 value of 658,496.56 MgCO2e (tonnes) against the expected answer of 658,571 tonnes, and both charts together provide complete context for the query with appropriate data structure, location, time range, an",
+        "agent_answer": "The expected answer is 658,571 tonnes and the actual insight states approximately 658,497 tonnes (MgCO2e), which represents a difference of 74 tonnes or 0.011% (well within the 2% tolerance threshold)."
+      },
+      "latency_s": 33.5,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/c134e2adb5e8239811bc86c570b67ce2"
+    },
+    {
+      "uid": "b11c498e8cd4b54e",
+      "id": "1-047",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": null,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": 1.0,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "deterministic check: the chart's closest figure to the expected 270.95 is 270.949, a 0.00% difference, within the 2% tolerance. The chart directly answers the query by displaying cumulative tree cover gain for the 2000-2020 period in Rio Capim KBA with the correct metric (gain_ha), appropriate bar chart type for period comparison, and data that matches the expected answer of 270.95 hectares.",
+        "agent_answer": "The actual insight explicitly states \"270.95 hectares\" as the cumulative tree cover gain, which matches the expected answer of 270.95 hectares exactly (0% difference, well within the 2% tolerance).",
+        "expected_text_match": "The actual response explicitly includes the expected value \"270.95 hectares\" as the cumulative tree cover gain for the Rio Capim Key Biodiversity Area between 2000 and 2020, matching the expected text semantically and numerically."
+      },
+      "latency_s": 33.0,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/abeb58438fc24bd3f15314d962502bc3"
+    },
+    {
+      "uid": "e92f2c04f8e4637a",
+      "id": "1-048",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": null,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "The bar chart correctly displays tree cover gain in hectares for the two requested periods (2000-2010 vs 2010-2020) with accurate data values (37.67 ha vs 7.77 ha), appropriate chart type for comparison, and proper labeling that directly answers whether more tree cover was gained in the first period than the second.",
+        "agent_answer": "The actual insight explicitly states \"**True.**\" at the beginning, which is a direct semantic match with the expected answer \"TRUE\" - both affirm the same boolean value."
+      },
+      "latency_s": 37.2,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/ae869b0b712dbee039d4f9a589b6f3fd"
+    },
+    {
+      "uid": "0dcc2ef821acd921",
+      "id": "1-050",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "The grouped-bar chart correctly displays tree cover gain (in hectares) for France and Germany during 2015-2020, with accurate data values (France: 137,882.875 ha vs Germany: 86,280.96875 ha) that directly answer which country gained more tree cover.",
+        "agent_answer": "The expected answer \"France\" is a named entity (country), and the actual insight clearly identifies France as the country that gained more tree cover than Germany between 2015 and 2020, with supporting data showing France gained 137,883 hectares versus Germany's 86,281 hectares."
+      },
+      "latency_s": 45.3,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/6a161727619db2c214a36617528a44e1"
+    },
+    {
+      "uid": "1067cc76e8fe2629",
+      "id": "1-051",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "The chart correctly displays cumulative tree cover gain (2000-2020) for all four Galician provinces as a grouped bar chart, with Pontevedra clearly shown as the province with the least tree cover gain (9,623.86 ha), matching the expected answer and enabling verification of the result.",
+        "agent_answer": "The expected answer \"Pontevedra\" is a named entity (province in Galicia), and the actual insight clearly identifies Pontevedra as the province that gained the least tree cover, directly matching the expected answer."
+      },
+      "latency_s": 96.8,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/c5e71941c36867fec9f5edf328a5db92"
+    },
+    {
+      "uid": "d5b3d9bc2d641790",
+      "id": "1-052",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "The bar chart correctly displays tree cover gain (in hectares) across all four 5-year periods from 2000-2020 in Huelva, Spain, with proper axis labels and data that directly supports identifying 2015-2020 as the period with maximum gain (6588.34 ha).",
+        "agent_answer": "The expected answer \"2015-2020\" is a year range that matches the actual insight, which explicitly identifies \"2015–2020\" as the period with the most tree cover gain in Huelva, Spain."
+      },
+      "latency_s": 36.6,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/d481f12dc9abe00595b8ed093fca0106"
+    },
+    {
+      "uid": "966465dd57772891",
+      "id": "1-053",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": null,
+        "agent_answer": 1.0,
+        "expected_text_match": 1.0,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "agent_answer": "The expected answer is TRUE, and the actual insight explicitly states \"**True.**\" at the beginning, confirming that the United Kingdom has a lower (more negative) net forest GHG flux than the Republic of Ireland, which is an exact semantic match.",
+        "expected_text_match": "The response explicitly states the answer is \"True,\" confirms both countries are \"net sinks\" (carbon sinks), and provides detailed evidence that the UK has a lower (more negative) net flux (-323.5 vs -55.4 million MgCO2e), directly matching all three components of the expected information."
+      },
+      "latency_s": 42.2,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/b458962eee936402c12bb62306fbc598"
+    },
+    {
+      "uid": "6f89b935b038c6f0",
+      "id": "1-054",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": 0.0,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "The chart correctly displays gross emissions and gross removals for Islas Canarias (2001-2025) with appropriate diverging bar structure (positive emissions vs. negative removals), allowing users to visually verify that removals exceed emissions and confirm the net sink status.",
+        "agent_answer": "The expected answer \"Sink\" is a descriptive term referring to a carbon sink, and the actual insight explicitly identifies the Canary Islands as a \"net carbon sink\" with detailed supporting data, directly matching the expected answer.",
+        "expected_text_match": "The actual response states a net flux of -2,793,765 MgCO₂e, which contradicts the expected value of approximately -286,993.68 MgCO₂e—the actual figure is roughly 10 times larger than expected."
+      },
+      "latency_s": 39.4,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/4924d1fe7579a54622159e49f7960262"
+    },
+    {
+      "uid": "b8002a1ddf7b76f9",
+      "id": "1-055",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": 0.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "deterministic check: the chart's closest figure to the expected 286,994 is 37,436.76, a 86.96% difference, exceeding the 2% tolerance — overriding the judge, which said: The chart correctly displays the net greenhouse gas flux for Las Palmas, Canarias (ESP) with the net flux value of -286,993.68 MgCO2e prominently shown as one of three bars, alongside gross emissions and gross removals for the 2001-2025 period, making it suitable for verifying the expected answer of -286,994 Mg CO2e.",
+        "agent_answer": "The expected answer is -286,994 MgCO2e and the actual insight provides -286,993.68 MgCO2e; the difference is 0.0001% (well within the 2% tolerance threshold)."
+      },
+      "latency_s": 33.1,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/1f2fa06fec798aeab10b9a361d131cf4"
+    },
+    {
+      "uid": "0e16c2dc9ca007c9",
+      "id": "1-056",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 0.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "latency_s": 13.1,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/09ab83b2f84ef108e9dbcac43e08c15d"
+    },
+    {
+      "uid": "67053564c5717807",
+      "id": "1-057",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "The bar chart correctly displays tree cover area in hectares for Oregon and Washington in 2000 with canopy density > 30%, showing Oregon with 9,721,340.996726353 ha and Washington with 8,712,901.76364981 ha, which directly answers which state had the most tree cover.",
+        "agent_answer": "The expected answer \"Oregon\" is a named entity (U.S. state), and the actual insight clearly identifies Oregon as the state with more tree cover than Washington, providing detailed supporting data and context."
+      },
+      "latency_s": 30.7,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/06890cb001a9b9bdd754555326d468f2"
+    },
+    {
+      "uid": "288e33b003b0ffc8",
+      "id": "1-058",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "latency_s": 35.9,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/0ab455838d4da5361057a09ea50b10ba"
+    },
+    {
+      "uid": "70be2a6faeef4ef4",
+      "id": "1-059",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "deterministic check: the chart's closest figure to the expected 25,540,000 is 25,521,080.13, a 0.07% difference, within the 2% tolerance. Chart_0 directly answers the user query by displaying global tree cover loss in 2025 (25.54 million hectares) with the correct metric (area_ha), appropriate bar chart type, and accurate data encoding from the analysis.",
+        "agent_answer": "The expected answer is 25.54 million hectares and the actual insight states 25.52 million hectares, with a difference of 0.08% (well within the 2% tolerance threshold)."
+      },
+      "latency_s": 28.7,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/298d18a998983b65b58a0a477565109a"
+    },
+    {
+      "uid": "807f6dfcfea8683f",
+      "id": "1-060",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "Chart 0 directly answers the query by displaying the top 10 Brazilian states ranked by tree cover loss from permanent agriculture (perm_ag_area), with Pará clearly shown as the highest value (15,000,438 ha), matching the expected answer; the code execution confirms correct filtering for permanent agriculture driver and proper state-level aggregation.",
+        "agent_answer": "The expected answer \"Para\" is a named entity (Brazilian state), and the actual insight clearly identifies and focuses on Pará as the state that lost the most tree cover due to permanent agriculture, making it a semantic match."
+      },
+      "latency_s": 45.7,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/0f80ab661a623af8147dca9fe12cfaad"
+    },
+    {
+      "uid": "e9df2f14ec791255",
+      "id": "1-061",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "Chart 0 directly answers the query by displaying tree cover loss due to settlements and infrastructure by state with Queensland clearly showing the highest value (31,644.98 ha), and the code execution confirms correct filtering and aggregation of the settlements and infrastructure driver across all Australian states.",
+        "agent_answer": "The expected answer \"Queensland\" is a named entity (Australian state), and the actual insight clearly identifies Queensland as the state that lost the most forest due to settlements and infrastructure, matching the expected answer semantically."
+      },
+      "latency_s": 53.0,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/339cc30e5433de2091df105bb892aa2a"
+    },
+    {
+      "uid": "e729f151494155b6",
+      "id": "1-063",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "The pie chart correctly displays tree cover loss by driver in Aveiro, Portugal (2001-2025) with accurate data values for Logging (56,819.43 ha) and Wildfire (42,355.45 ha), enabling direct visual and numerical comparison to verify that Logging causes more tree cover loss than Wildfire.",
+        "agent_answer": "The expected answer is TRUE and the actual insight begins with \"**True.**\" which is an exact semantic match for a boolean affirmative response."
+      },
+      "latency_s": 33.8,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/75e3278dc80ed039cc09874a60ba2bfd"
+    },
+    {
+      "uid": "e3b8acd95fe9c6fb",
+      "id": "1-064",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "The pie chart correctly displays tree cover loss by driver in Nannup (2001-2025) with wildfire as the largest segment (56,205 ha), directly answering the user's query about the largest deforestation driver; the data, labels, and chart type are all appropriate for the question.",
+        "agent_answer": "The expected answer \"wildfire\" is a named entity (land cover/disturbance type), and the actual insight clearly identifies wildfire as the dominant driver of tree cover loss in Nannup, Western Australia, directly matching the expected answer."
+      },
+      "latency_s": 37.5,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/c1956f5393f0629816ac40d177a147a3"
+    },
+    {
+      "uid": "8229668942233037",
+      "id": "1-065",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": null,
+        "dataset_id_match": null,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": 1.0,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "expected_text_match": "The actual response explicitly states the Tree Cover Loss dataset has a spatial resolution of \"30 x 30 meters\" and further clarifies this as \"30-meter by 30-meter area on the ground,\" which directly matches the expected information."
+      },
+      "latency_s": 6.2,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/aedc5373e9f0e759e566f28bc9ef59af"
+    },
+    {
+      "uid": "baaa1c81665e7cb7",
+      "id": "1-066",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": null,
+        "dataset_id_match": null,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": 1.0,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "expected_text_match": "The response explicitly states the tree cover loss data has \"global coverage\" and specifically mentions the exception of \"Antarctica and some Arctic islands,\" which directly matches the expected information about global land area coverage with optional mention of excluded regions."
+      },
+      "latency_s": 6.3,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/3211e43aa9f054a0d9af85535e6b152d"
+    },
+    {
+      "uid": "8c512724d73a8fb4",
+      "id": "1-067",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": null,
+        "dataset_id_match": null,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": 1.0,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "expected_text_match": "The response includes all three expected elements: it describes the classes (permanent conversion and temporary disturbances), explains the methodology (overlaying 30-meter data with 1km model classification), and explicitly mentions the 1 km grid cell over the 24-year period (2001-2025)."
+      },
+      "latency_s": 13.0,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/f97937840f7954214f7d2d5dfcef4c5e"
+    },
+    {
+      "uid": "0f3bbfa460906894",
+      "id": "1-068",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": null,
+        "dataset_id_match": null,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": 1.0,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "expected_text_match": "The actual response includes the exact citation \"Hansen, M. C., P. V. Potapov, R. Moore, M. Hancher, S. A. Turubanova, A. Tyukavina, D. Thau, S. V. Stehman, S. J. Goetz, T. R. Loveland, A. Kommareddy, A. Egorov, L. Chini, C. O. Justice, and J. R. G. Townshend. 2013. 'High-Resolution Global Maps of 21st-Century Forest Cover Change.' Science 342 (15 November): 850–53,\" which is semantically identical to the expected text."
+      },
+      "latency_s": 11.9,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/be25c996821eacdb49e14d6436c5b771"
+    },
+    {
+      "uid": "73c23701832b400f",
+      "id": "1-069",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "The chart is a table showing the top 15 countries ranked by natural and semi-natural grassland area in 2022, with Russia correctly positioned at rank 1 with 504,199,664.6 hectares, directly answering which country had the most natural grassland in 2022.",
+        "agent_answer": "The expected answer \"Russia\" is a named entity (country), and the actual insight clearly identifies Russia as the country with the largest extent of natural and semi-natural grassland in 2022, matching the expected answer."
+      },
+      "latency_s": 29.6,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/eee563a3150cd80981bb8f5c07b90eb4"
+    },
+    {
+      "uid": "1a9ad2b81fa88801",
+      "id": "1-070",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "latency_s": 37.4,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/556677acce9f9c6105ac9c8a42189fac"
+    },
+    {
+      "uid": "129941023fb6c929",
+      "id": "1-071",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 0.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "latency_s": 33.2,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/4bd608eaf2651a2208fbac164b5e5e39"
+    },
+    {
+      "uid": "a637b9ac4664d286",
+      "id": "1-072",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": null,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": 1.0,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "expected_text_match": "The actual response explicitly confirms that 2025 is the most recent year for which tree cover loss data is available, directly satisfying the expected instruction to confirm 2025."
+      },
+      "latency_s": 9.0,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/c810f2a7df5f688bf55ce6f7154b6f9a"
+    },
+    {
+      "uid": "b49a4e8d1d9e75a3",
+      "id": "1-073",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": 1.0,
+        "date_extraction": 0.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": 1.0,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "expected_text_match": "The response explicitly states that data is \"from 2002 to 2025\" and notes that \"loss was around 169,000 hectares in 2002,\" clearly establishing 2002 as the start year for primary forest data, which matches the expected caution about the start year being 2002 not 2001."
+      },
+      "latency_s": 29.7,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/24e069f8f7140eb279c6a4020dd2623e"
+    },
+    {
+      "uid": "251919520a7a3b9c",
+      "id": "1-074",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "deterministic check: the chart's closest figure to the expected 241,370.32 is 241,368.24, a 0.00% difference, within the 2% tolerance. The chart specification correctly displays tree cover loss in Finland for 2025 at a 10% canopy density threshold with the appropriate bar chart type, correct data field (area_ha in hectares), proper year filtering, and the data value (241,368.24 ha) matches the expected answer.",
+        "agent_answer": "The expected answer is 241,370.32 hectares and the actual insight states approximately 241,368 hectares; the difference is 2.32 hectares or 0.001%, which is well within the 2% tolerance threshold."
+      },
+      "latency_s": 36.7,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/ee38c8bbb5049561f8567d68f0e63ae4"
+    },
+    {
+      "uid": "ddbf301551d8b03f",
+      "id": "1-076",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": 1.0,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "deterministic check: the chart's closest figure to the expected 25,000,000 is 25,308,960.66, a 1.24% difference, within the 2% tolerance. The charts correctly display annual tree cover loss in Russia (2001-2025) with data summing to approximately 25.3 Mha, matching the expected answer of 25 Mha; the bar chart structure with year on x-axis and loss_ha on y-axis is appropriate for showing deforestation trends over time.",
+        "agent_answer": "The expected answer is 25 Mha and the actual insight states approximately 25.3 million hectares of intact forest loss, which is within the 2% tolerance threshold (0.3/25 = 1.2% difference)."
+      },
+      "latency_s": 37.2,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/0f31e4d9617fb130849307b0c974289d"
+    },
+    {
+      "uid": "19caeadb43bc5b5b",
+      "id": "1-077",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": 1.0,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "deterministic check: the chart's closest figure to the expected 590,000 is 588,848.67, a 0.20% difference, within the 2% tolerance. The first chart correctly displays tree cover loss in intact forest landscapes in Russia for 2025 with the appropriate metric (area_ha), location, time period, and bar chart type to answer the user's query about deforestation amount.",
+        "agent_answer": "The expected answer is 590 kha and the actual insight states 588,849 hectares (588.849 kha). The difference is |588.849 - 590| / 590 = 0.195%, which is well within the 2% tolerance threshold, resulting in a match."
+      },
+      "latency_s": 34.7,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/af97911bc635ef1158fb22adf465f05e"
+    },
+    {
+      "uid": "16b61f12da5fda45",
+      "id": "1-078",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": null,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "Both charts correctly display the top 10 countries ranked by primary forest loss area in 2025, with the first chart using area_ha as the y-axis measure which directly answers the user query, and the data matches the expected answer list in the correct order.",
+        "agent_answer": "The expected answer is a list of 10 countries with the highest primary forest loss, and the actual insight correctly identifies Brazil as the top country and provides the complete ranked list matching all 10 expected countries in the correct order."
+      },
+      "latency_s": 39.3,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/0d7852b899c93ac5bda40beb578e88af"
+    },
+    {
+      "uid": "a3640f16e259f2c6",
+      "id": "1-079",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "deterministic check: the chart's closest figure to the expected 80,630,000 is 80,626,409.65, a 0.00% difference, within the 2% tolerance. The line chart correctly displays natural/semi-natural grassland extent in Mongolia from 2000-2022 with all 23 data points, allowing users to visually identify the peak extent of approximately 80.63 million hectares in 2011, which matches the expected answer.",
+        "agent_answer": "The expected answer is 80.63 million hectares, and the actual insight states the peak area was approximately 80.6 million hectares (80,626,410 hectares). The difference is |80.626 - 80.63| / 80.63 = 0.00004 or 0.004%, which is well within the 2% tolerance threshold."
+      },
+      "latency_s": 35.8,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/1a376ac6abaadfe1378b648fc8c96235"
+    },
+    {
+      "uid": "9e3ec4c5af5803c7",
+      "id": "1-080",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": 1.0,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": 1.0,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "expected_text_match": "The response explicitly cautions users that \"Loss\" is not strictly synonymous with \"deforestation\" and clarifies that tree cover includes both natural forests and plantations, directly addressing the expected behavior of warning about the distinction between loss and deforestation while noting the inclusion of plantations in the data."
+      },
+      "latency_s": 33.9,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/a455a17dc273a3496b528ea61dfad7c7"
+    },
+    {
+      "uid": "fe36465d419ab452",
+      "id": "1-082",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": null,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": 1.0,
+        "clarification_requested": 1.0,
+        "suggested_datasets_match": 0.0,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "expected_text_match": "The response provides clear, specific reasons for each of the three dataset suggestions that directly relate to the user's query about urbanization in Brazil, explaining what each dataset tracks, its temporal coverage, and its relevance to measuring urban expansion."
+      },
+      "latency_s": 16.0,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/7cccf986e3aeaf295638e957537d0b55"
+    },
+    {
+      "uid": "7768f7b92e6691bc",
+      "id": "1-083",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": null,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": 1.0,
+        "clarification_requested": null,
+        "suggested_datasets_match": 0.0,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "expected_text_match": "The response provides clear, specific reasons for each dataset suggestion that directly relate to the user's query about deforestation linked to agricultural commodities in Brazil, explaining how each dataset addresses different aspects of the analysis."
+      },
+      "latency_s": 17.7,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/596832cdc98702325fc2effe636c923e"
+    },
+    {
+      "uid": "ef48dd07337b34c0",
+      "id": "1-084",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": null,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": 1.0,
+        "clarification_requested": 1.0,
+        "suggested_datasets_match": 0.0,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "expected_text_match": "The response provides good reasons for each dataset suggestion by explaining what each option tracks (tree cover loss for primary forests, grassland extent for natural grasslands/savannas, and SBTN map for a 2020 snapshot) and how they relate to the user's query about natural land loss in Gabon."
+      },
+      "latency_s": 13.1,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/f1d499c91acbaf0da1e9d10726c805e1"
+    },
+    {
+      "uid": "a8a54bc897de75ba",
+      "id": "1-086",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "latency_s": 35.3,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/5fc27ef19d5724d8cc90e67abe8f3e73"
+    },
+    {
+      "uid": "212cd56065c87ece",
+      "id": "1-087",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": 1.0,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "latency_s": 36.0,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/de62885cde75d093b07b52e0c8c6513e"
+    },
+    {
+      "uid": "dc1b3d52d49b28b2",
+      "id": "1-088",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": 1.0,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "deterministic check: the chart's closest figure to the expected 507,742 is 507,742.03, a 0.00% difference, within the 2% tolerance. The pie chart correctly displays the distribution of ecosystem disturbances across all natural ecosystem types in Uganda for 2025, with Natural short vegetation (507,742.03 ha) prominently shown as the largest segment, directly answering which ecosystem type had the most disturbances.",
+        "agent_answer": "The expected answer is 507,742 hectares, and the actual insight explicitly states \"Natural short vegetation: ~507,742 hectares (highest)\", which matches exactly within the 2% tolerance threshold (0% difference)."
+      },
+      "latency_s": 71.4,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/ebffcf9aa5bce06c10c248f0174fe498"
+    },
+    {
+      "uid": "2c71d01c4ec18a83",
+      "id": "1-089",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": null,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": 1.0,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "expected_text_match": "The response explicitly refuses to provide monthly tree cover loss data and clearly acknowledges that the TCL dataset has annual temporal resolution (\"updated on an annual basis rather than monthly\"), which directly satisfies the expected behavior."
+      },
+      "latency_s": 12.4,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/3215ca0adfcfd7b801f7a2bc1b721e81"
+    },
+    {
+      "uid": "d284a6d4fd94b4b8",
+      "id": "1-090",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": 1.0,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "deterministic check: the chart's closest figure to the expected 137,821 is 137,821.38, a 0.00% difference, within the 2% tolerance. The first chart correctly visualizes forest cover loss in Spain for 2022 with area_ha as the y-axis measure, matching the expected answer of 137,821 hectares; the chart type (bar), data structure, and axis labels are appropriate for answering the user's query about forest surface loss.",
+        "agent_answer": "The actual insight correctly identifies 137,821 hectares as the tree cover loss in Spain for 2022, matching the expected answer exactly with zero percent difference.",
+        "expected_text_match": "The actual response provides a comprehensive answer in Spanish (matching the prompt language) with specific data about Spain's tree cover loss in 2022, including quantified metrics, methodological clarifications, and an offer for further analysis."
+      },
+      "latency_s": 50.1,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/fdd6ce3942d109e4158e7c819bce68fb"
+    },
+    {
+      "uid": "2d4ecaa5f9030d67",
+      "id": "1-091",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": 1.0,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "expected_text_match": "The actual response is provided entirely in French, matching the language of the prompt, and delivers comprehensive information about Senegal's tree cover loss in 2022 with detailed analysis, methodology notes, and suggestions for further exploration."
+      },
+      "latency_s": 35.1,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/2edbbfd2d36404dad2e703020d966873"
+    },
+    {
+      "uid": "67b7bbc6b410ef85",
+      "id": "1-092",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": 1.0,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "deterministic check: the chart's closest figure to the expected 46,875 is 46,875.52, a 0.00% difference, within the 2% tolerance. Chart_0 directly answers the query by displaying annual tree cover loss in hectares for Portugal across 2001-2025, with the 2022 data point (46,875.52 ha) clearly visible and matching the expected answer of 46,875 hectares.",
+        "agent_answer": "The expected answer is 46,875 hectares and the actual insight states \"46.875 hectares\" (using European decimal notation where the period represents thousands separator, equivalent to 46,875 hectares), which is an exact match with 0% difference.",
+        "expected_text_match": "The actual response provides a comprehensive and well-structured answer in Portuguese (the same language as the prompt), delivering detailed information about Portugal's tree cover loss in 2022, including specific data, historical context, emissions impact, and methodological notes."
+      },
+      "latency_s": 37.2,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/b12e299e7b478deb7b07520783db52a7"
+    },
+    {
+      "uid": "b5903d916129499f",
+      "id": "1-093",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": 0.0,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 0.0,
+        "agent_answer": 0.0,
+        "expected_text_match": 1.0,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "The charts show tree cover loss (885,237.65 ha) rather than the expected forest loss figure (230,003 ha), indicating either a data mismatch, different methodology, or incorrect metric selection for answering the user's specific query about forest area lost in Indonesia in 2022.",
+        "agent_answer": "The expected answer is 230.003 hectares, but the actual insight provides 885,237.65 hectares as the main answer for tree cover loss in Indonesia in 2022, which represents a 284.8% difference far exceeding the 2% tolerance threshold.",
+        "expected_text_match": "The actual response provides a comprehensive answer in Indonesian (matching the prompt language) with specific data about forest cover loss in Indonesia, including definitions, methodology, and follow-up questions, which satisfies the expectation of providing a good response in the same language as the prompt."
+      },
+      "latency_s": 42.0,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/6b958da4635024881b569400de72ddfd"
+    },
+    {
+      "uid": "a97b2961d2cc6a98",
+      "id": "1-094",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": 1.0,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "deterministic check: the chart's closest figure to the expected 611,900 is 611,895.75, a 0.00% difference, within the 2% tolerance. Chart_0 correctly displays 2022 China forest cover loss area (611,895.75 hectares) with appropriate bar chart structure, correct year filter, correct metric (area_ha), and data that directly answers the user query about forest area loss in 2022.",
+        "agent_answer": "The expected answer is 611,900 hectares and the actual insight states 611,895.75 hectares as the main answer. The difference is |611,895.75 - 611,900| / 611,900 = 0.0000696 or 0.007%, which is well within the 2% tolerance threshold.",
+        "expected_text_match": "The actual response provides a comprehensive answer in Chinese (the same language as the prompt) with detailed information about forest cover loss in China in 2022, including statistics, definitions, and methodological notes, which satisfies the expected behavior of providing a good response in the prompt's language."
+      },
+      "latency_s": 36.2,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/f073a6443e0b05296cd5a629df1dbbe0"
+    },
+    {
+      "uid": "b0f78ddf79838e30",
+      "id": "1-095",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": 1.0,
+        "context_layer_match": null,
+        "date_extraction": 1.0,
+        "date_coverage": 1.0,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "deterministic check: the chart's closest figure to the expected 241,368 is 241,368.24, a 0.00% difference, within the 2% tolerance. The chart specification correctly displays tree cover loss in Finland for 2025 with a 10% canopy threshold as a bar chart with year on the x-axis and area in hectares on the y-axis, matching the data value of 241,368.24 ha confirmed by the code execution.",
+        "agent_answer": "The actual insight correctly identifies 241,368 hectares as the main answer, matching the expected answer exactly with 0% difference, well within the 2% tolerance threshold."
+      },
+      "latency_s": 35.1,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/ead837426bade8f0d8d22413b557f39e"
+    },
+    {
+      "uid": "1478765e0688e778",
+      "id": "1-096",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": null,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": 1.0,
+        "dashboard_aoi_match": 1.0,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "latency_s": 14.9,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/7fc257e61b2cf3a3fb296595c7aceae7"
+    },
+    {
+      "uid": "94bf6616bb145a3b",
+      "id": "1-097",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": 1.0,
+        "dashboard_aoi_match": 1.0,
+        "dashboard_widgets_match": 1.0,
+        "dashboard_widgets_valid": 1.0
+      },
+      "latency_s": 38.7,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/4c24987b50a270fc204e96029f842b8d"
+    },
+    {
+      "uid": "3e12d2e5d7cd79b7",
+      "id": "1-098",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": 1.0,
+        "dashboard_aoi_match": 1.0,
+        "dashboard_widgets_match": 1.0,
+        "dashboard_widgets_valid": 1.0
+      },
+      "latency_s": 24.1,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/b172d91dd5210cd5430f9dc3cb73a563"
+    },
+    {
+      "uid": "5886b0a757af4bb3",
+      "id": "1-099",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": null,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": 1.0,
+        "dashboard_aoi_match": 1.0,
+        "dashboard_widgets_match": 0.0,
+        "dashboard_widgets_valid": null
+      },
+      "latency_s": 19.8,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/b47f8bda15074596ef32fd6de82505e7"
+    },
+    {
+      "uid": "60b6030c1f1d27a0",
+      "id": "1-100",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": 1.0,
+        "dashboard_aoi_match": 1.0,
+        "dashboard_widgets_match": 1.0,
+        "dashboard_widgets_valid": 0.0
+      },
+      "latency_s": 66.8,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/5793791fe7072f2de7faefe0a3c4649b"
+    },
+    {
+      "uid": "ff2186e8a5fb94b9",
+      "id": "1-101",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": 1.0,
+        "dashboard_aoi_match": 1.0,
+        "dashboard_widgets_match": 0.0,
+        "dashboard_widgets_valid": 0.0
+      },
+      "latency_s": 60.0,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/717d9a02d80e059baa2cb43990ec6dcd"
+    },
+    {
+      "uid": "e549e69bc1700085",
+      "id": "1-102",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": null,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": 1.0,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "latency_s": 8.8,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/ee58a95e4812b748d5b42259266e67b3"
+    },
+    {
+      "uid": "72471621c8891460",
+      "id": "1-103",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": 1.0,
+        "charts_answer": 1.0,
+        "agent_answer": 1.0,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "charts_answer": "deterministic check: the chart's closest figure to the expected 123,940,000 is 123,941,861.67, a 0.00% difference, within the 2% tolerance. The chart is a table that correctly displays Brazil's soybean deforestation emissions for 2023 (123.94 million tCO2e) with the appropriate emission factor, matching the expected answer and using the correct metric, location, and time period.",
+        "agent_answer": "The expected answer of 123.94 million tCO2e matches the actual insight's main figure of 123.94 million tCO2e (also stated as 123,941,861.67 tCO2e), which is within the 2% tolerance threshold (0% difference)."
+      },
+      "latency_s": 70.2,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/39c2741858b18964c71a2239c8ddd788"
+    },
+    {
+      "uid": "5021fbee3fa1e8c5",
+      "id": "1-104",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": null,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": 1.0,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "expected_text_match": "The actual response explicitly states that Sentinel-2 satellite imagery is shown for the first two weeks of January 2021, which directly matches the expected instruction to return Sentinel-2 imagery covering that time period."
+      },
+      "latency_s": 9.3,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/61ac3e66e760a3c1b2d2d9f1ff60ac6b"
+    },
+    {
+      "uid": "1aaeeba8c987a8fc",
+      "id": "1-105",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": null,
+        "dataset_id_match": null,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": 1.0,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": 1.0,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "expected_text_match": "The actual response directly asks the user to choose between Puri in Odisha, India and Puri in Uíge, Angola rather than guessing, which satisfies the expected instruction."
+      },
+      "latency_s": 13.4,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/f1db764938b65afe8768e0bdb6707904"
+    },
+    {
+      "uid": "8efc9f397852c90b",
+      "id": "1-107",
+      "joined_by": "test_id",
+      "checks": {
+        "aoi_id_match": null,
+        "dataset_id_match": null,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "date_extraction": null,
+        "date_coverage": null,
+        "data_pull_exists": null,
+        "charts_answer": null,
+        "agent_answer": null,
+        "expected_text_match": 1.0,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": 1.0,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null
+      },
+      "reasons": {
+        "expected_text_match": "The response explicitly offers a choice between the Global land cover and SBTN Natural Lands datasets with descriptions of each, then asks which one the user would like to use, directly satisfying the expected behavior of offering a choice rather than picking one unprompted."
+      },
+      "latency_s": 9.9,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/bfb8e2cdab2e8451ec039a6c338cf750"
+    }
+  ],
+  "buckets": {
+    "retrieval": {
+      "dedicated": {
+        "passed": 247,
+        "evaluated": 270
+      },
+      "shared": {
+        "passed": 0,
+        "evaluated": 0
+      },
+      "rows_covered": 90
+    },
+    "analysis": {
+      "dedicated": {
+        "passed": 0,
+        "evaluated": 0
+      },
+      "shared": {
+        "passed": 99,
+        "evaluated": 119
+      },
+      "rows_covered": 63
+    },
+    "explanation": {
+      "dedicated": {
+        "passed": 22,
+        "evaluated": 24
+      },
+      "shared": {
+        "passed": 53,
+        "evaluated": 63
+      },
+      "rows_covered": 78
+    },
+    "output": {
+      "dedicated": {
+        "passed": 11,
+        "evaluated": 15
+      },
+      "shared": {
+        "passed": 53,
+        "evaluated": 63
+      },
+      "rows_covered": 63
+    },
+    "scope": {
+      "dedicated": {
+        "passed": 4,
+        "evaluated": 7
+      },
+      "shared": {
+        "passed": 7,
+        "evaluated": 7
+      },
+      "rows_covered": 12
+    },
+    "rows_total": 96,
+    "verdicts": {
+      "pass": 64,
+      "fail": 32,
+      "error": 0,
+      "uncovered": 0
+    }
+  }
+}

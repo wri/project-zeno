@@ -1,0 +1,47 @@
+id: mt-010
+uid: cb5217c8dbf2cef5
+status: not doing
+group: multiturn
+turns:
+- query: Break down greenhouse gas emissions and removals in Pará, Brazil by vegetation, soil
+    and agriculture.
+  expected:
+    aoi_ids: BRA.14_1
+    dataset_id: '12'
+    chart_type: hierarchical-bar;stacked-bar-with-line
+    scope: analyse
+- query: Redraw that as a pie chart.
+  expected:
+    text: Declines to change the chart, saying that only the standard charts are available
+      for this dataset
+  deltas:
+    retain:
+    - aoi_ids
+    - dataset_id
+notes:
+  scenario: '2026-09-16: restyle refused on a curated-charts-only dataset (wri/project-zeno#827).
+    Turn 1 is the 1-123 prompt, so the two rows are single-turn and multi-turn siblings on
+    the same capability; turn 2 asks for the restyle that update_insight_display must refuse.'
+  design: 'turn 2 carries no scope expectation on purpose: statistics accumulate across the
+    thread, so classify_scope reports analyse at turn 2 whether or not the restyle ran, and
+    the expectation would measure nothing. The verdict rests on the text decline plus the
+    deltas asserting the AOI and dataset survive the turn. The row passes whether the agent
+    calls update_insight_display and relays its refusal or declines straight from the session-block
+    rule - both are the required behaviour, and neither changes the chart.'
+  chart_type_rationale: '2026-09-16: turn 1 carries the same deterministic chart anchor as
+    1-124 and 1-126 (see 1-123 for why the field is safe under curated_only): without it,
+    turn 1 can pass while no charts exist, and then turn 2 asserts a decline about a chart
+    that was never drawn.'
+  verification: '2026-09-16: local 3-trial run 20260916T125002Z_local_experimental on the
+    PR branch (feat/lgms-curated-charts @423488a1): t1.aoi_id_match and t1.dataset_id_match
+    1.0 on 3/3, t2.state_delta 1.0 on 3/3 - the thread keeps its AOI and dataset across the
+    turn. Turn 2''s decline is unverified: the upstream analytics API returned 401 Invalid
+    or expired token on every trial (stale local WRI_BEARER_TOKEN), which project-zeno renders
+    to the user as "No data found", so turn 1 produced no charts and turn 2 had nothing to
+    refuse.'
+  env_gated: LGMS (dataset 12) is hidden from the default profile; use the `lgms` profile
+    (`--ff lgms`), not `experimental`, to reveal it.
+  status_reason: '2026-09-16: not doing. The behaviour is unreleased - wri/project-zeno#827
+    was open at authoring time, and today the reviser restyles LGMS insights on request.
+    Re-admit with the other LGMS rows once #827 is deployed; promote to done on a 3-trial
+    ff=lgms pass at this uid.'

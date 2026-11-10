@@ -1,0 +1,23 @@
+id: mt-006
+uid: 9a38ae9cae58fb9b
+status: ready
+group: multiturn
+turns:
+- query: How much tree cover loss occurred in the primary forests of Brazil in 2022?
+  expected:
+    dataset_id: '4'
+    context_layer: primary_forest
+    scope: analyse
+- query: How much natural grassland was there in Mongolia in 2022?
+  expected:
+    dataset_id: '2'
+    scope: analyse
+  deltas:
+    changed:
+    - aoi_ids
+    - dataset_id
+    absent:
+    - context_layer
+notes:
+  scenario: topic switch - carryover contamination (Retrieval/Analysis)
+  design: primary_forest from T1 must not leak into the grassland pull

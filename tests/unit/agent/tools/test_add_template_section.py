@@ -65,7 +65,6 @@ async def test_applies_the_template_and_reloads_the_dashboard():
     with _patched(dashboard) as apply:
         command = await _call(
             state={"dashboard_id": str(dashboard.id), "language": "es"},
-            template_args={"days": 30},
         )
 
     message = _message(command)
@@ -79,7 +78,7 @@ async def test_applies_the_template_and_reloads_the_dashboard():
     args = apply.await_args.args
     assert args[0] is dashboard
     assert args[1].name == "nrt-monitoring"
-    assert args[2].days == 30
+    assert args[2].model_dump() == {}
     assert args[3:] == ("user-1", "es")
 
 
@@ -129,8 +128,8 @@ async def test_not_the_owner_is_an_error():
 @pytest.mark.parametrize(
     "args, problem",
     [
-        ({"days": 0}, "days: Input should be greater than or equal to 1"),
-        ({"days": 366}, "days: Input should be less than or equal to 365"),
+        # The section always covers the 30 days to the latest alert date.
+        ({"days": 7}, "days: Extra inputs are not permitted"),
         ({"window": 7}, "window: Extra inputs are not permitted"),
     ],
 )
@@ -143,9 +142,7 @@ async def test_invalid_args_are_an_error(args, problem):
 
     assert _message(command).status == "error"
     assert problem in _message(command).content
-    assert "days (integer, >=1, <=365, default 14)" in (
-        _message(command).content
-    )
+    assert "Arguments: none." in _message(command).content
     apply.assert_not_awaited()
 
 
@@ -168,16 +165,15 @@ def test_schema_lists_the_template_names():
     assert prop.get("enum", [prop.get("const")]) == [
         "nrt-monitoring",
         "post-2020-forest-loss",
+        "forest-loss-drivers",
     ]
 
 
 def test_prompt_fragment_lists_each_template():
     assert "'nrt-monitoring'" in SPEC.prompt_fragment
-    assert (
-        "Args: days (integer, >=1, <=365, default 14): Length of the period"
-        in SPEC.prompt_fragment
-    )
+    assert "day by day. Args: none." in SPEC.prompt_fragment
     assert "'post-2020-forest-loss'" in SPEC.prompt_fragment
+    assert "'forest-loss-drivers'" in SPEC.prompt_fragment
     assert "imagery. Args: none." in SPEC.prompt_fragment
 
 

@@ -10,16 +10,21 @@ repos:
         args: ["--maxkb=1000"]
     -   id: detect-private-key
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    # Ruff version.
+    # Ruff version. evals/gold is excluded: it's a standalone project that
+    # pins its own ruff (0.16.1, see evals/gold/pyproject.toml) so its CI
+    # (gold-checks.yml) and local `uv run ruff check` there agree; running
+    # this older version over it too would fight that pin.
     rev: v0.7.3
     hooks:
       # Run the linter.
       - id: ruff
         types_or: [ python, pyi ]
         args: [ --fix ]
+        exclude: ^evals/gold/
       # Run the formatter.
       - id: ruff-format
         types_or: [ python, pyi ]
+        exclude: ^evals/gold/
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v2.1.0
     hooks:

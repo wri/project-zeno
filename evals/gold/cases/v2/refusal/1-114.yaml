@@ -1,0 +1,22 @@
+id: 1-114
+uid: 8bb4a04e1d9f780a
+status: not doing
+group: refusal
+query: What was the carbon density (or stock) in India's forests in 2024?
+expected:
+  aoi_ids: IND
+  aoi_source: gadm
+  text: Explains that carbon stock or carbon density is not currently in scope / not available
+    as a dataset
+  scope: refuse
+notes:
+  aoi_type: gadm 0
+  sheet_group: LGMS 3
+  source_tab: gid:0
+  authored: '2026-08-07: from sheet row 1-114 (LGMS 3). LGMS presentation_instructions: carbon
+    stock/density questions must be explained as out of scope (may be added later) — the system
+    does not estimate stocks or densities.'
+  env_gated: LGMS (dataset 12) is hidden from the default profile; use the `lgms` profile
+    (`--ff lgms`), not `experimental`, to reveal it.
+  status_reason: '2026-08-31: not doing while gold runs target the default profile. Needs
+    a 3-trial ff=lgms pass for done.'

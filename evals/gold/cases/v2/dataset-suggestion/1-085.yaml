@@ -1,0 +1,18 @@
+id: 1-085
+uid: e7dc8c471352d6f5
+status: not doing
+group: dataset-suggestion
+query: What fire datasets do you have available to understand the impact of wilfires in Spain?
+expected:
+  aoi_ids: ESP
+  aoi_source: gadm
+  clarification: 'TRUE'
+  text: Provides good reason for each dataset suggestion that relate to the user query
+  suggested_datasets: 0;10
+  scope: suggest
+notes:
+  aoi_type: gadm 0
+  status_reason: 'parked 2026-08-03: the most on-charter prompt in the dataset-suggestion
+    group (it explicitly asks for suggestions), but its expectations sit on the dead suggested_datasets
+    surface (0 of 1,298 trials populate it). Unpark after rewriting onto nudge_type/nudge_options,
+    fixing ''wilfires'' in the same edit.'

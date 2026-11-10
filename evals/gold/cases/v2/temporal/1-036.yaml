@@ -1,0 +1,15 @@
+id: 1-036
+uid: 303b2af3c3402585
+status: done
+group: temporal
+query: In which year between 2001 and 2024 did Gabon have the most tree cover loss?
+expected:
+  aoi_ids: GAB
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  answer: '2014'
+  scope: analyse
+notes:
+  aoi_type: gadm 0
+  value_1: 48,751.7 hectares

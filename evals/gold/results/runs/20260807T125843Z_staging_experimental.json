@@ -1,0 +1,338 @@
+{
+  "run_id": "20260807T125843Z_staging_experimental",
+  "started": "2026-08-07T12:58:43Z",
+  "environment": "staging",
+  "build": "lgms-case-fill",
+  "ff": "experimental",
+  "harness": {
+    "repo": "gnw-gold-evals",
+    "sha": "38dc972"
+  },
+  "judge_model": "claude-haiku-4-5",
+  "num_trials": 1,
+  "workers": 10,
+  "trial_timeout": 900.0,
+  "caseset": "v2",
+  "caseset_version": "6d215bade7b2fea8",
+  "results": [
+    {
+      "uid": "1e125fc0231b7782",
+      "id": "1-112",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "data_pull_exists": null,
+        "date_coverage": null,
+        "date_extraction": null,
+        "charts_answer": null,
+        "charts_answer_judge": null,
+        "agent_answer": null,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null,
+        "chart_produced": null,
+        "answered_without_data": null,
+        "web_fallback": null,
+        "pull_source_match": 1.0,
+        "class_value_match": null,
+        "chart_integrity": 1.0,
+        "answer_traceability": 0.0,
+        "chart_well_formed": 1.0,
+        "chart_type_match": null,
+        "scope_match": 1.0
+      },
+      "reasons": {
+        "answer_traceability": "deterministic check: the chart's closest figure to the expected 1,190,000,000 is 533,931,399.45, a 55.13% difference, exceeding the 2% tolerance"
+      },
+      "actuals": {
+        "answer_traceability": "1.19 billion MgCO2e"
+      },
+      "latency_s": 233.1,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/d872f2bf58dacefa080b3a61090d57a4",
+      "info": {
+        "slow": true,
+        "threshold_s": 180.0
+      }
+    },
+    {
+      "uid": "da36089dfdbffacd",
+      "id": "1-113",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 1.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "data_pull_exists": null,
+        "date_coverage": null,
+        "date_extraction": null,
+        "charts_answer": null,
+        "charts_answer_judge": null,
+        "agent_answer": null,
+        "expected_text_match": null,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null,
+        "chart_produced": null,
+        "answered_without_data": null,
+        "web_fallback": null,
+        "pull_source_match": 1.0,
+        "class_value_match": null,
+        "chart_integrity": 1.0,
+        "answer_traceability": 0.0,
+        "chart_well_formed": 1.0,
+        "chart_type_match": null,
+        "scope_match": 1.0
+      },
+      "reasons": {
+        "answer_traceability": "deterministic check: the chart's closest figure to the expected 66,220,000 is 70,554,763.07, a 6.55% difference, exceeding the 2% tolerance"
+      },
+      "actuals": {
+        "answer_traceability": "66.22 million MgCO2e"
+      },
+      "latency_s": 38.7,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/f69bb80af8cdb01b4c764962811f02cc"
+    },
+    {
+      "uid": "8bb4a04e1d9f780a",
+      "id": "1-114",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": null,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "data_pull_exists": null,
+        "date_coverage": null,
+        "date_extraction": null,
+        "charts_answer": null,
+        "charts_answer_judge": null,
+        "agent_answer": null,
+        "expected_text_match": 1.0,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null,
+        "chart_produced": null,
+        "answered_without_data": null,
+        "web_fallback": null,
+        "pull_source_match": null,
+        "class_value_match": null,
+        "chart_integrity": null,
+        "answer_traceability": null,
+        "chart_well_formed": null,
+        "chart_type_match": null,
+        "scope_match": 1.0
+      },
+      "reasons": {
+        "expected_text_match": "The response clearly explains that carbon density and carbon stocks are not available as datasets, instead describing what is available (greenhouse gas fluxes) and offering alternative options, which directly satisfies the expected behavior."
+      },
+      "latency_s": 16.0,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/50f66e1e5145cbd7bc1944cbda6c38c4"
+    },
+    {
+      "uid": "24ca3663de0cb044",
+      "id": "1-115",
+      "checks": {
+        "aoi_id_match": 1.0,
+        "dataset_id_match": 0.0,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "data_pull_exists": null,
+        "date_coverage": null,
+        "date_extraction": null,
+        "charts_answer": null,
+        "charts_answer_judge": null,
+        "agent_answer": null,
+        "expected_text_match": 0.0,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null,
+        "chart_produced": null,
+        "answered_without_data": null,
+        "web_fallback": null,
+        "pull_source_match": null,
+        "class_value_match": null,
+        "chart_integrity": null,
+        "answer_traceability": null,
+        "chart_well_formed": null,
+        "chart_type_match": null,
+        "scope_match": 0.0
+      },
+      "reasons": {
+        "expected_text_match": "The response offers dataset options without explicitly explaining that carbon-stock changes are not calculated and that gross emissions, gross removals, and net flux are the closest available measures instead."
+      },
+      "actuals": {
+        "expected_text_match": "To analyze carbon stock changes in India for 2024, please choose one of the following datasets:\n\n*   **Land GHG Monitoring System (LGMS):** Best for annual data from 2016–2024. It provides yearly net flux (emissions and removals) for vegetation and soil within administrative boundaries like India.\n*",
+        "scope_match": "suggest"
+      },
+      "latency_s": 16.9,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/ed38caa6a4a2ca34ef153caf073630d9"
+    },
+    {
+      "uid": "9eb1c3b8104ae74a",
+      "id": "1-116",
+      "checks": {
+        "aoi_id_match": null,
+        "dataset_id_match": null,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "data_pull_exists": null,
+        "date_coverage": null,
+        "date_extraction": null,
+        "charts_answer": null,
+        "charts_answer_judge": null,
+        "agent_answer": null,
+        "expected_text_match": 0.0,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null,
+        "chart_produced": null,
+        "answered_without_data": null,
+        "web_fallback": null,
+        "pull_source_match": null,
+        "class_value_match": null,
+        "chart_integrity": null,
+        "answer_traceability": null,
+        "chart_well_formed": null,
+        "chart_type_match": null,
+        "scope_match": 1.0
+      },
+      "reasons": {
+        "expected_text_match": "The response directly contradicts the expected behavior by offering to calculate carbon credits and provide estimates of sequestration potential, rather than refusing to do so as instructed."
+      },
+      "actuals": {
+        "expected_text_match": "Determining the exact number of carbon credits for a specific project involves complex carbon accounting, but WRI research highlights that potential is driven by accurate monitoring of avoided emissions and sequestration [1](https://landcarbonlab.org/insights/land-carbon-lab-monitoring-greenhouse-ga"
+      },
+      "latency_s": 26.3,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/7a399529d3106bf511769d5f301da837"
+    },
+    {
+      "uid": "0fc884c0269f01f1",
+      "id": "1-117",
+      "checks": {
+        "aoi_id_match": null,
+        "dataset_id_match": null,
+        "dataset_parameter_match": null,
+        "context_layer_match": null,
+        "data_pull_exists": null,
+        "date_coverage": null,
+        "date_extraction": null,
+        "charts_answer": null,
+        "charts_answer_judge": null,
+        "agent_answer": null,
+        "expected_text_match": 0.0,
+        "clarification_requested": null,
+        "suggested_datasets_match": null,
+        "nudge_match": null,
+        "dashboard_created": null,
+        "dashboard_aoi_match": null,
+        "dashboard_widgets_match": null,
+        "dashboard_widgets_valid": null,
+        "chart_produced": null,
+        "answered_without_data": null,
+        "web_fallback": null,
+        "pull_source_match": null,
+        "class_value_match": null,
+        "chart_integrity": null,
+        "answer_traceability": null,
+        "chart_well_formed": null,
+        "chart_type_match": null,
+        "scope_match": null
+      },
+      "reasons": {
+        "expected_text_match": "The response discusses tree planting's carbon removal potential and mentions historical data on tree cover gain and forest carbon flux, but does not explicitly explain that mitigation potential itself is not calculated while historical carbon removals from tree gain can serve as an indicator of that potential."
+      },
+      "actuals": {
+        "expected_text_match": "Planting trees is a powerful \"carbon removal engine\" that can sequester billions of tons of carbon dioxide, though it is not a \"silver bullet\" for climate change [1](https://www.wri.org/insights/want-help-us-economy-rethink-trillion-trees-act). While young forests and plantations are highly efficien"
+      },
+      "latency_s": 22.0,
+      "trace_url": "https://langfuse.staging.globalnaturewatch.org/project/wri_lcl/traces/07ed6ae64d3bb3146f12b1fed9f72001"
+    }
+  ],
+  "buckets": {
+    "retrieval": {
+      "dedicated": {
+        "passed": 8,
+        "evaluated": 9
+      },
+      "shared": {
+        "passed": 0,
+        "evaluated": 0
+      },
+      "rows_covered": 4
+    },
+    "analysis": {
+      "dedicated": {
+        "passed": 2,
+        "evaluated": 2
+      },
+      "shared": {
+        "passed": 0,
+        "evaluated": 0
+      },
+      "rows_covered": 2
+    },
+    "explanation": {
+      "dedicated": {
+        "passed": 1,
+        "evaluated": 6
+      },
+      "shared": {
+        "passed": 0,
+        "evaluated": 0
+      },
+      "rows_covered": 6
+    },
+    "output": {
+      "dedicated": {
+        "passed": 2,
+        "evaluated": 2
+      },
+      "shared": {
+        "passed": 0,
+        "evaluated": 0
+      },
+      "rows_covered": 2
+    },
+    "scope": {
+      "dedicated": {
+        "passed": 4,
+        "evaluated": 5
+      },
+      "shared": {
+        "passed": 0,
+        "evaluated": 0
+      },
+      "rows_covered": 5
+    },
+    "rows_total": 6,
+    "verdicts": {
+      "pass": 3,
+      "fail": 3,
+      "error": 0,
+      "uncovered": 0
+    }
+  },
+  "methodology_note": "1-trial authoring fill run for new LGMS cases 1-112..1-117; smoke only, not a baseline"
+}

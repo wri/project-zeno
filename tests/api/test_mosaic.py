@@ -10,6 +10,7 @@ import pytest
 from botocore.exceptions import ClientError
 from cogeo_mosaic.errors import MosaicNotFoundError
 from cogeo_mosaic.mosaic import MosaicJSON
+from shapely.geometry import Point, shape
 
 import src.api.services.mosaic as mosaic_service
 from src.api.services.mosaic import (
@@ -23,6 +24,7 @@ from src.api.services.mosaic import (
     create_sentinel2_mosaic,
     decode_recipe,
     encode_recipe,
+    search_geometry,
 )
 from src.shared.config import SharedSettings
 
@@ -183,6 +185,65 @@ async def test_create_mosaic_missing_geometry():
     with _patch_geometry(None):
         with pytest.raises(MosaicNotFoundError):
             await create_sentinel2_mosaic(RECIPE)
+
+
+def test_search_geometry_removes_repeated_vertices_and_spikes():
+    # earth-search rejects both shapes with HTTP 400.
+    ring = [
+        [8.0, 46.8],
+        [8.0, 46.8],  # repeated vertex
+        [8.5, 46.8],
+        [8.5, 46.7],  # zero-width spike out and back
+        [8.5, 46.8],
+        [9.0, 46.8],
+        [9.0, 47.5],
+        [8.0, 47.5],
+        [8.0, 46.8],
+    ]
+    geometry = search_geometry({"type": "Polygon", "coordinates": [ring]})
+
+    hull = shape(geometry)
+    assert geometry["type"] == "Polygon"
+    assert hull.is_valid
+    coords = list(hull.exterior.coords)
+    assert all(a != b for a, b in zip(coords, coords[1:]))
+    # covers() is unreliable on the invalid input, so check its vertices.
+    assert all(hull.covers(Point(x, y)) for x, y in ring)
+
+
+@pytest.mark.asyncio
+async def test_create_mosaic_searches_with_convex_hull():
+    concave = {
+        "type": "Polygon",
+        "coordinates": [
+            [
+                [8.0, 46.8],
+                [9.0, 46.8],
+                [8.5, 47.1],
+                [9.0, 47.5],
+                [8.0, 47.5],
+                [8.0, 46.8],
+            ]
+        ],
+    }
+    calls = []
+    fake_search = type("S", (), {"items": lambda self: iter([])})()
+    fake_catalog = type(
+        "C",
+        (),
+        {"search": lambda self, **kwargs: calls.append(kwargs) or fake_search},
+    )()
+    with (
+        _patch_geometry(concave),
+        patch(
+            "src.api.services.mosaic.pystac_client.Client.open",
+            return_value=fake_catalog,
+        ),
+    ):
+        with pytest.raises(NoScenesFoundError):
+            await create_sentinel2_mosaic(RECIPE)
+
+    assert shape(calls[0]["intersects"]).equals(shape(concave).convex_hull)
 
 
 @pytest.mark.asyncio

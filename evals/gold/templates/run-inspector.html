@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GOLD run inspector</title>
+<style>
+  :root {
+    --bg:#fff; --fg:#1a1f24; --muted:#5b6570; --line:#e3e7ea; --card:#f7f9fa;
+    --code:#f1f3f5; --pass:#15803d; --fail:#dc2626; --none:#c4ccd3;
+    --err:#b45309; --flaky:#7c3aed;
+    --retrieval:#2563eb; --analysis:#b45309; --explanation:#7c3aed;
+    --output:#0d9488; --scope:#be185d; --shared:#6d28d9; --info:#9ca3af;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#14181c; --fg:#e6e9ec; --muted:#98a2ad; --line:#2a3138; --card:#1b2127;
+      --code:#20262d; --pass:#4ade80; --fail:#f87171; --none:#3a434c;
+      --err:#fbbf24; --flaky:#b48cf7;
+      --retrieval:#60a5fa; --analysis:#fbbf24; --explanation:#b48cf7;
+      --output:#2dd4bf; --scope:#f472b6; --shared:#b48cf7; --info:#6b7280;
+    }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+    font:14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width:1400px; margin:0 auto; padding:2rem 1rem 4rem; }
+  h1 { font-size:1.35rem; margin:0 0 .2rem; }
+  .sub { color:var(--muted); font-size:.85rem; margin:0 0 1rem; }
+  .explain { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+    gap:.6rem; margin:1rem 0 1.4rem; }
+  .explain div { background:var(--card); border:1px solid var(--line);
+    border-radius:8px; padding:.65rem .8rem; font-size:.8rem; }
+  .explain b { display:block; margin-bottom:.15rem; }
+  .chip { display:inline-block; font-size:.68rem; font-weight:600; padding:.08rem .45rem;
+    border-radius:99px; white-space:nowrap; }
+  .c-pass { background:color-mix(in srgb,var(--pass) 15%,transparent); color:var(--pass); }
+  .c-fail { background:color-mix(in srgb,var(--fail) 15%,transparent); color:var(--fail); }
+  .c-err  { background:color-mix(in srgb,var(--err) 15%,transparent); color:var(--err); }
+  .c-unc  { background:color-mix(in srgb,var(--info) 22%,transparent); color:var(--info); }
+  .c-flaky{ background:color-mix(in srgb,var(--flaky) 15%,transparent); color:var(--flaky); }
+  .toolbar { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; margin:.8rem 0; }
+  .toolbar button { background:var(--card); color:var(--fg); border:1px solid var(--line);
+    border-radius:99px; padding:.25rem .8rem; font-size:.8rem; cursor:pointer; }
+  .toolbar button.on { border-color:var(--fg); font-weight:600; }
+  .toolbar input { background:var(--card); color:var(--fg); border:1px solid var(--line);
+    border-radius:6px; padding:.3rem .6rem; font-size:.8rem; min-width:220px; }
+  #runbar select { background:var(--card); color:var(--fg); border:1px solid var(--line);
+    border-radius:6px; padding:.3rem .6rem; font-size:.78rem;
+    font-family:ui-monospace,Menlo,monospace; max-width:100%; }
+  #runbar label { font-size:.78rem; color:var(--muted); }
+  #loadmsg { color:var(--fail); font-size:.8rem; margin:.3rem 0; }
+  .matrixwrap { overflow-x:auto; border:1px solid var(--line); border-radius:8px; }
+  table { border-collapse:separate; border-spacing:0; font-size:.75rem; width:max-content; min-width:100%; }
+  thead th { position:sticky; top:0; background:var(--bg); z-index:2; }
+  th.case, td.case { position:sticky; left:0; background:var(--bg); z-index:3;
+    min-width:150px; max-width:220px; text-align:left; padding:.3rem .55rem;
+    border-right:1px solid var(--line); }
+  thead th.case { z-index:4; }
+  th.bucket { font-size:.62rem; letter-spacing:.08em; text-transform:uppercase;
+    padding:.35rem .2rem .1rem; border-bottom:none; }
+  th.check { padding:.2rem .15rem .35rem; border-bottom:1px solid var(--line);
+    font-weight:500; vertical-align:bottom; }
+  th.check span { writing-mode:vertical-rl; transform:rotate(180deg);
+    font-size:.66rem; color:var(--muted); max-height:130px; overflow:hidden; }
+  td.cell { text-align:center; padding:.18rem .3rem; border-bottom:1px solid var(--line);
+    font-size:.8rem; min-width:26px; }
+  td.verdict { padding:.2rem .5rem; border-bottom:1px solid var(--line); white-space:nowrap; }
+  tr.row { cursor:pointer; }
+  tr.row:hover td { background:color-mix(in srgb,var(--card) 70%,transparent); }
+  tr.row:hover td.case { background:var(--card); }
+  .v-pass { color:var(--pass); } .v-fail { color:var(--fail); font-weight:700; }
+  .v-none { color:var(--none); } .v-info { opacity:.45; }
+  .flk { color:var(--flaky); font-size:.62rem; vertical-align:super; }
+  tr.detail td { background:var(--card); border-bottom:1px solid var(--line);
+    padding:.7rem .9rem; }
+  .dgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:.55rem; }
+  .dcheck { background:var(--bg); border:1px solid var(--line); border-radius:7px;
+    padding:.5rem .65rem; font-size:.74rem; }
+  .dcheck h5 { margin:0 0 .25rem; font-size:.76rem; display:flex; gap:.4rem; align-items:center; }
+  .dcheck .kv { color:var(--muted); }
+  .dcheck .kv b { color:var(--fg); font-weight:600; }
+  .dcheck code { background:var(--code); padding:.05rem .3rem; border-radius:4px;
+    font-family:ui-monospace,Menlo,monospace; font-size:.7rem; word-break:break-word; }
+  .trials { letter-spacing:.15em; font-family:ui-monospace,Menlo,monospace; }
+  .qline { color:var(--muted); font-size:.72rem; margin-bottom:.5rem; }
+  .prompt { background:var(--code); border-radius:7px; padding:.55rem .75rem;
+    margin:0 0 .55rem; font-size:.85rem; }
+  .prompt .t { color:var(--muted); font-size:.68rem; font-weight:600;
+    letter-spacing:.05em; margin-right:.45rem; }
+  .errbox { border:1px solid color-mix(in srgb,var(--fail) 45%,transparent);
+    background:color-mix(in srgb,var(--fail) 8%,transparent);
+    border-radius:7px; padding:.55rem .75rem; margin:0 0 .55rem;
+    font-size:.8rem; }
+  .errbox b { color:var(--fail); }
+  .errbox code { background:transparent; padding:0; word-break:break-word; }
+  .b-retrieval{color:var(--retrieval);} .b-analysis{color:var(--analysis);}
+  .b-explanation{color:var(--explanation);} .b-output{color:var(--output);}
+  .b-scope{color:var(--scope);} .b-shared{color:var(--shared);} .b-info{color:var(--info);}
+  #drop { border:2px dashed var(--line); border-radius:10px; padding:2.5rem;
+    text-align:center; color:var(--muted); margin:2rem 0; }
+  .hidden { display:none; }
+  .id { font-family:ui-monospace,Menlo,monospace; font-size:.72rem; }
+  .q { color:var(--muted); font-size:.68rem; display:block; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; }
+</style>
+</head>
+<body>
+<main>
+  <h1>GOLD run inspector</h1>
+  <p class="sub" id="runline">No run loaded.</p>
+  <div class="toolbar hidden" id="runbar"><label>run
+    <select id="runsel"></select></label></div>
+  <p id="loadmsg" class="hidden"></p>
+
+  <section class="explain">
+    <div><b>Every check is tri-state.</b> <span class="v-pass">✓</span> pass (1.0) ·
+      <span class="v-fail">✗</span> fail (0.0) · <span class="v-none">—</span> not evaluated.
+      Checks are opt-in: a blank expectation abstains, it doesn't pass.</div>
+    <div><b>Row verdict.</b> <span class="chip c-fail">fail</span> any gating check failed ·
+      <span class="chip c-pass">pass</span> all evaluated gating checks passed ·
+      <span class="chip c-err">error</span> API/judge failure, never counted as fail ·
+      <span class="chip c-unc">uncovered</span> nothing evaluated, never counted as pass.</div>
+    <div><b><span class="chip c-flaky">flaky</span></b> trials disagreed: the same check
+      returned both pass and fail across repeats. The recorded verdict is the majority
+      (ties fail). Cell marker: <span class="flk">⚡</span>.</div>
+    <div><b>Expected vs measured.</b> Expected comes from the case; measured is recorded
+      <i>for failed checks</i> (passing checks don't store their actuals). Judged checks
+      carry the judge's reason instead.</div>
+    <div><b>Faded columns</b> are info-only checks: reported for diagnosis, never part
+      of any verdict. Multi-turn rows collapse <code>t1./t2.</code> checks to their base
+      column (worst turn wins); the row expansion shows per-turn detail.</div>
+    <div><b>Click any row</b> to expand every evaluated check with expected, measured,
+      per-trial verdicts, and the judge's reasoning.</div>
+  </section>
+
+  <div class="toolbar" id="toolbar">
+    <button data-f="all" class="on">all</button>
+    <button data-f="fail">failing</button>
+    <button data-f="flaky">flaky</button>
+    <button data-f="error">errors</button>
+    <button data-f="pass">passing</button>
+    <input id="search" placeholder="filter by id, group or query…">
+    <span id="count" class="sub"></span>
+  </div>
+
+  <div id="drop">Drop a <code>results/runs/*.json</code> ledger file here to inspect it.</div>
+  <div class="matrixwrap hidden" id="matrixwrap"></div>
+</main>
+
+<script id="run-payload" type="application/json">__RUN_PAYLOAD__</script>
+<script>
+"use strict";
+/* ---------- payload: one run or many ---------- */
+let P = null;
+let SHARED = { info_only: ["date_coverage", "answer_traceability", "class_value_match"],
+               cases: {} };
+let RUNS = [];   // newest first
+const rawText = document.getElementById("run-payload").textContent.trim();
+if (rawText && rawText !== "__RUN" + "_PAYLOAD__") {
+  try {
+    const payload = JSON.parse(rawText);
+    const { run, runs, ...rest } = payload;
+    SHARED = { ...SHARED, ...rest };
+    RUNS = (runs || (run ? [run] : [])).slice().sort((a, b) =>
+      String(b.started || b.run_id).localeCompare(String(a.started || a.run_id)));
+  } catch (e) {}
+}
+
+/* ---------- column model ---------- */
+const GROUPS = [
+  ["retrieval", ["aoi_id_match","dataset_id_match","dataset_parameter_match",
+    "context_layer_match","date_extraction","data_pull_exists","pull_source_match",
+    "answered_without_data","state_delta"]],
+  ["analysis", ["chart_integrity"]],
+  ["explanation", ["expected_text_match","web_fallback"]],
+  ["output", ["chart_produced","chart_well_formed","chart_type_match",
+    "dashboard_aoi_match","dashboard_widgets_match","dashboard_widgets_valid"]],
+  ["scope", ["scope_match","clarification_requested","suggested_datasets_match","nudge_match"]],
+  ["shared", ["charts_answer","agent_answer","dashboard_created"]],
+  ["info", ["date_coverage","answer_traceability","class_value_match"]],
+];
+const EXPECTED_FIELD = {
+  aoi_id_match:["aoi_ids"], dataset_id_match:["dataset_id"],
+  dataset_parameter_match:["dataset_parameters"], context_layer_match:["context_layer"],
+  date_extraction:["start_date","end_date"], agent_answer:["answer"],
+  charts_answer:["answer"], expected_text_match:["text"],
+  clarification_requested:["clarification"], suggested_datasets_match:["suggested_datasets"],
+  nudge_match:["nudge_type","nudge_options"], dashboard_created:["dashboard_created"],
+  dashboard_widgets_match:["dashboard_widgets"], dashboard_widgets_valid:["dashboard_widgets"],
+  dashboard_aoi_match:["aoi_ids"], class_value_match:["class_values"],
+  chart_type_match:["chart_type"], scope_match:["scope"],
+};
+const GUARD_NOTE = {
+  chart_produced:"implied by expected.answer", data_pull_exists:"implied by the expectations",
+  answered_without_data:"tripwire — always armed when a pull is expected",
+  web_fallback:"tripwire — external citation when a pull was expected",
+  pull_source_match:"guard on expected.dataset_id vs the pulled statistics entry",
+  chart_integrity:"conditional — every chart figure must exist in the pulled data",
+  chart_well_formed:"conditional — structural sanity of any produced chart",
+  date_coverage:"info-only — pulled window vs requested window",
+  answer_traceability:"info-only — unit-bearing claims trace to pulled data",
+  state_delta:"between-turn assertions (changed / retain / absent)",
+};
+
+const base = c => c.replace(/^t\d+\./, "");
+const turnOf = c => { const m = c.match(/^t(\d+)\./); return m ? +m[1] : null; };
+
+/* collapse an entry's checks to base name -> {value, turns:{n:v}} (worst wins) */
+function collapse(checks) {
+  const out = {};
+  for (const [name, v] of Object.entries(checks || {})) {
+    const b = base(name), t = turnOf(name);
+    if (!(b in out)) out[b] = { value: null, turns: {} };
+    if (t !== null) out[b].turns[t] = v;
+    if (v !== null && (out[b].value === null || v < out[b].value)) out[b].value = v;
+    if (v === null && out[b].value === null) out[b].value = null;
+  }
+  return out;
+}
+
+/* per-base flakiness from the trials list */
+function flakySet(entry) {
+  const flaky = new Set();
+  const trials = entry.trials || [];
+  if (trials.length < 2) return flaky;
+  const seen = {};
+  for (const t of trials) {
+    const c = collapse(t.checks || {});
+    for (const [b, cell] of Object.entries(c)) {
+      if (cell.value === null) continue;
+      (seen[b] = seen[b] || new Set()).add(cell.value);
+    }
+  }
+  for (const [b, vals] of Object.entries(seen)) if (vals.size > 1) flaky.add(b);
+  return flaky;
+}
+
+function verdict(entry, infoOnly) {
+  if (entry.error || (entry.judge_errors || []).length) return "error";
+  const gating = Object.entries(entry.checks || {})
+    .filter(([n, v]) => v !== null && !infoOnly.has(base(n)));
+  if (!gating.length) return "uncovered";
+  return gating.some(([, v]) => v === 0) ? "fail" : "pass";
+}
+
+/* ---------- render ---------- */
+const esc = s => String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+let FILTER = "all";
+
+function render() {
+  if (!P) return;
+  const run = P.run, infoOnly = new Set(P.info_only || []);
+  const cases = P.cases || {};
+  document.getElementById("drop").classList.add("hidden");
+  document.getElementById("matrixwrap").classList.remove("hidden");
+  document.getElementById("runline").textContent =
+    `${run.run_id} · ${run.environment} · build ${run.build} · ff ${run.ff ?? "—"} · ` +
+    `${run.num_trials} trial(s) · caseset ${run.caseset_version}` +
+    (run.note ? ` · note: ${run.note}` : "");
+
+  const search = document.getElementById("search").value.toLowerCase();
+  const cols = GROUPS.flatMap(([, cs]) => cs);
+
+  let head1 = `<tr><th class="case"></th>`;
+  for (const [g, cs] of GROUPS)
+    head1 += `<th class="bucket b-${g}" colspan="${cs.length}">${g}</th>`;
+  head1 += `<th class="bucket">result</th></tr>`;
+  let head2 = `<tr><th class="case">case</th>`;
+  for (const [g, cs] of GROUPS)
+    for (const c of cs) head2 += `<th class="check"><span>${esc(c)}</span></th>`;
+  head2 += `<th class="check"></th></tr>`;
+
+  const rows = [];
+  let shown = 0;
+  for (const entry of run.results || []) {
+    const v = verdict(entry, infoOnly);
+    const flk = flakySet(entry);
+    const ctx = cases[entry.uid] || {};
+    const hay = `${entry.id} ${ctx.group || ""} ${ctx.query || ""}`.toLowerCase();
+    const isFlaky = flk.size > 0;
+    if (search && !hay.includes(search)) continue;
+    if (FILTER === "fail" && v !== "fail") continue;
+    if (FILTER === "error" && v !== "error") continue;
+    if (FILTER === "pass" && v !== "pass") continue;
+    if (FILTER === "flaky" && !isFlaky) continue;
+    shown++;
+
+    const c = collapse(entry.checks || {});
+    let tds = "";
+    for (const col of cols) {
+      const cell = c[col];
+      const val = cell ? cell.value : undefined;
+      const info = infoOnly.has(col) ? " v-info" : "";
+      const mark = flk.has(col) ? `<span class="flk">⚡</span>` : "";
+      if (val === 1) tds += `<td class="cell v-pass${info}">✓${mark}</td>`;
+      else if (val === 0) tds += `<td class="cell v-fail${info}">✗${mark}</td>`;
+      else tds += `<td class="cell v-none${info}">—</td>`;
+    }
+    const chip = { pass:"c-pass", fail:"c-fail", error:"c-err", uncovered:"c-unc" }[v];
+    const flkChip = isFlaky ? ` <span class="chip c-flaky">flaky</span>` : "";
+    rows.push(
+      `<tr class="row" data-uid="${esc(entry.uid || entry.id)}">` +
+      `<td class="case"><span class="id">${esc(entry.id)}</span>` +
+      `<span class="q">${esc(ctx.query || "")}</span></td>` + tds +
+      `<td class="verdict"><span class="chip ${chip}">${v}</span>${flkChip}</td></tr>` +
+      `<tr class="detail hidden" data-for="${esc(entry.uid || entry.id)}">` +
+      `<td colspan="${cols.length + 2}">${detailHTML(entry, ctx, flk, infoOnly)}</td></tr>`
+    );
+  }
+  document.getElementById("count").textContent =
+    `${shown} of ${(run.results || []).length} rows`;
+  document.getElementById("matrixwrap").innerHTML =
+    `<table><thead>${head1}${head2}</thead><tbody>${rows.join("")}</tbody></table>`;
+
+  for (const tr of document.querySelectorAll("tr.row"))
+    tr.addEventListener("click", () => {
+      const d = document.querySelector(`tr.detail[data-for="${tr.dataset.uid}"]`);
+      if (d) d.classList.toggle("hidden");
+    });
+}
+
+function expectedFor(check, ctx, turn) {
+  const src = turn !== null && ctx.turns ? (ctx.turns[turn - 1] || {}).expected || {}
+                                         : ctx.expected || {};
+  const fields = EXPECTED_FIELD[base(check)];
+  if (!fields) return GUARD_NOTE[base(check)] || "derived";
+  const parts = fields.filter(f => src[f]).map(f => `${f}: ${src[f]}`);
+  return parts.length ? parts.join(" · ") : (GUARD_NOTE[base(check)] || "(not set)");
+}
+
+function detailHTML(entry, ctx, flk, infoOnly) {
+  const reasons = entry.reasons || {}, actuals = entry.actuals || {};
+  const trials = entry.trials || [];
+  // The full prompt(s) sent, across the top: one per turn for conversations.
+  let html = "";
+  if (ctx.turns && ctx.turns.length) {
+    html += `<div class="prompt">` + ctx.turns.map((t, i) =>
+      `<div><span class="t">T${i + 1}</span>${esc(t.query || "")}</div>`
+    ).join("") + `</div>`;
+  } else if (ctx.query) {
+    html += `<div class="prompt"><span class="t">PROMPT</span>${esc(ctx.query)}</div>`;
+  }
+  html += `<div class="qline">${esc(ctx.group || "")} · status ${esc(ctx.status || "?")} · uid ${esc(entry.uid || "?")}` +
+    (entry.latency_s ? ` · ${entry.latency_s}s` : "") +
+    (entry.trace_url ? (/^https?:\/\//i.test(entry.trace_url)
+      ? ` · <a href="${esc(entry.trace_url)}">trace</a>` : "") : "") + `</div>`;
+  if (entry.error)
+    html += `<div class="errbox"><b>error</b> — the row is an <i>error</i>, not a ` +
+      `failure: its checks did not evaluate.<br><code>${esc(entry.error)}</code>` +
+      `<br><span class="qline">t1/t2 prefixes name the conversation turn that ` +
+      `died; ReadTimeout means the agent stopped streaming for 240s+.</span></div>`;
+  if ((entry.judge_errors || []).length)
+    html += `<div class="errbox"><b>judge errors</b> — these checks abstained ` +
+      `because the judge call failed, not because the agent was wrong:<br>` +
+      `<code>${esc(entry.judge_errors.join(", "))}</code></div>`;
+
+  const cards = [];
+  const names = Object.entries(entry.checks || {}).filter(([, v]) => v !== null);
+  names.sort(([a], [b]) => a.localeCompare(b));
+  for (const [name, value] of names) {
+    const b = base(name), t = turnOf(name);
+    const perTrial = trials.map(tr => {
+      const v = (tr.checks || {})[name];
+      return v === 1 ? "✓" : v === 0 ? "✗" : "·";
+    }).join("");
+    const cls = value === 1 ? "v-pass" : "v-fail";
+    cards.push(
+      `<div class="dcheck"><h5><span class="${cls}">${value === 1 ? "✓" : "✗"}</span> ` +
+      `${esc(name)}` +
+      (infoOnly.has(b) ? ` <span class="chip c-unc">info-only</span>` : "") +
+      (flk.has(b) ? ` <span class="chip c-flaky">flaky</span>` : "") + `</h5>` +
+      (trials.length > 1 ? `<div class="kv">trials: <span class="trials">${perTrial}</span></div>` : "") +
+      `<div class="kv">expected — <code>${esc(expectedFor(name, ctx, t))}</code></div>` +
+      (actuals[name] !== undefined
+        ? `<div class="kv">measured — <code>${esc(actuals[name])}</code></div>`
+        : (value === 0 ? "" : `<div class="kv">measured — recorded on failure only</div>`)) +
+      (reasons[b] || reasons[name]
+        ? `<div class="kv">reason — ${esc(reasons[name] || reasons[b])}</div>` : "") +
+      `</div>`
+    );
+  }
+  return html + `<div class="dgrid">${cards.join("")}</div>`;
+}
+
+/* ---------- run selection ---------- */
+function fmtWhen(run) {
+  const m = (run.run_id || "").match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/);
+  const iso = run.started || (m ? `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}Z` : "");
+  const d = new Date(iso);
+  return isNaN(d) ? (run.run_id || "unknown run")
+    : d.toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric",
+        hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "UTC" }) + " UTC";
+}
+function labelFor(run) {
+  return [fmtWhen(run), run.environment,
+          run.ff ? `ff ${run.ff}` : null,
+          `${(run.results || []).length} case(s) × ${run.num_trials || 1} trial(s)`,
+          run.build]
+    .filter(Boolean).join(" · ");
+}
+function refreshPicker(selectedId) {
+  document.getElementById("runbar").classList.toggle("hidden", RUNS.length < 2);
+  document.getElementById("runsel").innerHTML = RUNS.map(r =>
+    `<option value="${esc(r.run_id)}"${r.run_id === selectedId ? " selected" : ""}>${
+      esc(labelFor(r))}</option>`).join("");
+}
+function addRun(run) {
+  if (!run || !run.run_id) throw new Error("no run_id — not a ledger run record");
+  RUNS = RUNS.filter(r => r.run_id !== run.run_id).concat([run]).sort((a, b) =>
+    String(b.started || b.run_id).localeCompare(String(a.started || a.run_id)));
+}
+function show(runId) {
+  const run = RUNS.find(r => r.run_id === runId) || RUNS[0];
+  if (!run) return;
+  P = { ...SHARED, run };
+  refreshPicker(run.run_id);
+  document.getElementById("loadmsg").classList.add("hidden");
+  try { history.replaceState(null, "", `#${run.run_id}`); } catch (e) {}
+  render();
+}
+
+/* ---------- toolbar + drag-drop ---------- */
+document.getElementById("toolbar").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  FILTER = b.dataset.f;
+  for (const x of document.querySelectorAll("#toolbar button")) x.classList.toggle("on", x === b);
+  render();
+});
+document.getElementById("search").addEventListener("input", render);
+document.getElementById("runsel").addEventListener("change", e => show(e.target.value));
+document.addEventListener("dragover", e => e.preventDefault());
+document.addEventListener("drop", e => {
+  e.preventDefault();
+  const f = e.dataTransfer.files[0]; if (!f) return;
+  f.text().then(text => {
+    const run = JSON.parse(text);
+    addRun(run);
+    show(run.run_id);
+  }).catch(err => {
+    const msg = document.getElementById("loadmsg");
+    msg.textContent = `Could not read that file as a run JSON: ${err.message}`;
+    msg.classList.remove("hidden");
+  });
+});
+if (RUNS.length) {
+  const fromHash = decodeURIComponent(location.hash.slice(1));
+  show(RUNS.some(r => r.run_id === fromHash) ? fromHash : RUNS[0].run_id);
+}
+</script>
+</body>
+</html>

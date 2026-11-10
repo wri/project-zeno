@@ -1,0 +1,25 @@
+id: 1-117
+uid: afc11a22d898e7e3
+status: not doing
+group: dataset-suggestion
+query: What is the climate change mitigation potential of planting new trees?
+expected:
+  text: Explains that mitigation potential is not calculated, but historical carbon removals
+    (from tree gain) can indicate it
+  scope: clarify;suggest
+notes:
+  sheet_group: LGMS 6
+  source_tab: gid:0
+  rewrite: '2026-08-07: sheet wording "of doing planting new trees" repaired to "of planting
+    new trees" at authoring time — broken grammar, no semantic change.'
+  authored: '2026-08-07: from sheet row 1-117 (LGMS 6). Sheet intent: redirect to standard
+    LGMS analysis — mitigation potential is not calculated, but removals from tree gain approximate
+    afforestation/reforestation and can indicate it. The prompt names no AOI, so the defensible
+    scopes are clarify (ask for a location) or suggest (offer the dataset route); a straight
+    web-knowledge answer is the failure mode.'
+  env_gated: LGMS (dataset 12) is hidden from the default profile; use the `lgms` profile
+    (`--ff lgms`), not `experimental`, to reveal it.
+  status_reason: '2026-08-31: not doing while gold runs target the default profile. Same
+    root cause as 1-116: LGMS presentation_instructions never enter context when no dataset
+    is selected. Promote to ready only after a 3-trial ff=lgms run shows the expected redirect
+    behaviour.'

@@ -1,0 +1,18 @@
+id: 1-061
+uid: b2d47495ed86ff9a
+status: done
+group: parent-child
+query: Which Australian state or territory lost the most forest to settlements and infrastructure?
+expected:
+  aoi_ids: AUS.2_1;AUS.4_1;AUS.5_1;AUS.8_1;AUS.10_1;AUS.11_1;AUS.3_1;AUS.6_1;AUS.7_1;AUS.9_1;AUS.1_1
+  aoi_source: gadm
+  dataset_id: '8'
+  dataset_name: Tree cover loss by dominant driver
+  answer: Queensland
+  scope: analyse
+notes:
+  aoi_type: gadm 0
+  value_2: 3,643 hectares
+  rewrite: 'Named the admin level — one trial resolved 568 GADM-2 ids instead
+    of the 11 level-1 units. Its chart_integrity flap is the separate upstream mis-join bug
+    and is deliberately left failing.'

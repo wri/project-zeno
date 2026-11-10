@@ -1147,6 +1147,57 @@ MESSAGES.update(
             "sw": "Uoto mwingine wa miti",
             "tr": "Diğer ağaç örtüsü",
         },
+        "charts.label.low_confidence": {
+            "en": "Low confidence",
+            "es": "Confianza baja",
+            "fr": "Confiance faible",
+            "pt": "Confiança baixa",
+            "id": "Keyakinan rendah",
+            "de": "Niedrige Konfidenz",
+            "it": "Confidenza bassa",
+            "nl": "Lage betrouwbaarheid",
+            "ru": "Низкая достоверность",
+            "zh": "低置信度",
+            "ar": "ثقة منخفضة",
+            "hi": "कम विश्वास",
+            "vi": "Độ tin cậy thấp",
+            "sw": "Uhakika mdogo",
+            "tr": "Düşük güven",
+        },
+        "charts.label.high_confidence": {
+            "en": "High confidence",
+            "es": "Confianza alta",
+            "fr": "Confiance élevée",
+            "pt": "Confiança alta",
+            "id": "Keyakinan tinggi",
+            "de": "Hohe Konfidenz",
+            "it": "Confidenza alta",
+            "nl": "Hoge betrouwbaarheid",
+            "ru": "Высокая достоверность",
+            "zh": "高置信度",
+            "ar": "ثقة عالية",
+            "hi": "उच्च विश्वास",
+            "vi": "Độ tin cậy cao",
+            "sw": "Uhakika mkubwa",
+            "tr": "Yüksek güven",
+        },
+        "charts.label.highest_confidence": {
+            "en": "Highest confidence",
+            "es": "Confianza máxima",
+            "fr": "Confiance maximale",
+            "pt": "Confiança máxima",
+            "id": "Keyakinan tertinggi",
+            "de": "Höchste Konfidenz",
+            "it": "Confidenza massima",
+            "nl": "Hoogste betrouwbaarheid",
+            "ru": "Наивысшая достоверность",
+            "zh": "最高置信度",
+            "ar": "أعلى ثقة",
+            "hi": "सर्वोच्च विश्वास",
+            "vi": "Độ tin cậy cao nhất",
+            "sw": "Uhakika mkubwa zaidi",
+            "tr": "En yüksek güven",
+        },
     }
 )
 
@@ -1315,6 +1366,42 @@ MESSAGES.update(
             "sw": "Hakuna upotevu wa uoto wa miti uliorekodiwa katika {aoi_name} kuanzia {start_year} hadi {end_year}.",
             "tr": "{start_year}-{end_year} döneminde {aoi_name} bölgesinde ağaç örtüsü kaybı kaydedilmedi.",
         },
+        # Facts of the alerts widget: the 7 days to the latest alert date, or
+        # the part of them the period covers. The builder formats {area_ha}.
+        "analysis_template.alerts.week": {
+            "en": "From {start_date} to {end_date}, {aoi_name} had {days} alert day(s) with {area_ha} ha of high and highest confidence integrated alerts.",
+            "es": "Del {start_date} al {end_date}, {aoi_name} tuvo {days} día(s) con alertas, con {area_ha} ha de alertas integradas de confianza alta y máxima.",
+            "fr": "Du {start_date} au {end_date}, {aoi_name} a compté {days} jour(s) d'alerte, avec {area_ha} ha d'alertes intégrées de confiance élevée et maximale.",
+            "pt": "De {start_date} a {end_date}, {aoi_name} teve {days} dia(s) com alertas, com {area_ha} ha de alertas integrados de confiança alta e máxima.",
+            "id": "Dari {start_date} hingga {end_date}, {aoi_name} memiliki {days} hari peringatan dengan {area_ha} ha peringatan terintegrasi berkeyakinan tinggi dan tertinggi.",
+            "de": "Vom {start_date} bis {end_date} gab es in {aoi_name} an {days} Tag(en) Warnungen, mit {area_ha} ha integrierter Warnungen hoher und höchster Konfidenz.",
+            "it": "Dal {start_date} al {end_date}, {aoi_name} ha avuto {days} giorno/i di allerta, con {area_ha} ha di allerte integrate ad affidabilità alta e massima.",
+            "nl": "Van {start_date} tot {end_date} had {aoi_name} {days} waarschuwingsdag(en), met {area_ha} ha geïntegreerde waarschuwingen met hoge en hoogste betrouwbaarheid.",
+            "ru": "С {start_date} по {end_date} в {aoi_name} было дней с оповещениями: {days}; площадь интегрированных оповещений высокой и наивысшей достоверности — {area_ha} га.",
+            "zh": "{start_date}至{end_date}，{aoi_name}有{days}个预警日，高和最高置信度的综合预警面积为{area_ha}公顷。",
+            "ar": "من {start_date} إلى {end_date}، سُجّلت في {aoi_name} تنبيهات في {days} يوم/أيام، بمساحة {area_ha} هكتار من التنبيهات المتكاملة ذات الثقة العالية والأعلى.",
+            "hi": "{start_date} से {end_date} तक, {aoi_name} में {days} दिन अलर्ट रहे, जिनमें उच्च और उच्चतम विश्वसनीयता वाले एकीकृत अलर्ट का क्षेत्र {area_ha} हेक्टेयर था।",
+            "vi": "Từ {start_date} đến {end_date}, {aoi_name} có {days} ngày có cảnh báo, với {area_ha} ha cảnh báo tích hợp có độ tin cậy cao và cao nhất.",
+            "sw": "Kuanzia {start_date} hadi {end_date}, {aoi_name} ilikuwa na siku {days} za tahadhari, zenye hekta {area_ha} za tahadhari zilizounganishwa za uhakika wa juu na wa juu kabisa.",
+            "tr": "{start_date} ile {end_date} arasında {aoi_name} bölgesinde {days} uyarı günü oldu; yüksek ve en yüksek güvenilirlikli entegre uyarıların alanı {area_ha} ha idi.",
+        },
+        "analysis_template.alerts.no_alerts": {
+            "en": "No high or highest confidence integrated alerts were recorded in {aoi_name} from {start_date} to {end_date}.",
+            "es": "No se registraron alertas integradas de confianza alta o máxima en {aoi_name} del {start_date} al {end_date}.",
+            "fr": "Aucune alerte intégrée de confiance élevée ou maximale n'a été enregistrée à {aoi_name} du {start_date} au {end_date}.",
+            "pt": "Nenhum alerta integrado de confiança alta ou máxima foi registrado em {aoi_name} de {start_date} a {end_date}.",
+            "id": "Tidak ada peringatan terintegrasi berkeyakinan tinggi atau tertinggi yang tercatat di {aoi_name} dari {start_date} hingga {end_date}.",
+            "de": "Vom {start_date} bis {end_date} wurden in {aoi_name} keine integrierten Warnungen hoher oder höchster Konfidenz verzeichnet.",
+            "it": "Dal {start_date} al {end_date} non sono state registrate allerte integrate ad affidabilità alta o massima a {aoi_name}.",
+            "nl": "Van {start_date} tot {end_date} zijn in {aoi_name} geen geïntegreerde waarschuwingen met hoge of hoogste betrouwbaarheid geregistreerd.",
+            "ru": "С {start_date} по {end_date} в {aoi_name} не зарегистрировано интегрированных оповещений высокой или наивысшей достоверности.",
+            "zh": "{start_date}至{end_date}，{aoi_name}未记录到高或最高置信度的综合预警。",
+            "ar": "لم تُسجَّل أي تنبيهات متكاملة ذات ثقة عالية أو أعلى في {aoi_name} من {start_date} إلى {end_date}.",
+            "hi": "{start_date} से {end_date} तक {aoi_name} में उच्च या उच्चतम विश्वसनीयता वाला कोई एकीकृत अलर्ट दर्ज नहीं किया गया।",
+            "vi": "Không ghi nhận cảnh báo tích hợp nào có độ tin cậy cao hoặc cao nhất tại {aoi_name} từ {start_date} đến {end_date}.",
+            "sw": "Hakuna tahadhari zilizounganishwa za uhakika wa juu au wa juu kabisa zilizorekodiwa katika {aoi_name} kuanzia {start_date} hadi {end_date}.",
+            "tr": "{start_date} ile {end_date} arasında {aoi_name} bölgesinde yüksek veya en yüksek güvenilirlikli entegre uyarı kaydedilmedi.",
+        },
         "analysis_template.post_2020_forest_loss.label": {
             "en": "Post-2020 forest loss",
             "es": "Pérdida forestal posterior a 2020",
@@ -1353,9 +1440,10 @@ MESSAGES.update(
         "analysis_template.post_2020_forest_loss.description": {
             "en": (
                 "The SBTN Natural Lands Map is a 2020 baseline, so the "
-                "split covers loss from 2021 on. No canopy density threshold "
-                "applies, so the totals are higher than Global Forest "
-                "Watch's default 30% figures. Other tree cover is "
+                "split covers loss from 2021 on. A 10% canopy density "
+                "threshold applies, lower than Global Forest Watch's default "
+                "of 30%, so the totals are higher than its default figures. "
+                "Other tree cover is "
                 "non-natural forest, such as plantations and tree crops, "
                 "plus loss outside the 2020 forest classes. Natural forest "
                 "is broader than primary forest: it includes regenerated "
@@ -1365,9 +1453,10 @@ MESSAGES.update(
             "es": (
                 "El Mapa de Tierras Naturales de SBTN es una línea de base "
                 "de 2020, por lo que la división cubre la pérdida desde "
-                "2021. No se aplica ningún umbral de densidad del "
-                "dosel, por lo que los totales son mayores que las cifras "
-                "predeterminadas al 30 % de Global Forest Watch. Otra "
+                "2021. Se aplica un umbral de densidad del dosel del 10 %, "
+                "inferior al 30 % predeterminado de Global Forest Watch, "
+                "por lo que los totales son mayores que sus cifras "
+                "predeterminadas. Otra "
                 "cobertura arbórea es bosque no natural, como plantaciones "
                 "y cultivos arbóreos, más la pérdida fuera de las clases "
                 "forestales de 2020. El bosque natural es más amplio que "
@@ -1378,9 +1467,10 @@ MESSAGES.update(
             "fr": (
                 "La carte des terres naturelles du SBTN est une référence "
                 "de 2020 : la répartition couvre donc la perte à partir de "
-                "2021. Aucun seuil de densité du couvert ne "
-                "s'applique, si bien que les totaux dépassent les chiffres "
-                "par défaut de Global Forest Watch à 30 %. L'autre couvert "
+                "2021. Un seuil de densité du couvert de 10 % s'applique, "
+                "inférieur aux 30 % par défaut de Global Forest Watch, si "
+                "bien que les totaux dépassent ses chiffres par défaut. "
+                "L'autre couvert "
                 "arboré correspond aux forêts non naturelles, comme les "
                 "plantations et les cultures arborées, ainsi qu'à la perte "
                 "hors des classes forestières de 2020. La forêt naturelle "
@@ -1392,10 +1482,10 @@ MESSAGES.update(
             "pt": (
                 "O Mapa de Terras Naturais do SBTN é uma linha de base de "
                 "2020, então a divisão cobre a perda a partir de 2021. "
-                "Nenhum "
-                "limiar de densidade de dossel se aplica, por isso os "
-                "totais são maiores que os números padrão de 30% do Global "
-                "Forest Watch. Outra cobertura arbórea é floresta não "
+                "Aplica-se um limiar de densidade de dossel de 10%, abaixo "
+                "do padrão de 30% do Global Forest Watch, por isso os "
+                "totais são maiores que os seus números padrão. Outra "
+                "cobertura arbórea é floresta não "
                 "natural, como plantações e cultivos arbóreos, mais a "
                 "perda fora das classes florestais de 2020. A floresta "
                 "natural é mais ampla que a floresta primária: inclui "
@@ -1406,9 +1496,10 @@ MESSAGES.update(
             "id": (
                 "Peta Lahan Alami SBTN adalah garis dasar tahun 2020, "
                 "sehingga pembagian ini mencakup kehilangan sejak 2021. "
-                "Tidak ada ambang kerapatan tajuk yang diterapkan, "
-                "sehingga totalnya lebih tinggi daripada angka bawaan 30% "
-                "Global Forest Watch. Tutupan pohon lainnya adalah hutan "
+                "Ambang kerapatan tajuk 10% diterapkan, lebih rendah "
+                "daripada bawaan 30% Global Forest Watch, sehingga totalnya "
+                "lebih tinggi daripada angka bawaannya. Tutupan pohon "
+                "lainnya adalah hutan "
                 "non-alami, seperti perkebunan dan tanaman pohon, ditambah "
                 "kehilangan di luar kelas hutan tahun 2020. Hutan alam "
                 "lebih luas daripada hutan primer: mencakup hutan alam yang "
@@ -1418,9 +1509,10 @@ MESSAGES.update(
             "de": (
                 "Die SBTN-Karte natürlicher Flächen ist eine Basislinie "
                 "von 2020, daher umfasst die Aufteilung den Verlust ab "
-                "2021. Es gilt keine Kronendichte-Schwelle, daher "
-                "liegen die Summen über den Standardwerten von Global "
-                "Forest Watch bei 30 %. Sonstiger Baumbestand ist nicht "
+                "2021. Es gilt eine Kronendichte-Schwelle von 10 %, "
+                "niedriger als der Standard von Global Forest Watch (30 %), "
+                "daher liegen die Summen über dessen Standardwerten. "
+                "Sonstiger Baumbestand ist nicht "
                 "natürlicher Wald, etwa Plantagen und Baumkulturen, sowie "
                 "Verlust außerhalb der Waldklassen von 2020. Naturwald ist "
                 "weiter gefasst als Primärwald: Er umfasst regenerierten "
@@ -1430,9 +1522,10 @@ MESSAGES.update(
             "it": (
                 "La mappa delle terre naturali SBTN è una base di "
                 "riferimento del 2020, quindi la suddivisione copre la "
-                "perdita dal 2021. Non si applica alcuna soglia di "
-                "densità della chioma, quindi i totali sono superiori ai "
-                "valori predefiniti al 30% di Global Forest Watch. L'altra "
+                "perdita dal 2021. Si applica una soglia di densità della "
+                "chioma del 10%, inferiore al 30% predefinito di Global "
+                "Forest Watch, quindi i totali sono superiori ai suoi valori "
+                "predefiniti. L'altra "
                 "copertura arborea è foresta non naturale, come piantagioni "
                 "e colture arboree, più la perdita al di fuori delle classi "
                 "forestali del 2020. La foresta naturale è più ampia della "
@@ -1443,9 +1536,10 @@ MESSAGES.update(
             "nl": (
                 "De SBTN-kaart van natuurlijke gebieden is een basislijn "
                 "uit 2020, dus de verdeling betreft verlies vanaf 2021. Er "
-                "geldt geen drempel voor kroondichtheid, dus de totalen "
-                "liggen hoger dan de standaardcijfers van Global Forest "
-                "Watch bij 30%. Overige boomkroonbedekking is "
+                "geldt een drempel voor kroondichtheid van 10%, lager dan de "
+                "standaarddrempel van 30% van Global Forest Watch, dus de "
+                "totalen liggen hoger dan de standaardcijfers daarvan. "
+                "Overige boomkroonbedekking is "
                 "niet-natuurlijk bos, zoals plantages en boomgewassen, plus "
                 "verlies buiten de bosklassen van 2020. Natuurlijk bos is "
                 "ruimer dan oerbos: het omvat geregenereerd en secundair "
@@ -1455,9 +1549,10 @@ MESSAGES.update(
             "ru": (
                 "Карта природных земель SBTN — это базовая линия 2020 "
                 "года, поэтому разбивка охватывает потери с 2021 года. "
-                "Порог сомкнутости полога не применяется, поэтому итоги "
-                "выше стандартных показателей Global Forest Watch при "
-                "пороге 30%. Прочий древесный покров — это неестественные "
+                "Применяется порог сомкнутости полога 10%, ниже "
+                "стандартного порога Global Forest Watch в 30%, поэтому "
+                "итоги выше его стандартных показателей. Прочий древесный "
+                "покров — это неестественные "
                 "леса, например плантации и древесные культуры, а также "
                 "потери за пределами лесных классов 2020 года. "
                 "Естественный лес — более широкое понятие, чем первичный "
@@ -1467,17 +1562,18 @@ MESSAGES.update(
             ),
             "zh": (
                 "SBTN自然土地地图以2020年为基线，因此该划分涵盖2021年起的"
-                "损失。未应用冠层密度"
-                "阈值，因此总量高于Global Forest Watch默认的30%阈值数据。"
+                "损失。应用10%的冠层密度阈值，低于Global Forest Watch默认的"
+                "30%，因此总量高于其默认数据。"
                 "其他树木覆盖指非天然林（如人工林和树木作物），以及2020年"
                 "森林类别以外的损失。天然林的范围比原始林更广：它包括再生林"
                 "和次生天然林，不包括人工林。树木覆盖损失并不等同于毁林。"
             ),
             "ar": (
                 "خريطة الأراضي الطبيعية لـ SBTN هي خط أساس لعام 2020، لذا "
-                "يغطي التقسيم الفقدان منذ عام 2021. لا يُطبَّق أي حد لكثافة "
-                "الظلة، لذا تكون المجاميع أعلى من أرقام Global Forest "
-                "Watch الافتراضية عند 30%. الغطاء الشجري الآخر هو الغابات "
+                "يغطي التقسيم الفقدان منذ عام 2021. يُطبَّق حد لكثافة الظلة "
+                "قدره 10%، وهو أقل من الحد الافتراضي لـ Global Forest Watch "
+                "البالغ 30%، لذا تكون المجاميع أعلى من أرقامه الافتراضية. "
+                "الغطاء الشجري الآخر هو الغابات "
                 "غير الطبيعية، مثل المزارع والمحاصيل الشجرية، إضافة إلى "
                 "الفقدان خارج فئات الغابات لعام 2020. الغابة الطبيعية "
                 "أوسع من الغابة الأولية: فهي تشمل الغابات الطبيعية "
@@ -1486,9 +1582,10 @@ MESSAGES.update(
             ),
             "hi": (
                 "SBTN प्राकृतिक भूमि मानचित्र 2020 की आधार रेखा है, इसलिए "
-                "यह विभाजन 2021 से हुई हानि को कवर करता है। कोई वितान घनत्व "
-                "सीमा लागू नहीं है, इसलिए कुल आंकड़े Global Forest Watch के "
-                "डिफ़ॉल्ट 30% आंकड़ों से अधिक हैं। अन्य वृक्ष आवरण "
+                "यह विभाजन 2021 से हुई हानि को कवर करता है। 10% वितान घनत्व "
+                "सीमा लागू है, जो Global Forest Watch की डिफ़ॉल्ट 30% सीमा "
+                "से कम है, इसलिए कुल आंकड़े उसके डिफ़ॉल्ट आंकड़ों से अधिक "
+                "हैं। अन्य वृक्ष आवरण "
                 "गैर-प्राकृतिक वन है, जैसे बागान और वृक्ष फसलें, साथ ही "
                 "2020 के वन वर्गों के बाहर की हानि। प्राकृतिक वन प्राथमिक "
                 "वन से व्यापक है: इसमें पुनर्जीवित और द्वितीयक प्राकृतिक वन "
@@ -1498,8 +1595,9 @@ MESSAGES.update(
             "vi": (
                 "Bản đồ Đất tự nhiên SBTN là đường cơ sở năm 2020, nên "
                 "phần phân chia bao gồm diện tích mất từ năm 2021. "
-                "Không áp dụng ngưỡng mật độ tán, nên tổng số cao hơn "
-                "số liệu mặc định ở ngưỡng 30% của Global Forest Watch. Độ "
+                "Áp dụng ngưỡng mật độ tán 10%, thấp hơn ngưỡng mặc định "
+                "30% của Global Forest Watch, nên tổng số cao hơn số liệu "
+                "mặc định. Độ "
                 "che phủ cây khác là rừng không tự nhiên, như rừng trồng và "
                 "cây trồng lâu năm, cộng với diện tích mất ngoài các lớp "
                 "rừng năm 2020. Rừng tự nhiên rộng hơn rừng nguyên sinh: "
@@ -1509,9 +1607,10 @@ MESSAGES.update(
             "sw": (
                 "Ramani ya Ardhi Asilia ya SBTN ni msingi wa mwaka 2020, "
                 "kwa hiyo mgawanyo huu unashughulikia upotevu kuanzia "
-                "2021. Hakuna kizingiti cha msongamano wa mwavuli "
-                "kinachotumika, kwa hiyo jumla ni kubwa kuliko takwimu za "
-                "kawaida za Global Forest Watch za asilimia 30. Uoto "
+                "2021. Kizingiti cha msongamano wa mwavuli cha asilimia 10 "
+                "kinatumika, chini ya kiwango cha kawaida cha Global Forest "
+                "Watch cha asilimia 30, kwa hiyo jumla ni kubwa kuliko "
+                "takwimu zake za kawaida. Uoto "
                 "mwingine wa miti ni msitu usio wa asili, kama mashamba ya "
                 "miti na mazao ya miti, pamoja na upotevu nje ya madaraja "
                 "ya misitu ya 2020. Msitu wa asili ni mpana kuliko msitu wa "
@@ -1521,15 +1620,348 @@ MESSAGES.update(
             ),
             "tr": (
                 "SBTN Doğal Alanlar Haritası 2020 yılını temel alır, bu "
-                "nedenle ayrım 2021'den itibaren kaybı kapsar. Herhangi "
-                "bir taç yoğunluğu eşiği uygulanmaz, bu nedenle toplamlar "
-                "Global Forest Watch'un varsayılan %30 değerlerinden "
-                "yüksektir. Diğer ağaç örtüsü, plantasyonlar ve ağaç "
+                "nedenle ayrım 2021'den itibaren kaybı kapsar. %10'luk bir "
+                "taç yoğunluğu eşiği uygulanır; bu eşik Global Forest "
+                "Watch'un varsayılan %30 eşiğinden düşük olduğundan "
+                "toplamlar onun varsayılan değerlerinden yüksektir. Diğer "
+                "ağaç örtüsü, plantasyonlar ve ağaç "
                 "ürünleri gibi doğal olmayan ormanlar ile 2020 orman "
                 "sınıfları dışındaki kayıptır. Doğal orman, birincil "
                 "ormandan daha geniştir: yenilenmiş ve ikincil doğal "
                 "ormanları kapsar, plantasyonları kapsamaz. Ağaç örtüsü "
                 "kaybı ormansızlaşma ile aynı şey değildir."
+            ),
+        },
+        "analysis_template.forest_loss_drivers.label": {
+            "en": "Forest loss and its drivers",
+            "es": "Pérdida forestal y sus causas",
+            "fr": "Perte forestière et ses facteurs",
+            "pt": "Perda florestal e seus fatores",
+            "id": "Kehilangan hutan dan pemicunya",
+            "de": "Waldverlust und seine Ursachen",
+            "it": "Perdita forestale e i suoi fattori",
+            "nl": "Bosverlies en de oorzaken ervan",
+            "ru": "Потеря лесов и её причины",
+            "zh": "森林损失及其驱动因素",
+            "ar": "فقدان الغابات ومسبباته",
+            "hi": "वन हानि और उसके कारक",
+            "vi": "Mất rừng và các nguyên nhân",
+            "sw": "Upotevu wa misitu na vichocheo vyake",
+            "tr": "Orman kaybı ve etkenleri",
+        },
+        "analysis_template.forest_loss_drivers.title": {
+            "en": "Tree cover loss and drivers in {aoi_name}",
+            "es": "Pérdida de cobertura arbórea y sus causas en {aoi_name}",
+            "fr": "Perte de couvert arboré et ses facteurs à {aoi_name}",
+            "pt": "Perda de cobertura arbórea e seus fatores em {aoi_name}",
+            "id": "Kehilangan tutupan pohon dan pemicunya di {aoi_name}",
+            "de": "Baumbestandsverlust und Ursachen in {aoi_name}",
+            "it": "Perdita di copertura arborea e fattori a {aoi_name}",
+            "nl": "Verlies aan boomkroonbedekking en oorzaken in {aoi_name}",
+            "ru": "Потеря древесного покрова и её причины: {aoi_name}",
+            "zh": "{aoi_name}的树木覆盖损失及其驱动因素",
+            "ar": "فقدان الغطاء الشجري ومسبباته في {aoi_name}",
+            "hi": "{aoi_name} में वृक्ष आवरण हानि और उसके कारक",
+            "vi": "Mất độ che phủ cây và nguyên nhân tại {aoi_name}",
+            "sw": "Upotevu wa uoto wa miti na vichocheo vyake katika {aoi_name}",
+            "tr": "{aoi_name} için ağaç örtüsü kaybı ve etkenleri",
+        },
+        "analysis_template.forest_loss_drivers.description": {
+            "en": "Tree cover loss per year, the dominant drivers of the loss and a map of where it happened. Tree cover loss is not the same as deforestation.",
+            "es": (
+                "Pérdida de cobertura arbórea por año, las causas "
+                "dominantes de la pérdida y un mapa de dónde se produjo. "
+                "La pérdida de cobertura arbórea no es lo mismo que la "
+                "deforestación."
+            ),
+            "fr": (
+                "La perte de couvert arboré par an, les facteurs "
+                "dominants de la perte et une carte des endroits où elle "
+                "a eu lieu. La perte de couvert arboré n'est pas la même "
+                "chose que la déforestation."
+            ),
+            "pt": "Perda de cobertura arbórea por ano, os fatores dominantes da perda e um mapa de onde ela ocorreu. Perda de cobertura arbórea não é o mesmo que desmatamento.",
+            "id": "Kehilangan tutupan pohon per tahun, pemicu dominan kehilangan tersebut, dan peta lokasi terjadinya. Kehilangan tutupan pohon tidak sama dengan deforestasi.",
+            "de": "Baumbestandsverlust pro Jahr, die dominanten Ursachen des Verlusts und eine Karte, wo er stattfand. Baumbestandsverlust ist nicht dasselbe wie Entwaldung.",
+            "it": (
+                "La perdita di copertura arborea per anno, i fattori "
+                "dominanti della perdita e una mappa di dove è avvenuta. "
+                "La perdita di copertura arborea non equivale alla "
+                "deforestazione."
+            ),
+            "nl": (
+                "Verlies aan boomkroonbedekking per jaar, de dominante "
+                "oorzaken van het verlies en een kaart van waar het "
+                "plaatsvond. Verlies aan boomkroonbedekking is niet "
+                "hetzelfde als ontbossing."
+            ),
+            "ru": "Потеря древесного покрова по годам, основные причины потери и карта мест, где она произошла. Потеря древесного покрова не равнозначна обезлесению.",
+            "zh": "按年份的树木覆盖损失、损失的主要驱动因素以及损失发生位置的地图。树木覆盖损失不等同于毁林。",
+            "ar": "فقدان الغطاء الشجري سنويًا، والمسببات الرئيسية للفقدان، وخريطة لمواقع حدوثه. فقدان الغطاء الشجري ليس هو نفسه إزالة الغابات.",
+            "hi": "प्रति वर्ष वृक्ष आवरण हानि, हानि के प्रमुख कारक और यह कहाँ हुई इसका मानचित्र। वृक्ष आवरण हानि वनों की कटाई के समान नहीं है।",
+            "vi": "Mất độ che phủ cây theo năm, các nguyên nhân chính gây mất và bản đồ nơi xảy ra. Mất độ che phủ cây không đồng nghĩa với phá rừng.",
+            "sw": "Upotevu wa uoto wa miti kwa mwaka, vichocheo vikuu vya upotevu huo na ramani ya mahali ulipotokea. Upotevu wa uoto wa miti si sawa na ukataji wa misitu.",
+            "tr": "Yıllara göre ağaç örtüsü kaybı, kaybın baskın etkenleri ve nerede gerçekleştiğini gösteren bir harita. Ağaç örtüsü kaybı ormansızlaşma ile aynı şey değildir.",
+        },
+        # Facts of the forest-loss-drivers template, from its charts. The
+        # builder formats {total} and {value} in hectares.
+        "analysis_template.forest_loss_drivers.total": {
+            "en": "From {start_year} to {end_year}, {aoi_name} lost {total} ha of tree cover.",
+            "es": "De {start_year} a {end_year}, {aoi_name} perdió {total} ha de cobertura arbórea.",
+            "fr": "De {start_year} à {end_year}, {aoi_name} a perdu {total} ha de couvert arboré.",
+            "pt": "De {start_year} a {end_year}, {aoi_name} perdeu {total} ha de cobertura arbórea.",
+            "id": "Dari {start_year} hingga {end_year}, {aoi_name} kehilangan {total} ha tutupan pohon.",
+            "de": "Von {start_year} bis {end_year} verlor {aoi_name} {total} ha Baumbestand.",
+            "it": "Dal {start_year} al {end_year}, {aoi_name} ha perso {total} ha di copertura arborea.",
+            "nl": "Van {start_year} tot {end_year} verloor {aoi_name} {total} ha boomkroonbedekking.",
+            "ru": "С {start_year} по {end_year} год потеря древесного покрова в {aoi_name} составила {total} га.",
+            "zh": "{start_year}年至{end_year}年，{aoi_name}损失了{total}公顷树木覆盖。",
+            "ar": "من {start_year} إلى {end_year}، فقدت {aoi_name} {total} هكتار من الغطاء الشجري.",
+            "hi": "{start_year} से {end_year} तक, {aoi_name} ने {total} हेक्टेयर वृक्ष आवरण खोया।",
+            "vi": "Từ {start_year} đến {end_year}, {aoi_name} đã mất {total} ha độ che phủ cây.",
+            "sw": "Kuanzia {start_year} hadi {end_year}, {aoi_name} ilipoteza hekta {total} za uoto wa miti.",
+            "tr": "{start_year}-{end_year} döneminde {aoi_name} {total} ha ağaç örtüsü kaybetti.",
+        },
+        "analysis_template.forest_loss_drivers.peak": {
+            "en": "The most tree cover loss was in {category}, with {value} ha.",
+            "es": "La mayor pérdida de cobertura arbórea se produjo en {category}, con {value} ha.",
+            "fr": "La perte de couvert arboré la plus élevée a eu lieu en {category}, avec {value} ha.",
+            "pt": "A maior perda de cobertura arbórea ocorreu em {category}, com {value} ha.",
+            "id": "Kehilangan tutupan pohon terbesar terjadi pada {category}, seluas {value} ha.",
+            "de": "Der höchste Baumbestandsverlust war {category} mit {value} ha.",
+            "it": "La perdita di copertura arborea più elevata è stata nel {category}, con {value} ha.",
+            "nl": "Het meeste verlies aan boomkroonbedekking was in {category}, met {value} ha.",
+            "ru": "Наибольшая потеря древесного покрова пришлась на {category} год: {value} га.",
+            "zh": "树木覆盖损失最多的年份是{category}年，为{value}公顷。",
+            "ar": "كان أكبر فقدان للغطاء الشجري في عام {category}، بمساحة {value} هكتار.",
+            "hi": "सबसे अधिक वृक्ष आवरण हानि {category} में हुई, {value} हेक्टेयर।",
+            "vi": "Mất độ che phủ cây nhiều nhất vào năm {category}, với {value} ha.",
+            "sw": "Upotevu mkubwa zaidi wa uoto wa miti ulikuwa mwaka {category}, hekta {value}.",
+            "tr": "En fazla ağaç örtüsü kaybı {value} ha ile {category} yılında yaşandı.",
+        },
+        "analysis_template.forest_loss_drivers.top_driver": {
+            "en": "The leading driver was {category}: {share} of the loss with a known driver ({value} ha of {total} ha).",
+            "es": "La causa principal fue {category}: el {share} de la pérdida con causa conocida ({value} ha de {total} ha).",
+            "fr": "Le facteur principal était {category} : {share} de la perte dont le facteur est connu ({value} ha sur {total} ha).",
+            "pt": "O fator principal foi {category}: {share} da perda com fator conhecido ({value} ha de {total} ha).",
+            "id": "Pemicu utamanya adalah {category}: {share} dari kehilangan dengan pemicu yang diketahui ({value} ha dari {total} ha).",
+            "de": "Die Hauptursache war {category}: {share} des Verlusts mit bekannter Ursache ({value} ha von {total} ha).",
+            "it": "Il fattore principale è stato {category}: il {share} della perdita con fattore noto ({value} ha su {total} ha).",
+            "nl": "De belangrijkste oorzaak was {category}: {share} van het verlies met een bekende oorzaak ({value} ha van {total} ha).",
+            "ru": "Основная причина: {category}, {share} потерь с известной причиной ({value} га из {total} га).",
+            "zh": "主要驱动因素是{category}：占已知驱动因素损失的{share}（{total}公顷中的{value}公顷）。",
+            "ar": "كان المسبب الرئيسي هو {category}: {share} من الفقدان المعروف مسببه ({value} هكتار من أصل {total} هكتار).",
+            "hi": "प्रमुख कारक {category} था: ज्ञात कारक वाली हानि का {share} ({total} हेक्टेयर में से {value} हेक्टेयर)।",
+            "vi": "Nguyên nhân hàng đầu là {category}: {share} diện tích mất có nguyên nhân đã biết ({value} ha trên {total} ha).",
+            "sw": "Kichocheo kikuu kilikuwa {category}: {share} ya upotevu wenye kichocheo kinachojulikana (hekta {value} kati ya hekta {total}).",
+            "tr": "Başlıca etken {category} oldu: etkeni bilinen kaybın {share} kadarı ({total} ha alanın {value} ha kadarı).",
+        },
+        # The text widget of the forest-loss-drivers template: markdown,
+        # no placeholders.
+        "analysis_template.forest_loss_drivers.note": {
+            "en": (
+                "**How to read this section**\n\n"
+                "Tree cover loss is the removal of tree canopy for any "
+                "reason, including harvesting, fire, disease and storms. "
+                "It is not the same as deforestation: it includes "
+                "plantation harvests, and the data does not track "
+                "regrowth.\n\n"
+                "Loss is counted where tree canopy covered at least 30% "
+                "of the land in 2000.\n\n"
+                "Drivers are mapped at about 1 km: each cell shows the "
+                "dominant driver of its loss from 2001 to 2025, not the "
+                "cause of each event, so the split in a small area is "
+                "coarse."
+            ),
+            "es": (
+                "**Cómo leer esta sección**\n\n"
+                "La pérdida de cobertura arbórea es la eliminación del "
+                "dosel arbóreo por cualquier motivo, incluidos la "
+                "cosecha, los incendios, las enfermedades y las "
+                "tormentas. No es lo mismo que la deforestación: incluye "
+                "la cosecha de plantaciones, y los datos no registran la "
+                "regeneración.\n\n"
+                "La pérdida se cuenta donde el dosel arbóreo cubría al "
+                "menos el 30 % del terreno en 2000.\n\n"
+                "Las causas se cartografían a cerca de 1 km: cada celda "
+                "muestra la causa dominante de su pérdida de 2001 a 2025, "
+                "no la causa de cada evento, por lo que la división en un "
+                "área pequeña es aproximada."
+            ),
+            "fr": (
+                "**Comment lire cette section**\n\n"
+                "La perte de couvert arboré est la disparition du couvert "
+                "arboré pour quelque raison que ce soit, y compris la "
+                "récolte, les incendies, les maladies et les tempêtes. Ce "
+                "n'est pas la même chose que la déforestation : elle "
+                "comprend la récolte des plantations, et les données ne "
+                "suivent pas la repousse.\n\n"
+                "La perte est comptée là où le couvert arboré couvrait au "
+                "moins 30 % du sol en 2000.\n\n"
+                "Les facteurs sont cartographiés à environ 1 km : chaque "
+                "cellule indique le facteur dominant de sa perte de 2001 "
+                "à 2025, et non la cause de chaque événement ; la "
+                "répartition dans une petite zone est donc approximative."
+            ),
+            "pt": (
+                "**Como ler esta seção**\n\n"
+                "A perda de cobertura arbórea é a remoção do dossel "
+                "arbóreo por qualquer motivo, incluindo colheita, "
+                "incêndios, doenças e tempestades. Não é o mesmo que "
+                "desmatamento: inclui a colheita de plantações, e os "
+                "dados não acompanham a regeneração.\n\n"
+                "A perda é contada onde o dossel arbóreo cobria pelo "
+                "menos 30% do terreno em 2000.\n\n"
+                "Os fatores são mapeados a cerca de 1 km: cada célula "
+                "mostra o fator dominante da sua perda de 2001 a 2025, "
+                "não a causa de cada evento, por isso a divisão em uma "
+                "área pequena é aproximada."
+            ),
+            "id": (
+                "**Cara membaca bagian ini**\n\n"
+                "Kehilangan tutupan pohon adalah hilangnya kanopi pohon "
+                "karena alasan apa pun, termasuk pemanenan, kebakaran, "
+                "penyakit, dan badai. Ini tidak sama dengan deforestasi: "
+                "termasuk pemanenan hutan tanaman, dan data tidak melacak "
+                "pertumbuhan kembali.\n\n"
+                "Kehilangan dihitung di tempat kanopi pohon menutupi "
+                "setidaknya 30% lahan pada tahun 2000.\n\n"
+                "Pemicu dipetakan pada resolusi sekitar 1 km: setiap sel "
+                "menunjukkan pemicu dominan kehilangannya dari 2001 "
+                "hingga 2025, bukan penyebab setiap kejadian, sehingga "
+                "pembagian di area kecil bersifat kasar."
+            ),
+            "de": (
+                "**So lesen Sie diesen Abschnitt**\n\n"
+                "Baumbestandsverlust ist der Verlust des Kronendachs aus "
+                "beliebigem Grund, etwa durch Holzernte, Feuer, "
+                "Krankheiten und Stürme. Er ist nicht dasselbe wie "
+                "Entwaldung: Er umfasst die Ernte von Plantagen, und die "
+                "Daten erfassen kein Nachwachsen.\n\n"
+                "Verlust wird gezählt, wo das Kronendach im Jahr 2000 "
+                "mindestens 30 % der Fläche bedeckte.\n\n"
+                "Die Ursachen sind in Zellen von etwa 1 km kartiert: Jede "
+                "Zelle zeigt die dominante Ursache ihres Verlusts von "
+                "2001 bis 2025, nicht die Ursache jedes einzelnen "
+                "Ereignisses. In einem kleinen Gebiet ist die Aufteilung "
+                "daher grob."
+            ),
+            "it": (
+                "**Come leggere questa sezione**\n\n"
+                "La perdita di copertura arborea è la rimozione della "
+                "chioma degli alberi per qualsiasi motivo, inclusi "
+                "raccolta, incendi, malattie e tempeste. Non equivale "
+                "alla deforestazione: include la raccolta nelle "
+                "piantagioni, e i dati non tengono traccia della "
+                "ricrescita.\n\n"
+                "La perdita è conteggiata dove la chioma degli alberi "
+                "copriva almeno il 30% del terreno nel 2000.\n\n"
+                "I fattori sono mappati a circa 1 km: ogni cella mostra "
+                "il fattore dominante della sua perdita dal 2001 al 2025, "
+                "non la causa di ogni evento, quindi in un'area piccola "
+                "la ripartizione è approssimativa."
+            ),
+            "nl": (
+                "**Zo leest u deze sectie**\n\n"
+                "Verlies aan boomkroonbedekking is het verdwijnen van het "
+                "bladerdak om welke reden dan ook, waaronder houtoogst, "
+                "brand, ziekte en stormen. Het is niet hetzelfde als "
+                "ontbossing: het omvat de oogst van plantages, en de "
+                "gegevens volgen geen hergroei.\n\n"
+                "Verlies wordt geteld waar het bladerdak in 2000 ten "
+                "minste 30% van het land bedekte.\n\n"
+                "Oorzaken zijn in kaart gebracht op ongeveer 1 km: elke "
+                "cel toont de dominante oorzaak van het verlies van 2001 "
+                "tot 2025, niet de oorzaak van elke gebeurtenis, dus in "
+                "een klein gebied is de verdeling grof."
+            ),
+            "ru": (
+                "**Как читать этот раздел**\n\n"
+                "Потеря древесного покрова означает исчезновение полога "
+                "деревьев по любой причине, включая рубки, пожары, "
+                "болезни и бури. Это не то же самое, что обезлесение: "
+                "сюда входит заготовка древесины на плантациях, а данные "
+                "не отслеживают восстановление.\n\n"
+                "Потеря учитывается там, где в 2000 году полог деревьев "
+                "покрывал не менее 30% площади.\n\n"
+                "Причины картированы с разрешением около 1 км: каждая "
+                "ячейка показывает основную причину потерь в ней с 2001 "
+                "по 2025 год, а не причину каждого события, поэтому для "
+                "небольшой территории распределение приблизительное."
+            ),
+            "zh": (
+                "**如何阅读本部分**\n\n"
+                "树木覆盖损失是指因任何原因造成的树冠消失，包括采伐、火灾、病害和风暴。它不等同于毁林：其中包括人工林采伐，且数据不追踪再生情况。\n\n"
+                "损失的统计范围为2000年树冠覆盖度至少达到30%的土地。\n\n"
+                "驱动因素按约1公里的网格绘制：每个网格显示其2001年至2025年损失的主要驱动因素，而非每次事件的原因，因此小区域内的划分较为粗略。"
+            ),
+            "ar": (
+                "**كيفية قراءة هذا القسم**\n\n"
+                "فقدان الغطاء الشجري هو إزالة ظلة الأشجار لأي سبب، بما في "
+                "ذلك الحصاد والحرائق والأمراض والعواصف. وهو ليس نفس إزالة "
+                "الغابات: فهو يشمل حصاد المزارع الشجرية، ولا تتتبع "
+                "البيانات إعادة النمو.\n\n"
+                "يُحتسب الفقدان حيث كانت ظلة الأشجار تغطي 30% على الأقل "
+                "من الأرض في عام 2000.\n\n"
+                "رُسمت المسببات على خرائط بدقة تقارب 1 كم: تُظهر كل خلية "
+                "المسبب الرئيسي للفقدان فيها من 2001 إلى 2025، وليس سبب "
+                "كل حدث، لذا يكون التقسيم في المناطق الصغيرة تقريبيًا."
+            ),
+            "hi": (
+                "**इस खंड को कैसे पढ़ें**\n\n"
+                "वृक्ष आवरण हानि किसी भी कारण से वृक्ष छत्र का हटना है, "
+                "जिसमें कटाई, आग, रोग और तूफ़ान शामिल हैं। यह वनों की "
+                "कटाई के समान नहीं है: इसमें बागानों की कटाई शामिल है, और "
+                "डेटा पुनर्वृद्धि को ट्रैक नहीं करता।\n\n"
+                "हानि वहाँ गिनी जाती है जहाँ 2000 में वृक्ष छत्र ने कम से "
+                "कम 30% भूमि को ढका था।\n\n"
+                "कारकों का मानचित्रण लगभग 1 किमी पर किया गया है: प्रत्येक "
+                "सेल 2001 से 2025 तक अपनी हानि का प्रमुख कारक दिखाता है, "
+                "हर घटना का कारण नहीं, इसलिए छोटे क्षेत्र में विभाजन मोटा "
+                "होता है।"
+            ),
+            "vi": (
+                "**Cách đọc phần này**\n\n"
+                "Mất độ che phủ cây là việc tán cây bị mất vì bất kỳ lý "
+                "do nào, bao gồm khai thác, cháy, dịch bệnh và bão. Điều "
+                "này không đồng nghĩa với phá rừng: nó bao gồm cả khai "
+                "thác rừng trồng, và dữ liệu không theo dõi việc tái "
+                "sinh.\n\n"
+                "Diện tích mất được tính ở những nơi tán cây che phủ ít "
+                "nhất 30% diện tích đất vào năm 2000.\n\n"
+                "Nguyên nhân được lập bản đồ ở độ phân giải khoảng 1 km: "
+                "mỗi ô cho thấy nguyên nhân chính gây mất độ che phủ "
+                "trong ô đó từ 2001 đến 2025, không phải nguyên nhân của "
+                "từng sự kiện, vì vậy việc phân chia ở khu vực nhỏ chỉ "
+                "mang tính tương đối."
+            ),
+            "sw": (
+                "**Jinsi ya kusoma sehemu hii**\n\n"
+                "Upotevu wa uoto wa miti ni kuondolewa kwa mwavuli wa "
+                "miti kwa sababu yoyote, ikiwemo uvunaji, moto, magonjwa "
+                "na dhoruba. Si sawa na ukataji wa misitu: unajumuisha "
+                "uvunaji wa mashamba ya miti, na data haifuatilii uotaji "
+                "upya.\n\n"
+                "Upotevu huhesabiwa mahali ambapo mwavuli wa miti "
+                "ulifunika angalau 30% ya ardhi mwaka 2000.\n\n"
+                "Vichocheo vimechorwa kwenye ramani kwa takriban kilomita "
+                "1: kila seli inaonyesha kichocheo kikuu cha upotevu wake "
+                "kuanzia 2001 hadi 2025, si chanzo cha kila tukio, hivyo "
+                "mgawanyo katika eneo dogo ni wa jumla."
+            ),
+            "tr": (
+                "**Bu bölüm nasıl okunur**\n\n"
+                "Ağaç örtüsü kaybı, hasat, yangın, hastalık ve fırtınalar "
+                "dahil herhangi bir nedenle ağaç tacının ortadan "
+                "kalkmasıdır. Ormansızlaşma ile aynı şey değildir: "
+                "plantasyon hasatlarını da içerir ve veriler yeniden "
+                "büyümeyi izlemez.\n\n"
+                "Kayıp, 2000 yılında ağaç tacının arazinin en az %30'unu "
+                "kapladığı yerlerde sayılır.\n\n"
+                "Etkenler yaklaşık 1 km çözünürlükte haritalanmıştır: her "
+                "hücre, 2001-2025 dönemindeki kaybının baskın etkenini "
+                "gösterir, her olayın nedenini değil; bu nedenle küçük "
+                "bir alandaki dağılım kabadır."
             ),
         },
     }

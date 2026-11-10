@@ -20,12 +20,16 @@ from src.api.data_models import (
 )
 from src.api.services.analysis_templates import builder
 from src.api.services.analysis_templates.registry import (
+    ForestLossDriversArgs,
     NrtMonitoringArgs,
     Post2020ForestLossArgs,
 )
+from src.api.services.charts.tcl import LOSS_COLOR
+from src.api.services.charts.tcl_by_driver import DRIVER_COLORS
+from src.api.services.dashboard_alerts import AlertsUnavailableError
 from tests.api.test_dashboards import AUTH, _create_dashboard, _create_user
 from tests.conftest import async_session_maker
-from tests.unit.api.services.test_chart_generators import NATURAL_FOREST_DATA
+from tests.unit.api.analysis_templates.test_builder import _split_pulls
 
 ROWS = {
     "alert_date": ["2026-09-10", "2026-09-12"],
@@ -48,7 +52,8 @@ def _imagery_ok():
 
 
 @contextmanager
-def _sources(pull_ok=True, imagery=None, rows=ROWS):
+def _sources(pull_ok=True, imagery=None, rows=ROWS, pulls=None):
+    """``pulls`` answers each pull by its arguments, in place of ``rows``."""
     pull = DataPullResult(
         success=pull_ok,
         data=rows if pull_ok else None,
@@ -58,7 +63,14 @@ def _sources(pull_ok=True, imagery=None, rows=ROWS):
         patch.object(
             builder.AnalyticsHandler,
             "pull_data",
-            AsyncMock(return_value=pull),
+            AsyncMock(return_value=pull, side_effect=pulls),
+        ),
+        # Offline: the alerts list counts from today, as the build does
+        # when the analytics API cannot give its latest alert date.
+        patch.object(
+            builder.AnalyticsAlertsSource,
+            "latest_alert_date",
+            AsyncMock(side_effect=AlertsUnavailableError("offline")),
         ),
         patch.object(
             builder._IMAGERY_PROVIDER,
@@ -105,13 +117,19 @@ async def test_list_templates(client, auth_override):
             "name": "nrt-monitoring",
             "label": "Near-real-time monitoring",
             "args_schema": NrtMonitoringArgs.model_json_schema(),
-            "widgets": ["chart", "layer", "imagery"],
+            "widgets": ["chart", "alerts", "imagery"],
         },
         {
             "name": "post-2020-forest-loss",
             "label": "Post-2020 forest loss",
             "args_schema": Post2020ForestLossArgs.model_json_schema(),
             "widgets": ["natural_forest_loss", "layer", "imagery"],
+        },
+        {
+            "name": "forest-loss-drivers",
+            "label": "Forest loss and its drivers",
+            "args_schema": ForestLossDriversArgs.model_json_schema(),
+            "widgets": ["chart", "chart", "text", "layer"],
         },
     ]
 
@@ -132,7 +150,7 @@ async def test_apply_template_builds_a_section(client, auth_override):
     dashboard = await _create_dashboard(client)
 
     with _sources():
-        response = await _apply(client, dashboard["id"], args={"days": 30})
+        response = await _apply(client, dashboard["id"])
 
     assert response.status_code == 201
     body = response.json()
@@ -143,17 +161,31 @@ async def test_apply_template_builds_a_section(client, auth_override):
     assert section["title"] == "Recent alerts in Paraná"
     assert section["description"] == "3.3 ha of alerts."
     assert section["template"]["name"] == "nrt-monitoring"
-    assert section["template"]["args"] == {"days": 30}
+    assert section["template"]["args"] == {}
 
     widgets = body["dashboard"]["widgets"]
     assert [w["id"] for w in widgets] == body["widget_ids"]
-    assert [w["widget_type"] for w in widgets] == ["insight", "map", "map"]
+    assert [w["widget_type"] for w in widgets] == [
+        "insight",
+        "alerts",
+        "map",
+    ]
     assert all(w["section_id"] == body["section_id"] for w in widgets)
     insight = widgets[0]["insight"]
     assert insight["user_id"] == user.id
     assert insight["is_public"] is False
     assert insight["charts"][0]["x_axis"] == "alert_date"
     assert widgets[1]["config"]["dataset"]["dataset_id"] == 11
+    assert widgets[1]["config"]["alerts"] == {
+        "aoi": {
+            "source": "gadm",
+            "src_id": "BRA.16_1",
+            "subtype": "state-province",
+            "name": "Paraná",
+        },
+        "days": 30,
+    }
+    assert widgets[1]["insight"] is None
     assert widgets[2]["config"]["imagery"]["mosaic_id"] == "mosaic-1"
 
 
@@ -163,7 +195,7 @@ async def test_apply_post_2020_forest_loss(client, auth_override):
     auth_override(user.id)
     dashboard = await _create_dashboard(client)
 
-    with _sources(rows=NATURAL_FOREST_DATA):
+    with _sources(pulls=_split_pulls()):
         response = await _apply(
             client, dashboard["id"], template="post-2020-forest-loss"
         )
@@ -212,6 +244,59 @@ async def test_apply_post_2020_forest_loss(client, auth_override):
 
 
 @pytest.mark.asyncio
+async def test_apply_forest_loss_drivers(client, auth_override):
+    """The half-width pie and the text widget survive the database round
+    trip."""
+    user = await _create_user("template-forest-loss-drivers")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    # One answer for both pulls: the loss chart reads the years, the pie
+    # the drivers.
+    rows = {
+        "tree_cover_loss_year": [2001, 2002],
+        "tree_cover_loss_driver": ["Logging", "Unknown"],
+        "area_ha": [4.0, 1.0],
+    }
+
+    with _sources(rows=rows):
+        response = await _apply(
+            client, dashboard["id"], template="forest-loss-drivers"
+        )
+
+    assert response.status_code == 201
+    body = response.json()
+    (section,) = body["dashboard"]["sections"]
+    assert section["template"]["name"] == "forest-loss-drivers"
+    assert (
+        section["template"]["start_date"],
+        section["template"]["end_date"],
+    ) == ("2001-01-01", "2025-12-31")
+    widgets = body["dashboard"]["widgets"]
+    assert [w["widget_type"] for w in widgets] == [
+        "insight",
+        "insight",
+        "text",
+        "map",
+    ]
+    loss, drivers, note, layer = widgets
+    # The map layers' chart colours survive the round trip.
+    (bars,) = loss["insight"]["charts"]
+    assert bars["series_color"] == LOSS_COLOR
+    (pie,) = drivers["insight"]["charts"]
+    assert pie["chart_type"] == "pie"
+    assert pie["color_map"] == {"Logging": DRIVER_COLORS["logging"]}
+    assert drivers["config"] == {"size": "single"}
+    assert note["config"]["size"] == "single"
+    assert "size" not in layer["config"]
+    assert layer["config"]["dataset"]["dataset_name"] == (
+        "Tree cover loss by dominant driver"
+    )
+    assert note["config"]["text"].startswith("**How to read this section**")
+    # Fixed copy: the frontend captions it as curated, not AI-assisted.
+    assert note["config"]["source"] == "template"
+
+
+@pytest.mark.asyncio
 async def test_post_2020_forest_loss_without_imagery_for_a_large_area(
     client, auth_override
 ):
@@ -224,7 +309,7 @@ async def test_post_2020_forest_loss_without_imagery_for_a_large_area(
         status="error", message="The area is too large for imagery."
     )
 
-    with _sources(rows=NATURAL_FOREST_DATA, imagery=too_large):
+    with _sources(pulls=_split_pulls(), imagery=too_large):
         response = await _apply(
             client, dashboard["id"], template="post-2020-forest-loss"
         )
@@ -260,7 +345,7 @@ async def test_apply_template_goes_after_the_last_section(
         "Recent alerts in Paraná",
     ]
     assert sections[1]["position"] == 1
-    assert sections[1]["template"]["args"] == {"days": 14}
+    assert sections[1]["template"]["args"] == {}
 
 
 @pytest.mark.asyncio
@@ -286,8 +371,8 @@ async def test_missing_imagery_is_a_warning(client, auth_override):
     "body",
     [
         {"template": "no-such-template"},
-        {"template": "nrt-monitoring", "args": {"days": 0}},
-        {"template": "nrt-monitoring", "args": {"days": 366}},
+        # nrt-monitoring always covers the 30 days to the latest alert date.
+        {"template": "nrt-monitoring", "args": {"days": 7}},
         {"template": "nrt-monitoring", "args": {"window": 7}},
         {"template": "post-2020-forest-loss", "args": {"days": 30}},
     ],

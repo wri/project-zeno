@@ -1,0 +1,51 @@
+id: mt-011
+uid: 6c3916f0efddfd97
+status: not doing
+group: multiturn
+turns:
+- query: Break down greenhouse gas emissions and removals in Pará, Brazil by vegetation, soil
+    and agriculture.
+  expected:
+    aoi_ids: BRA.14_1
+    dataset_id: '12'
+    chart_type: hierarchical-bar;stacked-bar-with-line
+    scope: analyse
+- query: How does that compare with Amazonas, Brazil?
+  expected:
+    text: Declines to compare the two areas, saying that only the standard charts are available
+      for this dataset
+  deltas:
+    retain:
+    - dataset_id
+notes:
+  scenario: '2026-09-16: the sequential route to a cross-area comparison (wri/project-zeno#827).
+    1-125 covers the guard that exists - pull_data refuses one pull carrying two AOIs - and
+    its notes flag the hole this row closes: nothing refuses two single-area pulls one after
+    the other, so a comparison can still reach the user a turn at a time. Turn 1 is the 1-123
+    prompt, the same starting state as mt-010.'
+  design: 'The assertion is on the comparison, not on the pull. The agent may legitimately
+    reach turn 2 two ways - decline outright, or show Amazonas its own standard charts and
+    decline to compare - and both satisfy the text expectation, because neither narrates a
+    difference between the areas. That is why turn 2 pins neither aoi_ids nor scope: the AOI
+    is genuinely either-way (BRA.4_1 if Amazonas resolves, BRA.14_1 if the agent declines
+    before touching it) and aoi_ids is set equality, not alternatives; and scope reads analyse
+    at turn 2 whichever path runs, because turn 1''s statistics persist in the thread. The
+    delta keeps the dataset pinned across the turn, so a row that passes cannot have quietly
+    changed subject.'
+  chart_type_rationale: '2026-09-16: turn 1 carries the same deterministic chart anchor as
+    1-124 and 1-126 (see 1-123 for why the field is safe under curated_only): without it,
+    turn 1 can pass while no charts exist, and then turn 2 asserts a decline about a chart
+    that was never drawn.'
+  verification: '2026-09-16: local 3-trial run 20260916T125002Z_local_experimental on the
+    PR branch (feat/lgms-curated-charts @423488a1): t1.aoi_id_match and t1.dataset_id_match
+    1.0 on 3/3, t2.state_delta 1.0 on 3/3. Turn 2''s decline is unverified: the upstream analytics
+    API returned 401 Invalid or expired token on every trial (stale local WRI_BEARER_TOKEN),
+    which project-zeno renders to the user as "No data found", so turn 1 produced no charts
+    and turn 2 had nothing to compare or refuse; t2.expected_text_match flapped 2/3 on that
+    broken pull, which says nothing about the guard either way.'
+  env_gated: LGMS (dataset 12) is hidden from the default profile; use the `lgms` profile
+    (`--ff lgms`), not `experimental`, to reveal it.
+  status_reason: '2026-09-16: not doing. The behaviour is unreleased - wri/project-zeno#827
+    was open at authoring time, and today the agent compares the two areas on request.
+    Re-admit with the other LGMS rows once #827 is deployed; promote to done on a 3-trial
+    ff=lgms pass at this uid.'

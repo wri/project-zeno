@@ -1,0 +1,35 @@
+id: 1-134
+uid: 0ef69c6073c2f303
+status: done
+group: context-layer
+query: How many integrated alerts occurred inside natural lands in Indonesia between June
+  2024 and June 2025?
+expected:
+  aoi_ids: IDN
+  aoi_source: gadm
+  dataset_id: '11'
+  dataset_name: Integrated alerts
+  context_layer: natural_lands
+  start_date: '2024-06-01'
+  end_date: '2025-06-30'
+  answer: 1,354,580.75 hectares
+  scope: analyse
+notes:
+  aoi_type: gadm 0
+  origin: GNW offline evals sheet, (1) GOLD tab row 113 (sheet test_id 1-112, "Not doing"
+    there), imported 2026-10-09.
+  rewrite: the sheet window (June 2019 to June 2021, end date 2021-06-01) predates Integrated
+    alerts entirely (content starts 2023-12-01), so its point (a window straddling the 2020
+    natural lands baseline) cannot arise on this dataset. AJ chose to shift the window (2026-10-09)
+    rather than turn it into a coverage refusal.
+  caveat_dropped: '2026-10-09: the sheet''s text ("flags that natural lands reflect 2020 baseline
+    conditions") failed 3/3 in run 20261009T101010Z_staging_experimental with routing, dates
+    and the figure exact. Unlike Tree cover loss, integrated_alerts.yml does not ask for that
+    caveat, so AJ chose to drop it rather than block the row on a presentation change.'
+  figures: 'analytics API, staging, 2026-10-09, land_filter=natural_lands: 1,354,580.75 ha
+    (high 1,125,103.94; highest 226,551.36; low 2,925.44). high+highest alone is 1,351,655.30
+    (0.2% off), so either reading of "how many alerts" passes. Unfiltered total 3,767,955.06
+    ha: a missing filter fails agent_answer.'
+  status_reason: 'verified 2026-10-09 after the caveat drop: run 20261009T104826Z_staging_experimental
+    (3 trials, ff=experimental) passed every check on 3/3 at this uid, figure exact (1,354,580.74
+    ha).'

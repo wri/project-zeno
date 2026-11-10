@@ -1,0 +1,16 @@
+id: 1-103
+uid: edf7fc39b6789b92
+status: done
+group: dataset-suggestion
+query: What were Brazil's soy-linked deforestation emissions in 2023?
+expected:
+  aoi_ids: BRA
+  aoi_source: gadm
+  dataset_id: '9'
+  dataset_name: Deforestation (sLUC) Emission Factors by Agricultural Crop
+  answer: 123.94 million tCO2e
+  scope: analyse
+notes:
+  rewrite: 'Scope suggest -> analyse. 5/5 non-error trials analyse with dataset
+    9 and hit the expected answer exactly (123.94 M tCO2e, agent_answer 1.0 every trial).
+    Its chart_integrity flap is the separate upstream mis-join bug and must NOT be masked.'

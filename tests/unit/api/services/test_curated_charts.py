@@ -42,6 +42,40 @@ async def test_charts_are_localised_and_carry_dataset_id():
     assert charts[0].dataset_id == HANDLED_DATASET_ID
 
 
+class TwoChartGenerator(ChartGenerator):
+    dataset_id = HANDLED_DATASET_ID
+
+    def generate(self, rows):
+        return [
+            InsightChart(
+                position=position,
+                title=title,
+                chart_type="bar",
+                x_axis="year",
+                y_axis="value",
+                chart_data=[],
+            )
+            for position, title in enumerate(
+                ["charts.tcl.annual_loss", "charts.tcl.annual_emissions"]
+            )
+        ]
+
+
+async def test_titles_keep_only_the_named_charts():
+    charts = await build_curated_charts(
+        HANDLED_DATASET_ID,
+        [],
+        "en",
+        [TwoChartGenerator()],
+        titles=["charts.tcl.annual_emissions"],
+    )
+
+    (chart,) = charts
+    # Picked by key, then localised; first of the charts kept.
+    assert chart.title == await t("charts.tcl.annual_emissions", "en")
+    assert chart.position == 0
+
+
 class SeriesKeyedGenerator(ChartGenerator):
     """Series named by message keys, with a colour per series."""
 

@@ -1,0 +1,52 @@
+name: GOLD checks
+
+# Case-store integrity for evals/gold: lint, the unit suite (no network, no
+# secrets), and the after-edit ritual (check.py, coverage_doc.py --check,
+# audit_cases.py --strict). This is what makes evals/gold/cases/README.md's
+# "CI enforces this" and "CI runs ... on every PR and every push to main"
+# true. It does not call the live agent — that's gold-ephemeral.yaml.
+
+on:
+  pull_request:
+    paths:
+      - "evals/gold/**"
+  push:
+    branches: [main]
+    paths:
+      - "evals/gold/**"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: evals/gold
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install
+        run: uv sync --frozen
+
+      - name: Lint
+        run: uv run ruff check src tools tests
+
+      - name: Tests (includes per-case schema conformance)
+        run: uv run pytest -q
+
+      - name: Case-store integrity (uids + manifest truthful)
+        run: uv run python tools/check.py
+
+      - name: Coverage doc freshness (generated, never hand-edited)
+        run: uv run python tools/coverage_doc.py --check
+
+      - name: Case-set audit (rubric gate)
+        run: uv run python tools/audit_cases.py --strict

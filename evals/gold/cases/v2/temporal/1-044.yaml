@@ -1,0 +1,16 @@
+id: 1-044
+uid: e6f2436769d4a94f
+status: done
+group: temporal
+query: In which year between 2001 and 2024 did Indonesia have the lowest emissions due to
+  tree cover loss?
+expected:
+  aoi_ids: IDN
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Forest GHG emissions
+  answer: '2003'
+  scope: analyse
+notes:
+  aoi_type: gadm 0
+  value_1: 437 million tonnes

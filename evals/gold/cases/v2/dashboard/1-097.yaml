@@ -1,0 +1,13 @@
+id: 1-097
+uid: 94bf6616bb145a3b
+status: done
+group: dashboard
+query: Create a dashboard for Brazil. Give me an insight on tree cover loss there, then add
+  it to the dashboard.
+expected:
+  aoi_ids: BRA
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  dashboard_created: 'TRUE'
+  dashboard_widgets: insight

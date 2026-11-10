@@ -3,6 +3,7 @@
 from datetime import date
 
 import pytest
+from pydantic import ValidationError
 
 from src.agent.datasets.config import DATASETS
 from src.agent.i18n import MESSAGES
@@ -49,6 +50,31 @@ def test_chart_widget_has_a_curated_generator(template, widget):
     )
 
 
+@pytest.mark.parametrize("template, widget", _widgets("chart"))
+def test_chart_widget_names_charts_by_their_title_keys(template, widget):
+    for title in widget.charts or ():
+        assert title.startswith("charts.") and title in MESSAGES, title
+
+
+@pytest.mark.parametrize("template, widget", _widgets("chart"))
+def test_chart_facts_are_in_each_language_with_their_placeholders(
+    template, widget
+):
+    common = {"aoi_name": "A", "start_year": "2001", "end_year": "2025"}
+    figures = {"total": "3", "category": "C", "value": "2", "share": "50%"}
+    for fact in widget.facts:
+        for key, values in (
+            (fact.text_key, {**common, **figures}),
+            (fact.empty_key, common),
+        ):
+            if key is None:
+                continue
+            messages = MESSAGES.get(key, {})
+            assert set(LANGUAGES) <= set(messages), key
+            for message in messages.values():
+                message.format(**values)
+
+
 @pytest.mark.parametrize("template, widget", _widgets("layer"))
 def test_layer_widget_dataset_has_a_tile_layer(template, widget):
     record = _CATALOG[widget.dataset_id]
@@ -63,10 +89,53 @@ def test_layer_widget_context_layer_is_in_the_catalog(template, widget):
     assert widget.context_layer in [layer["value"] for layer in layers]
 
 
+@pytest.mark.parametrize("template, widget", _widgets("alerts"))
+def test_alerts_widget_dataset_has_a_tile_layer(template, widget):
+    assert _CATALOG[widget.dataset_id].get("tile_url")
+
+
+@pytest.mark.parametrize("template, widget", _widgets("text"))
+def test_text_widget_note_is_in_each_language_without_placeholders(
+    template, widget
+):
+    notes = MESSAGES.get(widget.text_key, {})
+    assert set(LANGUAGES) <= set(notes), widget.text_key
+    for note in notes.values():
+        # The builder formats the note with no values.
+        assert note.format().strip()
+
+
+def test_nrt_monitoring_covers_the_30_days_to_the_latest_alert_date():
+    template = get_template("nrt-monitoring")
+    latest = date(2026, 10, 16)
+
+    assert template.period_end == "latest_alert"
+    assert template.parse_args({}).period(latest) == (
+        date(2026, 9, 17),
+        latest,
+    )
+    assert [widget.kind for widget in template.widgets] == [
+        "chart",
+        "alerts",
+        "imagery",
+    ]
+
+
+def test_nrt_monitoring_takes_no_arguments():
+    """The section always covers the 30 days to the latest alert date,
+    the period its chart's pills and the alerts list count back from."""
+    template = get_template("nrt-monitoring")
+
+    with pytest.raises(ValidationError):
+        template.parse_args({"days": 7})
+    assert not template.args_model.model_json_schema().get("properties")
+
+
 def test_post_2020_forest_loss_starts_at_the_natural_forest_baseline():
     template = get_template("post-2020-forest-loss")
     today = date(2026, 10, 7)
 
+    assert template.period_end == "today"
     assert template.parse_args({}).period(today) == (date(2021, 1, 1), today)
 
 

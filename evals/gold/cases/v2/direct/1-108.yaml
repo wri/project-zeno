@@ -1,0 +1,27 @@
+id: 1-108
+uid: 2113af0ee5d2bd98
+status: not doing
+group: direct
+query: How much tree cover loss was there in the city of Bern, Switzerland between 2001 and
+  2024?
+expected:
+  aoi_ids: CHE.6.3.1_1
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  scope: analyse
+notes:
+  aoi_type: gadm 3
+  coverage: '2026-08-04: repays the level-3 AOI debt created by moving 1-099 to the canton
+    of Bern. After that edit v2 had NO aoi expectation deeper than level 2, so city/municipality
+    resolution was untested. Deliberately a NON-imagery row: imagery is what coupled AOI size
+    to failure on 1-099 (a city is too small to intersect a cloud-free Sentinel-2 mosaic).
+    CHE.6.3.1_1 is the id the agent itself resolved for ''the city of Bern'' on 1-099''s artifacts.
+    answer pending verification.'
+  status_reason: 'PARKED 2026-08-04 on creation, after verification (run 20260803T220705Z).
+    It was authored to repay the level-3 AOI coverage debt, and it demonstrated instead that
+    the debt may be unpayable on this build: the city of Bern resolves to CHE.6_1 (the canton)
+    on 1 trial and produces a clarify_area / clarify_aoi nudge on 2. So city/municipality
+    AOI resolution is not deterministic here — the missing level-3 coverage is a PRODUCT limitation,
+    not a case-set gap. Keep the row as the standing probe and unpark when the agent resolves
+    sub-district AOIs reliably.'

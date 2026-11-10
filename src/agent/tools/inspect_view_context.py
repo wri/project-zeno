@@ -374,6 +374,19 @@ def _format_map_widget(config: dict) -> Optional[str]:
     return None
 
 
+def _format_alerts_widget(config: dict) -> str:
+    """One-line summary of an alerts widget, the live list of alert days
+    and its map, by dataset and period, sans tile URLs."""
+    dataset = config.get("dataset") or {}
+    line = f"alerts list and map: {dataset.get('dataset_name', '?')}"
+    if dataset.get("start_date") or dataset.get("end_date"):
+        line += (
+            f" ({dataset.get('start_date', '?')}–"
+            f"{dataset.get('end_date', '?')})"
+        )
+    return line
+
+
 def _format_text_widget(config: dict) -> str:
     """A text widget's markdown body, capped to guard against a runaway note.
 
@@ -399,8 +412,8 @@ async def format_dashboard(dashboard: DashboardOrm) -> str:
     Insight widgets are expanded with the shared `format_insights` rendering
     (visibility-filtered), so the agent can reason about what each widget
     shows; map widgets are summarized by dataset name/dates or imagery
-    date/areas; text widgets show their markdown body; anything else is
-    listed by type and config.
+    date/areas; alerts widgets by dataset name/dates; text widgets show
+    their markdown body; anything else is listed by type and config.
     """
     lines = [f"Dashboard being viewed: '{dashboard.name}' ({dashboard.id})"]
     if dashboard.description:
@@ -436,6 +449,8 @@ async def format_dashboard(dashboard: DashboardOrm) -> str:
             return f"{head}: insight {widget.insight_id} (detail below)"
         if widget.widget_type == "text":
             return f"{head}: {_format_text_widget(config)}"
+        if widget.widget_type == "alerts":
+            return f"{head}: {_format_alerts_widget(config)}"
         summary = _format_map_widget(config) or json.dumps(config, default=str)
         return f"{head}: {summary}"
 

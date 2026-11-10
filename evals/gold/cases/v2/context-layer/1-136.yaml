@@ -1,0 +1,28 @@
+id: 1-136
+uid: c96b42225c643254
+status: done
+group: context-layer
+query: How many integrated alerts occurred in natural ecosystems including forest, grassland,
+  and wetland in Cameroon between January and June 2025?
+expected:
+  aoi_ids: CMR
+  aoi_source: gadm
+  dataset_id: '11'
+  dataset_name: Integrated alerts
+  context_layer: natural_lands
+  start_date: '2025-01-01'
+  end_date: '2025-06-30'
+  answer: 236,804.34 hectares
+  scope: analyse
+notes:
+  aoi_type: gadm 0
+  origin: GNW offline evals sheet, (1) GOLD tab row 115 (sheet test_id 1-114, "Not doing"
+    there), imported 2026-10-09.
+  capability: routes a multi-class natural-ecosystems framing to the natural_lands layer.
+    The sheet text ("Selects natural lands, not primary forest, since the query spans multiple
+    non-forest natural classes") is graded by context_layer_match instead of a judge.
+  figures: 'analytics API, staging, 2026-10-09, land_filter=natural_lands: 236,804.34 ha (high
+    222,581.31; highest 14,045.48; low 177.55). Unfiltered 524,089.12 ha.'
+  status_reason: 'verified 2026-10-09: run 20261009T101010Z_staging_experimental (3 trials,
+    ff=experimental) passed on majority with natural_lands, dates and the figure exact (236,804.34
+    ha) on 3/3; chart_produced flaked on 1 trial (the known ~8.6% chart-generation baseline).'

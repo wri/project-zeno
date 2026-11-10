@@ -1,0 +1,15 @@
+id: 1-060
+uid: 807f6dfcfea8683f
+status: done
+group: parent-child
+query: Which state of brazil has lost the most tree cover due to permanent agriculture.
+expected:
+  aoi_ids: BRA.5_1;BRA.7_1;BRA.8_1;BRA.9_1;BRA.11_1;BRA.13_1;BRA.16_1;BRA.19_1;BRA.21_1;BRA.24_1;BRA.25_1;BRA.12_1;BRA.22_1;BRA.1_1;BRA.4_1;BRA.20_1;BRA.3_1;BRA.6_1;BRA.23_1;BRA.27_1;BRA.14_1;BRA.2_1;BRA.26_1;BRA.18_1;BRA.10_1;BRA.15_1;BRA.17_1
+  aoi_source: gadm
+  dataset_id: '8'
+  dataset_name: Tree cover loss by dominant driver
+  answer: Para
+  scope: analyse
+notes:
+  aoi_type: gadm 0
+  value_1: 3.05 million hectares

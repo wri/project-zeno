@@ -1,0 +1,17 @@
+id: 1-003
+uid: c8c477045d9f6593
+status: ready
+group: parent-child
+query: What was the total area affected by high conf. disturbance alerts between January 2025
+  to April 2025 in Ucayali, Peru?
+expected:
+  aoi_source: Landmark
+  dataset_id: '11'
+  start_date: '2025-01-01'
+  end_date: '2025-04-30'
+  scope: analyse
+notes:
+  status_reason: 'dataset_id pinned to 11 (Integrated alerts) following DIST-ALERT''s removal
+    from the agent. The disputed answer expectation (26.95 ha vs 21,073 ha, dataset-dependent)
+    is dropped until re-verified against Integrated alerts alone.'
+  aoi_type: Landmark

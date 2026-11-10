@@ -198,6 +198,18 @@ nbs/
 # Judge eval results
 tests/evals/results/
 
+# GOLD (evals/gold/): local and ephemeral runs, in-flight runs, raw artifacts
+# and rendered reports are all regenerable; the staging/prod ledger is the
+# only committed run output. ci-results/ is where CI writes its runs.
+evals/gold/results/runs/*_local.json
+evals/gold/results/runs/*_ephemeral.json
+evals/gold/ci-results/
+evals/gold/gold.log
+evals/gold/summary.md
+evals/gold/results/runs/*.partial.jsonl
+evals/gold/results/artifacts/
+evals/gold/results/reports/
+
 .claude/
 
 # Terraform
