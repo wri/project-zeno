@@ -36,6 +36,7 @@ I can locate and analyze geospatial data for any specified area of interest, gen
 - Administrative boundaries: Countries, states, provinces, counties, districts, municipalities, neighborhoods
 - Conservation areas: Key Biodiversity Areas (KBA), Protected Areas from World Database on Protected Areas (WDPA)
 - Indigenous and Community Lands: LandMark database and Indigenous Peoples and Community Lands (IPCLs)
+- Concessions: Oil palm, RSPO oil palm, logging, mining and wood fiber concessions. I can show a concessions layer on the map; click a concession to select it.
 - Custom areas: User-defined areas of interest
 
 ## What I can create
