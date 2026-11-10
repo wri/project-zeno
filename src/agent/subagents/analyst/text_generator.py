@@ -18,7 +18,6 @@ from langchain_core.runnables import RunnableConfig, RunnableLambda
 from pydantic import BaseModel, Field, ValidationError
 
 from src.agent.language import DEFAULT_LANGUAGE, language_name
-from src.agent.llms import resilient_structured_output
 from src.agent.subagents.analyst.charts.model import InsightChart
 from src.agent.subagents.analyst.prompts import WORDING_GUIDE
 from src.shared.logging_config import get_logger
