@@ -500,7 +500,7 @@ async def test_a_custom_area_the_analytics_api_lacks_is_sent_again_as_geometry(
     }
     aois = [{"subtype": "custom-area", "source": "custom", "src_id": area_id}]
 
-    response = await AnalyticsHandler()._post_analysis(
+    response = await AnalyticsHandler()._request_analysis(
         "http://analytics/x", {}, payload, aois
     )
 
@@ -519,7 +519,7 @@ async def test_a_404_for_other_aoi_types_is_not_retried(monkeypatch):
     payload = {"aoi": {"type": "admin", "ids": ["IDN"]}}
     aois = [{"subtype": "country", "src_id": "IDN"}]
 
-    response = await AnalyticsHandler()._post_analysis(
+    response = await AnalyticsHandler()._request_analysis(
         "http://analytics/x", {}, payload, aois
     )
 

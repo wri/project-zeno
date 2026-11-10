@@ -562,7 +562,7 @@ class AnalyticsHandler(DataSourceHandler):
 
         return payload
 
-    async def _post_analysis(
+    async def _request_analysis(
         self, endpoint_url: str, headers: dict, payload: dict, aois: list[dict]
     ) -> httpx.Response:
         """Post an analysis request, sending saved custom areas again as their
@@ -802,7 +802,7 @@ class AnalyticsHandler(DataSourceHandler):
             logger.info(f"Analytics API Request - Headers: {redacted_headers}")
             logger.info(f"Analytics API Request - Payload: {payload}")
 
-            response = await self._post_analysis(
+            response = await self._request_analysis(
                 endpoint_url, headers, payload, aois
             )
 
