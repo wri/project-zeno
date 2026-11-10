@@ -26,7 +26,7 @@ from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
 from sqlalchemy.orm import declarative_base, relationship
 
-from src.api.services.subscription import Dataset, SubscriptionMode
+from src.api.services.subscription import Dataset, SubscriptionChannel
 
 # Add Any declaration so mypy knows Base is a class.
 Base: Any = declarative_base()
@@ -560,8 +560,8 @@ class DashboardOrm(Base):
     name = Column(String, nullable=False)
     description = Column(String, nullable=True)
     is_public = Column(Boolean, nullable=False, server_default="false")
-    # True when the dashboard has an integrated alerts widget, which email
-    # alerts need. The backend updates it whenever the widgets change.
+    # True when the dashboard has an integrated alerts widget, which a
+    # notification email subscription needs. The backend updates it whenever the widgets change.
     eligible_for_subscription = Column(
         Boolean, nullable=False, server_default="false"
     )
@@ -633,16 +633,16 @@ class DashboardAoiOrm(Base):
 
 
 class SubscriptionOrm(Base):
-    """One alert channel a dashboard owner turned on for one dataset. A row
-    means the channel is on; turning it off deletes the row."""
+    """One channel a dashboard owner subscribed to for one dataset. A row
+    means subscribed; unsubscribing deletes the row."""
 
     __tablename__ = "subscriptions"
     __table_args__ = (
         UniqueConstraint(
             "dashboard_id",
             "dataset",
-            "mode",
-            name="uq_subscriptions_dashboard_dataset_mode",
+            "channel",
+            name="uq_subscriptions_dashboard_dataset_channel",
         ),
     )
 
@@ -673,13 +673,13 @@ class SubscriptionOrm(Base):
         ),
         nullable=False,
     )
-    mode = Column(
+    channel = Column(
         Enum(
-            SubscriptionMode,
+            SubscriptionChannel,
             native_enum=False,
             create_constraint=True,
             values_callable=lambda e: [m.value for m in e],
-            name="subscription_mode",
+            name="subscription_channel",
         ),
         nullable=False,
     )

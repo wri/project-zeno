@@ -1,5 +1,5 @@
-"""Dashboard alert subscriptions stored in Postgres. Each row is one alert
-channel turned on for one dataset of a dashboard."""
+"""Dashboard subscriptions stored in Postgres. Each row is one channel a
+dashboard is subscribed to for one dataset."""
 
 from uuid import UUID
 
@@ -12,8 +12,8 @@ from src.api.services.subscription import (
     AoiType,
     Dataset,
     Subscription,
-    SubscriptionMode,
-    SubscriptionModeRepository,
+    SubscriptionChannel,
+    SubscriptionChannelRepository,
     SubscriptionRepository,
     SubscriptionTarget,
 )
@@ -22,10 +22,10 @@ from src.shared.geocoding_helpers import CONCESSION_SOURCES
 
 
 class PostgresSubscriptionRepository(
-    SubscriptionRepository, SubscriptionModeRepository
+    SubscriptionRepository, SubscriptionChannelRepository
 ):
     async def list_active(self) -> list[Subscription]:
-        """Lists the subscriptions with email on."""
+        """Lists the email subscriptions."""
         query = (
             select(
                 SubscriptionOrm.id,
@@ -40,7 +40,7 @@ class PostgresSubscriptionRepository(
             .join(
                 DashboardAoiOrm, DashboardAoiOrm.id == SubscriptionOrm.aoi_id
             )
-            .where(SubscriptionOrm.mode == SubscriptionMode.EMAIL)
+            .where(SubscriptionOrm.channel == SubscriptionChannel.EMAIL)
             .order_by(SubscriptionOrm.created_at)
         )
         async with get_session_from_pool() as session:
@@ -68,11 +68,11 @@ class PostgresSubscriptionRepository(
             for row in rows
         ]
 
-    async def set_modes(
+    async def set_channels(
         self,
         target: SubscriptionTarget,
         dataset: Dataset,
-        modes: set[SubscriptionMode],
+        channels: set[SubscriptionChannel],
     ) -> None:
         """Saves exactly these channels for the dashboard's dataset. Rows
         that are already in that state are left alone."""
@@ -81,25 +81,25 @@ class PostgresSubscriptionRepository(
                 delete(SubscriptionOrm).where(
                     SubscriptionOrm.dashboard_id == target.dashboard_id,
                     SubscriptionOrm.dataset == dataset,
-                    SubscriptionOrm.mode.not_in(modes),
+                    SubscriptionOrm.channel.not_in(channels),
                 )
             )
-            if modes:
+            if channels:
                 rows = [
                     {
                         "dashboard_id": target.dashboard_id,
                         "aoi_id": target.aoi_id,
                         "user_id": target.user_id,
                         "dataset": dataset,
-                        "mode": mode,
+                        "channel": channel,
                     }
-                    for mode in modes
+                    for channel in channels
                 ]
                 await session.execute(
                     insert(SubscriptionOrm)
                     .values(rows)
                     .on_conflict_do_nothing(
-                        constraint="uq_subscriptions_dashboard_dataset_mode"
+                        constraint="uq_subscriptions_dashboard_dataset_channel"
                     )
                 )
             await session.commit()
@@ -108,12 +108,12 @@ class PostgresSubscriptionRepository(
 async def remove_email_subscriptions(
     session: AsyncSession, dashboard_id: UUID
 ) -> None:
-    """Turns email off for every dataset of a dashboard, inside the
+    """Unsubscribes a dashboard from email for every dataset, inside the
     caller's transaction."""
     await session.execute(
         delete(SubscriptionOrm).where(
             SubscriptionOrm.dashboard_id == dashboard_id,
-            SubscriptionOrm.mode == SubscriptionMode.EMAIL,
+            SubscriptionOrm.channel == SubscriptionChannel.EMAIL,
         )
     )
 

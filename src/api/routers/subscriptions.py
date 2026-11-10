@@ -1,4 +1,4 @@
-"""Alert subscriptions for a user's own dashboards."""
+"""Notification email subscriptions for a user's own dashboards."""
 
 from uuid import UUID
 
@@ -17,7 +17,7 @@ from src.api.schemas import (
     UserModel,
 )
 from src.api.services.subscription import (
-    EmailAlertsUnavailableError,
+    NotEligibleForSubscriptionError,
     SubscriptionService,
     SubscriptionTarget,
 )
@@ -41,11 +41,12 @@ async def set_dashboard_subscriptions(
     service: SubscriptionService = Depends(get_subscription_service),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
-    """Sets which alert channels are on for the listed datasets. Only the
-    dashboard owner can change them.
+    """Sets which channels the dashboard is subscribed to for the listed
+    datasets. Only the dashboard owner can change them.
 
-    The body lists the channels that should be on, so an empty list turns
-    them all off. Email needs a dashboard that can have email alerts, or 409.
+    The body lists the channels to subscribe to, so an empty list
+    unsubscribes from them all. Email needs a dashboard that is eligible for
+    subscription, or 409.
     """
     dashboard = await dashboard_writer.get_dashboard(dashboard_id)
     if dashboard is None or dashboard.user_id != user.id:
@@ -54,7 +55,7 @@ async def set_dashboard_subscriptions(
     if aoi is None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Alerts need a dashboard with an area",
+            detail="Subscriptions need a dashboard with an area",
         )
 
     target = SubscriptionTarget(
@@ -64,8 +65,8 @@ async def set_dashboard_subscriptions(
         eligible_for_subscription=dashboard.eligible_for_subscription,
     )
     try:
-        await service.update(target, set(body.datasets), set(body.modes))
-    except EmailAlertsUnavailableError as error:
+        await service.update(target, set(body.datasets), set(body.channels))
+    except NotEligibleForSubscriptionError as error:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail=str(error)
         )

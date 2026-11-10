@@ -4,12 +4,12 @@ Revision ID: b5e2a9c41d07
 Revises: f3a8c1d5b204
 Create Date: 2026-11-04 10:00:00.000000
 
-Dashboard alert subscriptions: one row per dashboard, dataset and channel,
-and a row means the channel is on. Email is the only channel and starts off,
-so the table starts empty.
+Dashboard subscriptions: one row per dashboard, dataset and channel, and a
+row means subscribed. Email is the only channel and nobody starts
+subscribed, so the table starts empty.
 
-Also marks which dashboards can have email alerts: those with an integrated
-alerts widget, either an insight chart or a map or alerts layer.
+Also marks which dashboards are eligible for subscription: those with an
+integrated alerts widget, either an insight chart or a map or alerts layer.
 """
 
 from typing import Sequence, Union
@@ -80,10 +80,10 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column(
-            "mode",
+            "channel",
             sa.Enum(
                 "email",
-                name="subscription_mode",
+                name="subscription_channel",
                 native_enum=False,
                 create_constraint=True,
             ),
@@ -106,8 +106,8 @@ def upgrade() -> None:
         sa.UniqueConstraint(
             "dashboard_id",
             "dataset",
-            "mode",
-            name="uq_subscriptions_dashboard_dataset_mode",
+            "channel",
+            name="uq_subscriptions_dashboard_dataset_channel",
         ),
     )
 

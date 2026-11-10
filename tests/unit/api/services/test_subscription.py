@@ -4,23 +4,23 @@ import pytest
 
 from src.api.services.subscription import (
     Dataset,
-    EmailAlertsUnavailableError,
-    SubscriptionMode,
-    SubscriptionModeRepository,
+    NotEligibleForSubscriptionError,
+    SubscriptionChannel,
+    SubscriptionChannelRepository,
     SubscriptionService,
     SubscriptionTarget,
 )
 
-EMAIL = SubscriptionMode.EMAIL
+EMAIL = SubscriptionChannel.EMAIL
 DATASETS = {Dataset.INTEGRATED_ALERTS}
 
 
-class FakeRepository(SubscriptionModeRepository):
+class FakeRepository(SubscriptionChannelRepository):
     def __init__(self):
         self.saved = {}
 
-    async def set_modes(self, target, dataset, modes):
-        self.saved[dataset] = modes
+    async def set_channels(self, target, dataset, channels):
+        self.saved[dataset] = channels
 
 
 def target(eligible):
@@ -45,7 +45,7 @@ async def test_email_on_for_an_eligible_dashboard_is_saved():
 async def test_email_on_for_an_ineligible_dashboard_writes_nothing():
     repository = FakeRepository()
 
-    with pytest.raises(EmailAlertsUnavailableError):
+    with pytest.raises(NotEligibleForSubscriptionError):
         await SubscriptionService(repository).update(
             target(eligible=False), DATASETS, {EMAIL}
         )

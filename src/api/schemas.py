@@ -16,7 +16,7 @@ from pydantic import (
 from typing_extensions import TypedDict
 
 from src.api.data_models import UserType
-from src.api.services.subscription import Dataset, SubscriptionMode
+from src.api.services.subscription import Dataset, SubscriptionChannel
 from src.api.user_profile_configs.countries import COUNTRIES
 from src.api.user_profile_configs.gis_expertise import GIS_EXPERTISE_LEVELS
 from src.api.user_profile_configs.languages import LANGUAGES
@@ -971,9 +971,9 @@ class DashboardWidgetResponse(BaseModel):
     insight: Optional[InsightResponse] = None
 
 
-class DashboardDatasetAlerts(BaseModel):
+class DashboardDatasetSubscription(BaseModel):
     # Empty when nothing is on.
-    modes: List[SubscriptionMode] = []
+    channels: List[SubscriptionChannel] = []
 
 
 class DashboardResponse(BaseModel):
@@ -984,8 +984,8 @@ class DashboardResponse(BaseModel):
     name: str
     description: Optional[str] = None
     is_public: bool
-    # Whether the owner can turn email alerts on: the dashboard has an
-    # integrated alerts widget.
+    # Whether the owner can subscribe to notification emails: the dashboard
+    # has an integrated alerts widget.
     eligible_for_subscription: bool = False
     created_at: datetime
     updated_at: datetime
@@ -994,19 +994,19 @@ class DashboardResponse(BaseModel):
     # (`section_id`); ungrouped widgets render above the first section.
     sections: List[DashboardSectionResponse] = []
     widgets: List[DashboardWidgetResponse] = []
-    # The alert channels that are on, per dataset. Only the owner and
-    # superusers get this; for anyone else the key is left out.
-    alerts: Optional[Dict[Dataset, DashboardDatasetAlerts]] = Field(
-        default=None, exclude_if=lambda alerts: alerts is None
+    # The subscribed channels, per dataset. Only the owner and superusers
+    # get this; for anyone else the key is left out.
+    subscriptions: Optional[Dict[Dataset, DashboardDatasetSubscription]] = (
+        Field(default=None, exclude_if=lambda value: value is None)
     )
 
 
 class DashboardSubscriptionsRequest(BaseModel):
-    """The alert channels that should be on for each listed dataset. An
-    empty list turns them all off."""
+    """The channels to subscribe to for each listed dataset. An empty list
+    unsubscribes from them all."""
 
     datasets: List[Dataset] = Field(min_length=1)
-    modes: List[SubscriptionMode]
+    channels: List[SubscriptionChannel]
 
 
 class AnalysisTemplateResponse(BaseModel):

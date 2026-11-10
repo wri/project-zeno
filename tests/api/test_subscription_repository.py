@@ -9,12 +9,12 @@ from src.api.repositories.subscription_repository import (
 from src.api.services.subscription import (
     AoiType,
     Dataset,
-    SubscriptionMode,
+    SubscriptionChannel,
     SubscriptionTarget,
 )
 from tests.api.test_dashboards import PARANA, _create_user
 
-EMAIL = SubscriptionMode.EMAIL
+EMAIL = SubscriptionChannel.EMAIL
 PROTECTED_AREA = {
     "source": "wdpa",
     "src_id": "555625",
@@ -29,8 +29,8 @@ CONCESSION = {
 }
 
 
-async def _dashboard_with_modes(
-    user_id, modes, aoi=PARANA
+async def _dashboard_with_channels(
+    user_id, channels, aoi=PARANA
 ) -> SubscriptionTarget:
     dashboard_id = await dashboard_writer.create_dashboard(
         user_id=user_id, name=aoi["name"], aois=[aoi]
@@ -42,26 +42,26 @@ async def _dashboard_with_modes(
         user_id=user_id,
         eligible_for_subscription=True,
     )
-    await PostgresSubscriptionRepository().set_modes(
-        target, Dataset.INTEGRATED_ALERTS, modes
+    await PostgresSubscriptionRepository().set_channels(
+        target, Dataset.INTEGRATED_ALERTS, channels
     )
     return target
 
 
-async def test_set_modes_with_none_turns_email_off():
+async def test_set_channels_with_none_turns_email_off():
     await _create_user("repo-set")
-    target = await _dashboard_with_modes("repo-set", {EMAIL})
+    target = await _dashboard_with_channels("repo-set", {EMAIL})
     repository = PostgresSubscriptionRepository()
 
-    await repository.set_modes(target, Dataset.INTEGRATED_ALERTS, set())
+    await repository.set_channels(target, Dataset.INTEGRATED_ALERTS, set())
 
     assert await repository.list_active() == []
 
 
 async def test_list_active_returns_email_subscriptions():
     await _create_user("repo-active")
-    emailed = await _dashboard_with_modes("repo-active", {EMAIL})
-    await _dashboard_with_modes("repo-active", set())
+    emailed = await _dashboard_with_channels("repo-active", {EMAIL})
+    await _dashboard_with_channels("repo-active", set())
 
     (subscription,) = await PostgresSubscriptionRepository().list_active()
 
@@ -82,7 +82,7 @@ async def test_list_active_returns_email_subscriptions():
 )
 async def test_list_active_gives_each_area_its_own_id_and_type(aoi, aoi_type):
     await _create_user(f"repo-{aoi['source']}")
-    await _dashboard_with_modes(f"repo-{aoi['source']}", {EMAIL}, aoi=aoi)
+    await _dashboard_with_channels(f"repo-{aoi['source']}", {EMAIL}, aoi=aoi)
 
     (subscription,) = await PostgresSubscriptionRepository().list_active()
 

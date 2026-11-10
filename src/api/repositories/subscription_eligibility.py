@@ -1,9 +1,9 @@
-"""Keeps each dashboard's eligibility for email alerts up to date.
+"""Keeps each dashboard's eligibility for subscription up to date.
 
 A dashboard is eligible while it has an integrated alerts widget: an insight
 with an integrated alerts chart, or a map or alerts widget showing that
-dataset. When a dashboard stops being eligible, its email alerts go off, and
-the owner has to turn them on again once the widget is back.
+dataset. When a dashboard stops being eligible, its email subscription is
+deleted, and the owner has to subscribe again once the widget is back.
 """
 
 from uuid import UUID

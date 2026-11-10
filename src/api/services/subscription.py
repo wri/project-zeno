@@ -17,7 +17,7 @@ class Dataset(str, Enum):
     INTEGRATED_ALERTS = "integrated_alerts"
 
 
-class SubscriptionMode(str, Enum):
+class SubscriptionChannel(str, Enum):
     EMAIL = "email"
 
 
@@ -42,11 +42,11 @@ class SubscriptionTarget:
     eligible_for_subscription: bool
 
 
-class EmailAlertsUnavailableError(Exception):
+class NotEligibleForSubscriptionError(Exception):
     def __init__(self):
         super().__init__(
-            "Email alerts need an integrated alerts chart or map on the "
-            "dashboard"
+            "Notification emails need an integrated alerts chart or map on "
+            "the dashboard"
         )
 
 
@@ -55,37 +55,37 @@ class SubscriptionRepository(ABC):
     async def list_active(self) -> list[Subscription]: ...
 
 
-class SubscriptionModeRepository(ABC):
+class SubscriptionChannelRepository(ABC):
     @abstractmethod
-    async def set_modes(
+    async def set_channels(
         self,
         target: SubscriptionTarget,
         dataset: Dataset,
-        modes: set[SubscriptionMode],
+        channels: set[SubscriptionChannel],
     ) -> None: ...
 
 
 class SubscriptionService:
-    """Turns a dashboard's alert channels on or off."""
+    """Subscribes a dashboard to channels or unsubscribes it."""
 
-    def __init__(self, repository: SubscriptionModeRepository):
+    def __init__(self, repository: SubscriptionChannelRepository):
         self.repository = repository
 
     async def update(
         self,
         target: SubscriptionTarget,
         datasets: set[Dataset],
-        requested: set[SubscriptionMode],
+        requested: set[SubscriptionChannel],
     ) -> None:
         """Saves the requested channels for each dataset. Nothing is saved
-        if email is asked for on a dashboard that can't have email alerts."""
+        if email is asked for on a dashboard not eligible for subscription."""
         # Eligibility is read before the write without a lock, so a widget
         # removed in between can leave email on. Lock the dashboard row if
         # that matters.
         if (
-            SubscriptionMode.EMAIL in requested
+            SubscriptionChannel.EMAIL in requested
             and not target.eligible_for_subscription
         ):
-            raise EmailAlertsUnavailableError()
+            raise NotEligibleForSubscriptionError()
         for dataset in datasets:
-            await self.repository.set_modes(target, dataset, requested)
+            await self.repository.set_channels(target, dataset, requested)

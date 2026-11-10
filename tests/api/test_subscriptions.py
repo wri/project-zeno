@@ -1,4 +1,4 @@
-"""Turning dashboard email alerts on and off, and who can see them."""
+"""Subscribing dashboards to notification emails, and who can see it."""
 
 import pytest
 from sqlalchemy import select
@@ -21,15 +21,17 @@ KBA = {
     "subtype": "key-biodiversity-area",
     "name": "Serra do Mar",
 }
-OFF = {"integrated_alerts": {"modes": []}}
-EMAIL_ON = {"integrated_alerts": {"modes": ["email"]}}
+OFF = {"integrated_alerts": {"channels": []}}
+EMAIL_ON = {"integrated_alerts": {"channels": ["email"]}}
 
 
-async def _put(client, dashboard_id, modes, datasets=("integrated_alerts",)):
+async def _put(
+    client, dashboard_id, channels, datasets=("integrated_alerts",)
+):
     return await client.put(
         f"/api/dashboards/{dashboard_id}/subscriptions",
         headers=AUTH,
-        json={"datasets": list(datasets), "modes": modes},
+        json={"datasets": list(datasets), "channels": channels},
     )
 
 
@@ -53,7 +55,7 @@ async def _rows(dashboard_id) -> list[SubscriptionOrm]:
         result = await session.execute(
             select(SubscriptionOrm)
             .where(SubscriptionOrm.dashboard_id == dashboard_id)
-            .order_by(SubscriptionOrm.mode)
+            .order_by(SubscriptionOrm.channel)
         )
         return list(result.scalars().all())
 
@@ -65,7 +67,7 @@ async def _rows(dashboard_id) -> list[SubscriptionOrm]:
 async def test_new_dashboard_has_email_off(client, auth_override):
     dashboard = await _owned_dashboard(client, auth_override, "subs-new")
 
-    assert dashboard["alerts"] == OFF
+    assert dashboard["subscriptions"] == OFF
     assert await _rows(dashboard["id"]) == []
 
 
@@ -77,8 +79,8 @@ async def test_email_on_and_off(client, auth_override):
     off = await _put(client, dashboard["id"], [])
 
     assert on.status_code == 200
-    assert on.json()["alerts"] == EMAIL_ON
-    assert off.json()["alerts"] == OFF
+    assert on.json()["subscriptions"] == EMAIL_ON
+    assert off.json()["subscriptions"] == OFF
     assert await _rows(dashboard["id"]) == []
 
 
@@ -111,12 +113,12 @@ async def test_rows_point_at_the_dashboard_area_and_owner(
 @pytest.mark.parametrize(
     "body",
     [
-        {"datasets": ["tree_cover_loss"], "modes": ["email"]},
-        {"datasets": ["integrated_alerts"], "modes": ["in-app"]},
+        {"datasets": ["tree_cover_loss"], "channels": ["email"]},
+        {"datasets": ["integrated_alerts"], "channels": ["in-app"]},
     ],
 )
 @pytest.mark.asyncio
-async def test_unknown_dataset_or_mode_is_rejected(
+async def test_unknown_dataset_or_channel_is_rejected(
     client, auth_override, body
 ):
     dashboard = await _owned_dashboard(client, auth_override, "subs-422")
@@ -157,7 +159,7 @@ async def test_email_on_for_a_non_admin_area(client, auth_override):
     response = await _put(client, dashboard["id"], ["email"])
 
     assert response.status_code == 200
-    assert response.json()["alerts"] == EMAIL_ON
+    assert response.json()["subscriptions"] == EMAIL_ON
 
 
 # ---------------------------------------------------------------------------
@@ -170,7 +172,7 @@ async def test_put_requires_auth(client, auth_override):
 
     response = await client.put(
         f"/api/dashboards/{dashboard['id']}/subscriptions",
-        json={"datasets": ["integrated_alerts"], "modes": ["email"]},
+        json={"datasets": ["integrated_alerts"], "channels": ["email"]},
     )
 
     assert response.status_code == 401
@@ -194,7 +196,7 @@ async def test_other_users_get_404(
 
 
 @pytest.mark.asyncio
-async def test_alerts_shown_to_owner_and_superuser_only(
+async def test_subscriptions_shown_to_owner_and_superuser_only(
     client, auth_override, admin_user_factory, superuser_factory
 ):
     dashboard = await _owned_dashboard(client, auth_override, "subs-reader")
@@ -220,11 +222,11 @@ async def test_alerts_shown_to_owner_and_superuser_only(
     _sign_out()
     anonymous_view = (await client.get(url)).json()
 
-    assert owner_detail["alerts"] == EMAIL_ON
-    assert owner_list[0]["alerts"] == EMAIL_ON
-    assert superuser_view["alerts"] == EMAIL_ON
+    assert owner_detail["subscriptions"] == EMAIL_ON
+    assert owner_list[0]["subscriptions"] == EMAIL_ON
+    assert superuser_view["subscriptions"] == EMAIL_ON
     for view in (admin_view, other_view, anonymous_view):
-        assert "alerts" not in view
+        assert "subscriptions" not in view
         assert view["eligible_for_subscription"] is True
 
 

@@ -1,5 +1,5 @@
 """The subscriptions migration upgrades and downgrades cleanly, and marks the
-existing dashboards that can have email alerts.
+existing dashboards that are eligible for subscription.
 
 The rest of the suite builds its schema with ``create_all``, which never runs
 a migration. This test builds the schema the same way in a throwaway
@@ -89,7 +89,7 @@ def test_subscriptions_migration_up_and_down(migration_db_url):
     assert [
         u["column_names"]
         for u in table.get_unique_constraints("subscriptions")
-    ] == [["dashboard_id", "dataset", "mode"]]
+    ] == [["dashboard_id", "dataset", "channel"]]
     assert {
         fk["referred_table"]: fk["options"].get("ondelete")
         for fk in table.get_foreign_keys("subscriptions")

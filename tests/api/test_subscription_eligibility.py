@@ -1,5 +1,6 @@
-"""Whether a dashboard can have email alerts, kept current as its widgets
-change, and email turned off when it stops qualifying."""
+"""Whether a dashboard is eligible for subscription, kept current as its
+widgets change, and its email subscription deleted when it stops being
+eligible."""
 
 import pytest
 
@@ -46,7 +47,7 @@ async def _turn_email_on(client, dashboard_id):
     response = await client.put(
         f"/api/dashboards/{dashboard_id}/subscriptions",
         headers=AUTH,
-        json={"datasets": ["integrated_alerts"], "modes": ["email"]},
+        json={"datasets": ["integrated_alerts"], "channels": ["email"]},
     )
     assert response.status_code == 200
 
@@ -116,7 +117,7 @@ async def test_removing_the_last_alerts_widget_turns_email_off(
 
     after = await _dashboard(client, dashboard["id"])
     assert after["eligible_for_subscription"] is False
-    assert after["alerts"] == {"integrated_alerts": {"modes": []}}
+    assert after["subscriptions"] == {"integrated_alerts": {"channels": []}}
     assert await PostgresSubscriptionRepository().list_active() == []
 
 
@@ -150,7 +151,7 @@ async def test_removing_a_section_counts_only_when_its_widgets_go(
 
     after = await _dashboard(client, dashboard["id"])
     assert after["eligible_for_subscription"] is eligible
-    assert after["alerts"]["integrated_alerts"]["modes"] == (
+    assert after["subscriptions"]["integrated_alerts"]["channels"] == (
         ["email"] if eligible else []
     )
 

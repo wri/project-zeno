@@ -45,7 +45,7 @@ from src.api.schemas import (
     DashboardAlertsSummaryResponse,
     DashboardAoiResponse,
     DashboardCreateRequest,
-    DashboardDatasetAlerts,
+    DashboardDatasetSubscription,
     DashboardPublicToggleRequest,
     DashboardPublicToggleResponse,
     DashboardResponse,
@@ -77,7 +77,7 @@ from src.api.services.dashboard_alerts import (
     InvalidPeriodError,
 )
 from src.api.services.dashboard_aoi import dashboard_aoi
-from src.api.services.subscription import Dataset, SubscriptionMode
+from src.api.services.subscription import Dataset, SubscriptionChannel
 from src.shared.database import get_session_from_pool_dependency
 from src.shared.logging_config import get_logger
 from src.shared.tile_urls import absolutize_widget_config
@@ -94,20 +94,20 @@ def _is_privileged(user: Optional[UserModel]) -> bool:
     )
 
 
-def _sees_alerts(row: DashboardOrm, user: Optional[UserModel]) -> bool:
-    """Alert settings are shown to the dashboard owner and to superusers,
+def _sees_subscriptions(row: DashboardOrm, user: Optional[UserModel]) -> bool:
+    """Subscriptions are shown to the dashboard owner and to superusers,
     not to admins."""
     return user is not None and (
         row.user_id == user.id or user.user_type == UserType.SUPERUSER
     )
 
 
-def _alerts_response(row: DashboardOrm) -> dict:
-    """The alert channels that are on, listed for every dataset."""
-    on = {(s.dataset, s.mode) for s in row.subscriptions}
+def _subscriptions_response(row: DashboardOrm) -> dict:
+    """The subscribed channels, listed for every dataset."""
+    on = {(s.dataset, s.channel) for s in row.subscriptions}
     return {
-        dataset: DashboardDatasetAlerts(
-            modes=[mode for mode in SubscriptionMode if (dataset, mode) in on]
+        dataset: DashboardDatasetSubscription(
+            channels=[c for c in SubscriptionChannel if (dataset, c) in on]
         )
         for dataset in Dataset
     }
@@ -121,8 +121,8 @@ def _row_to_response(
     """Map a dashboard row (aois + sections + widgets loaded) to the response.
 
     ``insights_by_id`` carries the pre-loaded insight rows the viewer may see;
-    widgets referencing anything else keep ``insight=None``. Alert settings
-    are included only for a viewer allowed to see them.
+    widgets referencing anything else keep ``insight=None``. Subscriptions are
+    included only for a viewer allowed to see them.
     """
     insights_by_id = insights_by_id or {}
     return DashboardResponse(
@@ -158,7 +158,11 @@ def _row_to_response(
             )
             for widget in row.widgets or []
         ],
-        alerts=_alerts_response(row) if _sees_alerts(row, viewer) else None,
+        subscriptions=(
+            _subscriptions_response(row)
+            if _sees_subscriptions(row, viewer)
+            else None
+        ),
     )
 
 
