@@ -2,7 +2,7 @@
 
 module "ecs_cluster" {
   source  = "terraform-aws-modules/ecs/aws//modules/cluster"
-  version = "6.3.0"
+  version = "6.12.0"
 
   name = local.prefix
 

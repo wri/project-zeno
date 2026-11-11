@@ -44,7 +44,7 @@ resource "aws_lb_listener" "api" {
 
 module "api" {
   source  = "terraform-aws-modules/ecs/aws//modules/service"
-  version = "6.3.0"
+  version = "6.12.0"
 
   name        = local.prefix
   cluster_arn = data.aws_ecs_cluster.shared.arn
