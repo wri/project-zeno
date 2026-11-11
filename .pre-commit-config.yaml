@@ -14,7 +14,7 @@ repos:
     # pins its own ruff (0.16.1, see evals/gold/pyproject.toml) so its CI
     # (gold-checks.yml) and local `uv run ruff check` there agree; running
     # this older version over it too would fight that pin.
-    rev: v0.7.3
+    rev: v0.17.4
     hooks:
       # Run the linter.
       - id: ruff
