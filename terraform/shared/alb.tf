@@ -3,7 +3,7 @@
 
 module "alb" {
   source  = "terraform-aws-modules/alb/aws"
-  version = "~> 9.0"
+  version = "~> 10.5"
 
   name               = local.prefix
   load_balancer_type = "application"
