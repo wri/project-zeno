@@ -26,6 +26,9 @@ from src.api.data_models import (
 )
 from src.api.repositories.dashboard_access import visible_dashboards_clause
 from src.api.repositories.insight_writer import add_insight_rows
+from src.api.repositories.subscription_eligibility import (
+    refresh_subscription_eligibility,
+)
 from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger
 from src.shared.tile_urls import relativize_widget_config
@@ -115,6 +118,7 @@ async def create_dashboard(
             )
             for position, aoi in enumerate(aois)
         )
+        await refresh_subscription_eligibility(session, dashboard.id)
 
         await session.commit()
         dashboard_id = str(dashboard.id)
@@ -141,6 +145,7 @@ async def get_dashboard(dashboard_id) -> Optional[DashboardOrm]:
                 selectinload(DashboardOrm.aois),
                 selectinload(DashboardOrm.sections),
                 selectinload(DashboardOrm.widgets),
+                selectinload(DashboardOrm.subscriptions),
             )
             .where(DashboardOrm.id == target)
         )
@@ -264,6 +269,7 @@ async def add_widget(
         )
         session.add(widget)
         try:
+            await refresh_subscription_eligibility(session, target)
             await session.commit()
         except IntegrityError as exc:
             if "uq_dashboard_widgets_dashboard_insight" not in str(exc.orig):
@@ -334,6 +340,7 @@ async def update_widget(
             widget.position = position
         if config is not None:
             widget.config = relativize_widget_config(config)
+        await refresh_subscription_eligibility(session, widget.dashboard_id)
         await session.commit()
 
     logger.info("dashboard_widget_updated", widget_id=str(target))
@@ -350,6 +357,7 @@ async def remove_widget(widget_id) -> bool:
         if widget is None:
             return False
         await session.delete(widget)
+        await refresh_subscription_eligibility(session, widget.dashboard_id)
         await session.commit()
 
     logger.info("dashboard_widget_removed", widget_id=str(target))
@@ -487,6 +495,7 @@ async def add_section_with_widgets(
             for position, (spec, insight) in enumerate(zip(widgets, insights))
         ]
         session.add_all(rows)
+        await refresh_subscription_eligibility(session, target)
         await session.commit()
 
         section_id = str(section.id)
@@ -561,6 +570,7 @@ async def remove_section(section_id, *, delete_widgets: bool = False) -> bool:
             )
 
         await session.delete(section)
+        await refresh_subscription_eligibility(session, section.dashboard_id)
         await session.commit()
 
     logger.info(

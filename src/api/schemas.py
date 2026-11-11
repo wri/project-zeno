@@ -16,6 +16,7 @@ from pydantic import (
 from typing_extensions import TypedDict
 
 from src.api.data_models import UserType
+from src.api.services.subscription import Dataset, SubscriptionChannel
 from src.api.user_profile_configs.countries import COUNTRIES
 from src.api.user_profile_configs.gis_expertise import GIS_EXPERTISE_LEVELS
 from src.api.user_profile_configs.languages import LANGUAGES
@@ -981,6 +982,11 @@ class DashboardWidgetResponse(BaseModel):
     insight: Optional[InsightResponse] = None
 
 
+class DashboardDatasetSubscription(BaseModel):
+    # Empty when nothing is on.
+    channels: List[SubscriptionChannel] = []
+
+
 class DashboardResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -989,6 +995,9 @@ class DashboardResponse(BaseModel):
     name: str
     description: Optional[str] = None
     is_public: bool
+    # Whether the owner can subscribe to notification emails: the dashboard
+    # has an integrated alerts widget.
+    eligible_for_subscription: bool = False
     created_at: datetime
     updated_at: datetime
     aois: List[DashboardAoiResponse] = []
@@ -996,6 +1005,19 @@ class DashboardResponse(BaseModel):
     # (`section_id`); ungrouped widgets render above the first section.
     sections: List[DashboardSectionResponse] = []
     widgets: List[DashboardWidgetResponse] = []
+    # The subscribed channels, per dataset. Only the owner and superusers
+    # get this; for anyone else the key is left out.
+    subscriptions: Optional[Dict[Dataset, DashboardDatasetSubscription]] = (
+        Field(default=None, exclude_if=lambda value: value is None)
+    )
+
+
+class DashboardSubscriptionsRequest(BaseModel):
+    """The channels to subscribe to for each listed dataset. An empty list
+    unsubscribes from them all."""
+
+    datasets: List[Dataset] = Field(min_length=1)
+    channels: List[SubscriptionChannel]
 
 
 class AnalysisTemplateResponse(BaseModel):
