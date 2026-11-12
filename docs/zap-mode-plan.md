@@ -1,8 +1,10 @@
 # Zap mode plan: extraction, history, undo and dashboards
 
 Status: proposal. Phase 1 (the map eval and its baseline) and phase 2
-(Clairic extraction and the full current state) are done. The other phases
-have no code.
+(Clairic extraction and the full current state) are done. Phase 3 is on a
+frontend branch. The backend part of phase 4 (the dashboard planner, tier 1
+additions) is done: see "8. Dashboard step contract" and "Phase 4 result".
+The other phases have no code.
 
 ## Goal
 
@@ -200,9 +202,10 @@ This needs the view registry of the low AI mode plan (phase 1, not merged).
 | 3 | Delete a dashboard, publish a dashboard, more than one area | Not in zap. A note sends the user to the page controls or to the assistant |
 
 A decision is clear when the probability of the selected option is at
-least 0.6 and at least 0.25 above the second option. For a Clairic field,
-`p_null` must be below 0.2 or above 0.8. These numbers are a first value.
-The eval sets them.
+least 0.7 and at least 0.25 above the second option. For a Clairic field,
+`p_null` must be below 0.2 or above 0.8. The first value of the minimum
+probability was 0.6. The dashboard dev part changed it to 0.7 (see "Phase
+4 result"). All the numbers are in `src/api/services/zap/tiers.py`.
 
 A confirmation is not only "yes" or "no". The preview shows the decision
 that is not clear with its top options as chips, for example "Which
@@ -226,7 +229,8 @@ step uses the dashboard endpoints that exist:
 | Step | Endpoint |
 |---|---|
 | `add_chart` | `POST /api/analyze`, then `POST /api/dashboards/{id}/widgets` with the insight |
-| `add_map`, `add_imagery` | `POST /api/dashboards/{id}/widgets`. The plan step holds the widget config |
+| `add_map` | `POST /api/dashboards/{id}/widgets`. The plan step holds the widget config |
+| `add_imagery` | `POST /mosaic/create/{source}/{src_id}`, then `POST /api/dashboards/{id}/widgets`. The plan step holds the widget config |
 | `add_template` | `POST /api/dashboards/{id}/sections/from-template` |
 | `add_section` | `POST /api/dashboards/{id}/sections` |
 | `move`, `resize` | `PATCH /api/dashboards/{id}/widgets/{widget_id}` |
@@ -238,6 +242,215 @@ These endpoints are for the owner only, so zap needs no new access rule
 and no new table. A plan with more than one step is not one transaction. If
 a step fails, the steps before it stay, and the trail row shows which step
 failed.
+
+### 8. Dashboard step contract
+
+This section is the contract between the dashboard planner (phase 4,
+backend) and the frontend that runs the steps. The models are in
+`src/api/services/zap/models.py`. All the new fields are optional, so the
+map client of phases 2 and 3 continues to work with no change.
+
+#### Request
+
+`POST /api/zap` with `current.page` set to `"dashboard"` and
+`current.dashboard_id` set to the id of the open dashboard:
+
+```json
+{
+  "prompt": "add a chart of tree cover loss since 2015",
+  "current": {
+    "page": "dashboard",
+    "dashboard_id": "5b0c4f9e-...",
+    "dataset_id": 4,
+    "start_date": "2015-01-01",
+    "end_date": "2025-12-31",
+    "context_layer": "primary_forest",
+    "canopy_cover": null
+  }
+}
+```
+
+- `page`: `"map"`, `"dashboard"` or absent. Absent is the map.
+- `dashboard_id`: necessary when `page` is `"dashboard"`.
+- The other fields are optional. On a dashboard, they are the data of the
+  last addition: send back `plan.state` of the last plan on the same
+  dashboard. Then "and a map of it" adds the same data. Do not send the
+  `area`: the planner always uses the first area of the dashboard.
+
+The planner reads the dashboard from the database. If the dashboard does
+not exist or the user is not its owner, the plan has no steps and one note.
+An admin gets no steps on the dashboard of another user.
+
+#### Plan
+
+| Field | Content |
+|---|---|
+| `steps` | Zero or one step on a dashboard. |
+| `decisions` | The decisions, as on the map. Each jev decision has `options` (up to three other options, best first, with no "keep" and no "none" option) and `clear`. A Clairic or code decision has `clear` and no `options`. |
+| `notes` | A note when the plan has no steps, or when a value changed (for example a canopy cover of 12% becomes 10%). Show the notes to the user. |
+| `state` | The state to send as `current` with the next request on this dashboard. It has the page, the dashboard id, the area of the dashboard, and the data of the addition. |
+| `tier` | 1: apply the steps immediately. 2: show the plan as a preview, and apply it only after the user confirms. Null when there are no steps. A map plan with steps has tier 0. |
+| `needs_confirmation` | True for tier 2. On the map, false. |
+
+A decision option is `{"label": "...", "probability": 0.15}`. The label of
+a dataset option is the dataset name, and the label of an area option is
+the area name. A selected option can go back to the planner as a new
+request, as in phase 3.
+
+For a tier 2 plan, the decisions with `clear: false` are the decisions to
+show with their `options`.
+
+#### Steps
+
+Each step has `kind`, `title`, `detail` and `args`. `title` and `detail`
+are short texts for the plan panel and the trail row. The frontend runs the
+step with `args` only. It needs no catalog lookup.
+
+**`add_chart`**: a chart of one dataset for the area of the dashboard.
+
+```json
+{
+  "kind": "add_chart",
+  "title": "Add chart: Tree cover loss",
+  "detail": "2015–2025 · primary forest · Pará, Brazil",
+  "args": {
+    "dashboard_id": "5b0c4f9e-...",
+    "dataset_name": "Tree cover loss",
+    "analyze": {
+      "aois": [{"source": "gadm", "src_id": "BRA.14_1", "subtype": "state-province"}],
+      "dataset_id": 4,
+      "start_date": "2015-01-01",
+      "end_date": "2025-12-31",
+      "context_layer": "primary_forest",
+      "canopy_cover": null
+    },
+    "widget": {"widget_type": "insight", "insight_id": null, "config": {"default_view": "chart"}}
+  }
+}
+```
+
+1. Send `args.analyze` as the body of `POST /api/analyze`. Do not send a
+   `thread_id`.
+2. Poll `GET /api/jobs/{id}` until the job is `completed` or `failed`, as
+   `ZapRunner` does for the map chart step.
+3. Get the insight id from the `resource_url` of the job resource
+   (`/api/insights/{id}`).
+4. Set `args.widget.insight_id` to the insight id. Send `args.widget` as
+   the body of `POST /api/dashboards/{dashboard_id}/widgets`.
+
+The dates are already in the range of the dataset.
+
+**`add_map`**: a map layer of one dataset.
+
+```json
+{
+  "kind": "add_map",
+  "title": "Add map: Tree cover loss due to fires",
+  "detail": "2001–2025 · Pará, Brazil",
+  "args": {
+    "dashboard_id": "5b0c4f9e-...",
+    "dataset_name": "Tree cover loss due to fires",
+    "widget": {
+      "widget_type": "map",
+      "insight_id": null,
+      "config": {
+        "default_view": "map",
+        "dataset": {"dataset_id": 10, "dataset_name": "...", "tile_url": "...", "context_layer": null, "selected_layer": null, "context_layers": [], "parameters": null, "layers": null, "start_date": "2001-01-01", "end_date": "2025-12-31"}
+      }
+    }
+  }
+}
+```
+
+Send `args.widget` as the body of
+`POST /api/dashboards/{dashboard_id}/widgets`. `config.dataset` is the
+snapshot of `widget_configs.dataset_config`, the same snapshot that the
+`add_map_widget` tool and the analysis templates write.
+
+**`add_template`**: a section from an analysis template.
+
+```json
+{
+  "kind": "add_template",
+  "title": "Add section: Tree cover loss and its drivers",
+  "detail": "the loss each year since 2001, its causes, and a map of the drivers",
+  "args": {"dashboard_id": "5b0c4f9e-...", "template": "forest-loss-drivers", "args": {}}
+}
+```
+
+Send `{"template": args.template, "args": args.args}` as the body of
+`POST /api/dashboards/{dashboard_id}/sections/from-template`. The request
+takes tens of seconds. The response has the new section, its widgets and
+`warnings`. Show the warnings. The templates are `nrt-monitoring`,
+`post-2020-forest-loss` and `forest-loss-drivers`.
+
+**`add_imagery`**: a Sentinel-2 imagery map.
+
+```json
+{
+  "kind": "add_imagery",
+  "title": "Add imagery: Sentinel-2",
+  "detail": "around 2025-03-16 · ±15 days · ≤10% clouds · Pará, Brazil",
+  "args": {
+    "dashboard_id": "5b0c4f9e-...",
+    "mosaic": {"source": "gadm", "src_id": "BRA.14_1", "target_date": "2025-03-16", "window_days": 15, "max_cloud_cover": 10, "max_items": 50},
+    "widget": {
+      "widget_type": "map",
+      "insight_id": null,
+      "config": {
+        "default_view": "map",
+        "imagery": {"provider": "sentinel-2", "tile_url": "...", "tilejson_url": "...", "mosaic_id": "eyJh...", "target_date": "2025-03-16", "window_days": 15, "max_cloud_cover": 10, "aoi_names": ["Pará, Brazil"]}
+      }
+    }
+  }
+}
+```
+
+1. Send `POST /mosaic/create/{mosaic.source}/{mosaic.src_id}` with the
+   query `target_date`, `window_days`, `max_cloud_cover` and `max_items`
+   from `args.mosaic`. This builds the mosaic.
+2. If the call fails (404: no scenes, 422: the area is too large), stop
+   the step and show the error. Do not add the widget.
+3. Add the statistics of the response to `args.widget.config.imagery`:
+   `item_count`, `start_date` (from `date_start`), `end_date` (from
+   `date_end`), `mean_cloud_cover`, `min_cloud_cover` and
+   `max_cloud_cover_observed` (from `max_cloud_cover`).
+4. Send `args.widget` as the body of
+   `POST /api/dashboards/{dashboard_id}/widgets`.
+
+The planner computes `mosaic_id`, `tile_url` and `tilejson_url` from the
+same recipe as the mosaic service. Thus the `mosaic_id` of the response
+is the same as `config.imagery.mosaic_id`. If it is different, the tile
+URLs in the config are wrong: stop the step and do not add the widget.
+
+The imagery dates: with no time in the request, the target date is today
+and the window is 30 days. For a period that runs to today ("recent",
+"the last 2 weeks"), the target date is today and the window is the length
+of the period, from 7 to 30 days. For a period in the past, the target date
+is the middle day and the window is half the period, from 7 to 183 days.
+The maximum cloud cover is the `cloud` value of Clairic, else 20.
+
+#### No steps
+
+The plan has no steps and one note when:
+
+- The dashboard does not exist, or the user is not its owner.
+- The dashboard has no area.
+- jev selects `edit` (move, resize, rename, remove, delete, change a
+  period, write a note, publish) or `none`.
+- The request is about more than one area, or the parts of an area.
+- `add_chart` or `add_map` with no dataset in the request and none in
+  `current`.
+- `add_template` with no template that fits.
+- `add_imagery` for a time before Sentinel-2 (June 2015).
+
+#### The `action` question
+
+jev gets the `action` question in its first call on a dashboard page. The
+options are `add_chart`, `add_map`, `add_template`, `add_imagery`, `edit`
+and `none`. The `edit` option is not in section 5. It catches the actions
+that phase 4 does not have, so that jev does not select an addition for
+them. `edit` and `none` give no steps.
 
 ## Eval
 
@@ -425,6 +638,112 @@ words such as "Indian reservation" and "community land", and English
 names before `search_aois`. Add dev cases for each before a change, because
 t-30 and t-31 are in the test part.
 
+## Phase 4 result
+
+The backend part of phase 4 ran on 2026-11-12 with jev `typesafe/jev-1.13`
+and Clairic `cloudflare/clairic`. The dashboard set is in
+`tests/evals/zap/` (`dashboards.yaml`, `dashboard-dev.yaml` with 32 cases,
+`dashboard-test.yaml` with 32 cases). `tests/evals/zap/README.md` gives the
+scoring rules. The texts of the `action` options and the thresholds were
+tuned on the dev part only. The test part ran one time, after the tuning.
+The raw results are in `tests/evals/zap/results/`:
+`2026-11-12-dashboard-dev-phase4-v3.json` (the last dev run) and
+`2026-11-12-dashboard-test-phase4.json`.
+
+Correct values for each field:
+
+| Field | Dev | Test | Total |
+|---|---|---|---|
+| Action (also "no steps") | 30/32 | 32/32 | 62/64 (97%) |
+| Dataset | 13/13 | 14/15 | 27/28 |
+| Time | 16/16 | 16/18 | 32/34 |
+| Forest type | 8/8 | 11/11 | 19/19 |
+| Canopy cover | 9/9 | 10/10 | 19/19 |
+| Template | 2/2 | 4/4 | 6/6 |
+| Cloud cover | 3/3 | 3/3 | 6/6 |
+| Confirmation as expected | 18/19 | 19/22 | 37/41 |
+| All fields of a case | 30/32 | 27/32 | 57/64 (89%) |
+| Median time of a plan | 512 ms | 414 ms | |
+
+The additions:
+
+| | Dev | Test | Total |
+|---|---|---|---|
+| Plans with an addition | 19 | 22 | 41 |
+| Wrong additions | 1 | 3 | 4 |
+| **Wrong additions applied with no confirmation** | **0** | **2** | **2** |
+| Correct additions held for a confirmation that is not necessary | 0 | 1 | 1 |
+| Requests that must add nothing, with no steps | 12/12 | 10/10 | 22/22 |
+
+All 22 requests that must add nothing got no steps: the actions of a later
+phase (remove, move, rename, resize, change a period, delete, publish, a
+note), the greetings and questions, and the requests for more than one
+area.
+
+The cases that fail:
+
+| Case | Field | Cause | Confirmation |
+|---|---|---|---|
+| dd-14 | Action | "add the analysis of natural forest loss since 2021": jev selects `add_chart` (0.55), not `add_template` (0.45). The chart is tree cover loss in natural forest since 2021, which is near to the request | Yes |
+| dd-30 | Action | "tree cover loss" alone: jev selects `none` (0.77). No steps, so nothing wrong is added | |
+| dt-10 | Time | "the last month": Clairic gives 2026-10-01 to 2026-10-12. The same failure as t-30 of the map set | **No** |
+| dt-18 | Time | "December 2024 to February 2025": the month rule takes one year only. The same failure as t-31 of the map set. The imagery is around 2025-01-01, ±32 days, which is near to the request | **No** |
+| dt-32 | Dataset | "and a chart of it at 10% canopy" after tree cover loss: jev selects tree cover (2000), probability 0.63 | Yes |
+| dt-03 | Confirmation | "a chart of the integrated alerts in October 2026": correct, but the action probability is 0.62 | Yes, not necessary |
+| dt-29 | Confirmation | "deforestation": correct (a tree cover loss chart), but with no confirmation. The case expects one, because the request does not say chart or map | No |
+
+The two wrong additions with no confirmation are time errors of Clairic
+and of the month rule. The tiers do not catch them, because Clairic is sure
+of its wrong value. The fixes of the map set for "last month" and for a
+range of months over two years (see "Phase 2 result") also fix these
+cases.
+
+What the dev part changed:
+
+1. Run 1 (the first texts, minimum probability 0.6): one wrong addition
+   with no confirmation (dd-14, action 0.71 and 0.28). The action labels
+   were longer than 80 characters, so the panel cut them.
+2. Run 2: shorter action texts (at most 77 characters), and the
+   `add_template` text names the three sections. dd-14 dropped to 0.60
+   and needed a confirmation. "something about fires" (dd-31) was at 0.62
+   and needed no confirmation.
+3. Run 3: minimum probability 0.7. dd-31 needs a confirmation. All
+   correct additions of the dev part stayed at tier 1.
+
+The map set after the change (raw results
+`tests/evals/zap/results/2026-11-12-dev-phase4.json` and
+`2026-11-12-test-phase4.json`):
+
+| Field | Phase 4 total | Phase 2 total |
+|---|---|---|
+| Dataset | 104/104 | 104/104 |
+| Area | 99/104 | 99/104 |
+| Time | 97/101 | 97/101 |
+| Context layer | 74/76 | 74/76 |
+| Canopy cover | 62/62 | 62/62 |
+| No change | 9/9 | 9/9 |
+| All fields of a case | 93/104 | 93/104 |
+| Median time of a plan | 810 ms, 808 ms | 695 ms, 659 ms |
+
+The same cases fail as in phase 2. The map path makes no new call: it only
+adds `options`, `clear`, `tier` and `needs_confirmation` to the plan. The
+median time is higher than in phase 2. The cause is not known. The
+dashboard runs of the same hour, which make the same kind of calls, had a
+median of 414 ms to 512 ms.
+
+`add_imagery` is in phase 4. An imagery widget needs a mosaic that exists.
+The mosaic id is a token of the recipe (the area, the date, the window, the
+cloud cover and the number of scenes), so the planner can compute the id
+and the tile URLs with no server change. The frontend builds the mosaic
+with `POST /mosaic/create/{source}/{src_id}` before it adds the widget. A
+unit test checks that the token of the planner is the same as the token of
+the endpoint. The eval did not build a mosaic, and no live run sent a step
+to the dashboard endpoints.
+
+Not tested: the planner with a dashboard from the database
+(`load_dashboard`) is tested with a fake row only. No run used a real
+dashboard.
+
 ## Phases
 
 Each phase is one or more PRs and can ship alone behind `ff=zap`.
@@ -433,8 +752,8 @@ Each phase is one or more PRs and can ship alone behind `ff=zap`.
 |---|---|---|
 | 1 (done, 2026-11-12) | Map eval set and script. Baseline of zap today | The baseline numbers are in this document (see "Baseline") |
 | 2 (done, 2026-11-12) | `extract.py` with the jev fallback. Full `ZapCurrent`. `state` in the plan | The map set is better than the baseline on time and area, and not worse on dataset, context layer and canopy cover |
-| 3 | History trail in the browser, with its row limit, and undo on the map (frontend). Top options in the decisions | A follow-up request keeps the earlier settings; undo and row selection restore the map |
-| 4 | Zap on dashboards, tier 1 additions: `action` question, the dashboard steps in the frontend, the dashboard trail | A request adds a chart, a map, a template or imagery to a dashboard, and the trail shows the edit |
+| 3 | History trail in the browser, with its row limit, and undo on the map (frontend). Top options in the decisions (the backend sends them since phase 4) | A follow-up request keeps the earlier settings; undo and row selection restore the map |
+| 4 (backend done, 2026-11-12) | Zap on dashboards, tier 1 additions: `action` question, the dashboard steps in the frontend, the dashboard trail. Backend: the dashboard planner, the step contract ("8. Dashboard step contract"), `tier`, `needs_confirmation` and the top options of the decisions, the dashboard eval set | A request adds a chart, a map, a template or imagery to a dashboard, and the trail shows the edit |
 | 5 | Tier 1 layout edits and tier 2 edits: `target` question, preview and confirmation, thresholds from the dashboard set | No wrong removal is applied with no confirmation in the dashboard set; "remove that" after an addition removes the added widget |
 | 6 | `view` question, after the view registry merges | `add_chart` can select each view of a dataset |
 
