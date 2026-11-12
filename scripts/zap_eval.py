@@ -304,8 +304,28 @@ async def run_case(case: dict, today: date) -> dict:
         "scores": scores,
         "latency_ms": latency_ms,
         "error": error,
-        "plan": plan.model_dump() if plan else None,
+        "plan": slim_plan(plan.model_dump()) if plan else None,
     }
+
+
+# The keys of a dataset step that the results file keeps. The other keys are
+# the long catalog texts of the dataset.
+DATASET_KEYS = (
+    "dataset_id",
+    "dataset_name",
+    "start_date",
+    "end_date",
+    "context_layer",
+    "parameters",
+    "tile_url",
+)
+
+
+def slim_plan(plan: dict) -> dict:
+    for step in plan["steps"]:
+        if step["kind"] == "dataset":
+            step["args"] = {k: step["args"].get(k) for k in DATASET_KEYS}
+    return plan
 
 
 class _NoPlan:
