@@ -1,7 +1,8 @@
-"""Turn one request on a dashboard page into a plan of additions, with no
-agent.
+"""Turn one request on a dashboard page into a plan of additions or edits,
+with no agent.
 
-Phase 4 of docs/zap-mode-plan.md, tier 1 additions only. The planner
+Phase 4 of docs/zap-mode-plan.md (tier 1 additions) and phase 5 (layout
+edits and tier 2 edits, in `edits.py`). The planner
 changes nothing on the server: it returns steps, and the frontend runs each
 step through a dashboard endpoint that exists. The step contract is in the
 plan document ("Dashboard step contract") and in `models.py`.
@@ -18,24 +19,20 @@ Three calls start at the same time:
 For `add_chart` and `add_map`, jev call 2 selects the forest type of the
 dataset (and the canopy cover, when call A failed).
 
-An action that this phase does not have (move, resize, rename, change a
-period, remove, delete, publish, a note) gives no steps and a note, and so
-does a request for more than one area. Each decision has a `clear` flag
-(`tiers.py`). A plan with a decision that is not clear is tier 2 and needs
-a confirmation.
+An edit (`add_section`, `move`, `resize`, `rename`, `change_period`,
+`remove`) goes to `edits.plan_edit`, which asks jev call 2 for the target.
+An action that zap does not have (delete, publish, a note) gives no steps
+and a note, and so does a request for more than one area. Each decision has
+a `clear` flag (`tiers.py`). A plan with a decision that is not clear is
+tier 2 and needs a confirmation.
 """
 
 import asyncio
 import math
-from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Optional
 
-from sqlalchemy import select
-
-from src.api.data_models import InsightChartOrm
-from src.api.repositories import dashboard_writer
-from src.api.services.dashboard_aoi import dashboard_aoi
+from src.api.repositories import dashboard_writer  # noqa: F401 - tests
 from src.api.services.mosaic import (
     MosaicRecipe,
     MosaicResult,
@@ -43,6 +40,15 @@ from src.api.services.mosaic import (
 )
 from src.api.services.widget_configs import dataset_config, widget_config
 from src.api.services.zap import options as o
+from src.api.services.zap.board import (  # noqa: F401 - re-exported
+    BoardSection,
+    BoardWidget,
+    ZapDashboard,
+    load_dashboard,
+    widget_label,
+)
+from src.api.services.zap.edits import apply_choose, plan_edit
+from src.api.services.zap.edits import decision as edit_decision
 from src.api.services.zap.extract import (
     NumberExtraction,
     Range,
@@ -79,7 +85,6 @@ from src.api.services.zap.planner import (
     _value_decision,
 )
 from src.api.services.zap.tiers import dashboard_tier
-from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -101,9 +106,8 @@ NOTE_NOT_EDITABLE = (
 )
 NOTE_NO_AREA = "The dashboard has no area. Add an area to the dashboard first."
 NOTE_EDIT = (
-    "Zap can only add content to a dashboard. To move, resize, rename or "
-    "remove content, or to publish the dashboard, use the page controls or "
-    "ask the assistant."
+    "Zap cannot delete or publish a dashboard, or write a note. Use the "
+    "page controls, or ask the assistant."
 )
 NOTE_NONE = "Zap found nothing to add to the dashboard."
 NOTE_SCOPE = (
@@ -122,83 +126,6 @@ NOTE_OLD_IMAGERY = (
 )
 
 
-@dataclass
-class ZapDashboard:
-    """What the planner needs from a dashboard: its id, its name, its first
-    area, and short texts for its sections and widgets for the jev state."""
-
-    id: str
-    name: str
-    area: Optional[ZapArea]
-    sections: list[str] = field(default_factory=list)
-    widgets: list[str] = field(default_factory=list)
-
-
-def _widget_text(widget, chart_titles: dict) -> str:
-    config = widget.config or {}
-    title = config.get("title")
-    if widget.widget_type == "insight":
-        return f"chart: {title or chart_titles.get(widget.insight_id) or 'untitled'}"
-    if widget.widget_type == "map":
-        if config.get("imagery"):
-            return f"map: {title or 'Sentinel-2 imagery'}"
-        dataset = (config.get("dataset") or {}).get("dataset_name")
-        return f"map: {title or dataset or 'layer'}"
-    if widget.widget_type == "alerts":
-        return "alerts list"
-    return widget.widget_type
-
-
-async def _chart_titles(insight_ids: list) -> dict:
-    """The title of the first chart of each insight."""
-    if not insight_ids:
-        return {}
-    async with get_session_from_pool() as session:
-        rows = await session.execute(
-            select(InsightChartOrm.insight_id, InsightChartOrm.title)
-            .where(InsightChartOrm.insight_id.in_(insight_ids))
-            .order_by(InsightChartOrm.position)
-        )
-        titles: dict = {}
-        for insight_id, title in rows.all():
-            titles.setdefault(insight_id, title)
-        return titles
-
-
-async def load_dashboard(
-    dashboard_id: Optional[str], user_id: str
-) -> Optional[ZapDashboard]:
-    """The dashboard, or None when it does not exist or the user is not its
-    owner. Zap edits only the dashboards of the user, also for an admin."""
-    if not dashboard_id:
-        return None
-    row = await dashboard_writer.get_dashboard(dashboard_id)
-    if row is None or row.user_id != user_id:
-        return None
-    aoi = dashboard_aoi(row)
-    widgets = sorted(row.widgets or [], key=lambda w: w.position)
-    titles = await _chart_titles(
-        [w.insight_id for w in widgets if w.insight_id]
-    )
-    return ZapDashboard(
-        id=str(row.id),
-        name=row.name,
-        area=ZapArea(
-            name=aoi["name"],
-            source=aoi["source"],
-            src_id=str(aoi["src_id"]),
-            subtype=aoi["subtype"],
-        )
-        if aoi
-        else None,
-        sections=[
-            s.title
-            for s in sorted(row.sections or [], key=lambda s: s.position)
-        ],
-        widgets=[_widget_text(w, titles) for w in widgets],
-    )
-
-
 def _state_lines(
     dashboard: ZapDashboard, current: ZapCurrent
 ) -> dict[str, str]:
@@ -210,6 +137,19 @@ def _state_lines(
     }
     if current.dataset_id in CATALOG:
         lines["Last added data"] = CATALOG[current.dataset_id]["dataset_name"]
+    last_widgets = set(current.last_widget_ids or [])
+    last_sections = set(current.last_section_ids or [])
+    last = [
+        widget_label(dashboard, w)
+        for w in dashboard.widget_items
+        if w.id in last_widgets
+    ] + [
+        f'Section "{s.title}"'
+        for s in dashboard.section_items
+        if s.id in last_sections
+    ]
+    if last:
+        lines["Last edit"] = "; ".join(last)
     return lines
 
 
@@ -217,6 +157,29 @@ def _no_steps(
     current: ZapCurrent, decisions: list[ZapDecision], notes: list[str]
 ) -> ZapPlan:
     return ZapPlan(steps=[], decisions=decisions, notes=notes, state=current)
+
+
+def _time(
+    time_x, answers: dict[str, Answer], first: dict[str, Question], today: date
+) -> tuple[Optional[Range], Optional[ZapDecision]]:
+    """The time of the request: Clairic (or a calendar rule), else the jev
+    period. None when the request names no time."""
+    if isinstance(time_x, TimeExtraction):
+        return time_x.range, _value_decision(
+            "period",
+            _range_label(time_x.range)
+            if time_x.range is not None
+            else "The request names no time",
+            time_x.probability,
+            time_x.source,
+        )
+    period = answers.get("period")
+    if period is None:
+        return None, None
+    requested = None
+    if period.choice != o.KEEP and period.probability >= PERIOD_THRESHOLD:
+        requested = o.period_range(period.choice, today)
+    return requested, _decision("period", first["period"], period)
 
 
 def _imagery_window(rng: Optional[Range], today: date) -> tuple[date, int]:
@@ -303,6 +266,7 @@ async def plan_dashboard(
     user_id: str,
     today: date,
     dashboard: Optional[ZapDashboard] = None,
+    choose: Optional[dict[str, str]] = None,
 ) -> ZapPlan:
     if dashboard is None:
         dashboard = await load_dashboard(current.dashboard_id, user_id)
@@ -358,13 +322,42 @@ async def plan_dashboard(
         logger.warning("zap_clairic_time_failed", error=str(time_x))
 
     decisions: list[ZapDecision] = []
+    chosen = apply_choose(answers, first, choose)
     action_answer = answers.get("action")
     action = action_answer.choice if action_answer else o.NONE
     if action_answer:
-        decisions.append(_decision("action", first["action"], action_answer))
-    # The decisions that the addition depends on, for the tier.
+        decisions.append(
+            edit_decision(
+                "action",
+                first["action"],
+                action_answer,
+                chosen="action" in chosen,
+            )
+        )
+    # The decisions that the plan depends on, for the tier.
     used: list[ZapDecision] = list(decisions)
 
+    requested: Optional[Range] = None
+    if action in o.EDIT_ACTIONS:
+        if action == "change_period":
+            requested, time_decision = _time(time_x, answers, first, today)
+            if time_decision:
+                decisions.append(time_decision)
+                used.append(time_decision)
+        return await plan_edit(
+            action,
+            dashboard,
+            area,
+            current,
+            state,
+            decide,
+            numbers_x if isinstance(numbers_x, NumberExtraction) else None,
+            requested,
+            decisions,
+            used,
+            choose,
+            today,
+        )
     if action not in o.ADD_ACTIONS:
         return _no_steps(
             current, decisions, [NOTE_EDIT if action == "edit" else NOTE_NONE]
@@ -375,28 +368,8 @@ async def plan_dashboard(
         return _no_steps(current, decisions, [NOTE_SCOPE])
 
     # The time: Clairic (or a calendar rule), else the jev period.
-    requested: Optional[Range] = None
-    time_decision: Optional[ZapDecision] = None
     if action != "add_template":
-        if clairic_time:
-            assert isinstance(time_x, TimeExtraction)
-            requested = time_x.range
-            time_decision = _value_decision(
-                "period",
-                _range_label(time_x.range)
-                if time_x.range is not None
-                else "The request names no time",
-                time_x.probability,
-                time_x.source,
-            )
-        elif "period" in answers:
-            period = answers["period"]
-            time_decision = _decision("period", first["period"], period)
-            if (
-                period.choice != o.KEEP
-                and period.probability >= PERIOD_THRESHOLD
-            ):
-                requested = o.period_range(period.choice, today)
+        requested, time_decision = _time(time_x, answers, first, today)
         if time_decision:
             decisions.append(time_decision)
             used.append(time_decision)

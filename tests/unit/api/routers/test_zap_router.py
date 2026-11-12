@@ -16,7 +16,7 @@ from src.api.services.zap.models import ZapPlan
 def _client(
     user_type: UserType, monkeypatch, sent: list | None = None
 ) -> TestClient:
-    async def fake_plan(prompt, current, user_id):
+    async def fake_plan(prompt, current, user_id, choose=None):
         if sent is not None:
             sent.append((current, user_id))
         return ZapPlan(steps=[], decisions=[], notes=[])

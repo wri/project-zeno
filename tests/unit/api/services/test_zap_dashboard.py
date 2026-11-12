@@ -373,6 +373,8 @@ async def test_load_dashboard_is_for_the_owner_only(monkeypatch):
         position=0,
     )
     widget = SimpleNamespace(
+        id="w1",
+        section_id=None,
         widget_type="map",
         position=0,
         insight_id=None,
@@ -383,7 +385,7 @@ async def test_load_dashboard_is_for_the_owner_only(monkeypatch):
         user_id="owner",
         name="Pará forest",
         aois=[aoi],
-        sections=[SimpleNamespace(title="Overview", position=0)],
+        sections=[SimpleNamespace(id="s1", title="Overview", position=0)],
         widgets=[widget],
     )
 

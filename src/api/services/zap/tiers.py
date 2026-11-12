@@ -10,9 +10,11 @@ thresholds are here, so that the dashboard eval can tune them in one place.
   above CLAIRIC_P_NULL_HIGH: the model is sure that the request names the
   value, or sure that it does not.
 
-Tiers: 0 is a map change, 1 is a dashboard addition, 2 is a dashboard
-addition with a decision that is not clear. A tier 2 plan needs a
-confirmation. The map path does not use the confirmation: undo takes a map
+Tiers: 0 is a map change, 1 is a dashboard addition or layout edit
+(`add_section`, `move`, `resize`, `rename`), 2 is a dashboard plan that
+needs a confirmation: a decision that is not clear, a removal or a new
+period (ALWAYS_CONFIRM), or an edit of more than one widget
+(MAX_TIER1_WIDGETS). The map path does not use the confirmation: undo takes a map
 change back.
 """
 
@@ -25,6 +27,12 @@ CLAIRIC_P_NULL_HIGH = 0.8
 
 # The other options that a decision carries for a one-click correction.
 TOP_OPTIONS = 3
+
+# The dashboard actions that always need a confirmation: a removal and a
+# new period lose what the dashboard shows, and a dashboard has no undo.
+ALWAYS_CONFIRM = ("change_period", "remove")
+# A plan that changes more widgets than this needs a confirmation.
+MAX_TIER1_WIDGETS = 1
 
 TIER_MAP = 0
 TIER_ADDITION = 1
@@ -54,9 +62,16 @@ def clairic_clear(probability: float) -> bool:
     return p_null < CLAIRIC_P_NULL_LOW or p_null > CLAIRIC_P_NULL_HIGH
 
 
-def dashboard_tier(clear: Iterable[Optional[bool]]) -> int:
-    """The tier of a dashboard addition, from the `clear` flags of the
-    decisions that the addition depends on. None counts as clear."""
+def dashboard_tier(
+    clear: Iterable[Optional[bool]],
+    action: Optional[str] = None,
+    changed_widgets: int = 0,
+) -> int:
+    """The tier of a dashboard plan, from the `clear` flags of the
+    decisions that the plan depends on (None counts as clear), the action,
+    and the number of widgets that exist and that the plan changes."""
+    if action in ALWAYS_CONFIRM or changed_widgets > MAX_TIER1_WIDGETS:
+        return TIER_CONFIRM
     return (
         TIER_CONFIRM if any(flag is False for flag in clear) else TIER_ADDITION
     )

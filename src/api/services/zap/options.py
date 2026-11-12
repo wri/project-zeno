@@ -129,14 +129,16 @@ def period_range(
 
 ACTION_INSTRUCTIONS = (
     "What does the user want to do on the dashboard? Pick an 'add' option "
-    "only when the request asks for new content. Pick 'edit' when the "
-    "request asks to change, move, resize, rename, remove or delete what is "
-    "there, to write a note, or to publish or share the dashboard. Pick "
-    f"'{NONE}' when the request asks for nothing on the dashboard."
+    "when the request asks for new content. Pick 'change_period' only when "
+    "the request asks to change a widget that is there, not to add one. "
+    "'That', 'it' or 'this' can mean the item of the last edit. Pick 'edit' "
+    f"for a change that no other option gives. Pick '{NONE}' when the "
+    "request asks for nothing on the dashboard."
 )
 
 # Short, uniform texts, in the form of the dataset cards: what the user
-# gets, then what it shows.
+# gets, then what it shows. At most 77 characters, so the panel does not
+# cut them. The texts of the additions are the texts of phase 4.
 ACTIONS: dict[str, str] = {
     "add_chart": "Add a chart: one dataset for the dashboard area, with its "
     "numbers",
@@ -145,13 +147,61 @@ ACTIONS: dict[str, str] = {
     "loss, or loss drivers",
     "add_imagery": "Add satellite imagery: a Sentinel-2 image of the area "
     "near a date",
-    "edit": "Change the dashboard: move, resize, rename, remove, re-date, "
-    "note, publish",
+    "add_section": "Add an empty section with no content, called a name that "
+    "the user writes",
+    "move": "Move a widget into a section, or out of its section",
+    "resize": "Make a widget wider or narrower: half width or full width",
+    "rename": "Rename the dashboard or a section to a name the user writes",
+    "change_period": "Change the dates of a chart or a map that is there, "
+    "with no new widget",
+    "remove": "Remove a widget or a section from the dashboard",
+    "edit": "Another change: delete or publish the dashboard, write a note",
     NONE: "Nothing on the dashboard: a question, a greeting, or another "
     "subject",
 }
 
 ADD_ACTIONS = ("add_chart", "add_map", "add_template", "add_imagery")
+# The edits of phase 5 that need the `target` question.
+TARGET_ACTIONS = ("move", "resize", "rename", "change_period", "remove")
+EDIT_ACTIONS = ("add_section", *TARGET_ACTIONS)
+
+# The `target` question. The options are the widgets and the sections of
+# the dashboard (and the dashboard itself for `rename`), and "none".
+TARGET_INSTRUCTIONS = {
+    "move": "Which widget does the user want to move?",
+    "resize": "Which widget does the user want to make wider or narrower?",
+    "rename": "What does the user want to rename: the dashboard or a section?",
+    "change_period": "Which chart or map should show other dates?",
+    "remove": "Which widget or section does the user want to remove?",
+}
+TARGET_RULES = (
+    " 'That', 'it' or 'this' means the item of the last edit. Pick "
+    f"'{NONE}' when no option is the item that the request names."
+)
+TARGET_NONE = "None of these: the request names an item that is not here"
+
+DESTINATION_INSTRUCTIONS = (
+    "Where does the user want to move the widget? Pick 'top' for the top "
+    f"level, outside all sections. Pick '{NONE}' when the request names a "
+    "place that is not here."
+)
+DESTINATION_TOP = "The top level of the dashboard, outside all sections"
+
+SIZE_INSTRUCTIONS = "Which width does the user want for the widget?"
+SIZES = {
+    "single": "Half width: one column, smaller, narrower",
+    "double": "Full width: two columns, larger, wider, the whole row",
+}
+
+WIDGETS_INSTRUCTIONS = (
+    "If the user removes a section, what happens to the widgets in it? "
+    "Pick 'with_widgets' only when the request says to remove its content "
+    "too, e.g. 'with its charts' or 'and everything in it'."
+)
+WIDGETS_CHOICES = {
+    "keep_widgets": "Keep its widgets: move them out of the section",
+    "with_widgets": "Remove its widgets with the section",
+}
 
 TEMPLATE_INSTRUCTIONS = (
     "Which ready-made section does the request ask for? "

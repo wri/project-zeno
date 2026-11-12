@@ -75,6 +75,14 @@ CLOUD = (
     "under 5%'. Other percentages are not the cloud cover."
 )
 
+TITLE = (
+    "The new name or heading that the request gives, in the words of the "
+    "user, e.g. 'Fire season' in 'rename the section to Fire season' or "
+    "'Deforestation' in 'add a section called Deforestation'. Only a name "
+    "that the request writes out; the data or the widget that the request "
+    "names is not a new name."
+)
+
 CALL_A = {
     "place": {"type": "text", "instructions": PLACE},
     "canopy": {"type": "number", "unit": "percent", "instructions": CANOPY},
@@ -84,6 +92,7 @@ CALL_A = {
 CALL_A_DASHBOARD = {
     "canopy": {"type": "number", "unit": "percent", "instructions": CANOPY},
     "cloud": {"type": "number", "unit": "percent", "instructions": CLOUD},
+    "title": {"type": "text", "instructions": TITLE},
 }
 CALL_B = {
     "when": {"type": "text", "instructions": WHEN},
@@ -121,6 +130,9 @@ class NumberExtraction:
     cloud: Optional[float]
     cloud_probability: float
     answers: dict[str, Any] = field(default_factory=dict)
+    # A new name for the dashboard or a section, in the words of the user.
+    title: Optional[str] = None
+    title_probability: float = 0.0
 
 
 @dataclass
@@ -234,8 +246,8 @@ def _percent(answer: Optional[dict]) -> Optional[float]:
 
 
 async def extract_numbers(prompt: str) -> NumberExtraction:
-    """Call A on a dashboard: the canopy cover and the cloud cover, from
-    the request only."""
+    """Call A on a dashboard: the canopy cover, the cloud cover and a new
+    name, from the request only."""
     answers = await extract_fields(prompt, CALL_A_DASHBOARD)
     return NumberExtraction(
         canopy=_percent(answers["canopy"]),
@@ -243,7 +255,26 @@ async def extract_numbers(prompt: str) -> NumberExtraction:
         cloud=_percent(answers["cloud"]),
         cloud_probability=_probability(answers["cloud"]),
         answers=answers,
+        title=user_title(_text(answers["title"]), prompt),
+        title_probability=_probability(answers["title"]),
     )
+
+
+TITLE_MAX_LENGTH = 100
+
+
+def user_title(value: Optional[str], prompt: str) -> Optional[str]:
+    """The new name, if it is the words of the user: with no quotes and no
+    end mark, and in the request (case does not matter). Zap writes no
+    text, so a name that is not in the request is no name."""
+    if not value:
+        return None
+    title = value.strip().strip("\"'“”‘’`.!? ")
+    if not title or len(title) > TITLE_MAX_LENGTH:
+        return None
+    if title.lower() not in re.sub(r"\s+", " ", prompt).lower():
+        return None
+    return title
 
 
 async def extract_place(prompt: str) -> PlaceExtraction:

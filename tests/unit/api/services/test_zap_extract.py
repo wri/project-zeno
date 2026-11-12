@@ -102,6 +102,24 @@ def test_a_month_range_with_a_year_before_the_months_uses_the_model():
     assert x.month_range("2024 December to February 2025", TODAY) is None
 
 
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("Fire season", "Fire season"),
+        ("'Fire season'", "Fire season"),
+        ("“Fire season”.", "Fire season"),
+        ("fire SEASON", "fire SEASON"),  # case does not matter
+        ("Fires and floods", None),  # not the words of the user
+        ("", None),
+        (None, None),
+        ("x" * 101, None),
+    ],
+)
+def test_user_title(value, expected):
+    prompt = "rename the section to 'Fire season'. " + "x" * 101
+    assert x.user_title(value, prompt) == expected
+
+
 def test_relative_month_keeps_the_month_end():
     assert x.relative_range("last month", date(2026, 3, 31)) is None
     assert x.relative_range("the last 1 month", date(2026, 3, 31)) == (
@@ -374,11 +392,13 @@ async def test_dashboard_numbers_have_no_place(answers):
         {
             "canopy": _answer(None, p_null=0.97),
             "cloud": _answer(10, p_null=0.05),
+            "title": _answer(None, p_null=0.99),
         }
     )
     numbers = await x.extract_numbers("imagery with under 10% clouds")
     assert states == ["imagery with under 10% clouds"]
-    assert set(x.CALL_A_DASHBOARD) == {"canopy", "cloud"}
+    assert set(x.CALL_A_DASHBOARD) == {"canopy", "cloud", "title"}
+    assert numbers.title is None
     assert numbers.canopy is None
     assert numbers.cloud == 10
     assert numbers.cloud_probability == 0.95
@@ -387,7 +407,13 @@ async def test_dashboard_numbers_have_no_place(answers):
 async def test_extract_dashboard_gives_the_error_of_a_failed_call(
     answers, monkeypatch
 ):
-    answers({"canopy": _answer(None), "cloud": _answer(None)})
+    answers(
+        {
+            "canopy": _answer(None),
+            "cloud": _answer(None),
+            "title": _answer(None),
+        }
+    )
 
     async def fail(prompt, today):
         raise x.ExtractError("no answer")

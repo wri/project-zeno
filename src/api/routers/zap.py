@@ -32,15 +32,20 @@ async def zap(request: ZapRequest, user: UserModel = Depends(require_admin)):
     POST /api/analyze.
 
     On a dashboard page (`current.page` is "dashboard", with
-    `current.dashboard_id`), the plan adds content to the dashboard: a
-    chart, a map, an analysis template section or Sentinel-2 imagery, for
-    the first area of the dashboard. The frontend runs each step through
-    the dashboard endpoints (see "Dashboard step contract" in
-    docs/zap-mode-plan.md). Only the owner of the dashboard gets steps. A
-    plan with a decision that is not clear has `needs_confirmation`.
+    `current.dashboard_id`), the plan adds content to the dashboard (a
+    chart, a map, an analysis template section, Sentinel-2 imagery or an
+    empty section, for the first area of the dashboard) or edits it (move,
+    resize, rename, change the period of a widget, remove). The frontend
+    runs each step through the dashboard endpoints (see "Dashboard step
+    contract" in docs/zap-mode-plan.md). Only the owner of the dashboard
+    gets steps. A removal, a new period, and a plan with a decision that is
+    not clear have `needs_confirmation`. `choose` replaces jev answers with
+    the options that the user selected.
     """
     try:
-        return await plan_zap(request.prompt, request.current, user.id)
+        return await plan_zap(
+            request.prompt, request.current, user.id, choose=request.choose
+        )
     except JevError as exc:
         logger.error("zap_failed", error=str(exc))
         raise HTTPException(status_code=502, detail=str(exc))

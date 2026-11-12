@@ -217,7 +217,18 @@ def test_dashboard_cases_are_valid(part):
     for case in cases:
         assert case["dashboard"] in boards
         exp = zap_eval.dashboard_expected(case)
-        assert set(exp["action"]) <= {*o.ADD_ACTIONS, "none"}
+        assert set(exp["action"]) <= {*o.ADD_ACTIONS, *o.EDIT_ACTIONS, "none"}
+        # Each expected target is on the dashboard of the case.
+        board = zap_eval.case_board(case, boards)
+        known = {
+            "dashboard",
+            *(w.id for w in board.widget_items),
+            *(x.id for x in board.section_items),
+        }
+        for target in exp["target"]:
+            assert target is None or target in known, case["id"]
+        for destination in exp["destination"]:
+            assert destination in (None, "top") or destination in known
         for template in exp["template"]:
             assert template is None or template in o.TEMPLATE_CARDS
         for dataset in exp["dataset"]:
@@ -268,6 +279,7 @@ async def test_dashboard_score_of_a_chart():
         "time": True,
         "context": True,
         "canopy": True,
+        "tier": True,
         "confirm": True,
     }
 
@@ -315,3 +327,84 @@ async def test_dashboard_score_of_imagery():
     assert scores["time"] is True
     assert scores["cloud"] is True
     assert scores["confirm"] is None
+
+
+async def test_dashboard_score_of_a_move():
+    case = {
+        "expect": {
+            "action": "move",
+            "target": "w-1",
+            "destination": "top",
+            "confirm": False,
+        }
+    }
+    step = ZapStep(
+        kind="move",
+        title="",
+        args={"widget_id": "w-1", "patch": {"section_id": None}},
+    )
+    got = zap_eval.dashboard_got(_dashboard_plan(step))
+
+    scores = await zap_eval.dashboard_score(case, got, date(2026, 11, 12))
+
+    assert {k: v for k, v in scores.items() if v is not None} == {
+        "action": True,
+        "target": True,
+        "destination": True,
+        "tier": True,
+        "confirm": True,
+    }
+
+
+async def test_dashboard_score_of_a_section_removal():
+    case = {
+        "expect": {
+            "action": "remove",
+            "target": "sec-1",
+            "widgets": True,
+            "confirm": True,
+        }
+    }
+    step = ZapStep(
+        kind="remove",
+        title="",
+        args={
+            "target_type": "section",
+            "widget_id": None,
+            "section_id": "sec-1",
+            "delete_widgets": False,
+        },
+    )
+    got = zap_eval.dashboard_got(
+        _dashboard_plan(step, needs_confirmation=True)
+    )
+
+    scores = await zap_eval.dashboard_score(case, got, date(2026, 11, 12))
+
+    assert scores["target"] is True
+    assert scores["widgets"] is False
+    assert scores["tier"] is True
+
+
+def test_case_board_adds_the_items_of_the_last_edit():
+    boards = zap_eval.load_dashboards()
+    case = {
+        "dashboard": "sebangau",
+        "add_sections": [{"id": "sec-new", "title": "Peat"}],
+        "add_widgets": [
+            {
+                "id": "w-new",
+                "kind": "chart",
+                "title": "x",
+                "section": "sec-new",
+            }
+        ],
+        "last": ["sec-new", "w-new"],
+    }
+    board = zap_eval.case_board(case, boards)
+    current = zap_eval.dashboard_current(case, board)
+
+    assert board.section_items[-1].id == "sec-new"
+    assert board.widget_items[-1].section_id == "sec-new"
+    assert current.last_widget_ids == ["w-new"]
+    assert current.last_section_ids == ["sec-new"]

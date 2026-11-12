@@ -93,6 +93,11 @@ QUESTION_LABELS = {
     "action": "Action",
     "template": "Template",
     "cloud": "Cloud cover",
+    "target": "Target",
+    "destination": "Destination",
+    "size": "Width",
+    "widgets": "Its widgets",
+    "title": "New name",
 }
 
 CATALOG = {ds["dataset_id"]: ds for ds in DATASETS}
@@ -307,15 +312,19 @@ async def plan_zap(
     user_id: str,
     today: Optional[date] = None,
     dashboard: Optional["ZapDashboard"] = None,
+    choose: Optional[dict[str, str]] = None,
 ) -> ZapPlan:
     """The plan for one request. On a dashboard page (`current.page`), the
     dashboard planner (`dashboard.py`) makes the plan; `dashboard` replaces
-    the database row, for the eval and the tests."""
+    the database row, for the eval and the tests. `choose` is for the
+    dashboard only."""
     today = today or date.today()
     if current.page == "dashboard":
         from src.api.services.zap.dashboard import plan_dashboard
 
-        return await plan_dashboard(prompt, current, user_id, today, dashboard)
+        return await plan_dashboard(
+            prompt, current, user_id, today, dashboard, choose
+        )
     current_dataset = (
         CATALOG[current.dataset_id]["dataset_name"]
         if current.dataset_id in CATALOG
