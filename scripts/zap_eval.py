@@ -275,35 +275,122 @@ DASHBOARD_FIELDS = [
     "canopy",
     "template",
     "cloud",
+    "target",
+    "destination",
+    "size",
+    "title",
+    "widgets",
+    "tier",
     "confirm",
 ]
-# The fields that make an addition wrong when they are wrong.
-ADDITION_FIELDS = DASHBOARD_FIELDS[:-1]
+# The fields that make a plan wrong when they are wrong: an addition, an
+# edit or a removal that the user did not ask for.
+ADDITION_FIELDS = [f for f in DASHBOARD_FIELDS if f not in ("tier", "confirm")]
 ADD_KINDS = ("add_chart", "add_map", "add_template", "add_imagery")
+EDIT_KINDS = (
+    "add_section",
+    "move",
+    "resize",
+    "rename",
+    "change_period",
+    "remove",
+)
 DEFAULT_CLOUD = 20
 
 
-def load_dashboards() -> dict:
+WIDGET_TYPES = {
+    "chart": ("insight", "Chart"),
+    "map": ("map", "Map"),
+    "imagery": ("map", "Imagery"),
+    "alerts": ("alerts", "Alerts list"),
+    "note": ("text", "Note"),
+}
+
+
+def _board_widget(raw: Any, position: int):
+    """A `BoardWidget` from a widget of dashboards.yaml or of a case."""
+    from src.api.services.zap.board import BoardWidget
+
+    if isinstance(raw, str):
+        return raw
+    widget_type, kind = WIDGET_TYPES[raw["kind"]]
+    config = dict(raw.get("config") or {})
+    if raw["kind"] == "imagery":
+        config.setdefault("imagery", {"mosaic_id": "eval"})
+    analysis = raw.get("analysis")
+    if analysis:
+        analysis = {
+            "dataset_id": analysis["dataset"],
+            "start_date": _str_or_none(analysis.get("start")),
+            "end_date": _str_or_none(analysis.get("end")),
+            "context_layer": analysis.get("context"),
+            "canopy_cover": analysis.get("canopy"),
+        }
+    return BoardWidget(
+        id=raw["id"],
+        widget_type=widget_type,
+        title=raw["title"],
+        kind=kind,
+        position=raw.get("position", position),
+        section_id=raw.get("section"),
+        config=config,
+        insight_id=f"insight-{raw['id']}"
+        if widget_type == "insight"
+        else None,
+        analysis=analysis,
+    )
+
+
+def _board(raw: dict, extra_sections=(), extra_widgets=()):
+    from src.api.services.zap.board import BoardSection
     from src.api.services.zap.dashboard import ZapDashboard
     from src.api.services.zap.models import ZapArea
 
-    data = yaml.safe_load((EVAL_DIR / "dashboards.yaml").read_text())
-    boards = {}
-    for key, raw in data["dashboards"].items():
-        source, src_id = raw["area"]["id"].split(":", 1)
-        boards[key] = ZapDashboard(
+    source, src_id = raw["area"]["id"].split(":", 1)
+    sections = [*(raw.get("sections") or []), *extra_sections]
+    widgets = [*(raw.get("widgets") or []), *extra_widgets]
+    area = ZapArea(
+        name=raw["area"]["name"],
+        source=source,
+        src_id=src_id,
+        subtype=raw["area"]["subtype"],
+    )
+    if all(isinstance(w, str) for w in widgets) and all(
+        isinstance(x, str) for x in sections
+    ):
+        # The text form of phase 4.
+        return ZapDashboard(
             id=raw["id"],
             name=raw["name"],
-            area=ZapArea(
-                name=raw["area"]["name"],
-                source=source,
-                src_id=src_id,
-                subtype=raw["area"]["subtype"],
-            ),
-            sections=raw.get("sections") or [],
-            widgets=raw.get("widgets") or [],
+            area=area,
+            sections=sections,
+            widgets=widgets,
         )
-    return boards
+    return ZapDashboard(
+        id=raw["id"],
+        name=raw["name"],
+        area=area,
+        section_items=[
+            BoardSection(id=x["id"], title=x["title"], position=i)
+            for i, x in enumerate(sections)
+        ],
+        widget_items=[_board_widget(w, i) for i, w in enumerate(widgets)],
+    )
+
+
+def load_dashboards() -> dict:
+    data = yaml.safe_load((EVAL_DIR / "dashboards.yaml").read_text())
+    return {key: raw for key, raw in data["dashboards"].items()}
+
+
+def case_board(case: dict, boards: dict):
+    """The dashboard of a case: the fixed dashboard, with the sections and
+    the widgets that the last edit added (`add_sections`, `add_widgets`)."""
+    return _board(
+        boards[case["dashboard"]],
+        case.get("add_sections") or (),
+        case.get("add_widgets") or (),
+    )
 
 
 def dashboard_current(case: dict, board):
@@ -319,10 +406,13 @@ def dashboard_current(case: dict, board):
         "context_layer": cur["context"],
         "canopy_cover": cur["canopy"],
     }
+    last = case.get("last") or []
+    values["last_widget_ids"] = [i for i in last if not i.startswith("sec-")]
+    values["last_section_ids"] = [i for i in last if i.startswith("sec-")]
     return ZapCurrent(
         page="dashboard",
         dashboard_id=board.id,
-        **{k: v for k, v in values.items() if v is not None},
+        **{k: v for k, v in values.items() if v},
     )
 
 
@@ -335,7 +425,18 @@ def dashboard_expected(case: dict) -> dict:
         "canopy": _as_list(exp.get("canopy")),
         "template": _as_list(exp.get("template")),
         "cloud": _as_list(exp.get("cloud", DEFAULT_CLOUD)),
+        "target": _as_list(exp.get("target")),
+        "destination": _as_list(exp.get("destination")),
+        "size": _as_list(exp.get("size")),
+        "title": _as_list(exp.get("title")),
+        "widgets": _as_list(exp.get("widgets", False)),
         "confirm": exp.get("confirm", "any"),
+        "tier": exp.get(
+            "tier",
+            {True: 2, False: 1}.get(exp.get("confirm"))
+            if isinstance(exp.get("confirm"), bool)
+            else None,
+        ),
         "relative": bool(exp.get("relative", False)),
         "has_time": "ranges" in exp or "start" in exp or "end" in exp,
     }
@@ -380,6 +481,11 @@ def dashboard_got(plan) -> dict:
         "cloud": None,
         "target_date": None,
         "window_days": None,
+        "target": None,
+        "destination": None,
+        "size": None,
+        "title": None,
+        "widgets": None,
         "needs_confirmation": plan.needs_confirmation,
         "tier": plan.tier,
     }
@@ -414,6 +520,44 @@ def dashboard_got(plan) -> dict:
             target_date=mosaic["target_date"],
             window_days=mosaic["window_days"],
             cloud=mosaic["max_cloud_cover"],
+        )
+    elif step.kind == "add_section":
+        got["title"] = args["section"]["title"]
+    elif step.kind == "move":
+        got.update(
+            target=args["widget_id"],
+            destination=args["patch"]["section_id"] or "top",
+        )
+    elif step.kind == "resize":
+        got.update(target=args["widget_id"], size=args["size"])
+    elif step.kind == "rename":
+        got.update(
+            target=args["section_id"] or "dashboard", title=args["title"]
+        )
+    elif step.kind == "change_period":
+        got["target"] = args["widget_id"]
+        if args.get("analyze"):
+            body = args["analyze"]
+            got.update(
+                dataset=body["dataset_id"],
+                start=body["start_date"],
+                end=body["end_date"],
+                context=body.get("context_layer"),
+            )
+        else:
+            layer = args["widget"]["config"]["dataset"]
+            got.update(
+                dataset=layer["dataset_id"],
+                start=str(layer["start_date"]),
+                end=str(layer["end_date"]),
+                context=layer.get("context_layer"),
+            )
+    elif step.kind == "remove":
+        got.update(
+            target=args["widget_id"] or args["section_id"],
+            widgets=args["delete_widgets"]
+            if args["target_type"] == "section"
+            else None,
         )
     return got
 
@@ -450,6 +594,27 @@ async def dashboard_score(
     exp = dashboard_expected(case)
     out: dict[str, Optional[bool]] = dict.fromkeys(DASHBOARD_FIELDS)
     out["action"] = got["action"] in exp["action"]
+    if got["action"] != "none":
+        if isinstance(exp["confirm"], bool):
+            out["confirm"] = bool(got["needs_confirmation"]) == exp["confirm"]
+        if exp["tier"] is not None:
+            out["tier"] = got["tier"] == exp["tier"]
+    edits = [a for a in exp["action"] if a in EDIT_KINDS]
+    if edits and got["action"] in edits:
+        kind = got["action"]
+        if kind != "add_section":
+            out["target"] = got["target"] in exp["target"]
+        if kind == "move":
+            out["destination"] = got["destination"] in exp["destination"]
+        if kind == "resize":
+            out["size"] = got["size"] in exp["size"]
+        if kind in ("rename", "add_section"):
+            out["title"] = got["title"] in exp["title"]
+        if kind == "remove" and got["widgets"] is not None:
+            out["widgets"] = got["widgets"] in exp["widgets"]
+        if kind == "change_period" and exp["has_time"]:
+            out["time"] = await range_ok(got, exp)
+        return out
     adds = [a for a in exp["action"] if a in ADD_KINDS]
     if not adds or got["action"] == "none":
         return out
@@ -470,20 +635,23 @@ async def dashboard_score(
     if "add_imagery" in adds and got["action"] == "add_imagery":
         out["time"] = imagery_ok(got, exp, today)
         out["cloud"] = got["cloud"] in exp["cloud"]
-    if isinstance(exp["confirm"], bool):
-        out["confirm"] = bool(got["needs_confirmation"]) == exp["confirm"]
     return out
 
 
 async def run_dashboard_case(case: dict, today: date, boards: dict) -> dict:
     from src.api.services.zap.planner import plan_zap
 
-    board = boards[case["dashboard"]]
+    board = case_board(case, boards)
     sent = dashboard_current(case, board)
     started = time.perf_counter()
     try:
         plan = await plan_zap(
-            case["prompt"], sent, USER_ID, today=today, dashboard=board
+            case["prompt"],
+            sent,
+            USER_ID,
+            today=today,
+            dashboard=board,
+            choose=case.get("choose"),
         )
         error = None
     except Exception as exc:  # noqa: BLE001 - a failed case is a result
@@ -503,7 +671,17 @@ async def run_dashboard_case(case: dict, today: date, boards: dict) -> dict:
         scores.get(f) is False for f in ADDITION_FIELDS if f in scores
     )
     exp = dashboard_expected(case)
+    kind = got["action"] if got else "none"
+    group = (
+        "removal"
+        if kind == "remove"
+        else "edit"
+        if kind in EDIT_KINDS
+        else "addition"
+    )
+    confirmed = bool(plan and plan.needs_confirmation)
     return {
+        "group": group if added else None,
         "id": case["id"],
         "kind": case.get("kind"),
         "dashboard": case["dashboard"],
@@ -515,10 +693,7 @@ async def run_dashboard_case(case: dict, today: date, boards: dict) -> dict:
         "wrong_addition": wrong,
         "wrong_unconfirmed": wrong and not (plan and plan.needs_confirmation),
         "extra_confirmation": bool(
-            added
-            and not wrong
-            and plan.needs_confirmation
-            and exp["confirm"] is False
+            added and not wrong and confirmed and exp["confirm"] is False
         ),
         "latency_ms": latency_ms,
         "error": error,
@@ -559,19 +734,26 @@ def dashboard_report(results: list[dict], meta: dict) -> str:
     for kind, oks in sorted(by_kind.items()):
         lines.append(f"| {kind} | {sum(oks)} | {len(oks)} |")
 
-    added = [r for r in results if r["added"]]
-    wrong = [r["id"] for r in results if r["wrong_addition"]]
-    unconfirmed = [r["id"] for r in results if r["wrong_unconfirmed"]]
-    extra = [r["id"] for r in results if r["extra_confirmation"]]
     lines += [
         "",
-        f"Plans with an addition: {len(added)}",
-        f"Wrong additions: {len(wrong)} {wrong}",
-        f"Wrong additions applied with no confirmation: {len(unconfirmed)} "
-        f"{unconfirmed}",
-        f"Correct additions held for a confirmation that the case does not "
-        f"need: {len(extra)} {extra}",
+        "| Plans | With steps | Wrong | Wrong, no confirmation | "
+        "Correct, extra confirmation |",
+        "|---|---|---|---|---|",
     ]
+    for group in ("addition", "edit", "removal"):
+        rows = [r for r in results if r["group"] == group]
+        wrong = [r["id"] for r in rows if r["wrong_addition"]]
+        unconfirmed = [r["id"] for r in rows if r["wrong_unconfirmed"]]
+        extra = [r["id"] for r in rows if r["extra_confirmation"]]
+        lines.append(
+            f"| {group} | {len(rows)} | {len(wrong)} {wrong} | "
+            f"{len(unconfirmed)} {unconfirmed} | {len(extra)} {extra} |"
+        )
+    must_not = [r for r in results if r["expected"]["action"] == ["none"]]
+    lines.append(
+        f"\nRequests that must change nothing, with no steps: "
+        f"{sum(not r['added'] for r in must_not)}/{len(must_not)}"
+    )
     latencies = [r["latency_ms"] for r in results if not r["error"]]
     if latencies:
         lines.append(f"Median latency: {statistics.median(latencies):.0f} ms")
@@ -609,6 +791,8 @@ def dashboard_report(results: list[dict], meta: dict) -> str:
                     f"confirm {got.get('needs_confirmation')} (want "
                     f"{exp['confirm']}; unclear: {r['unclear']})"
                 )
+            elif f == "tier":
+                detail.append(f"tier {got.get('tier')} (want {exp['tier']})")
             else:
                 detail.append(f"{f} {got.get(f)} (want {exp[f]})")
         if r["error"]:

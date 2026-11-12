@@ -112,10 +112,12 @@ version.
 ## The dashboard set
 
 The dashboard set measures the plan that zap makes on a dashboard page
-(phase 4 of `docs/zap-mode-plan.md`). The cases run against three fixed
-dashboards in `dashboards.yaml`. The script gives the planner a
+(phases 4 and 5 of `docs/zap-mode-plan.md`). The cases run against three
+fixed dashboards in `dashboards.yaml`. The script gives the planner a
 `ZapDashboard` for each dashboard, so the run needs no dashboard rows and no
-database.
+database. Each section and widget of a fixed dashboard has an id. A chart
+or a dataset map also has its `analysis` (the dataset, the dates, the
+forest type), which `change_period` builds again.
 
 | File | Use |
 |---|---|
@@ -128,8 +130,11 @@ The kinds of cases:
 | Kind | What it tests |
 |---|---|
 | `chart`, `map`, `template`, `imagery` | A request that adds one item. |
-| `later-phase` | An action that phase 4 does not have: move, resize, rename, change a period, remove, delete, publish, write a note. The plan must have no steps. |
-| `no-change` | A request that adds nothing: a greeting, a question, more than one area. |
+| `add-section`, `move`, `resize`, `rename`, `change-period`, `remove` | A request for one edit of phase 5. Some cases name a target, a place or a name that is not on the dashboard: the plan must have no steps. |
+| `near-titles` | An edit of one of two widgets with near titles ("Tree cover loss per year", "Primary forest loss per year"). |
+| `last-edit` | "remove that" or "make it half width" after an addition. `add_widgets` and `add_sections` put the new items on the dashboard, and `last` gives their ids. |
+| `outside` | A request that stays outside zap (tier 3): delete or publish the dashboard, write a note. The plan must have no steps. |
+| `no-change` | A request that changes nothing: a greeting, a question, more than one area. |
 | `unclear` | A request that does not say what to add. If the plan adds something, it must need a confirmation. |
 | `follow-up` | A request that refers to the last addition. `current` gives the state of the last addition. |
 
@@ -152,7 +157,22 @@ The format of a case:
     canopy: null           # default null (30)
     template: nrt-monitoring
     cloud: 20              # the maximum cloud cover of imagery, default 20
+    target: w-para-loss-map  # a widget id, a section id or "dashboard"
+    destination: top       # move: a section id or "top"
+    size: single           # resize: single (half width) or double
+    title: Fire season     # rename, add_section: the new name
+    widgets: false         # remove of a section: true removes its widgets
     confirm: false         # true, false or any (the default)
+    tier: 1                # default: 2 for confirm true, 1 for false
+```
+
+A case can also have:
+
+```yaml
+  add_sections: [{id: sec-new, title: Peat}]   # items of the last edit
+  add_widgets: [{id: w-new, kind: chart, title: Loss, section: sec-new}]
+  last: [sec-new, w-new]   # current.last_section_ids and last_widget_ids
+  choose: {target: "widget:w-new"}   # ZapRequest.choose
 ```
 
 Scoring:
@@ -163,14 +183,18 @@ Scoring:
 | `dataset`, `context`, `canopy` | As in the map set, on the analysis body (`add_chart`) or the map layer (`add_map`). |
 | `time` | `add_chart` and `add_map`: as in the map set. `add_imagery`: the target date and the window agree with the ones that the planner makes from the expected range. |
 | `template`, `cloud` | The value is one of the expected values. |
+| `target`, `destination`, `size`, `title`, `widgets` | The value of the edit step is one of the expected values. `time` of `change_period` is scored as for `add_chart`. |
+| `tier` | The `tier` of the plan is the expected tier. Scored only for a plan with steps. |
 | `confirm` | `needs_confirmation` agrees with `confirm`. Scored only for a plan with steps and a case with `confirm: true` or `false`. |
 
-The fields of an addition are scored only when the expected action is an
-addition and the plan adds something. A plan that adds something with a
-wrong field is a wrong addition. The report gives the wrong additions, the
-wrong additions that need no confirmation (these are applied immediately),
-and the correct additions that need a confirmation that the case does not
-need.
+The fields of an addition or an edit are scored only when the expected
+action is of that kind and the plan does it. A plan with steps and a wrong
+field (also a wrong action) is a wrong plan. The report gives, for the
+additions, the edits and the removals (a plan with a `remove` step): the
+plans with steps, the wrong plans, the wrong plans that need no
+confirmation (these are applied immediately), and the correct plans that
+need a confirmation that the case does not need. It also gives the
+requests that must change nothing and got no steps.
 
 ```bash
 uv run python scripts/zap_eval.py dashboard-dev --env-file .env

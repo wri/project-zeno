@@ -98,40 +98,40 @@ cases:
     kind: imagery
     prompt: add satellite imagery of the dry season, December 2024 to February 2025
     expect: {action: add_imagery, start: "2024-12-01", end: "2025-02-28", confirm: false}
-  # --- Actions of a later phase: no steps ---
+  # --- Phase 4 "later phase" cases: the edits of phase 5, and tier 3 ---
   - id: dt-19
     dashboard: sebangau
-    kind: later-phase
+    kind: remove
     prompt: remove the imagery map
-    expect: {action: none}
+    expect: {action: remove, target: w-seb-imagery, confirm: true}
   - id: dt-20
     dashboard: para
-    kind: later-phase
+    kind: rename
     prompt: rename the Overview section to Summary
-    expect: {action: none}
+    expect: {action: rename, target: sec-para-overview, title: Summary, confirm: false}
   - id: dt-21
     dashboard: ghana
-    kind: later-phase
+    kind: outside
     prompt: make this dashboard public
     expect: {action: none}
   - id: dt-22
     dashboard: para
-    kind: later-phase
+    kind: change-period
     prompt: show the loss chart for 2020 to 2025 only
-    expect: {action: none}
+    expect: {action: change_period, target: w-para-loss-chart, start: "2020-01-01", end: "2025-12-31", confirm: true}
   - id: dt-23
     dashboard: sebangau
-    kind: later-phase
+    kind: resize
     prompt: put the fire chart at full width
-    expect: {action: none}
+    expect: {action: resize, target: w-seb-fire-chart, size: double, confirm: false}
   - id: dt-24
     dashboard: ghana
-    kind: later-phase
+    kind: remove
     prompt: delete the alerts chart
-    expect: {action: none}
+    expect: {action: remove, target: w-ghana-alerts-chart, confirm: true}
   - id: dt-25
     dashboard: para
-    kind: later-phase
+    kind: outside
     prompt: write a summary of this dashboard
     expect: {action: none}
   # --- No change ---
@@ -174,3 +174,156 @@ cases:
     prompt: and a chart of it at 10% canopy
     current: {dataset: 4, start: "2001-01-01", end: "2025-12-31"}
     expect: {action: add_chart, dataset: 4, start: null, end: null, canopy: 10, context: null, confirm: false}
+  # --- Phase 5: add an empty section. The title is the words of the user ---
+  - id: dt-33
+    dashboard: sebangau
+    kind: add-section
+    prompt: create a section titled Peat fires
+    expect: {action: add_section, title: Peat fires, confirm: false}
+  - id: dt-34
+    dashboard: para
+    kind: add-section
+    prompt: "new section: Mining"
+    expect: {action: add_section, title: Mining, confirm: false}
+  - id: dt-35
+    dashboard: ghana
+    kind: add-section
+    prompt: add an empty section
+    expect: {action: none}
+  # --- Phase 5: move ---
+  - id: dt-36
+    dashboard: para
+    kind: move
+    prompt: move the primary forest chart to the Drivers section
+    expect: {action: move, target: w-para-primary-chart, destination: sec-para-drivers, confirm: false}
+  - id: dt-37
+    dashboard: sebangau
+    kind: move
+    prompt: move the imagery out of its section
+    expect: {action: move, target: w-seb-imagery, destination: top, confirm: false}
+  - id: dt-38
+    dashboard: para
+    kind: move
+    prompt: put the loss chart under Overview
+    expect: {action: none}
+  - id: dt-39
+    dashboard: ghana
+    kind: move
+    prompt: move the alerts map into the Cocoa section
+    expect: {action: none}
+  # --- Phase 5: resize ---
+  - id: dt-40
+    dashboard: ghana
+    kind: resize
+    prompt: make the alerts chart half width
+    expect: {action: resize, target: w-ghana-alerts-chart, size: single, confirm: false}
+  - id: dt-41
+    dashboard: para
+    kind: resize
+    prompt: widen the driver chart
+    expect: {action: resize, target: w-para-driver-chart, size: double, confirm: false}
+  # --- Phase 5: rename ---
+  - id: dt-42
+    dashboard: para
+    kind: rename
+    prompt: rename the dashboard to Pará deforestation watch
+    expect: {action: rename, target: dashboard, title: Pará deforestation watch, confirm: false}
+  - id: dt-43
+    dashboard: sebangau
+    kind: rename
+    prompt: change the title of the Fires section to Burned area
+    expect: {action: rename, target: sec-seb-fires, title: Burned area, confirm: false}
+  - id: dt-44
+    dashboard: para
+    kind: rename
+    prompt: give the Overview section a better name
+    expect: {action: none}
+  # --- Phase 5: change the period (always a confirmation) ---
+  - id: dt-45
+    dashboard: sebangau
+    kind: change-period
+    prompt: show the fire chart for 2024 only
+    expect: {action: change_period, target: w-seb-fire-chart, start: "2024-01-01", end: "2024-12-31", confirm: true}
+  - id: dt-46
+    dashboard: para
+    kind: change-period
+    prompt: change the loss map to show 2010 to 2020
+    expect: {action: change_period, target: w-para-loss-map, start: "2010-01-01", end: "2020-12-31", confirm: true}
+  - id: dt-47
+    dashboard: ghana
+    kind: change-period
+    prompt: show the alerts chart for last month
+    expect: {action: change_period, target: w-ghana-alerts-chart, start: "2026-10-01", end: "2026-10-31", confirm: true}
+  # --- Phase 5: remove (always a confirmation) ---
+  - id: dt-48
+    dashboard: sebangau
+    kind: remove
+    prompt: get rid of the carbon flux chart
+    expect: {action: remove, target: w-seb-flux-chart, confirm: true}
+  - id: dt-49
+    dashboard: para
+    kind: remove
+    prompt: remove the Drivers section, keep its chart
+    expect: {action: remove, target: sec-para-drivers, widgets: false, confirm: true}
+  - id: dt-50
+    dashboard: para
+    kind: remove
+    prompt: delete the Overview section with its charts
+    expect: {action: remove, target: sec-para-overview, widgets: true, confirm: true}
+  - id: dt-51
+    dashboard: sebangau
+    kind: remove
+    prompt: remove the deforestation alerts chart
+    expect: {action: none}
+  # --- Phase 5: two widgets with near titles ---
+  - id: dt-52
+    dashboard: para
+    kind: near-titles
+    prompt: remove the tree cover loss per year chart
+    expect: {action: remove, target: w-para-loss-chart, confirm: true}
+  - id: dt-53
+    dashboard: para
+    kind: near-titles
+    prompt: make the primary forest loss chart half width
+    expect: {action: resize, target: w-para-primary-chart, size: single, confirm: false}
+  # --- Phase 5: a follow-up on the last edit (the ids in `last`) ---
+  - id: dt-54
+    dashboard: ghana
+    kind: last-edit
+    prompt: remove that
+    add_widgets:
+      - {id: w-new-ghana-gain, kind: map, title: Tree cover gain, analysis: {dataset: 5, start: "2000-01-01", end: "2020-12-31"}}
+    last: [w-new-ghana-gain]
+    expect: {action: remove, target: w-new-ghana-gain, confirm: true}
+  - id: dt-55
+    dashboard: para
+    kind: last-edit
+    prompt: move it to the Drivers section
+    add_widgets:
+      - {id: w-new-para-fire, kind: chart, title: Tree cover loss due to fires, analysis: {dataset: 10, start: "2001-01-01", end: "2025-12-31"}}
+    last: [w-new-para-fire]
+    expect: {action: move, target: w-new-para-fire, destination: sec-para-drivers, confirm: false}
+  - id: dt-56
+    dashboard: sebangau
+    kind: last-edit
+    prompt: undo that, remove the new section
+    add_sections:
+      - {id: sec-new-peat, title: Peat}
+    last: [sec-new-peat]
+    expect: {action: remove, target: sec-new-peat, confirm: true}
+  # --- Phase 5: requests that must change nothing ---
+  - id: dt-57
+    dashboard: ghana
+    kind: no-change
+    prompt: how do I resize a widget?
+    expect: {action: none}
+  - id: dt-58
+    dashboard: sebangau
+    kind: no-change
+    prompt: nice, thanks
+    expect: {action: none}
+  - id: dt-59
+    dashboard: para
+    kind: no-change
+    prompt: remove everything
+    expect: {action: none}
