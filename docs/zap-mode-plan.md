@@ -2,9 +2,10 @@
 
 Status: proposal. Phase 1 (the map eval and its baseline) and phase 2
 (Clairic extraction and the full current state) are done. Phase 3 is on a
-frontend branch. The backend part of phase 4 (the dashboard planner, tier 1
-additions) is done: see "8. Dashboard step contract" and "Phase 4 result".
-The other phases have no code.
+frontend branch. The backend parts of phase 4 (the dashboard planner, tier
+1 additions) and phase 5 (layout edits and tier 2 edits) are done: see
+"8. Dashboard step contract", "Phase 4 result" and "Phase 5 result". The
+other phases have no code.
 
 ## Goal
 
@@ -245,10 +246,13 @@ failed.
 
 ### 8. Dashboard step contract
 
-This section is the contract between the dashboard planner (phase 4,
-backend) and the frontend that runs the steps. The models are in
+This section is the contract between the dashboard planner (phases 4 and
+5, backend) and the frontend that runs the steps. The models are in
 `src/api/services/zap/models.py`. All the new fields are optional, so the
-map client of phases 2 and 3 continues to work with no change.
+map client of phases 2 and 3 continues to work with no change. Phase 5
+added the fields `last_widget_ids`, `last_section_ids` and `choose`, the
+decision fields `key` and `value`, and the edit steps (from
+"**`add_section`**" below).
 
 #### Request
 
@@ -276,6 +280,23 @@ map client of phases 2 and 3 continues to work with no change.
   last addition: send back `plan.state` of the last plan on the same
   dashboard. Then "and a map of it" adds the same data. Do not send the
   `area`: the planner always uses the first area of the dashboard.
+- `last_widget_ids` and `last_section_ids` (phase 5): the ids of the
+  widgets and the sections that the last plan on this dashboard added or
+  changed. The `target` question lists these items first and marks them,
+  so "remove that" or "make it full width" selects them. After the steps
+  run, set them in the state from the responses of the endpoints: the new
+  widget of `add_chart`, `add_map`, `add_imagery` and `change_period`, the
+  new section of `add_section`, and the new section and its widgets of
+  `add_template`. For `move`, `resize` and `rename` of a section, the
+  planner sets them in `plan.state`. After `remove`, they are null.
+
+`choose` (phase 5, optional) is next to `prompt` and `current`. It holds
+the options that the user selected, as `{decision key: option value}`, for
+example `{"target": "widget:5c1d..."}`. The planner uses these options in
+place of the jev answers. Use it for a chip of a tier 2 preview: send the
+same prompt and `current` again, with the `key` of the decision and the
+`value` of the option of the chip. A value that is not an option of the
+question has no effect.
 
 The planner reads the dashboard from the database. If the dashboard does
 not exist or the user is not its owner, the plan has no steps and one note.
@@ -286,11 +307,19 @@ An admin gets no steps on the dashboard of another user.
 | Field | Content |
 |---|---|
 | `steps` | Zero or one step on a dashboard. |
-| `decisions` | The decisions, as on the map. Each jev decision has `options` (up to three other options, best first, with no "keep" and no "none" option) and `clear`. A Clairic or code decision has `clear` and no `options`. |
+| `decisions` | The decisions, as on the map. Each jev decision has `options` (up to three other options, best first, with no "keep" and no "none" option) and `clear`. A Clairic or code decision has `clear` and no `options`. On a dashboard, the jev decisions also have `key` (the decision key for `choose`) and `value` (the id of the selected option), and each option has a `value`. A decision from `choose` has `source: "user"`. |
 | `notes` | A note when the plan has no steps, or when a value changed (for example a canopy cover of 12% becomes 10%). Show the notes to the user. |
-| `state` | The state to send as `current` with the next request on this dashboard. It has the page, the dashboard id, the area of the dashboard, and the data of the addition. |
+| `state` | The state to send as `current` with the next request on this dashboard. It has the page, the dashboard id, the area of the dashboard, the data of the last addition or new period, and the last-edit ids that the planner knows. |
 | `tier` | 1: apply the steps immediately. 2: show the plan as a preview, and apply it only after the user confirms. Null when there are no steps. A map plan with steps has tier 0. |
 | `needs_confirmation` | True for tier 2. On the map, false. |
+
+The tier of a dashboard plan (`src/api/services/zap/tiers.py`):
+
+- `change_period` and `remove` are always tier 2.
+- A plan that changes more than one widget that exists is tier 2: the
+  removal of a section with its widgets, when the section has two or more
+  widgets.
+- Each other plan is tier 1 when all its decisions are clear, else tier 2.
 
 A decision option is `{"label": "...", "probability": 0.15}`. The label of
 a dataset option is the dataset name, and the label of an area option is
@@ -298,13 +327,21 @@ the area name. A selected option can go back to the planner as a new
 request, as in phase 3.
 
 For a tier 2 plan, the decisions with `clear: false` are the decisions to
-show with their `options`.
+show with their `options`. A `change_period` or `remove` plan can be tier 2
+with all its decisions clear: then show the step and a confirm button. The
+`target` decision always carries the next targets in its `options`, so the
+preview can ask "Which widget?" with chips. A chip sends `choose` (see
+"Request"). The new plan of a `remove` or `change_period` is tier 2 again:
+show it again for the confirmation.
 
 #### Steps
 
 Each step has `kind`, `title`, `detail` and `args`. `title` and `detail`
 are short texts for the plan panel and the trail row. The frontend runs the
-step with `args` only. It needs no catalog lookup.
+step with `args` only. It needs no catalog lookup and no dashboard lookup.
+An edit step names its target in `title` and with a label in `args`
+(`widget_label` or `label`), for example
+`Chart "Tree cover loss per year" in section "Overview"`.
 
 **`add_chart`**: a chart of one dataset for the area of the dashboard.
 
@@ -430,15 +467,202 @@ of the period, from 7 to 30 days. For a period in the past, the target date
 is the middle day and the window is half the period, from 7 to 183 days.
 The maximum cloud cover is the `cloud` value of Clairic, else 20.
 
+**`add_section`** (phase 5): an empty section. The title is the words of
+the user, from the Clairic `title` field.
+
+```json
+{
+  "kind": "add_section",
+  "title": "Add section: \"Fire season\"",
+  "detail": "an empty section",
+  "args": {"dashboard_id": "5b0c4f9e-...", "section": {"title": "Fire season"}}
+}
+```
+
+Send `args.section` as the body of
+`POST /api/dashboards/{dashboard_id}/sections`. Set `last_section_ids` to
+the id of the new section.
+
+**`move`** (phase 5): a widget into a section, or out of its section to the
+top level.
+
+```json
+{
+  "kind": "move",
+  "title": "Move: Map \"Tree cover loss\"",
+  "detail": "to section \"Drivers\"",
+  "args": {
+    "dashboard_id": "5b0c4f9e-...",
+    "widget_id": "8a1e...",
+    "widget_label": "Map \"Tree cover loss\" at the top level",
+    "destination_label": "section \"Drivers\"",
+    "patch": {"section_id": "77c0..."}
+  }
+}
+```
+
+Send `args.patch` as the body of
+`PATCH /api/dashboards/{dashboard_id}/widgets/{widget_id}`. A move to the
+top level has `"patch": {"section_id": null}`. Keep the null in the body:
+the endpoint reads a missing `section_id` as "no change". The widget goes
+to the end of its new container.
+
+**`resize`** (phase 5): a widget at half width (`single`) or full width
+(`double`).
+
+```json
+{
+  "kind": "resize",
+  "title": "Resize: Chart \"Tree cover loss by driver\"",
+  "detail": "full width (was half width)",
+  "args": {
+    "dashboard_id": "5b0c4f9e-...",
+    "widget_id": "8a1e...",
+    "widget_label": "Chart \"Tree cover loss by driver\" in section \"Drivers\"",
+    "size": "double",
+    "patch": {"config": {"default_view": "chart", "size": "double"}}
+  }
+}
+```
+
+Send `args.patch` as the body of
+`PATCH /api/dashboards/{dashboard_id}/widgets/{widget_id}`. The endpoint
+replaces the config, so `patch.config` is the full config of the widget
+with the new `size`. A widget with no `size` in its config is full width
+for a chart, a map and an alerts list, and half width for the other types
+(the rule of `topLevelWidgetSize` in the frontend).
+
+**`rename`** (phase 5): the name of the dashboard or the title of a
+section. The new name is the words of the user.
+
+```json
+{
+  "kind": "rename",
+  "title": "Rename section: \"Fires\"",
+  "detail": "to \"Fire season\"",
+  "args": {
+    "dashboard_id": "5b0c4f9e-...",
+    "target_type": "section",
+    "section_id": "77c0...",
+    "old_title": "Fires",
+    "title": "Fire season",
+    "patch": {"title": "Fire season"}
+  }
+}
+```
+
+For `target_type` `"section"`, send `args.patch` as the body of
+`PATCH /api/dashboards/{dashboard_id}/sections/{section_id}`. For
+`"dashboard"`, `section_id` is null and `patch` is `{"name": "..."}`: send
+it as the body of `PATCH /api/dashboards/{dashboard_id}`.
+
+**`change_period`** (phase 5, always tier 2): one chart or one dataset map
+for a new period, in the place of the old widget.
+
+```json
+{
+  "kind": "change_period",
+  "title": "New period: Chart \"Tree cover loss per year\"",
+  "detail": "2015–2020 (was 2001–2025) · replaces the widget",
+  "args": {
+    "dashboard_id": "5b0c4f9e-...",
+    "widget_id": "8a1e...",
+    "widget_label": "Chart \"Tree cover loss per year\" in section \"Overview\"",
+    "dataset_name": "Tree cover loss",
+    "old_start_date": "2001-01-01",
+    "old_end_date": "2025-12-31",
+    "replace": true,
+    "analyze": {
+      "aois": [{"source": "gadm", "src_id": "BRA.14_1", "subtype": "state-province"}],
+      "dataset_id": 4,
+      "start_date": "2015-01-01",
+      "end_date": "2020-12-31",
+      "context_layer": "primary_forest",
+      "canopy_cover": 30
+    },
+    "widget": {
+      "widget_type": "insight",
+      "insight_id": null,
+      "config": {"default_view": "chart", "size": "single"},
+      "position": 0,
+      "section_id": "77c0..."
+    }
+  }
+}
+```
+
+1. If `args.analyze` is set (a chart), run it as for `add_chart`: send it
+   to `POST /api/analyze`, wait for the job, and set
+   `args.widget.insight_id` to the new insight id. For a map, `analyze` is
+   null and `args.widget.config.dataset` is the new map layer.
+2. Send `args.widget` as the body of
+   `POST /api/dashboards/{dashboard_id}/widgets`. It holds the position and
+   the section of the old widget.
+3. If `args.replace` is true, send
+   `DELETE /api/dashboards/{dashboard_id}/widgets/{widget_id}`. If step 1
+   or 2 fails, do not remove the old widget.
+4. Set `last_widget_ids` to the id of the new widget.
+
+The new widget keeps `size`, `default_view` and `viewport` of the old
+config. It does not keep `chartIds` and `titles` (they name the old
+charts) or `title` (it can name the old period). The old insight stays.
+The planner reads the data of a chart from the first statistics row of its
+insight. A chart with no statistics row (a chart that the agent made with
+code), imagery, an alerts list and a note get no step and a note.
+
+`replace` is false when `CHANGE_PERIOD_REPLACES` in
+`src/api/services/zap/edits.py` is false (open decision 2): then skip
+step 3, and the new widget stands next to the old widget.
+
+**`remove`** (phase 5, always tier 2): a widget, or a section with or
+without its widgets.
+
+```json
+{
+  "kind": "remove",
+  "title": "Remove section: \"Fires\"",
+  "detail": "its 1 widget moves to the top level",
+  "args": {
+    "dashboard_id": "5b0c4f9e-...",
+    "target_type": "section",
+    "widget_id": null,
+    "section_id": "77c0...",
+    "label": "Section \"Fires\" (1 widget)",
+    "delete_widgets": false,
+    "widget_labels": ["Chart \"Tree cover loss due to fires\" in section \"Fires\""]
+  }
+}
+```
+
+- For `target_type` `"widget"`, send
+  `DELETE /api/dashboards/{dashboard_id}/widgets/{widget_id}`. The insight
+  of the widget stays, so "add the chart again" can bring it back.
+- For `"section"`, send
+  `DELETE /api/dashboards/{dashboard_id}/sections/{section_id}?delete_widgets={delete_widgets}`.
+  With `false`, the widgets of the section go to the top level. Show
+  `widget_labels` in the preview.
+
 #### No steps
 
 The plan has no steps and one note when:
 
 - The dashboard does not exist, or the user is not its owner.
 - The dashboard has no area.
-- jev selects `edit` (move, resize, rename, remove, delete, change a
-  period, write a note, publish) or `none`.
-- The request is about more than one area, or the parts of an area.
+- jev selects `edit` (delete or publish the dashboard, write a note) or
+  `none`.
+- The request is about more than one area, or the parts of an area (for an
+  addition only).
+- `add_section` or `rename` with no new name in the words of the user
+  (Clairic `title`). Zap writes no text.
+- `move`, `resize`, `rename`, `change_period` or `remove` when jev selects
+  "none of these" for the target. Zap does not guess a target.
+- `move` to a place that is not on the dashboard, or to the place where the
+  widget is now. `move` on a dashboard with no section and no widget in a
+  section.
+- `resize` to the width that the widget has now. `rename` to the name that
+  the item has now.
+- `change_period` with no time in the request, for a widget that zap
+  cannot build again, or to the dates that the widget shows now.
 - `add_chart` or `add_map` with no dataset in the request and none in
   `current`.
 - `add_template` with no template that fits.
@@ -447,10 +671,37 @@ The plan has no steps and one note when:
 #### The `action` question
 
 jev gets the `action` question in its first call on a dashboard page. The
-options are `add_chart`, `add_map`, `add_template`, `add_imagery`, `edit`
-and `none`. The `edit` option is not in section 5. It catches the actions
-that phase 4 does not have, so that jev does not select an addition for
-them. `edit` and `none` give no steps.
+options are `add_chart`, `add_map`, `add_template`, `add_imagery`,
+`add_section`, `move`, `resize`, `rename`, `change_period`, `remove`,
+`edit` and `none`. The `edit` option is not in section 5. It catches the
+actions that stay outside zap (tier 3), so that jev does not select an
+addition or an edit for them. `edit` and `none` give no steps.
+
+#### The `target` question
+
+For `move`, `resize`, `rename`, `change_period` and `remove`, a second jev
+call asks the `target` question. Its options are the items of the
+dashboard, each with a readable label, and "none of these":
+
+| Action | Options |
+|---|---|
+| `move`, `resize` | The widgets |
+| `change_period` | The charts and the dataset maps that zap can build again |
+| `rename` | The dashboard name and the sections |
+| `remove` | The widgets and the sections |
+
+A widget label is its kind, its title and its place:
+`Chart "Tree cover loss per year" in section "Overview"`. A section label
+has the number of its widgets: `Section "Fires" (2 widgets)`. The items of
+`last_widget_ids` and `last_section_ids` come first, with the mark
+"The last edit: ". The jev state also has a "Last edit" line.
+
+The same call asks the other choices of the action: `destination` for
+`move` (each section and "the top level"), `size` for `resize` (half width
+or full width), and `widgets` for `remove` when the dashboard has sections
+("keep its widgets", the default, or "remove its widgets with the
+section"). The `widgets` decision is in the plan only when the target is a
+section.
 
 ## Eval
 
@@ -744,6 +995,154 @@ Not tested: the planner with a dashboard from the database
 (`load_dashboard`) is tested with a fake row only. No run used a real
 dashboard.
 
+## Phase 5 result
+
+The backend part of phase 5 ran on 2026-11-12 with jev `typesafe/jev-1.13`
+and Clairic `cloudflare/clairic`. It adds the actions `add_section`,
+`move`, `resize`, `rename`, `change_period` and `remove`, the `target`
+question, the Clairic `title` field, the last-edit ids, `choose`, and the
+two month rules. The code is in `src/api/services/zap/edits.py` (the edit
+plans) and `board.py` (the dashboard items and their labels). The step
+contract is in "8. Dashboard step contract".
+
+The eval:
+
+- The fixed dashboards got ids, a second section on `para`, widgets with
+  near titles ("Tree cover loss per year", "Primary forest loss per
+  year"), and the analysis of each chart and dataset map.
+- The phase 4 cases of the kind "later phase" now expect the edit (for
+  example a `remove` with its target), or no steps for delete, publish and
+  a note.
+- New cases: 28 in the dev part (`dd-33` to `dd-60`) and 27 in the test
+  part (`dt-33` to `dt-59`). They have each new action, targets that are
+  not on the dashboard, near titles, "remove that" after an addition (with
+  the last-edit ids), the removal of a section with and without its
+  widgets, and requests that must change nothing. Four of the dev cases
+  (`d-52`, `d-53`, `dd-33`, `dd-34`) are for the month rules.
+- The action texts were tuned on the dev part only (three runs). The test
+  parts ran one time, after the tuning. The raw results are in
+  `tests/evals/zap/results/`: `2026-11-12-dashboard-dev-phase5-v3.json`,
+  `2026-11-12-dashboard-test-phase5.json`, `2026-11-12-dev-phase5.json`
+  and `2026-11-12-test-phase5.json`.
+
+### The dashboard set
+
+Correct values for each field (dev 60 cases, test 59 cases):
+
+| Field | Dev | Test | Total |
+|---|---|---|---|
+| Action (also "no steps") | 56/60 | 59/59 | 115/119 (97%) |
+| Target | 21/21 | 21/22 | 42/43 |
+| Destination (`move`) | 3/3 | 3/3 | 6/6 |
+| Width (`resize`) | 5/5 | 4/4 | 9/9 |
+| Title (`rename`, `add_section`) | 5/5 | 5/5 | 10/10 |
+| Its widgets (`remove` of a section) | 3/3 | 2/3 | 5/6 |
+| Dataset | 13/13 | 14/15 | 27/28 |
+| Time | 19/19 | 22/22 | 41/41 |
+| Forest type | 8/8 | 11/11 | 19/19 |
+| Canopy cover | 8/8 | 10/10 | 18/18 |
+| Template | 2/2 | 4/4 | 6/6 |
+| Cloud cover | 3/3 | 3/3 | 6/6 |
+| Tier and confirmation as expected | 37/43 | 42/46 | 79/89 |
+| All fields of a case | 52/60 | 53/59 | 105/119 (88%) |
+| Median time of a plan | 589 ms | 598 ms | |
+
+Against phase 4, on the 64 cases of phase 4 (the expectations of the 15
+"later phase" cases changed, see above):
+
+| | Phase 5 | Phase 4 |
+|---|---|---|
+| Action | 61/64 | 62/64 |
+| All fields of a case | 53/64 | 57/64 |
+| Time | 35/35 | 32/34 |
+| Wrong additions applied with no confirmation | 0 | 2 |
+| Correct additions held for a confirmation that is not necessary | 7 | 1 |
+
+The plans with steps, in the two parts together:
+
+| | Plans | Wrong | **Wrong, applied with no confirmation** | Correct, held for a confirmation that is not necessary |
+|---|---|---|---|---|
+| Additions | 40 | 1 (dt-32) | **0** | 7 |
+| Edits (`add_section`, `move`, `resize`, `rename`, `change_period`) | 34 | 3 (dd-02, dd-12, dt-45) | **0** | 0 |
+| Removals | 15 | 1 (dt-56) | **0** | 0 |
+
+- Requests that must change nothing, with no steps: 28/28 (15 dev, 13
+  test). This includes targets, places and names that are not on the
+  dashboard, "remove everything", delete, publish and a note.
+- "remove that" after an addition removes the added widget (dd-55, dt-54),
+  and "make it half width" and "move it to the Drivers section" select the
+  added widget (dd-56, dt-55). The "done when" of phase 5 holds for the
+  backend: no wrong removal is applied with no confirmation.
+
+The cases that fail:
+
+| Case | Field | Cause | Confirmation |
+|---|---|---|---|
+| dd-02 | Action | "chart primary forest loss between 2002 and 2010": jev selects `change_period` (0.85) of the "Primary forest loss per year" chart. The new board has this chart, so the request can mean it | Yes (`change_period`) |
+| dd-12 | Action | "add the near real-time monitoring section": jev selects `add_section` (0.53), not `add_template` (0.47). The title is "near real-time monitoring section" | Yes |
+| dd-34 | Action | "add Sentinel-2 imagery from November 2023 to March 2024": jev selects `change_period` (0.88). No target fits, so the plan has no steps | No steps |
+| dd-30 | Action | "tree cover loss" alone: `none`, as in phase 4 | No steps |
+| dt-32 | Dataset | "and a chart of it at 10% canopy": tree cover (2000), as in phase 4 | Yes |
+| dt-45 | Target | "show the fire chart for 2024 only": the flux chart (0.53), the fire chart second (0.28). The preview shows the fire chart as the first chip | Yes |
+| dt-56 | Its widgets | "undo that, remove the new section": "with its widgets" (0.65). The section is empty, so nothing more is removed | Yes |
+
+The cost: on the additions of phase 4, the action decision is less sure.
+With twelve action options, the probability of the selected addition
+dropped below 0.7 for seven correct additions (dd-10, dd-13, dd-14, dd-32,
+dt-02, dt-03, dt-16), so these need a confirmation. None of them is wrong.
+The minimum probability (0.7) did not change. A lower minimum would apply
+these additions with no confirmation, but the dev part has too few
+cases near the limit to set a new value.
+
+What the dev part changed:
+
+1. Run 1 (the first texts): `change_period` took additions with a date
+   (dd-02, dd-33 at 0.41, dd-34), and `add_section` took template requests
+   (dd-12).
+2. Run 2: shorter addition texts and the rule "an edit option only when the
+   request names something on the dashboard". The `add_template` text lost
+   "natural", and dd-14 became a wrong chart with no confirmation. Not
+   kept.
+3. Run 3 (kept): the addition texts of phase 4, an `add_section` text that
+   says "empty, with no content", a `change_period` text that says "with no
+   new widget", and the rule "pick `change_period` only when the request
+   asks to change a widget that is there". dd-33 became correct.
+
+### The month rules
+
+"Last month" and "the previous month" are now the full calendar month
+before today. A range of months with two years ("December 2024 to
+February 2025") gives each month its own year. Before the fix, d-52, d-53
+and dd-33 failed on the time and dd-34 passed; after it, all four pass. In
+the test parts, t-30, t-31, dt-10 and dt-18 now pass.
+
+### The map set
+
+| Field | Phase 5 total | Phase 4 total |
+|---|---|---|
+| Dataset | 106/106 | 104/104 |
+| Area | 101/106 | 99/104 |
+| Time | 101/103 | 97/101 |
+| Context layer | 76/78 | 74/76 |
+| Canopy cover | 62/62 | 62/62 |
+| No change | 9/9 | 9/9 |
+| All fields of a case | 97/106 | 93/104 |
+| Median time of a plan | 724 ms, 797 ms | 810 ms, 808 ms |
+
+The dev part has two new cases (d-52, d-53), both correct. On the 104
+cases of phase 4, time is 99/101 and all fields 95/104. t-30 and t-31 are
+correct. The other failures are the same as in phase 2: d-10, d-14, d-16,
+t-05, t-06 (area), d-23, t-12 (context layer), t-15 and t-20 (time).
+
+### Not tested
+
+- No live run sent an edit step to the dashboard endpoints. The step args
+  follow the request models of `src/api/schemas.py` and the routers.
+- `load_dashboard` with its statistics lookup (`_insight_analyses`) ran
+  with fake rows only. No run used a real dashboard.
+- `choose` is tested with unit tests only. The eval runs no chip
+  selection.
+
 ## Phases
 
 Each phase is one or more PRs and can ship alone behind `ff=zap`.
@@ -754,7 +1153,7 @@ Each phase is one or more PRs and can ship alone behind `ff=zap`.
 | 2 (done, 2026-11-12) | `extract.py` with the jev fallback. Full `ZapCurrent`. `state` in the plan | The map set is better than the baseline on time and area, and not worse on dataset, context layer and canopy cover |
 | 3 | History trail in the browser, with its row limit, and undo on the map (frontend). Top options in the decisions (the backend sends them since phase 4) | A follow-up request keeps the earlier settings; undo and row selection restore the map |
 | 4 (backend done, 2026-11-12) | Zap on dashboards, tier 1 additions: `action` question, the dashboard steps in the frontend, the dashboard trail. Backend: the dashboard planner, the step contract ("8. Dashboard step contract"), `tier`, `needs_confirmation` and the top options of the decisions, the dashboard eval set | A request adds a chart, a map, a template or imagery to a dashboard, and the trail shows the edit |
-| 5 | Tier 1 layout edits and tier 2 edits: `target` question, preview and confirmation, thresholds from the dashboard set | No wrong removal is applied with no confirmation in the dashboard set; "remove that" after an addition removes the added widget |
+| 5 (backend done, 2026-11-12) | Tier 1 layout edits and tier 2 edits: `target` question, preview and confirmation, thresholds from the dashboard set. Backend: the edit steps and their contract, the `target` question, the Clairic `title`, the last-edit ids, `choose`, the month rules, the dashboard set for the edits ("Phase 5 result") | No wrong removal is applied with no confirmation in the dashboard set; "remove that" after an addition removes the added widget |
 | 6 | `view` question, after the view registry merges | `add_chart` can select each view of a dataset |
 
 ## Risks
@@ -794,7 +1193,9 @@ Open, for agreement before phase 2:
    has no clear benefit. It can come with a real undo.
 2. **`change_period`.** Proposed: replace the widget after a confirmation.
    The alternative keeps the old widget and adds the new one next to it,
-   which loses nothing but leaves the user to remove the old one.
+   which loses nothing but leaves the user to remove the old one. Phase 5
+   replaces it. `CHANGE_PERIOD_REPLACES` in `src/api/services/zap/edits.py`
+   selects the alternative (the step then has `replace: false`).
 3. **Text.** Proposed: zap writes no text. A name or a note is the words of
    the user from the `title` field. Text widgets with new text stay with
    the assistant.
