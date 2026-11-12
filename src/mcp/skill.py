@@ -96,7 +96,8 @@ CLI writes these files itself.
   repeat it (the scripts or commands, in order), the cautions that apply,
   and the citation with the access date filled in.
 - **Without code** (in a chat), quote only numbers a tool returned, and
-  offer the user the result's `pull.py`, which repeats the pull.
+  offer the user the result's `pull.py`, which repeats the pull (a host
+  that shows GNW's views has it in the result's Reproduce panel).
 
 `pull.py` warns when the rows it fetches differ from the ones first pulled
 (`rows_sha256`): the data was updated since.

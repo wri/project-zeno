@@ -21,6 +21,7 @@ from src.mcp.charts import chart_code_resource, curated_charts, get_chart_code
 from src.mcp.data import pull_data
 from src.mcp.datasets import get_dataset, list_datasets
 from src.mcp.skill import SKILL_DIR
+from src.mcp.views import register_views, tool_app
 from src.shared.version import get_version
 
 INSTRUCTIONS = """\
@@ -111,7 +112,9 @@ def build_server() -> FastMCP:
         curated_charts,
         get_chart_code,
     ):
-        server.tool(tool, annotations=_READ_ONLY)
+        server.tool(tool, annotations=_READ_ONLY, app=tool_app(tool.__name__))
+    # The views MCP Apps hosts draw the tools' results with.
+    register_views(server)
     server.resource(
         "gnw://charts/{dataset_id}/code",
         name="chart_code",

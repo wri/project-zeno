@@ -167,6 +167,7 @@ async def test_curated_only_chart_data_is_withheld(monkeypatch, pull_returns):
         chart["chart_data"] == []
         for chart in result.structured_content["charts"]
     )
+    assert result.structured_content["withheld"] is True
     assert "805620.12" not in result.content[0].text
 
 

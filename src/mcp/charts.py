@@ -249,6 +249,8 @@ async def curated_charts(
         structured_content={
             **pull.provenance(),
             "curated": True,
+            # The values are held back, not missing: views say so.
+            "withheld": withheld,
             "generator": info,
             "charts": [_chart_spec(chart) for chart in charts],
             "script": pull_script(pull),

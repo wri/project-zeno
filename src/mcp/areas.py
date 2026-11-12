@@ -293,6 +293,7 @@ async def resolve_areas(
         # The geocoder's own notes follow its list of names: places it could
         # not match, and the closest stored names for them.
         _, _, notes = message.partition("\n\n")
+        notes = notes.strip()
         if notes:
             lines.append(notes)
         return ToolResult(
@@ -301,6 +302,7 @@ async def resolve_areas(
                 "selection_name": selection["name"],
                 "areas": found,
                 "candidates": [],
+                "notes": notes or None,
             },
         )
 
@@ -317,6 +319,7 @@ async def resolve_areas(
                 "selection_name": None,
                 "areas": [],
                 "candidates": candidates,
+                "notes": None,
             },
         )
 
@@ -328,5 +331,6 @@ async def resolve_areas(
             "selection_name": None,
             "areas": [],
             "candidates": [],
+            "notes": None,
         },
     )

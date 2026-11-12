@@ -291,6 +291,7 @@ async def test_pull_data_withholds_curated_only_rows(monkeypatch, pulled):
         "pull_data", {"aoi_ids": ["gadm:BRA.14_1"], "dataset_id": 4}
     )
     assert result.structured_content["rows"] == []
+    assert result.structured_content["withheld"] is True
     assert "805620.12" not in result.content[0].text
 
 
