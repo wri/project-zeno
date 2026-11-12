@@ -1,3 +1,6 @@
+"""Analytics API dataset names as Zeno's catalog dataset ids, so catalog
+instructions, cautions and colors still apply."""
+
 from typing import Any, Optional
 
 

@@ -1,5 +1,7 @@
 from src.agent.datasets.config import DATASETS
-from src.agent.tools.analytics_mcp.catalog_datasets import CatalogDatasets
+from src.agent.tools.analytics_mcp.state_adapters.dataset_selection import (
+    CatalogDatasets,
+)
 
 TREE_COVER_LOSS = 4
 TREE_COVER_GAIN = 5

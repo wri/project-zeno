@@ -1,3 +1,6 @@
+"""Catalog datasets as Zeno's dataset selection, the shape the dataset card,
+map layers and insight generator read."""
+
 from typing import Any, Optional
 
 import pandas as pd

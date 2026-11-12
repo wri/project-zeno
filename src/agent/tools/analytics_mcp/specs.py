@@ -17,10 +17,19 @@ from src.agent.datasets.handlers.analytics_handler import (
     analytics_api_headers,
 )
 from src.agent.tool_spec import ToolCategory, ToolSpec
-from src.agent.tools.analytics_mcp.catalog_datasets import CatalogDatasets
 from src.agent.tools.analytics_mcp.client import StreamableHttpAnalyticsMcp
-from src.agent.tools.analytics_mcp.dataset_ids import DatasetIds
-from src.agent.tools.analytics_mcp.payload_choices import PayloadChoices
+from src.agent.tools.analytics_mcp.state_adapters.catalog_ids import (
+    DatasetIds,
+)
+from src.agent.tools.analytics_mcp.state_adapters.dataset_selection import (
+    CatalogDatasets,
+)
+from src.agent.tools.analytics_mcp.state_adapters.payload_choices import (
+    PayloadChoices,
+)
+from src.agent.tools.analytics_mcp.state_adapters.state_updates import (
+    StateUpdates,
+)
 from src.agent.tools.analytics_mcp.tools import AnalyticsMcpTools
 from src.agent.tools.pull_data import record_statistics
 
@@ -44,8 +53,7 @@ def authorization_headers() -> dict[str, str]:
     }
 
 
-tools = AnalyticsMcpTools(
-    mcp=StreamableHttpAnalyticsMcp(analytics_mcp_url(), authorization_headers),
+state_updates = StateUpdates(
     dataset_ids=DatasetIds(
         catalog=DATASETS,
         intersection_ids={
@@ -74,6 +82,10 @@ tools = AnalyticsMcpTools(
         natural_forest_canopy_cover=NATURAL_FOREST_DEFAULT_CANOPY_COVER,
     ),
     record_statistics=record_statistics,
+)
+tools = AnalyticsMcpTools(
+    mcp=StreamableHttpAnalyticsMcp(analytics_mcp_url(), authorization_headers),
+    state_updates=state_updates,
     sleep=asyncio.sleep,
     poll_timeout_seconds=POLL_TIMEOUT_SECONDS,
 )
@@ -90,17 +102,6 @@ PICK_AOI_SPEC = ToolSpec(
         "and the kind of area in area_types, not in the name."
     ),
 )
-LIST_DATASETS_SPEC = ToolSpec(
-    tool=StructuredTool.from_function(
-        coroutine=tools.list_datasets, name="list_datasets"
-    ),
-    category=ToolCategory.PRIMITIVE,
-    prompt_fragment=(
-        "- list_datasets(): the datasets that can be analyzed. To answer "
-        "with data: pick_aoi, list_datasets, pick_dataset, pull_data, then "
-        "generate_insights."
-    ),
-)
 LIST_SUBREGIONS_SPEC = ToolSpec(
     tool=StructuredTool.from_function(
         coroutine=tools.list_subregions, name="list_subregions"
@@ -110,6 +111,17 @@ LIST_SUBREGIONS_SPEC = ToolSpec(
         "- list_subregions(aoi): the regions, states, counties or protected "
         "areas within an area, or the countries of the world (WLD), to pull "
         "together for questions comparing the parts of a place."
+    ),
+)
+LIST_DATASETS_SPEC = ToolSpec(
+    tool=StructuredTool.from_function(
+        coroutine=tools.list_datasets, name="list_datasets"
+    ),
+    category=ToolCategory.PRIMITIVE,
+    prompt_fragment=(
+        "- list_datasets(): the datasets that can be analyzed. To answer "
+        "with data: pick_aoi, list_datasets, pick_dataset, pull_data, then "
+        "generate_insights."
     ),
 )
 PICK_DATASET_SPEC = ToolSpec(

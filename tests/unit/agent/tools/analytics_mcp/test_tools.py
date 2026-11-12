@@ -5,8 +5,15 @@ import pytest
 from langchain_core.messages import ToolMessage
 
 from src.agent.tools.analytics_mcp.client import AnalyticsMcpError
-from src.agent.tools.analytics_mcp.dataset_ids import DatasetIds
-from src.agent.tools.analytics_mcp.payload_choices import PayloadChoices
+from src.agent.tools.analytics_mcp.state_adapters.catalog_ids import (
+    DatasetIds,
+)
+from src.agent.tools.analytics_mcp.state_adapters.payload_choices import (
+    PayloadChoices,
+)
+from src.agent.tools.analytics_mcp.state_adapters.state_updates import (
+    StateUpdates,
+)
 from src.agent.tools.analytics_mcp.tools import AnalyticsMcpTools
 
 LINK = "https://analytics.example/v0/land_change/tree_cover_loss/analytics/abc"
@@ -80,8 +87,7 @@ async def no_wait(seconds: float) -> None:
 
 
 def build_tools(mcp: FakeMcp, recorder: RecordedStatistics | None = None):
-    return AnalyticsMcpTools(
-        mcp=mcp,
+    state_updates = StateUpdates(
         dataset_ids=DatasetIds(
             catalog=[
                 {
@@ -97,6 +103,10 @@ def build_tools(mcp: FakeMcp, recorder: RecordedStatistics | None = None):
             default_canopy_cover=30, natural_forest_canopy_cover=10
         ),
         record_statistics=(recorder or RecordedStatistics()).record,
+    )
+    return AnalyticsMcpTools(
+        mcp=mcp,
+        state_updates=state_updates,
         sleep=no_wait,
         poll_timeout_seconds=180,
     )

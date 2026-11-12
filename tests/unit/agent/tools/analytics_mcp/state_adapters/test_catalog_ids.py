@@ -1,6 +1,6 @@
 import pytest
 
-from src.agent.tools.analytics_mcp.dataset_ids import (
+from src.agent.tools.analytics_mcp.state_adapters.catalog_ids import (
     DatasetIds,
     UnknownDatasetError,
 )

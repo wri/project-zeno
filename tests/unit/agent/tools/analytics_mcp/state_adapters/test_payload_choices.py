@@ -1,6 +1,8 @@
 import pytest
 
-from src.agent.tools.analytics_mcp.payload_choices import PayloadChoices
+from src.agent.tools.analytics_mcp.state_adapters.payload_choices import (
+    PayloadChoices,
+)
 
 choices = PayloadChoices(
     default_canopy_cover=30, natural_forest_canopy_cover=10

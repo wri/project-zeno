@@ -1,7 +1,9 @@
+"""A finished analysis as a statistics entry, the shape the insight
+generator, the statistics table and evaluations read."""
+
 from datetime import date
 from typing import Any
 
-from src.agent.tools.analytics_mcp.area_selection import area_selection_entry
 from src.shared.geocoding_helpers import format_id
 
 
@@ -31,30 +33,6 @@ def analysis_statistics(
         "parameters": dataset.get("parameters"),
         "context_layer": dataset.get("context_layer"),
     }
-
-
-def analyzed_areas(
-    aoi: dict[str, Any],
-    aoi_selection: dict[str, Any],
-    names: dict[str, str],
-) -> list[dict[str, Any]]:
-    """The areas an analysis covered, as AOI selection entries: as selected
-    when the selection holds them, otherwise named from `names` or by id."""
-    selected = {
-        format_id(area["src_id"]): area
-        for area in aoi_selection.get("aois", [])
-    }
-    areas = []
-    for aoi_id in aoi["ids"]:
-        if aoi_id in selected:
-            areas.append(selected[aoi_id])
-            continue
-        match = {
-            "display_name": names.get(aoi_id, aoi_id),
-            "aoi": {**aoi, "ids": [aoi_id]},
-        }
-        areas.append(area_selection_entry(match))
-    return areas
 
 
 def requested_dates(

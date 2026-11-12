@@ -1,3 +1,6 @@
+"""The context layer and canopy cover an analytics API payload chose, in
+Zeno's terms."""
+
 from typing import Any, Optional
 
 # Zeno's context layer for each filter an analytics API payload can apply.
