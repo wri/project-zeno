@@ -1,7 +1,8 @@
 # Zap mode plan: extraction, history, undo and dashboards
 
-Status: proposal. Phase 1 (the map eval and its baseline) is done. The
-other phases have no code.
+Status: proposal. Phase 1 (the map eval and its baseline) and phase 2
+(Clairic extraction and the full current state) are done. The other phases
+have no code.
 
 ## Goal
 
@@ -317,6 +318,113 @@ What the baseline shows:
 Phase 2 must improve time and area on this set, with no loss on dataset,
 context layer and canopy cover.
 
+## Phase 2 result
+
+Run on 2026-11-12 with jev `typesafe/jev-1.13`, Clairic
+`cloudflare/clairic` (`cloudflare/clairic-20261029`) and the same map set
+as the baseline. The field instructions and the calendar rules were tuned
+on the dev part only. The test part ran one time, after the tuning. The raw
+results are in `tests/evals/zap/results/2026-11-12-dev-phase2.json` and
+`2026-11-12-test-phase2.json`.
+
+A follow-up case now sends the `state` of the plan of its first prompt (see
+`tests/evals/zap/README.md`). Thus, a wrong first plan also counts against
+its follow-up. The baseline sent only the dataset and the area of the fixed
+`current`.
+
+Correct values for each field:
+
+| Field | Dev | Test | Total | Baseline total |
+|---|---|---|---|---|
+| Dataset | 51/51 | 53/53 | 104/104 (100%) | 104/104 (100%) |
+| Area | 48/51 | 51/53 | 99/104 (95%) | 94/104 (90%) |
+| Time | 50/50 | 47/51 | 97/101 (96%) | 68/101 (67%) |
+| Context layer | 34/35 | 40/41 | 74/76 (97%) | 71/76 (93%) |
+| Canopy cover | 29/29 | 33/33 | 62/62 (100%) | 60/62 (97%) |
+| No change | 5/5 | 4/4 | 9/9 | 8/9 |
+| All fields of a case | 47/51 | 46/53 | 93/104 (89%) | 57/104 (55%) |
+| Median time of a plan | 695 ms | 659 ms | | 562 ms, 558 ms |
+
+Cases with all tested fields correct, for each kind of case:
+
+| Kind | Dev | Test | Total | Baseline total |
+|---|---|---|---|---|
+| Gold prompts | 19/21 | 19/23 | 38/44 | 25/44 |
+| Gold prompts, other languages | 1/3 | 2/2 | 3/5 | 3/5 |
+| Free date range | 2/2 | 3/3 | 5/5 | 0/5 |
+| Month or day (alerts) | 3/3 | 1/3 | 4/6 | 0/6 |
+| Period back from today | 3/3 | 3/3 | 6/6 | 3/6 |
+| Place name of more than four words | 3/3 | 3/3 | 6/6 | 6/6 |
+| Canopy cover value | 3/3 | 4/4 | 7/7 | 6/7 |
+| Follow-up pairs | 8/8 | 8/8 | 16/16 | 8/16 |
+| No change | 5/5 | 4/4 | 9/9 | 8/9 |
+
+The "done when" of phase 2 holds: time and area are better than the
+baseline, and dataset, context layer and canopy cover are not worse.
+
+What changed in the planner:
+
+- Clairic call A (the request only) gives the place and the canopy cover.
+  Clairic call B (the app context, today's date and the request) gives the
+  time. Both calls and the first jev call start at the same time.
+- Code makes the range for these time words: whole years ("in 2025",
+  "2015-2020", "since 2015", "until 2010"), months in English ("March
+  2026", "from January to April 2025", "since May"), seasons, quarters,
+  half years, periods back from today, "recent" (the last 12 months, as the
+  jev option) and "all years". On the dev part, Clairic gave a wrong last
+  day for most years and some months, for example 2026-12-12 for "in 2025"
+  and 2026-03-02 for "March 2026". "Today" or "now" alone names no time.
+  In the two runs, code made 56 of the 104 ranges.
+- When `search_aois` finds nothing for the place words, the planner tries
+  again with a cleaned name: no type word at the end ("Corona Forestal
+  protected area"), no possessive, no text in brackets, and a comma in place
+  of "in" ("Pocho in Cordoba").
+- The canopy cover snaps to the nearest value of the dataset. A value more
+  than 5 points from a permitted value adds a note.
+- The planner starts from the full `current` and changes only what the
+  request names. jev gets a `keep` option for the forest type when the map
+  shows one. When the current dates are all the dates of the current
+  dataset, they do not count as a selected period.
+- Each decision has a `source`: `jev`, `clairic` or `code`. `ZapPlan.state`
+  is the state after the steps.
+- A Clairic call that gets a 429 or a 5xx error tries again one time after
+  0.3 s. The dev runs got "Capacity temporarily exceeded" (429) when many
+  calls ran at the same time.
+
+The fallback: the first jev call also asks the `place` and `period`
+questions of phase 1, so a Clairic failure adds no time. When call A fails,
+the planner uses the jev place and asks the jev `canopy` question. When
+call B fails, or its answers make no range, the planner uses the jev period.
+The unit tests cover each case. A dev run with a wrong extractions URL
+(all Clairic calls fail) gave dataset 51/51, area 47/51, time 31/50, context
+layer 32/35, canopy cover 29/29, no change 4/5 and all fields 26/51, with
+each value from jev. This is near the dev baseline (45, 32, 32, 29, 4 and
+25).
+
+The cost: the median time of a plan increased by about 120 ms. The first
+jev call still asks the `place` and `period` questions, so the jev cost
+did not decrease, and the two Clairic calls add about $0.00004 each.
+
+The cases that still fail:
+
+| Case | Field | Cause |
+|---|---|---|
+| d-14, d-16 | Area | The name is not English ("España", "中国"). Clairic gives the words of the request and does not translate them. `search_aois` finds English names only |
+| d-10 | Area | jev selects the municipality of Huelva, not the province (probability 0.5) |
+| t-05 | Area | The place words "Blackfeet Indian reservation in Montana USA" find no area, also in the cleaned form. The baseline found it from a shorter span. A new failure |
+| t-06 | Area | "Champoton community land in Mexico" finds no area. The baseline also failed |
+| d-23, t-12 | Context layer | jev selects no forest type for "deforestation". The baseline also failed |
+| t-15 | Time | The request compares two months. Clairic gives the first month only. The expected range has both months |
+| t-20 | Time | The request compares two periods. Clairic gives the first period, 2000-2010. The expected range is the whole record. A new failure |
+| t-30 | Time | "last month": Clairic gives 2026-10-01 to 2026-10-12, not the full month. The rule for a period back from today leaves "last month" to Clairic |
+| t-31 | Time | "between December 2024 and February 2025": the month rule takes only one year, and Clairic ends on 2025-02-02 |
+
+Possible next steps, from these failures: a month rule for "last month"
+and for a range of months over two years, a cleaned form that removes
+words such as "Indian reservation" and "community land", and English
+names before `search_aois`. Add dev cases for each before a change, because
+t-30 and t-31 are in the test part.
+
 ## Phases
 
 Each phase is one or more PRs and can ship alone behind `ff=zap`.
@@ -324,7 +432,7 @@ Each phase is one or more PRs and can ship alone behind `ff=zap`.
 | Phase | Content | Done when |
 |---|---|---|
 | 1 (done, 2026-11-12) | Map eval set and script. Baseline of zap today | The baseline numbers are in this document (see "Baseline") |
-| 2 | `extract.py` with the jev fallback. Full `ZapCurrent`. `state` in the plan | The map set is better than the baseline on time and place, and not worse on dataset and area |
+| 2 (done, 2026-11-12) | `extract.py` with the jev fallback. Full `ZapCurrent`. `state` in the plan | The map set is better than the baseline on time and area, and not worse on dataset, context layer and canopy cover |
 | 3 | History trail in the browser, with its row limit, and undo on the map (frontend). Top options in the decisions | A follow-up request keeps the earlier settings; undo and row selection restore the map |
 | 4 | Zap on dashboards, tier 1 additions: `action` question, the dashboard steps in the frontend, the dashboard trail | A request adds a chart, a map, a template or imagery to a dashboard, and the trail shows the edit |
 | 5 | Tier 1 layout edits and tier 2 edits: `target` question, preview and confirmation, thresholds from the dashboard set | No wrong removal is applied with no confirmation in the dashboard set; "remove that" after an addition removes the added widget |
