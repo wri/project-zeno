@@ -142,7 +142,7 @@ PULL_DATA_SPEC = ToolSpec(
     prompt_fragment=(
         "- pull_data(dataset, payload): run the analysis, with a payload "
         "matching pick_dataset's schema and the aoi from pick_aoi. Use exactly "
-        "the period asked for (through 2024 means an end of 2024). Then call "
+        "the period asked for, through its last year. Then call "
         "generate_insights with the question restated with the areas and "
         "period analyzed; for amounts or trends, ask it for the total over "
         "the period too."
