@@ -172,3 +172,15 @@ cases:
     prompt: now add a map of it
     current: {dataset: 4, start: "2015-01-01", end: "2025-12-31", context: primary_forest}
     expect: {action: add_map, dataset: 4, start: "2015-01-01", end: "2025-12-31", context: primary_forest, confirm: false}
+  # --- Month rules (phase 5): the failing cases dt-10 and dt-18 are in the
+  # test part, so the rules were written on these cases.
+  - id: dd-33
+    dashboard: ghana
+    kind: chart
+    prompt: add a chart of the integrated alerts of the previous month
+    expect: {action: add_chart, dataset: 11, start: "2026-10-01", end: "2026-10-31", confirm: false}
+  - id: dd-34
+    dashboard: sebangau
+    kind: imagery
+    prompt: add Sentinel-2 imagery from November 2023 to March 2024
+    expect: {action: add_imagery, start: "2023-11-01", end: "2024-03-31", confirm: false}

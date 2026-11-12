@@ -309,3 +309,17 @@ cases:
     prompt: what's the weather like today?
     current: {dataset: 4, area: {id: gadm:GHA, name: Ghana}, start: "2001-01-01", end: "2025-12-31"}
     no_change: true
+
+  # --- Month rules (phase 5): the calendar month before today, and a range
+  # of months over two years. The failing cases t-30 and t-31 are in the
+  # test part, so the rules were written on these cases.
+  - id: d-52
+    kind: month
+    tests: [time]
+    prompt: Integrated alerts in Mato Grosso last month
+    expect: {dataset: 11, area: gadm:BRA.12_1, start: "2026-10-01", end: "2026-10-31"}
+  - id: d-53
+    kind: month
+    tests: [time]
+    prompt: Alerts in Sabah from November 2025 to January 2026
+    expect: {dataset: 11, area: gadm:MYS.13_1, start: "2025-11-01", end: "2026-01-31"}
