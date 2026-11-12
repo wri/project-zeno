@@ -1,0 +1,174 @@
+# Zap dashboard eval: the dev part. Use this part to tune the planner.
+# The dashboards are in dashboards.yaml. The format and the rules are in
+# README.md ("The dashboard set").
+today: "2026-11-12"
+cases:
+  # --- Add a chart ---
+  - id: dd-01
+    dashboard: para
+    kind: chart
+    prompt: add a chart of tree cover loss since 2015
+    expect: {action: add_chart, dataset: 4, start: "2015-01-01", end: "2026-11-12", context: null, confirm: false}
+  - id: dd-02
+    dashboard: para
+    kind: chart
+    prompt: chart primary forest loss between 2002 and 2010
+    expect: {action: add_chart, dataset: 4, start: "2002-01-01", end: "2010-12-31", context: primary_forest, confirm: false}
+  - id: dd-03
+    dashboard: ghana
+    kind: chart
+    prompt: add a chart of the disturbance alerts of the last 3 months
+    expect: {action: add_chart, dataset: 11, start: "2026-08-12", end: "2026-11-12", relative: true, confirm: false}
+  - id: dd-04
+    dashboard: sebangau
+    kind: chart
+    prompt: add a chart of the forest carbon emissions and removals of the park
+    expect: {action: add_chart, dataset: 6, start: null, end: null, confirm: false}
+  - id: dd-05
+    dashboard: para
+    kind: chart
+    prompt: add a pie chart of what drives the tree cover loss
+    expect: {action: add_chart, dataset: 8, start: null, end: null, confirm: false}
+  - id: dd-06
+    dashboard: ghana
+    kind: chart
+    prompt: chart tree cover loss in 2024 at 50% canopy cover
+    expect: {action: add_chart, dataset: 4, start: "2024-01-01", end: "2024-12-31", canopy: 50, context: null, confirm: false}
+  - id: dd-07
+    dashboard: sebangau
+    kind: chart
+    prompt: add a chart of tree cover loss from fires
+    expect: {action: add_chart, dataset: 10, start: null, end: null, context: null, confirm: false}
+  # --- Add a map ---
+  - id: dd-08
+    dashboard: para
+    kind: map
+    prompt: add a map of tree cover gain
+    expect: {action: add_map, dataset: 5, start: null, end: null, confirm: false}
+  - id: dd-09
+    dashboard: ghana
+    kind: map
+    prompt: put a land cover map on the dashboard
+    expect: {action: add_map, dataset: 1, start: null, end: null, confirm: false}
+  - id: dd-10
+    dashboard: sebangau
+    kind: map
+    prompt: add a map layer of tree cover loss in intact forest
+    expect: {action: add_map, dataset: 4, start: null, end: null, context: intact_forest, confirm: false}
+  - id: dd-11
+    dashboard: para
+    kind: map
+    prompt: add a map of the natural lands
+    expect: {action: add_map, dataset: 3, start: null, end: null, confirm: false}
+  # --- Add a template section ---
+  - id: dd-12
+    dashboard: ghana
+    kind: template
+    prompt: add the near real-time monitoring section
+    expect: {action: add_template, template: nrt-monitoring, confirm: false}
+  - id: dd-13
+    dashboard: para
+    kind: template
+    prompt: add a section about the drivers of forest loss
+    expect: {action: add_template, template: forest-loss-drivers, confirm: false}
+  - id: dd-14
+    dashboard: sebangau
+    kind: template
+    prompt: add the analysis of natural forest loss since 2021
+    expect: {action: add_template, template: post-2020-forest-loss, confirm: false}
+  # --- Add imagery ---
+  - id: dd-15
+    dashboard: para
+    kind: imagery
+    prompt: add satellite imagery from March 2025
+    expect: {action: add_imagery, start: "2025-03-01", end: "2025-03-31", confirm: false}
+  - id: dd-16
+    dashboard: ghana
+    kind: imagery
+    prompt: add a recent Sentinel-2 image with less than 5% clouds
+    expect: {action: add_imagery, start: null, end: null, cloud: 5, confirm: false}
+  - id: dd-17
+    dashboard: sebangau
+    kind: imagery
+    prompt: add a satellite image of the park from 15 August 2024
+    expect: {action: add_imagery, start: "2024-08-15", end: "2024-08-15", confirm: false}
+  # --- Actions of a later phase: no steps ---
+  - id: dd-18
+    dashboard: para
+    kind: later-phase
+    prompt: remove the tree cover loss chart
+    expect: {action: none}
+  - id: dd-19
+    dashboard: ghana
+    kind: later-phase
+    prompt: move the alerts chart into a new section
+    expect: {action: none}
+  - id: dd-20
+    dashboard: sebangau
+    kind: later-phase
+    prompt: rename the dashboard to Sebangau fires
+    expect: {action: none}
+  - id: dd-21
+    dashboard: para
+    kind: later-phase
+    prompt: publish this dashboard
+    expect: {action: none}
+  - id: dd-22
+    dashboard: ghana
+    kind: later-phase
+    prompt: change the period of the alerts chart to the last 6 months
+    expect: {action: none}
+  - id: dd-23
+    dashboard: sebangau
+    kind: later-phase
+    prompt: delete this dashboard
+    expect: {action: none}
+  - id: dd-24
+    dashboard: para
+    kind: later-phase
+    prompt: make the loss map half width
+    expect: {action: none}
+  - id: dd-25
+    dashboard: ghana
+    kind: later-phase
+    prompt: add a note that says this is a draft
+    expect: {action: none}
+  # --- No change ---
+  - id: dd-26
+    dashboard: para
+    kind: no-change
+    prompt: thanks!
+    expect: {action: none}
+  - id: dd-27
+    dashboard: ghana
+    kind: no-change
+    prompt: what does this chart mean?
+    expect: {action: none}
+  - id: dd-28
+    dashboard: sebangau
+    kind: no-change
+    prompt: hello
+    expect: {action: none}
+  - id: dd-29
+    dashboard: para
+    kind: no-change
+    prompt: add a chart comparing loss in Pará and Amazonas
+    expect: {action: none}
+  # --- Not clear: a confirmation is necessary ---
+  - id: dd-30
+    dashboard: para
+    kind: unclear
+    prompt: tree cover loss
+    expect: {action: [add_chart, add_map], dataset: 4, start: null, end: null, context: [null, primary_forest], confirm: true}
+  - id: dd-31
+    dashboard: ghana
+    kind: unclear
+    prompt: something about fires
+    expect: {action: [add_chart, add_map], dataset: [10, 11], start: null, end: null, context: null, confirm: true}
+  # --- Follow-up: the state of the last addition ---
+  - id: dd-32
+    dashboard: para
+    kind: follow-up
+    prompt: now add a map of it
+    current: {dataset: 4, start: "2015-01-01", end: "2025-12-31", context: primary_forest}
+    expect: {action: add_map, dataset: 4, start: "2015-01-01", end: "2025-12-31", context: primary_forest, confirm: false}

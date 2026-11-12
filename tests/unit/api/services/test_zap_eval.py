@@ -200,3 +200,118 @@ def test_state_mismatch_names_the_fields():
     )
     got = zap_eval.state_after(FOLLOW_UP, plan)
     assert "start" in zap_eval.state_mismatch(got, plan)
+
+
+# --- The dashboard set ------------------------------------------------------
+
+
+@pytest.mark.parametrize("part", ["dashboard-dev", "dashboard-test"])
+def test_dashboard_cases_are_valid(part):
+    from src.api.services.zap import options as o
+
+    today, cases = zap_eval.load_part(part)
+    boards = zap_eval.load_dashboards()
+    assert today == date(2026, 11, 12)
+    ids = [c["id"] for c in cases]
+    assert len(ids) == len(set(ids))
+    for case in cases:
+        assert case["dashboard"] in boards
+        exp = zap_eval.dashboard_expected(case)
+        assert set(exp["action"]) <= {*o.ADD_ACTIONS, "none"}
+        for template in exp["template"]:
+            assert template is None or template in o.TEMPLATE_CARDS
+        for dataset in exp["dataset"]:
+            assert dataset is None or dataset in o.DATASET_CARDS
+
+
+def _dashboard_plan(step, needs_confirmation=False):
+    return ZapPlan(
+        steps=[step] if step else [],
+        decisions=[],
+        notes=[],
+        tier=2 if needs_confirmation else 1,
+        needs_confirmation=needs_confirmation,
+    )
+
+
+async def test_dashboard_score_of_a_chart():
+    case = {
+        "expect": {
+            "action": "add_chart",
+            "dataset": 4,
+            "start": "2015-01-01",
+            "end": "2026-11-12",
+            "context": "primary_forest",
+            "confirm": False,
+        }
+    }
+    step = ZapStep(
+        kind="add_chart",
+        title="",
+        args={
+            "analyze": {
+                "dataset_id": 4,
+                "start_date": "2015-01-01",
+                "end_date": "2025-12-31",
+                "context_layer": "primary_forest",
+                "canopy_cover": None,
+            }
+        },
+    )
+    got = zap_eval.dashboard_got(_dashboard_plan(step))
+
+    scores = await zap_eval.dashboard_score(case, got, date(2026, 11, 12))
+
+    assert {k: v for k, v in scores.items() if v is not None} == {
+        "action": True,
+        "dataset": True,
+        "time": True,
+        "context": True,
+        "canopy": True,
+        "confirm": True,
+    }
+
+
+async def test_dashboard_score_of_an_addition_that_must_not_happen():
+    case = {"expect": {"action": "none"}}
+    step = ZapStep(
+        kind="add_template",
+        title="",
+        args={"template": "nrt-monitoring"},
+    )
+    got = zap_eval.dashboard_got(_dashboard_plan(step))
+
+    scores = await zap_eval.dashboard_score(case, got, date(2026, 11, 12))
+
+    assert scores["action"] is False
+    # The fields of an addition are scored only for an expected addition.
+    assert scores["template"] is None
+
+
+async def test_dashboard_score_of_imagery():
+    case = {
+        "expect": {
+            "action": "add_imagery",
+            "start": "2025-03-01",
+            "end": "2025-03-31",
+            "cloud": 10,
+        }
+    }
+    step = ZapStep(
+        kind="add_imagery",
+        title="",
+        args={
+            "mosaic": {
+                "target_date": "2025-03-16",
+                "window_days": 15,
+                "max_cloud_cover": 10,
+            }
+        },
+    )
+    got = zap_eval.dashboard_got(_dashboard_plan(step))
+
+    scores = await zap_eval.dashboard_score(case, got, date(2026, 11, 12))
+
+    assert scores["time"] is True
+    assert scores["cloud"] is True
+    assert scores["confirm"] is None

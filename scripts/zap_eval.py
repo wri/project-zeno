@@ -1,4 +1,4 @@
-"""Run the zap map eval (tests/evals/zap) against the live planner.
+"""Run the zap evals (tests/evals/zap) against the live planner.
 
 Calls `plan_zap` for each case of one part (dev or test) with live jev and
 `search_aois`, applies the plan to the case's map state as the frontend does,
@@ -7,12 +7,19 @@ for the cases that must change nothing, no_change.
 
     uv run python scripts/zap_eval.py dev
     uv run python scripts/zap_eval.py test --env-file ../../../.env
+    uv run python scripts/zap_eval.py dashboard-dev --env-file ../../../.env
+
+The dashboard parts (`dashboard-dev`, `dashboard-test`) run against the
+fixed dashboards of `dashboards.yaml` and score the action, the dataset,
+the time, the forest type, the canopy cover, the template, the cloud cover
+and the confirmation. They need no database.
 
 A follow-up case (`follows`) sends the state after its first prompt
 (`ZapPlan.state`) as `current`, as the frontend does. `--no-chain` sends the
 fixed `current` of the case instead.
 
-Needs OPENROUTER_API_KEY and DATABASE_URL (the AOI tables). The rules are in
+Needs OPENROUTER_API_KEY, and DATABASE_URL (the AOI tables) for the map
+parts. The rules are in
 tests/evals/zap/README.md.
 """
 
@@ -256,6 +263,360 @@ async def score(case: dict, got: dict, plan) -> dict[str, Optional[bool]]:
     return out
 
 
+# --- The dashboard set -----------------------------------------------------
+# The cases run against the fixed dashboards of dashboards.yaml. The script
+# gives the planner a `ZapDashboard` for each, so the run needs no database.
+
+DASHBOARD_FIELDS = [
+    "action",
+    "dataset",
+    "time",
+    "context",
+    "canopy",
+    "template",
+    "cloud",
+    "confirm",
+]
+# The fields that make an addition wrong when they are wrong.
+ADDITION_FIELDS = DASHBOARD_FIELDS[:-1]
+ADD_KINDS = ("add_chart", "add_map", "add_template", "add_imagery")
+DEFAULT_CLOUD = 20
+
+
+def load_dashboards() -> dict:
+    from src.api.services.zap.dashboard import ZapDashboard
+    from src.api.services.zap.models import ZapArea
+
+    data = yaml.safe_load((EVAL_DIR / "dashboards.yaml").read_text())
+    boards = {}
+    for key, raw in data["dashboards"].items():
+        source, src_id = raw["area"]["id"].split(":", 1)
+        boards[key] = ZapDashboard(
+            id=raw["id"],
+            name=raw["name"],
+            area=ZapArea(
+                name=raw["area"]["name"],
+                source=source,
+                src_id=src_id,
+                subtype=raw["area"]["subtype"],
+            ),
+            sections=raw.get("sections") or [],
+            widgets=raw.get("widgets") or [],
+        )
+    return boards
+
+
+def dashboard_current(case: dict, board):
+    """The `ZapCurrent` of a dashboard case: the page, the dashboard id and
+    the state of the last addition (`current`), if the case gives one."""
+    from src.api.services.zap.models import ZapCurrent
+
+    cur = current_state(case)
+    values = {
+        "dataset_id": cur["dataset"],
+        "start_date": cur["start"],
+        "end_date": cur["end"],
+        "context_layer": cur["context"],
+        "canopy_cover": cur["canopy"],
+    }
+    return ZapCurrent(
+        page="dashboard",
+        dashboard_id=board.id,
+        **{k: v for k, v in values.items() if v is not None},
+    )
+
+
+def dashboard_expected(case: dict) -> dict:
+    exp = case.get("expect") or {}
+    out = {
+        "action": _as_list(exp.get("action", "none")),
+        "dataset": _as_list(exp.get("dataset")),
+        "context": _as_list(exp.get("context")),
+        "canopy": _as_list(exp.get("canopy")),
+        "template": _as_list(exp.get("template")),
+        "cloud": _as_list(exp.get("cloud", DEFAULT_CLOUD)),
+        "confirm": exp.get("confirm", "any"),
+        "relative": bool(exp.get("relative", False)),
+        "has_time": "ranges" in exp or "start" in exp or "end" in exp,
+    }
+    if "ranges" in exp:
+        out["ranges"] = [tuple(map(_str_or_none, r)) for r in exp["ranges"]]
+    else:
+        out["ranges"] = [
+            (_str_or_none(exp.get("start")), _str_or_none(exp.get("end")))
+        ]
+    return out
+
+
+ACTION_TEXTS: dict = {}
+
+
+def _jev_action(plan) -> Optional[str]:
+    """The `action` option that jev selected, from its decision label."""
+    from src.api.services.zap import options as o
+
+    if not ACTION_TEXTS:
+        for key, text in o.ACTIONS.items():
+            # The planner cuts a label of more than 80 characters.
+            ACTION_TEXTS[text] = key
+            ACTION_TEXTS[text[:77] + "..."] = key
+    for d in plan.decisions:
+        if d.question == "Action":
+            return ACTION_TEXTS.get(d.label, d.label)
+    return None
+
+
+def dashboard_got(plan) -> dict:
+    """What the plan adds, in the field names of the eval."""
+    got: dict = {
+        "action": "none",
+        "jev_action": _jev_action(plan),
+        "dataset": None,
+        "start": None,
+        "end": None,
+        "context": None,
+        "canopy": None,
+        "template": None,
+        "cloud": None,
+        "target_date": None,
+        "window_days": None,
+        "needs_confirmation": plan.needs_confirmation,
+        "tier": plan.tier,
+    }
+    if not plan.steps:
+        return got
+    step = plan.steps[0]
+    args = step.args
+    got["action"] = step.kind
+    if step.kind == "add_chart":
+        body = args["analyze"]
+        got.update(
+            dataset=body["dataset_id"],
+            start=body["start_date"],
+            end=body["end_date"],
+            context=body.get("context_layer"),
+            canopy=body.get("canopy_cover"),
+        )
+    elif step.kind == "add_map":
+        layer = args["widget"]["config"]["dataset"]
+        got.update(
+            dataset=layer["dataset_id"],
+            start=str(layer["start_date"]),
+            end=str(layer["end_date"]),
+            context=layer.get("context_layer"),
+            canopy=_canopy_of(layer),
+        )
+    elif step.kind == "add_template":
+        got["template"] = args["template"]
+    elif step.kind == "add_imagery":
+        mosaic = args["mosaic"]
+        got.update(
+            target_date=mosaic["target_date"],
+            window_days=mosaic["window_days"],
+            cloud=mosaic["max_cloud_cover"],
+        )
+    return got
+
+
+def imagery_ok(got: dict, exp: dict, today: date) -> bool:
+    """The target date and the window of the imagery agree with the ones
+    that the expected range gives. A range back from today has a tolerance
+    of 1 day on the target and a fifth on the window."""
+    from src.api.services.zap.dashboard import _imagery_window
+
+    for start, end in exp["ranges"]:
+        rng = None if (start, end) == (None, None) else (start, end)
+        target, window = _imagery_window(rng, today)
+        if not exp["relative"]:
+            if (got["target_date"], got["window_days"]) == (
+                str(target),
+                window,
+            ):
+                return True
+            continue
+        if _days(got["target_date"], str(target)) <= 1 and abs(
+            got["window_days"] - window
+        ) <= max(1, window // 5):
+            return True
+    return False
+
+
+async def dashboard_score(
+    case: dict, got: dict, today: date
+) -> dict[str, Optional[bool]]:
+    """One result per field: True, False, or None when the field is not
+    scored for this case. The fields of an addition are scored only when
+    the expected action is an addition."""
+    exp = dashboard_expected(case)
+    out: dict[str, Optional[bool]] = dict.fromkeys(DASHBOARD_FIELDS)
+    out["action"] = got["action"] in exp["action"]
+    adds = [a for a in exp["action"] if a in ADD_KINDS]
+    if not adds or got["action"] == "none":
+        return out
+    data_actions = {"add_chart", "add_map"}
+    if data_actions & set(adds) and got["action"] in data_actions:
+        datasets = exp["dataset"]
+        out["dataset"] = got["dataset"] in datasets
+        if exp["has_time"]:
+            out["time"] = await range_ok(got, exp)
+        if any(_has_context(d) for d in datasets):
+            out["context"] = got["context"] in exp["context"]
+        if any(_has_canopy(d) for d in datasets):
+            out["canopy"] = _canopy_norm(got["canopy"]) in {
+                _canopy_norm(c) for c in exp["canopy"]
+            }
+    if "add_template" in adds and got["action"] == "add_template":
+        out["template"] = got["template"] in exp["template"]
+    if "add_imagery" in adds and got["action"] == "add_imagery":
+        out["time"] = imagery_ok(got, exp, today)
+        out["cloud"] = got["cloud"] in exp["cloud"]
+    if isinstance(exp["confirm"], bool):
+        out["confirm"] = bool(got["needs_confirmation"]) == exp["confirm"]
+    return out
+
+
+async def run_dashboard_case(case: dict, today: date, boards: dict) -> dict:
+    from src.api.services.zap.planner import plan_zap
+
+    board = boards[case["dashboard"]]
+    sent = dashboard_current(case, board)
+    started = time.perf_counter()
+    try:
+        plan = await plan_zap(
+            case["prompt"], sent, USER_ID, today=today, dashboard=board
+        )
+        error = None
+    except Exception as exc:  # noqa: BLE001 - a failed case is a result
+        plan, error = None, f"{type(exc).__name__}: {exc}"
+    latency_ms = round((time.perf_counter() - started) * 1000)
+    got = dashboard_got(plan) if plan else None
+    if plan is None:
+        scores = {"action": False}
+    else:
+        scores = {
+            f: v
+            for f, v in (await dashboard_score(case, got, today)).items()
+            if v is not None
+        }
+    added = bool(plan and plan.steps)
+    wrong = added and any(
+        scores.get(f) is False for f in ADDITION_FIELDS if f in scores
+    )
+    exp = dashboard_expected(case)
+    return {
+        "id": case["id"],
+        "kind": case.get("kind"),
+        "dashboard": case["dashboard"],
+        "prompt": case["prompt"],
+        "expected": exp,
+        "got": got,
+        "scores": scores,
+        "added": added,
+        "wrong_addition": wrong,
+        "wrong_unconfirmed": wrong and not (plan and plan.needs_confirmation),
+        "extra_confirmation": bool(
+            added
+            and not wrong
+            and plan.needs_confirmation
+            and exp["confirm"] is False
+        ),
+        "latency_ms": latency_ms,
+        "error": error,
+        "unclear": [
+            d.question
+            for d in (plan.decisions if plan else [])
+            if d.clear is False
+        ],
+        "plan": plan.model_dump() if plan else None,
+    }
+
+
+def dashboard_report(results: list[dict], meta: dict) -> str:
+    lines = [
+        f"Zap dashboard eval, part {meta['part']}: {len(results)} cases, "
+        f"jev model {meta['jev_model']}, extraction model "
+        f"{meta.get('extract_model')}, today {meta['today']}",
+        "",
+        "| Field | Correct | Scored | % |",
+        "|---|---|---|---|",
+    ]
+    for field in DASHBOARD_FIELDS:
+        scored = [r["scores"][field] for r in results if field in r["scores"]]
+        if scored:
+            ok = sum(scored)
+            lines.append(
+                f"| {field} | {ok} | {len(scored)} | {100 * ok / len(scored):.0f} |"
+            )
+    all_ok = sum(all(r["scores"].values()) for r in results)
+    lines.append(
+        f"| all fields of a case | {all_ok} | {len(results)} | "
+        f"{100 * all_ok / len(results):.0f} |"
+    )
+    by_kind: dict[str, list[bool]] = defaultdict(list)
+    for r in results:
+        by_kind[r["kind"]].append(all(r["scores"].values()))
+    lines += ["", "| Kind | All fields correct | Cases |", "|---|---|---|"]
+    for kind, oks in sorted(by_kind.items()):
+        lines.append(f"| {kind} | {sum(oks)} | {len(oks)} |")
+
+    added = [r for r in results if r["added"]]
+    wrong = [r["id"] for r in results if r["wrong_addition"]]
+    unconfirmed = [r["id"] for r in results if r["wrong_unconfirmed"]]
+    extra = [r["id"] for r in results if r["extra_confirmation"]]
+    lines += [
+        "",
+        f"Plans with an addition: {len(added)}",
+        f"Wrong additions: {len(wrong)} {wrong}",
+        f"Wrong additions applied with no confirmation: {len(unconfirmed)} "
+        f"{unconfirmed}",
+        f"Correct additions held for a confirmation that the case does not "
+        f"need: {len(extra)} {extra}",
+    ]
+    latencies = [r["latency_ms"] for r in results if not r["error"]]
+    if latencies:
+        lines.append(f"Median latency: {statistics.median(latencies):.0f} ms")
+    errors = Counter(r["error"].split(":")[0] for r in results if r["error"])
+    if errors:
+        lines.append(f"Errors: {dict(errors)}")
+
+    lines += ["", "Failed fields:"]
+    for r in results:
+        failed = [f for f, v in r["scores"].items() if not v]
+        if not failed:
+            continue
+        got = r["got"] or {}
+        exp = r["expected"]
+        detail = []
+        for f in failed:
+            if f == "time":
+                if got.get("action") == "add_imagery":
+                    detail.append(
+                        f"time {got.get('target_date')} ±{got.get('window_days')} "
+                        f"(want {exp['ranges']})"
+                    )
+                else:
+                    detail.append(
+                        f"time {got.get('start')}..{got.get('end')} "
+                        f"(want {exp['ranges']})"
+                    )
+            elif f == "action":
+                detail.append(
+                    f"action {got.get('action')} (jev {got.get('jev_action')}, "
+                    f"want {exp['action']})"
+                )
+            elif f == "confirm":
+                detail.append(
+                    f"confirm {got.get('needs_confirmation')} (want "
+                    f"{exp['confirm']}; unclear: {r['unclear']})"
+                )
+            else:
+                detail.append(f"{f} {got.get(f)} (want {exp[f]})")
+        if r["error"]:
+            detail.append(r["error"])
+        lines.append(f'- {r["id"]} "{r["prompt"]}": ' + "; ".join(detail))
+    return "\n".join(lines)
+
+
 # --- Running ---------------------------------------------------------------
 
 
@@ -468,7 +829,9 @@ def report(results: list[dict], meta: dict) -> str:
 
 async def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("part", choices=["dev", "test"])
+    parser.add_argument(
+        "part", choices=["dev", "test", "dashboard-dev", "dashboard-test"]
+    )
     parser.add_argument(
         "--env-file",
         default=".env",
@@ -501,30 +864,45 @@ async def main() -> None:
 
     if not APISettings.openrouter_api_key:
         sys.exit("OPENROUTER_API_KEY is not set")
-    if not os.environ.get("DATABASE_URL"):
+    dashboard = args.part.startswith("dashboard-")
+    if not dashboard and not os.environ.get("DATABASE_URL"):
         sys.exit("DATABASE_URL is not set")
 
     today, cases = load_part(args.part)
     if args.ids:
         cases = [c for c in cases if c["id"] in set(args.ids)]
     _fix_today(today)
-    await initialize_global_pool()
     results = []
-    states: dict = {}
-    try:
+    if dashboard:
+        # The dashboards are fixed: no database.
+        boards = load_dashboards()
         for case in cases:
-            previous = None
-            if not args.no_chain and case.get("follows"):
-                previous = states.get(case["follows"])
-            result, state = await run_case_with_state(case, today, previous)
-            states[case["id"]] = state
+            result = await run_dashboard_case(case, today, boards)
             mark = "ok" if all(result["scores"].values()) else "FAIL"
             print(
                 f"{result['id']} {mark} {result['latency_ms']} ms", flush=True
             )
             results.append(result)
-    finally:
-        await close_global_pool()
+    else:
+        await initialize_global_pool()
+        states: dict = {}
+        try:
+            for case in cases:
+                previous = None
+                if not args.no_chain and case.get("follows"):
+                    previous = states.get(case["follows"])
+                result, state = await run_case_with_state(
+                    case, today, previous
+                )
+                states[case["id"]] = state
+                mark = "ok" if all(result["scores"].values()) else "FAIL"
+                print(
+                    f"{result['id']} {mark} {result['latency_ms']} ms",
+                    flush=True,
+                )
+                results.append(result)
+        finally:
+            await close_global_pool()
 
     meta = {
         "part": args.part,
@@ -535,7 +913,7 @@ async def main() -> None:
         "chained": not args.no_chain,
         "git_sha": _git_sha(),
     }
-    text = report(results, meta)
+    text = (dashboard_report if dashboard else report)(results, meta)
     print("\n" + text)
 
     out_dir = Path(args.out)

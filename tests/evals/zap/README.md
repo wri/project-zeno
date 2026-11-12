@@ -1,6 +1,7 @@
-# Zap map eval
+# Zap evals
 
-This set measures the plan that zap mode (`POST /api/zap`) makes for the map.
+The map set measures the plan that zap mode (`POST /api/zap`) makes for the
+map. The dashboard set is at the end of this file ("The dashboard set").
 The script `scripts/zap_eval.py` calls `plan_zap` for each case with live
 jev and the AOI database, and scores each field of the result separately.
 The plan is in `docs/zap-mode-plan.md` ("Eval" and "Phases").
@@ -107,3 +108,71 @@ clairic or code) and the failed fields. It writes the raw results
 to `tests/evals/zap/results/<date>-<part>.json`. `--ids` runs only some
 cases. `--label` adds a word to the file name, for example the planner
 version.
+
+## The dashboard set
+
+The dashboard set measures the plan that zap makes on a dashboard page
+(phase 4 of `docs/zap-mode-plan.md`). The cases run against three fixed
+dashboards in `dashboards.yaml`. The script gives the planner a
+`ZapDashboard` for each dashboard, so the run needs no dashboard rows and no
+database.
+
+| File | Use |
+|---|---|
+| `dashboards.yaml` | The fixed dashboards: the id, the name, the area, the section titles and the widget texts. |
+| `dashboard-dev.yaml` | The dev part. Use it to tune the planner and the thresholds. |
+| `dashboard-test.yaml` | The test part. Do not tune on it. |
+
+The kinds of cases:
+
+| Kind | What it tests |
+|---|---|
+| `chart`, `map`, `template`, `imagery` | A request that adds one item. |
+| `later-phase` | An action that phase 4 does not have: move, resize, rename, change a period, remove, delete, publish, write a note. The plan must have no steps. |
+| `no-change` | A request that adds nothing: a greeting, a question, more than one area. |
+| `unclear` | A request that does not say what to add. If the plan adds something, it must need a confirmation. |
+| `follow-up` | A request that refers to the last addition. `current` gives the state of the last addition. |
+
+The format of a case:
+
+```yaml
+- id: dd-01
+  dashboard: para          # a key of dashboards.yaml
+  kind: chart
+  prompt: add a chart of tree cover loss since 2015
+  current: {dataset: 4, start: "2015-01-01", end: "2025-12-31"}  # optional
+  expect:
+    action: add_chart      # add_chart, add_map, add_template, add_imagery,
+                           # none (no steps), or a list
+    dataset: 4             # an id or a list
+    start: "2015-01-01"    # with end, or `ranges`; null is the full dates
+    end: "2026-11-12"
+    relative: false
+    context: null          # default null
+    canopy: null           # default null (30)
+    template: nrt-monitoring
+    cloud: 20              # the maximum cloud cover of imagery, default 20
+    confirm: false         # true, false or any (the default)
+```
+
+Scoring:
+
+| Field | Correct when |
+|---|---|
+| `action` | The kind of the first step is one of the expected actions. A plan with no steps is `none`. |
+| `dataset`, `context`, `canopy` | As in the map set, on the analysis body (`add_chart`) or the map layer (`add_map`). |
+| `time` | `add_chart` and `add_map`: as in the map set. `add_imagery`: the target date and the window agree with the ones that the planner makes from the expected range. |
+| `template`, `cloud` | The value is one of the expected values. |
+| `confirm` | `needs_confirmation` agrees with `confirm`. Scored only for a plan with steps and a case with `confirm: true` or `false`. |
+
+The fields of an addition are scored only when the expected action is an
+addition and the plan adds something. A plan that adds something with a
+wrong field is a wrong addition. The report gives the wrong additions, the
+wrong additions that need no confirmation (these are applied immediately),
+and the correct additions that need a confirmation that the case does not
+need.
+
+```bash
+uv run python scripts/zap_eval.py dashboard-dev --env-file .env
+uv run python scripts/zap_eval.py dashboard-test --env-file .env
+```

@@ -1,0 +1,27 @@
+# The fixed dashboards of the zap dashboard eval. The script builds a
+# `ZapDashboard` from each one, so the run needs no dashboard rows in the
+# database. The format and the rules are in README.md.
+dashboards:
+  para:
+    id: 00000000-0000-4000-8000-00000000000a
+    name: Pará forest monitoring
+    area: {id: gadm:BRA.14_1, name: "Pará, Brazil", subtype: state-province}
+    sections: [Overview]
+    widgets:
+      - "chart: Tree cover loss per year"
+      - "map: Tree cover loss"
+  ghana:
+    id: 00000000-0000-4000-8000-00000000000b
+    name: Ghana cocoa landscapes
+    area: {id: gadm:GHA, name: Ghana, subtype: country}
+    sections: []
+    widgets:
+      - "chart: Integrated alerts by day"
+  sebangau:
+    id: 00000000-0000-4000-8000-00000000000c
+    name: Sebangau National Park
+    area: {id: wdpa:317262, name: Sebangau, subtype: protected-area}
+    sections: [Fires, Imagery]
+    widgets:
+      - "chart: Tree cover loss due to fires"
+      - "map: Sentinel-2 imagery"
