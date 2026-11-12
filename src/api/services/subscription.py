@@ -55,6 +55,12 @@ class SubscriptionRepository(ABC):
     async def list_active(self) -> list[Subscription]: ...
 
 
+@dataclass
+class BulkSubscribeResult:
+    subscribed: list[UUID]
+    skipped: list[UUID]
+
+
 class SubscriptionChannelRepository(ABC):
     @abstractmethod
     async def set_channels(
@@ -62,6 +68,27 @@ class SubscriptionChannelRepository(ABC):
         target: SubscriptionTarget,
         dataset: Dataset,
         channels: set[SubscriptionChannel],
+    ) -> None: ...
+
+    @abstractmethod
+    async def remove_channel_for_user(
+        self, user_id: str, channel: SubscriptionChannel
+    ) -> list[UUID]:
+        """Removes the channel from all of the user's dashboards and returns
+        the dashboards that had it."""
+
+    @abstractmethod
+    async def find_owned_targets(
+        self, user_id: str, dashboard_ids: list[UUID]
+    ) -> list[SubscriptionTarget]:
+        """The listed dashboards that the user owns and that have an area."""
+
+    @abstractmethod
+    async def add_channel(
+        self,
+        targets: list[SubscriptionTarget],
+        dataset: Dataset,
+        channel: SubscriptionChannel,
     ) -> None: ...
 
 
@@ -89,3 +116,30 @@ class SubscriptionService:
             raise NotEligibleForSubscriptionError()
         for dataset in datasets:
             await self.repository.set_channels(target, dataset, requested)
+
+    async def remove_for_user(
+        self, user_id: str, channel: SubscriptionChannel
+    ) -> list[UUID]:
+        """Turns the channel off for every dashboard the user subscribed."""
+        return await self.repository.remove_channel_for_user(user_id, channel)
+
+    async def add_for_user(
+        self,
+        user_id: str,
+        channel: SubscriptionChannel,
+        dashboard_ids: list[UUID],
+    ) -> BulkSubscribeResult:
+        """Turns the channel on for the user's own dashboards in the list.
+        Dashboards that are not eligible, or not the user's, are skipped."""
+        targets = await self.repository.find_owned_targets(
+            user_id, dashboard_ids
+        )
+        eligible = [t for t in targets if t.eligible_for_subscription]
+        if eligible:
+            for dataset in Dataset:
+                await self.repository.add_channel(eligible, dataset, channel)
+        subscribed = [t.dashboard_id for t in eligible]
+        return BulkSubscribeResult(
+            subscribed=subscribed,
+            skipped=[i for i in dashboard_ids if i not in subscribed],
+        )

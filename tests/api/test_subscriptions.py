@@ -246,3 +246,118 @@ async def test_deleting_the_dashboard_deletes_its_subscriptions(
 
     assert response.status_code == 204
     assert await _rows(dashboard["id"]) == []
+
+
+# ---------------------------------------------------------------------------
+# Bulk
+# ---------------------------------------------------------------------------
+async def _delete_all(client, channel="email"):
+    return await client.delete(
+        "/api/subscriptions", headers=AUTH, params={"channel": channel}
+    )
+
+
+async def _put_many(client, dashboard_ids, channel="email"):
+    return await client.put(
+        "/api/subscriptions",
+        headers=AUTH,
+        json={"channel": channel, "dashboard_ids": dashboard_ids},
+    )
+
+
+async def _another_dashboard(client, user_id):
+    dashboard = await _create_dashboard(client)
+    await _add_alerts_chart_widget(client, dashboard["id"], user_id)
+    return dashboard
+
+
+@pytest.mark.asyncio
+async def test_turn_off_all_changes_only_the_callers_email_rows(
+    client, auth_override
+):
+    first = await _owned_dashboard(client, auth_override, "bulk-off-a")
+    second = await _another_dashboard(client, "bulk-off-a")
+    for dashboard in (first, second):
+        await _put(client, dashboard["id"], ["email"])
+    off = await _owned_dashboard(client, auth_override, "bulk-off-b")
+    await _put(client, off["id"], ["email"])
+    auth_override("bulk-off-a")
+
+    response = await _delete_all(client)
+
+    assert response.status_code == 200
+    assert set(response.json()["dashboard_ids"]) == {
+        first["id"],
+        second["id"],
+    }
+    assert await _rows(first["id"]) == []
+    assert await _rows(second["id"]) == []
+    assert len(await _rows(off["id"])) == 1
+
+
+@pytest.mark.asyncio
+async def test_turn_off_all_with_nothing_on_changes_nothing(
+    client, auth_override
+):
+    await _owned_dashboard(client, auth_override, "bulk-off-none")
+
+    response = await _delete_all(client)
+
+    assert response.status_code == 200
+    assert response.json()["dashboard_ids"] == []
+
+
+@pytest.mark.asyncio
+async def test_turn_off_all_rejects_other_channels(client, auth_override):
+    dashboard = await _owned_dashboard(client, auth_override, "bulk-off-422")
+    await _put(client, dashboard["id"], ["email"])
+
+    response = await _delete_all(client, channel="in-app")
+
+    assert response.status_code == 422
+    assert len(await _rows(dashboard["id"])) == 1
+
+
+@pytest.mark.asyncio
+async def test_bulk_endpoints_require_auth(client, auth_override):
+    dashboard = await _owned_dashboard(client, auth_override, "bulk-anon")
+    _sign_out()
+
+    assert (await _delete_all(client)).status_code == 401
+    assert (await _put_many(client, [dashboard["id"]])).status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_turn_on_many_skips_ineligible_and_other_users_dashboards(
+    client, auth_override
+):
+    mine = await _owned_dashboard(client, auth_override, "bulk-on-a")
+    ineligible = await _create_dashboard(client)
+    theirs = await _owned_dashboard(client, auth_override, "bulk-on-b")
+    auth_override("bulk-on-a")
+
+    response = await _put_many(
+        client, [mine["id"], ineligible["id"], theirs["id"]]
+    )
+
+    assert response.status_code == 200
+    assert response.json()["dashboard_ids"] == [mine["id"]]
+    assert set(response.json()["skipped"]) == {ineligible["id"], theirs["id"]}
+    assert len(await _rows(mine["id"])) == 1
+    assert await _rows(ineligible["id"]) == []
+    assert await _rows(theirs["id"]) == []
+
+
+@pytest.mark.asyncio
+async def test_undoing_turn_off_all_restores_the_same_dashboards(
+    client, auth_override
+):
+    first = await _owned_dashboard(client, auth_override, "bulk-undo")
+    second = await _another_dashboard(client, "bulk-undo")
+    await _put(client, first["id"], ["email"])
+
+    changed = (await _delete_all(client)).json()["dashboard_ids"]
+    await _put_many(client, changed)
+
+    assert len(await _rows(first["id"])) == 1
+    assert await _rows(second["id"]) == []

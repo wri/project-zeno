@@ -7,7 +7,12 @@ from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.data_models import DashboardAoiOrm, SubscriptionOrm, UserOrm
+from src.api.data_models import (
+    DashboardAoiOrm,
+    DashboardOrm,
+    SubscriptionOrm,
+    UserOrm,
+)
 from src.api.services.subscription import (
     AoiType,
     Dataset,
@@ -102,6 +107,80 @@ class PostgresSubscriptionRepository(
                         constraint="uq_subscriptions_dashboard_dataset_channel"
                     )
                 )
+            await session.commit()
+
+    async def remove_channel_for_user(
+        self, user_id: str, channel: SubscriptionChannel
+    ) -> list[UUID]:
+        async with get_session_from_pool() as session:
+            result = await session.execute(
+                delete(SubscriptionOrm)
+                .where(
+                    SubscriptionOrm.user_id == user_id,
+                    SubscriptionOrm.channel == channel,
+                )
+                .returning(SubscriptionOrm.dashboard_id)
+            )
+            dashboard_ids = list(dict.fromkeys(result.scalars().all()))
+            await session.commit()
+        return dashboard_ids
+
+    async def find_owned_targets(
+        self, user_id: str, dashboard_ids: list[UUID]
+    ) -> list[SubscriptionTarget]:
+        query = (
+            select(
+                DashboardOrm.id,
+                DashboardOrm.eligible_for_subscription,
+                DashboardAoiOrm.id.label("aoi_id"),
+            )
+            .join(
+                DashboardAoiOrm,
+                DashboardAoiOrm.dashboard_id == DashboardOrm.id,
+            )
+            .where(
+                DashboardOrm.user_id == user_id,
+                DashboardOrm.id.in_(dashboard_ids),
+            )
+            .order_by(DashboardOrm.id, DashboardAoiOrm.position)
+            .distinct(DashboardOrm.id)
+        )
+        async with get_session_from_pool() as session:
+            rows = (await session.execute(query)).all()
+        return [
+            SubscriptionTarget(
+                dashboard_id=row.id,
+                aoi_id=row.aoi_id,
+                user_id=user_id,
+                eligible_for_subscription=row.eligible_for_subscription,
+            )
+            for row in rows
+        ]
+
+    async def add_channel(
+        self,
+        targets: list[SubscriptionTarget],
+        dataset: Dataset,
+        channel: SubscriptionChannel,
+    ) -> None:
+        rows = [
+            {
+                "dashboard_id": target.dashboard_id,
+                "aoi_id": target.aoi_id,
+                "user_id": target.user_id,
+                "dataset": dataset,
+                "channel": channel,
+            }
+            for target in targets
+        ]
+        async with get_session_from_pool() as session:
+            await session.execute(
+                insert(SubscriptionOrm)
+                .values(rows)
+                .on_conflict_do_nothing(
+                    constraint="uq_subscriptions_dashboard_dataset_channel"
+                )
+            )
             await session.commit()
 
 
