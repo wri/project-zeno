@@ -23,7 +23,7 @@ Both parts have the same kinds of cases:
 | `relative` | A period back from today, for example "the last 3 months". |
 | `long-place` | A place name of more than four words. |
 | `canopy` | A canopy cover value, also values that the dataset does not have, for example "12%". |
-| `follow-up` | Pairs. The second prompt runs on the state after the first prompt (`follows`). The dataset, the dates and the forest type must stay, unless the prompt changes them. |
+| `follow-up` | Pairs. The second prompt runs on the state after the first prompt (`follows`). The dataset, the dates and the forest type must stay, unless the prompt changes them. The script sends the `state` of the plan of the first prompt as `current` (see "Run the eval"). |
 | `no-change` | Prompts that must change nothing on the map. |
 
 ## The format of a case
@@ -95,8 +95,15 @@ uv run python scripts/zap_eval.py dev --env-file .env
 uv run python scripts/zap_eval.py test --env-file .env
 ```
 
+A follow-up case sends the `state` of the plan of its first prompt as
+`current`, as the frontend does. Thus, a wrong first plan can also make the
+follow-up fail. `--no-chain` sends the fixed `current` of the case instead.
+When a case runs without its first prompt (`--ids`), it sends the fixed
+`current`.
+
 The script prints the correct counts for each field, the counts for each
-kind, the median latency and the failed fields. It writes the raw results
+kind, the median latency, the path that gave each value (`Value sources`: jev,
+clairic or code) and the failed fields. It writes the raw results
 to `tests/evals/zap/results/<date>-<part>.json`. `--ids` runs only some
 cases. `--label` adds a word to the file name, for example the planner
 version.

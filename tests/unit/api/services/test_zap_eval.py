@@ -169,3 +169,34 @@ async def test_canopy_default_is_30():
     )
     got = zap_eval.state_after(case, plan)
     assert (await zap_eval.score(case, got, plan))["canopy"] is True
+
+
+def test_follow_up_runs_on_the_sent_state():
+    """A chained follow-up starts from the state that was sent, not from the
+    fixed `current` of the case."""
+    from src.api.services.zap.models import ZapArea, ZapCurrent
+
+    sent = ZapCurrent(
+        dataset_id=4,
+        area=ZapArea(name="Pará", source="gadm", src_id="BRA.14_1"),
+        start_date="2010-01-01",
+        end_date="2020-12-31",
+    )
+    before = zap_eval.state_of(sent)
+    plan = ZapPlan(steps=[], decisions=[], state=sent)
+    got = zap_eval.state_after(FOLLOW_UP, plan, before)
+    assert (got["start"], got["end"]) == ("2010-01-01", "2020-12-31")
+    assert got["context"] is None
+    assert zap_eval.state_mismatch(got, plan) == []
+
+
+def test_state_mismatch_names_the_fields():
+    from src.api.services.zap.models import ZapCurrent
+
+    plan = ZapPlan(
+        steps=[_dataset_step(4, "2015-01-01", "2025-12-31")],
+        decisions=[],
+        state=ZapCurrent(dataset_id=4, start_date="2001-01-01"),
+    )
+    got = zap_eval.state_after(FOLLOW_UP, plan)
+    assert "start" in zap_eval.state_mismatch(got, plan)

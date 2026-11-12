@@ -17,14 +17,19 @@ router = APIRouter()
 @router.post("/api/zap", response_model=ZapPlan)
 async def zap(request: ZapRequest, user: UserModel = Depends(require_admin)):
     """
-    Plan the map changes for one prompt with the jev decision model.
+    Plan the map changes for one prompt with the Clairic extraction model
+    (the place, the time, the canopy cover) and the jev decision model (the
+    dataset, the area, the forest type). When Clairic fails, jev also gives
+    the place, the time and the canopy cover.
 
     Experimental: admins and superusers only.
 
     Returns up to three steps (show a dataset, go to an area, chart the
     dataset for the area) for the frontend to run in order, and the jev
-    decisions with their probabilities. Changes nothing on the server: the
-    chart step runs through POST /api/analyze.
+    decisions with their probabilities and sources, and the map state after
+    the steps (`state`), which the client sends back as `current` with the
+    next prompt. Changes nothing on the server: the chart step runs through
+    POST /api/analyze.
     """
     try:
         return await plan_zap(request.prompt, request.current, user.id)

@@ -14,6 +14,11 @@ class _APISettings(BaseSettings):
     jev_model: str = "typesafe/jev-1.13"
     jev_url: str = "https://openrouter.ai/api/alpha/decisions"
     jev_timeout_seconds: float = 20.0
+    # Zap mode: the Clairic extraction model on OpenRouter's extractions
+    # API, for the place, the time and the canopy cover. Same key as jev.
+    extract_model: str = "cloudflare/clairic"
+    extract_url: str = "https://openrouter.ai/api/alpha/extractions"
+    extract_timeout_seconds: float = 8.0
 
     # Quota settings
     admin_user_daily_quota: int = 100

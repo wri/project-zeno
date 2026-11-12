@@ -8,6 +8,10 @@ for the cases that must change nothing, no_change.
     uv run python scripts/zap_eval.py dev
     uv run python scripts/zap_eval.py test --env-file ../../../.env
 
+A follow-up case (`follows`) sends the state after its first prompt
+(`ZapPlan.state`) as `current`, as the frontend does. `--no-chain` sends the
+fixed `current` of the case instead.
+
 Needs OPENROUTER_API_KEY and DATABASE_URL (the AOI tables). The rules are in
 tests/evals/zap/README.md.
 """
@@ -123,15 +127,29 @@ def _canopy_of(dataset_args: dict) -> Optional[int]:
     return None
 
 
-def state_after(case: dict, plan) -> dict:
-    """The map state after the frontend runs the plan on the case state.
+def state_of(current) -> dict:
+    """A `ZapCurrent` in the field names of the eval."""
+    area = current.area
+    return {
+        "dataset": current.dataset_id,
+        "area": f"{area.source}:{area.src_id}" if area else None,
+        "start": _str_or_none(getattr(current, "start_date", None)),
+        "end": _str_or_none(getattr(current, "end_date", None)),
+        "context": getattr(current, "context_layer", None),
+        "canopy": getattr(current, "canopy_cover", None),
+    }
+
+
+def state_after(case: dict, plan, before: Optional[dict] = None) -> dict:
+    """The map state after the frontend runs the plan on the state before
+    it (`before`, else the case state).
 
     A dataset step sets the dataset, the dates, the context layer and the
     canopy cover. An area step sets the area. With no step for a part, the
     map keeps what it shows.
     """
-    state = current_state(case)
-    state.pop("area_name")
+    state = dict(before) if before else current_state(case)
+    state.pop("area_name", None)
     for step in plan.steps:
         if step.kind == "dataset":
             args = step.args
@@ -265,14 +283,26 @@ def _fix_today(today: date) -> None:
     dates.date = _EvalDate
 
 
-async def run_case(case: dict, today: date) -> dict:
+def state_mismatch(got: dict, plan) -> list[str]:
+    """The fields where `ZapPlan.state` does not agree with the state that
+    the steps make. A field that the steps leave empty is not compared."""
+    state = getattr(plan, "state", None)
+    if state is None:
+        return []
+    said = state_of(state)
+    return [k for k, v in got.items() if v is not None and said.get(k) != v]
+
+
+async def run_case(case: dict, today: date, current=None) -> dict:
+    """Plan one case. `current` replaces the fixed state of the case, for a
+    follow-up that runs on the state after its first prompt."""
     from src.api.services.zap.planner import plan_zap
 
+    sent = current or zap_current(case)
+    before = state_of(sent)
     started = time.perf_counter()
     try:
-        plan = await plan_zap(
-            case["prompt"], zap_current(case), USER_ID, today=today
-        )
+        plan = await plan_zap(case["prompt"], sent, USER_ID, today=today)
         error = None
     except Exception as exc:  # noqa: BLE001 - a failed case is a result
         plan, error = None, f"{type(exc).__name__}: {exc}"
@@ -288,7 +318,7 @@ async def run_case(case: dict, today: date) -> dict:
         }
         got = None
     else:
-        got = state_after(case, plan)
+        got = state_after(case, plan, before)
         scores = {
             f: v
             for f, v in (await score(case, got, plan)).items()
@@ -304,8 +334,25 @@ async def run_case(case: dict, today: date) -> dict:
         "scores": scores,
         "latency_ms": latency_ms,
         "error": error,
+        "chained": current is not None,
+        "sent": before,
+        "sources": {
+            d.question: d.source
+            for d in (plan.decisions if plan else [])
+            if getattr(d, "source", None)
+        },
+        "state_mismatch": state_mismatch(got, plan) if plan else [],
         "plan": slim_plan(plan.model_dump()) if plan else None,
     }
+
+
+async def run_case_with_state(case: dict, today: date, current=None):
+    """`run_case`, and the `ZapPlan.state` of the plan for the next case."""
+    from src.api.services.zap.models import ZapCurrent
+
+    result = await run_case(case, today, current)
+    state = (result["plan"] or {}).get("state")
+    return result, ZapCurrent(**state) if state else None
 
 
 # The keys of a dataset step that the results file keeps. The other keys are
@@ -348,7 +395,8 @@ def _git_sha() -> str:
 def report(results: list[dict], meta: dict) -> str:
     lines = [
         f"Zap eval, part {meta['part']}: {len(results)} cases, "
-        f"jev model {meta['jev_model']}, today {meta['today']}",
+        f"jev model {meta['jev_model']}, extraction model "
+        f"{meta.get('extract_model')}, today {meta['today']}",
         "",
         "| Field | Correct | Scored | % |",
         "|---|---|---|---|",
@@ -381,6 +429,17 @@ def report(results: list[dict], meta: dict) -> str:
     errors = Counter(r["error"].split(":")[0] for r in results if r["error"])
     if errors:
         lines.append(f"Errors: {dict(errors)}")
+    paths = Counter(
+        f"{q}={src}"
+        for r in results
+        for q, src in (r.get("sources") or {}).items()
+        if q in ("Area words", "Time", "Canopy cover")
+    )
+    if paths:
+        lines.append(f"Value sources: {dict(sorted(paths.items()))}")
+    mismatches = [r["id"] for r in results if r.get("state_mismatch")]
+    if mismatches:
+        lines.append(f"plan.state differs from the steps: {mismatches}")
 
     lines += ["", "Failed fields:"]
     for r in results:
@@ -422,6 +481,12 @@ async def main() -> None:
     )
     parser.add_argument("--ids", nargs="*", help="Run only these case ids.")
     parser.add_argument("--label", default="", help="Added to the file name.")
+    parser.add_argument(
+        "--no-chain",
+        action="store_true",
+        help="Send the fixed `current` of a follow-up case, not the state "
+        "after its first prompt.",
+    )
     args = parser.parse_args()
 
     from dotenv import load_dotenv
@@ -445,9 +510,14 @@ async def main() -> None:
     _fix_today(today)
     await initialize_global_pool()
     results = []
+    states: dict = {}
     try:
         for case in cases:
-            result = await run_case(case, today)
+            previous = None
+            if not args.no_chain and case.get("follows"):
+                previous = states.get(case["follows"])
+            result, state = await run_case_with_state(case, today, previous)
+            states[case["id"]] = state
             mark = "ok" if all(result["scores"].values()) else "FAIL"
             print(
                 f"{result['id']} {mark} {result['latency_ms']} ms", flush=True
@@ -461,6 +531,8 @@ async def main() -> None:
         "run_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "today": str(today),
         "jev_model": APISettings.jev_model,
+        "extract_model": APISettings.extract_model,
+        "chained": not args.no_chain,
         "git_sha": _git_sha(),
     }
     text = report(results, meta)

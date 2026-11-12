@@ -12,10 +12,17 @@ class ZapArea(BaseModel):
 
 
 class ZapCurrent(BaseModel):
-    """What the map shows now, so jev can keep it."""
+    """What the map shows now. The planner starts from this state and
+    changes only what the request names. All fields are optional: a client
+    that sends only the dataset and the area gets the planner of phase 1
+    for the other fields."""
 
     dataset_id: Optional[int] = None
     area: Optional[ZapArea] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    context_layer: Optional[str] = None
+    canopy_cover: Optional[int] = None
 
 
 class ZapRequest(BaseModel):
@@ -24,11 +31,17 @@ class ZapRequest(BaseModel):
 
 
 class ZapDecision(BaseModel):
-    """One jev answer, for the plan panel."""
+    """One answer, for the plan panel.
+
+    `source` tells which path gave the value: "jev" (an option of the
+    decision model), "clairic" (a value of the extraction model) or "code"
+    (a calendar rule on the time words of Clairic).
+    """
 
     question: str
     label: str
     probability: float
+    source: Optional[Literal["jev", "clairic", "code"]] = None
 
 
 class ZapAnalysis(BaseModel):
@@ -60,3 +73,6 @@ class ZapPlan(BaseModel):
     steps: list[ZapStep]
     decisions: list[ZapDecision]
     notes: list[str] = Field(default_factory=list)
+    # The map state after the frontend runs the steps. The frontend sends
+    # it back as `current` with the next request.
+    state: Optional[ZapCurrent] = None

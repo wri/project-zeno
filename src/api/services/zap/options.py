@@ -61,6 +61,13 @@ CONTEXT_INSTRUCTIONS = (
     f"Pick '{NONE}' otherwise."
 )
 
+CONTEXT_KEEP_INSTRUCTIONS = (
+    "Should the data be limited to a type of forest? The map shows a forest "
+    f"type now. Pick '{KEEP}' when the request does not name a forest type. "
+    "Pick another forest type only when the request asks for it. Pick "
+    f"'{NONE}' only when the request asks for all tree cover."
+)
+
 CANOPY_INSTRUCTIONS = (
     "Which minimum canopy cover does the request ask for? "
     f"Pick '{NONE}' when the request does not name a canopy cover or canopy "
