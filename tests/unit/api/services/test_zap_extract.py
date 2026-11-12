@@ -34,6 +34,19 @@ TODAY = date(2026, 11, 12)
         ("November to February", ("2025-11-01", "2026-02-28")),
         ("since May", ("2026-05-01", "2026-11-12")),
         ("from March 2025", ("2025-03-01", "2026-11-12")),
+        # A range of months over two years.
+        (
+            "between December 2024 and February 2025",
+            ("2024-12-01", "2025-02-28"),
+        ),
+        ("December 2024 to February 2025", ("2024-12-01", "2025-02-28")),
+        ("from Nov 2023 to Mar 2024", ("2023-11-01", "2024-03-31")),
+        ("June 2022 - May 2024", ("2022-06-01", "2024-05-31")),
+        # The calendar month before today, not a part of it.
+        ("last month", ("2026-10-01", "2026-10-31")),
+        ("the last month", ("2026-10-01", "2026-10-31")),
+        ("the previous month", ("2026-10-01", "2026-10-31")),
+        ("in the last month", ("2026-10-01", "2026-10-31")),
         # Seasons, quarters and halves.
         ("winter 2024", ("2023-12-01", "2024-02-29")),
         ("last summer", ("2026-06-01", "2026-08-31")),
@@ -61,13 +74,32 @@ def test_calendar_rules(words, expected):
         "15 June 2025",  # a day
         "marzo de 2022",  # not English
         "this year",
-        "last month",  # the calendar month: left to the model
+        "the past month",  # a period back from today: left to the model
+        "February 2025 to December 2024",  # the end is before the start
         "last year",
         "5-year period",
     ],
 )
 def test_other_words_use_the_model_dates(words):
     assert x.calendar_range(words, TODAY) is None
+
+
+def test_last_month_in_january_is_december():
+    assert x.calendar_range("last month", date(2027, 1, 5)) == (
+        "2026-12-01",
+        "2026-12-31",
+    )
+
+
+def test_last_month_in_march_ends_on_the_last_day_of_february():
+    assert x.calendar_range("last month", date(2024, 3, 31)) == (
+        "2024-02-01",
+        "2024-02-29",
+    )
+
+
+def test_a_month_range_with_a_year_before_the_months_uses_the_model():
+    assert x.month_range("2024 December to February 2025", TODAY) is None
 
 
 def test_relative_month_keeps_the_month_end():

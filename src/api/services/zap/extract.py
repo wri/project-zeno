@@ -508,12 +508,28 @@ MONTHS = {
 }  # fmt: skip
 
 
+def _month_years(words: str) -> Optional[list[tuple[int, Optional[int]]]]:
+    """The months of the words in their order, each with the year that
+    follows it before the next month ("December 2024 to February 2025"),
+    or None. A year that comes before all months gives None."""
+    found: list[tuple[int, Optional[int]]] = []
+    for token in re.findall(r"(?<!\d)\d{4}(?!\d)|[^\W\d_]+", words.lower()):
+        if token.isdigit():
+            if not found or found[-1][1] is not None:
+                return None
+            found[-1] = (found[-1][0], int(token))
+        elif token in MONTHS:
+            found.append((MONTHS[token], None))
+    return found
+
+
 def month_range(words: str, today: date) -> Optional[Range]:
     """A month or a range of months in English, e.g. "March 2026", "in July
-    2025" or "from January to April 2025". With no year, the most recent
-    month that has started. "since May" runs to today. Clairic often gives
-    a wrong last day, e.g. 2026-03-02 for "March 2026". A day number, or
-    "until" or "before" with a month, leaves the range to the model."""
+    2025", "from January to April 2025" or "between December 2024 and
+    February 2025". With no year, the most recent month that has started.
+    "since May" runs to today. Clairic often gives a wrong last day, e.g.
+    2026-03-02 for "March 2026". A day number, or "until" or "before" with
+    a month, leaves the range to the model."""
     rest = re.sub(r"(?<!\d)\d{4}(?!\d)", " ", words.lower())
     tokens = re.findall(r"[-–]|[^\W\d_]+|\S", rest)
     months = [MONTHS[t] for t in tokens if t in MONTHS]
@@ -522,11 +538,19 @@ def month_range(words: str, today: date) -> Optional[Range]:
     if any(t not in YEAR_WORDS and t not in MONTHS for t in tokens):
         return None
     years = [int(y) for y in re.findall(r"(?<!\d)(\d{4})(?!\d)", words)]
-    if len(years) > 1:
+    if len(years) > 2:
         return None
     first, last = months[0], months[-1]
     if re.search(r"\b(until|till|up|through|before|after)\b", rest):
         return None
+    if len(years) == 2:
+        # A range over two years: each month has its own year.
+        pairs = _month_years(words)
+        if not pairs or len(pairs) != 2 or None in (pairs[0][1], pairs[1][1]):
+            return None
+        (m1, y1), (m2, y2) = pairs
+        start, end = date(y1, m1, 1), _month_end(y2, m2)  # type: ignore[arg-type]
+        return (str(start), str(end)) if start <= end else None
     if len(months) == 1 and re.search(r"\b(since|from|starting)\b", rest):
         # "since May": from the 1st of that month to today.
         year = years[0] if years else today.year
@@ -545,6 +569,24 @@ def month_range(words: str, today: date) -> Optional[Range]:
     return str(date(start_year, first, 1)), str(_month_end(end_year, last))
 
 
+LAST_MONTH = re.compile(
+    r"(?:in |during |for |over )?(?:the )?(?:last|previous|prior) "
+    r"(?:calendar )?month",
+    re.I,
+)
+
+
+def last_month_range(words: str, today: date) -> Optional[Range]:
+    """ "Last month" or "the previous month": the full calendar month
+    before the month of today. Clairic gives a part of the month, e.g.
+    2026-10-01 to 2026-10-12. "The last 2 months" and "the past month" are
+    periods back from today (`relative_range`)."""
+    if not LAST_MONTH.fullmatch(re.sub(r"[.,!?]+$", "", words.strip())):
+        return None
+    end = date(today.year, today.month, 1) - timedelta(days=1)
+    return str(date(end.year, end.month, 1)), str(end)
+
+
 def whole_range(words: str, today: date) -> Optional[Range]:
     """The whole record of the dataset, e.g. "all years" or "all time"."""
     if not re.search(
@@ -559,6 +601,7 @@ def whole_range(words: str, today: date) -> Optional[Range]:
 
 RULES = (
     whole_range,
+    last_month_range,
     year_range,
     month_range,
     season_range,
