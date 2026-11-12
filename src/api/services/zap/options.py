@@ -4,25 +4,27 @@ import re
 from datetime import date, timedelta
 from typing import Optional
 
+from src.agent.datasets.config import DATASETS
+
 KEEP = "keep"
 NONE = "none"
 
 # Short, uniform dataset descriptions ("capability cards"), from the jev
 # dataset-picker experiments (PR #841, variant `cards:neutral`). They scored
 # 94-98% on the dataset step, against 78-96% for the long catalog text.
-# Not offered: 9 (sLUC emission factors, table data with no map layer) and
-# 12 (LGMS, not released in the default profile).
+# The cards live in the catalog YAML (`selection_card`), which the MCP
+# server's dataset listing reads too. Zap offers the datasets that have a
+# map layer and that the default profile shows: not 9 (sLUC emission
+# factors, table data with no map layer) and not 12 (LGMS, hidden by
+# default). This set is the rule; a card alone does not put a dataset in
+# zap. A dataset with no card is left out as well, rather than failing the
+# import (and so the app).
+ZAP_EXCLUDED_DATASET_IDS = frozenset({9, 12})
 DATASET_CARDS: dict[int, str] = {
-    1: "Global land cover (2015-2024). Land cover and land use classes at 30 m: bare ground and sparse vegetation, short vegetation, tree cover, wetlands, water, snow/ice, cropland, cultivated grasslands, built-up land. Gives the area (ha) of each class in 2015 or 2024, and the transitions between classes from 2015 to 2024. No year-by-year series between 2015 and 2024.",
-    2: "Natural/semi-natural grassland extent (2000-2022). Annual 30 m maps of natural and semi-natural grassland, which includes native grasslands, shrublands, savannas, steppes and tundra (low vegetation under 3 m). Gives grassland area (ha) for each year from 2000 to 2022 and its gain or loss between years. Does not include cultivated grassland or cropland.",
-    3: "SBTN Natural Lands Map (2020). Baseline map of natural and non-natural land in 2020 at 30 m. Natural classes: natural forest, mangrove, natural peat forest, wetland natural forest, natural short vegetation, natural water, bare, snow. Non-natural classes: crop, built-up, non-natural tree cover, non-natural short vegetation. Gives the area of each class in 2020. Used for no-conversion (SBTN) targets. One year only, no change over time.",
-    4: "Tree cover loss (2001-2025). Annual area (ha) of tree cover loss at 30 m for all vegetation over 5 m tall, and the annual greenhouse gas emissions from that loss (MgCO2e). Can be limited to primary forest or intact forest to measure deforestation. Supports a canopy cover threshold. Time step is one year; no monthly or seasonal values. Does not give the cause of the loss.",
-    5: "Tree cover gain (2000-2020). Area (ha) where new tree cover over 5 m tall grew, cumulative over 2000-2020, 2005-2020, 2010-2020 and 2015-2020, at 30 m. Includes natural regrowth, forest recovery and plantation cycles. No annual values.",
-    6: "Forest greenhouse gas net flux (2001-2025). Forest carbon balance at 30 m: greenhouse gas emissions from forest disturbance, carbon removals by forest growth, and the net flux between them (MgCO2e). Negative net flux means a carbon sink, positive means a source. One value for the whole 2001-2025 period (total or annual average); no year-by-year values.",
-    7: "Tree cover (2000). Tree canopy cover density (percent) in the year 2000 at 30 m for vegetation over 5 m tall. Gives tree cover area and density for 2000, with a selectable canopy cover threshold; can be limited to primary forest. One year only, no change over time.",
-    8: "Tree cover loss by dominant driver (2001-2025). Splits tree cover loss into its direct causes: permanent agriculture, hard commodities (mining, energy), shifting cultivation, logging, wildfire, settlements and infrastructure, other natural disturbances. Gives the area and share of loss for each cause. One total for the whole period; no year-by-year values.",
-    10: "Tree cover loss due to fires (2001-2025). Annual tree cover loss at 30 m split into loss caused by fire and loss from all other causes. Can be limited to primary or intact forest. Time step is one year. No emissions data.",
-    11: "Integrated alerts (December 2023 to present). Near-real-time alerts of vegetation disturbance, clearing and deforestation at 10 m, updated daily, from the DIST-ALERT, GLAD-L, GLAD-S2 and RADD systems. Gives disturbed area (ha) by alert date and by confidence (low, high, highest = detected by several systems). Covers all vegetation; cannot be split by land cover, ecosystem or cause.",
+    ds["dataset_id"]: ds["selection_card"]
+    for ds in DATASETS
+    if ds["dataset_id"] not in ZAP_EXCLUDED_DATASET_IDS
+    and ds.get("selection_card")
 }
 
 DATASET_INSTRUCTIONS = (

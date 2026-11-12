@@ -1,5 +1,6 @@
 dataset_id: 1
 dataset_name: Global land cover
+selection_card: "Global land cover (2015-2024). Land cover and land use classes at 30 m: bare ground and sparse vegetation, short vegetation, tree cover, wetlands, water, snow/ice, cropland, cultivated grasslands, built-up land. Gives the area (ha) of each class in 2015 or 2024, and the transitions between classes from 2015 to 2024. No year-by-year series between 2015 and 2024."
 context_layers: null
 parameters: null
 variables: null

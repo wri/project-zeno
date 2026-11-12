@@ -1,5 +1,6 @@
 dataset_id: 4
 dataset_name: Tree cover loss
+selection_card: "Tree cover loss (2001-2025). Annual area (ha) of tree cover loss at 30 m for all vegetation over 5 m tall, and the annual greenhouse gas emissions from that loss (MgCO2e). Can be limited to primary forest or intact forest to measure deforestation. Supports a canopy cover threshold. Time step is one year; no monthly or seasonal values. Does not give the cause of the loss."
 context_layers:
 - value: primary_forest
   description: Shows tree cover loss within humid tropical primary forests across pan-tropical regions. Default to this layer for general forest loss or deforestation requests when the AOI is within its extent, unless the user explicitly asks for all tree cover, natural forest, non-primary/secondary forest, plantations, or otherwise indicates they want forest types beyond primary forest. Do not use for supply chain, EUDR or no-conversion questions; use natural_forest instead.
