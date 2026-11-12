@@ -150,6 +150,32 @@ def _pending_choice_note(state: Dict, nudge_type: str, resolver: str) -> str:
     )
 
 
+async def record_statistics(statistics: dict) -> str:
+    """Save pulled statistics for the current user and thread, and return
+    their id."""
+    ctx = structlog.contextvars.get_contextvars()
+    async with get_session_from_pool() as session:
+        statistics_row = StatisticsOrm(
+            user_id=current_user_id(),
+            thread_id=ctx.get("thread_id"),
+            dataset_name=statistics["dataset_name"],
+            dataset_id=statistics["dataset_id"],
+            start_date=statistics["start_date"],
+            end_date=statistics["end_date"],
+            source_url=statistics["source_url"],
+            aoi_names=statistics["aoi_names"],
+            aoi_ids=statistics["aoi_ids"],
+            aoi_sources=statistics["aoi_sources"],
+            parameters=statistics["parameters"],
+            context_layer=statistics["context_layer"],
+        )
+        session.add(statistics_row)
+        await session.flush()
+        statistics_id = str(statistics_row.id)
+        await session.commit()
+    return statistics_id
+
+
 @tool("pull_data")
 async def pull_data(
     query: str,
@@ -297,26 +323,7 @@ async def pull_data(
         "context_layer": dataset.get("context_layer"),
     }
 
-    ctx = structlog.contextvars.get_contextvars()
-    async with get_session_from_pool() as session:
-        statistics_row = StatisticsOrm(
-            user_id=current_user_id(),
-            thread_id=ctx.get("thread_id"),
-            dataset_name=statistics["dataset_name"],
-            dataset_id=statistics["dataset_id"],
-            start_date=statistics["start_date"],
-            end_date=statistics["end_date"],
-            source_url=statistics["source_url"],
-            aoi_names=statistics["aoi_names"],
-            aoi_ids=statistics["aoi_ids"],
-            aoi_sources=statistics["aoi_sources"],
-            parameters=statistics["parameters"],
-            context_layer=statistics["context_layer"],
-        )
-        session.add(statistics_row)
-        await session.flush()
-        statistics["id"] = str(statistics_row.id)
-        await session.commit()
+    statistics["id"] = await record_statistics(statistics)
 
     return Command(
         update={

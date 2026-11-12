@@ -16,6 +16,7 @@ from src.agent.agent_config import (
     DEFAULT_PROFILE,
     EXPERIMENTAL_PROFILE,
     LGMS_PROFILE,
+    MCP_PROFILE,
     default_registry,
 )
 
@@ -99,6 +100,21 @@ tools:
   - send_nudge"""
 
 
+MCP_MANIFEST = """\
+profile: mcp
+skills:
+  (none)
+subagents:
+  - generate_insights
+  - update_insight_display
+tools:
+  - pick_aoi
+  - pick_dataset
+  - pull_data
+  - list_datasets
+  - list_subregions"""
+
+
 def test_base_profile_manifest():
     assert default_registry.resolve(BASE_PROFILE).describe() == BASE_MANIFEST
 
@@ -128,6 +144,10 @@ def test_lgms_profile_manifest():
     assert default_registry.resolve(LGMS_PROFILE).describe() == expected
 
 
+def test_mcp_profile_manifest():
+    assert default_registry.resolve(MCP_PROFILE).describe() == MCP_MANIFEST
+
+
 def test_every_production_profile_has_a_manifest_snapshot():
     """A new profile registered without a snapshot here would ship with an
     unreviewed surface."""
@@ -136,6 +156,7 @@ def test_every_production_profile_has_a_manifest_snapshot():
         DEFAULT_PROFILE,
         EXPERIMENTAL_PROFILE,
         LGMS_PROFILE,
+        MCP_PROFILE,
     }
     registered = {config.name for config in default_registry.configs()}
     assert registered == snapshotted

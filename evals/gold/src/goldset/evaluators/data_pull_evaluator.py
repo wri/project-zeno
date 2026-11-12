@@ -47,11 +47,20 @@ def _tool_call_date_windows(
             args = tool_call.get("args")
             if not isinstance(args, dict):
                 continue
-            start = str(args.get("start_date") or "").strip()
-            end = str(args.get("end_date") or "").strip()
+            start, end = _requested_period(args)
             if start or end:
                 windows.append((str(tool_call.get("name") or ""), start, end))
     return windows
+
+
+def _requested_period(args: dict[str, Any]) -> tuple[str, str]:
+    """The period a tool call asked for: its own start_date/end_date, or those
+    (or start_year/end_year) of an analytics API payload it passed on."""
+    payload = args.get("payload")
+    dated = payload if isinstance(payload, dict) and "start_date" not in args else args
+    start = dated.get("start_date") or dated.get("start_year") or ""
+    end = dated.get("end_date") or dated.get("end_year") or ""
+    return str(start).strip(), str(end).strip()
 
 
 def _preferred_windows(

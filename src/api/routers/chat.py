@@ -85,10 +85,12 @@ async def chat(
         await session.refresh(thread)
     thread_id = thread.id
 
-    langfuse_metadata = {}
+    langfuse_metadata: dict[str, object] = {}
 
     langfuse_metadata["langfuse_user_id"] = user.id
     langfuse_metadata["langfuse_session_id"] = thread_id
+    # Lets traces from different agent profiles be compared side by side.
+    langfuse_metadata["langfuse_tags"] = [f"ff:{chat_request.ff or 'default'}"]
 
     try:
         quota_info = await enforce_quota(user, session)

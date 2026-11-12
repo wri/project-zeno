@@ -60,6 +60,13 @@ from src.agent.tools.add_template_section import (
 )
 from src.agent.tools.add_text_widget import SPEC as add_text_widget_spec
 from src.agent.tools.add_to_dashboard import SPEC as add_to_dashboard_spec
+from src.agent.tools.analytics_mcp.specs import (
+    LIST_DATASETS_SPEC,
+    LIST_SUBREGIONS_SPEC,
+    PICK_AOI_SPEC,
+    PICK_DATASET_SPEC,
+    PULL_DATA_SPEC,
+)
 from src.agent.tools.create_dashboard import SPEC as create_dashboard_spec
 from src.agent.tools.edit_dashboard_section import (
     SPEC as edit_dashboard_section_spec,
@@ -157,6 +164,21 @@ EXPERIMENTAL_TOOLS = (add_template_section_spec,)
 # users who opt into LGMS (`?ff=net-flux`) but cannot use `experimental`.
 LGMS_PROFILE = "lgms"
 
+# The core toolbox answered by the analytics API's MCP server instead of
+# Zeno's own sources. Its tools keep the core tools' names and state, so the
+# frontend and insights work unchanged. No skills: theirs describe the core
+# tools' arguments.
+MCP_PROFILE = "mcp"
+MCP_TOOLS = (
+    PICK_AOI_SPEC,
+    PICK_DATASET_SPEC,
+    PULL_DATA_SPEC,
+    LIST_DATASETS_SPEC,
+    LIST_SUBREGIONS_SPEC,
+    generate_insights_spec,
+    update_insight_display_spec,
+)
+
 # Profiles any authenticated user may select with `ff`. All other flags are
 # for admin, superuser and machine users only (see src/api/routers/chat.py).
 PUBLIC_PROFILES = frozenset({LGMS_PROFILE})
@@ -225,7 +247,11 @@ class AgentConfig:
         if self.skills:
             names.add(read_skill_spec.tool.name)
         names.update(s.tool.name for s in self.tools)
-        derived = tuple(s for s in ALL_SPECS if s.tool.name in names)
+        # A directly-bound spec replaces the registered one of its name.
+        own = {s.tool.name: s for s in self.tools}
+        derived = tuple(
+            own.get(s.tool.name, s) for s in ALL_SPECS if s.tool.name in names
+        )
         unregistered = tuple(
             s for s in self.tools if s.tool.name not in _SPEC_BY_NAME
         )
@@ -412,5 +438,12 @@ default_registry.register(
         extends=DEFAULT_PROFILE,
         # Excludes are not inherited, so an empty set reveals LGMS.
         excluded_datasets=frozenset(),
+    )
+)
+default_registry.register(
+    AgentConfig(
+        MCP_PROFILE,
+        tools=MCP_TOOLS,
+        excluded_datasets=DEFAULT_EXCLUDED_DATASETS,
     )
 )
