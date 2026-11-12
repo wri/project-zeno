@@ -13,6 +13,7 @@ from src.agent.datasets.handlers.analytics_handler import (
     NATURAL_FOREST_DEFAULT_CANOPY_COVER,
     TREE_COVER_LOSS_BY_DRIVER_ID,
     TREE_COVER_LOSS_BY_FIRES_ID,
+    TREE_COVER_LOSS_ID,
     analytics_api_headers,
 )
 from src.agent.tool_spec import ToolCategory, ToolSpec
@@ -50,8 +51,22 @@ tools = AnalyticsMcpTools(
         intersection_ids={
             ("tree_cover_loss", "driver"): TREE_COVER_LOSS_BY_DRIVER_ID,
             ("tree_cover_loss", "fire"): TREE_COVER_LOSS_BY_FIRES_ID,
+            ("deforestation", "driver"): TREE_COVER_LOSS_BY_DRIVER_ID,
+            ("deforestation", "fire"): TREE_COVER_LOSS_BY_FIRES_ID,
+            (
+                "eudr_supply_chain_deforestation",
+                "driver",
+            ): TREE_COVER_LOSS_BY_DRIVER_ID,
+            (
+                "eudr_supply_chain_deforestation",
+                "fire",
+            ): TREE_COVER_LOSS_BY_FIRES_ID,
         },
-        alias_ids={"land_cover_composition": LAND_COVER_CHANGE_ID},
+        alias_ids={
+            "land_cover_composition": LAND_COVER_CHANGE_ID,
+            "deforestation": TREE_COVER_LOSS_ID,
+            "eudr_supply_chain_deforestation": TREE_COVER_LOSS_ID,
+        },
     ),
     datasets=CatalogDatasets(DATASETS),
     payload_choices=PayloadChoices(

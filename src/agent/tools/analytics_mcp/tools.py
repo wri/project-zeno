@@ -187,12 +187,15 @@ class AnalyticsMcpTools:
             return reply(
                 f"The analysis did not finish: {message}", tool_call_id
             )
-        context_layer = self.payload_choices.context_layer(payload)
+        # The request that ran, which wrapper datasets fill in with choices
+        # such as the forest filter.
+        ran = outcome.get("metadata") or payload
+        context_layer = self.payload_choices.context_layer(ran)
         selection = {
             **await self.datasets.selection(
                 dataset_id,
                 context_layer,
-                self.payload_choices.canopy_cover(payload, context_layer),
+                self.payload_choices.canopy_cover(ran, context_layer),
             ),
             "analytics_dataset": dataset,
         }

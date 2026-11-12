@@ -90,7 +90,7 @@ def build_tools(mcp: FakeMcp, recorder: RecordedStatistics | None = None):
                 }
             ],
             intersection_ids={},
-            alias_ids={},
+            alias_ids={"deforestation": 4},
         ),
         datasets=FakeDatasets(),
         payload_choices=PayloadChoices(
@@ -257,6 +257,23 @@ async def test_pull_data_records_the_payload_choices_as_the_dataset():
     statistics = command.update["statistics"][0]
     assert statistics["context_layer"] == "primary_forest"
     assert statistics["parameters"] == dataset["parameters"]
+
+
+async def test_pull_data_records_the_forest_the_analysis_chose():
+    ran = {
+        **analysis("saved", {"aoi_id": ["BRA.14"]}),
+        "metadata": {**PAYLOAD, "forest_filter": "intact_forest"},
+    }
+    tools = build_tools(FakeMcp({"run_analysis": [ran]}))
+
+    command = await tools.pull_data(
+        "deforestation",
+        PAYLOAD,
+        state={"aoi_selection": PARA_SELECTION},
+        tool_call_id="call-1",
+    )
+
+    assert command.update["dataset"]["context_layer"] == "intact_forest"
 
 
 async def test_pull_data_records_every_analyzed_area():

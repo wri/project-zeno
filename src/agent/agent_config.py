@@ -166,9 +166,16 @@ LGMS_PROFILE = "lgms"
 
 # The core toolbox answered by the analytics API's MCP server instead of
 # Zeno's own sources. Its tools keep the core tools' names and state, so the
-# frontend and insights work unchanged. No skills: theirs describe the core
-# tools' arguments.
+# frontend and insights work unchanged. The analyze and pull-data skills are
+# left out: they describe the core tools' arguments.
 MCP_PROFILE = "mcp"
+MCP_SKILLS = (
+    "capabilities",
+    "show-imagery",
+    "wri-insights",
+    "dashboard",
+    "explore",
+)
 MCP_TOOLS = (
     PICK_AOI_SPEC,
     PICK_DATASET_SPEC,
@@ -443,6 +450,7 @@ default_registry.register(
 default_registry.register(
     AgentConfig(
         MCP_PROFILE,
+        skills=MCP_SKILLS,
         tools=MCP_TOOLS,
         excluded_datasets=DEFAULT_EXCLUDED_DATASETS,
     )
