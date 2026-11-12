@@ -25,7 +25,7 @@ the area, chart the dataset for the area. The frontend runs them in order.
 
 import asyncio
 from datetime import date
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import pandas as pd
 
@@ -53,11 +53,21 @@ from src.api.services.zap.models import (
     ZapArea,
     ZapCurrent,
     ZapDecision,
+    ZapDecisionOption,
     ZapPlan,
     ZapStep,
 )
+from src.api.services.zap.tiers import (
+    TIER_MAP,
+    TOP_OPTIONS,
+    clairic_clear,
+    jev_clear,
+)
 from src.shared.aoi_search import search_aois
 from src.shared.logging_config import get_logger
+
+if TYPE_CHECKING:
+    from src.api.services.zap.dashboard import ZapDashboard
 
 logger = get_logger(__name__)
 
@@ -80,6 +90,9 @@ QUESTION_LABELS = {
     "area": "Area",
     "context": "Forest type",
     "canopy": "Canopy cover",
+    "action": "Action",
+    "template": "Template",
+    "cloud": "Cloud cover",
 }
 
 CATALOG = {ds["dataset_id"]: ds for ds in DATASETS}
@@ -174,17 +187,64 @@ async def _dataset_args(
     )
 
 
-def _decision(name: str, question: Question, answer: Answer) -> ZapDecision:
-    label = question.options.get(answer.choice, answer.choice)
-    if name == "dataset" and answer.choice.isdigit():
-        label = CATALOG[int(answer.choice)]["dataset_name"]
-    elif len(label) > 80:
-        label = label[:77] + "..."
+def _option_label(
+    name: str,
+    question: Question,
+    choice: str,
+    labels: Optional[dict[str, str]] = None,
+) -> str:
+    if labels and choice in labels:
+        return labels[choice]
+    if name == "dataset" and choice.isdigit():
+        return CATALOG[int(choice)]["dataset_name"]
+    label = question.options.get(choice, choice)
+    return label[:77] + "..." if len(label) > 80 else label
+
+
+def _other_options(
+    name: str,
+    question: Question,
+    answer: Answer,
+    labels: Optional[dict[str, str]] = None,
+) -> list[ZapDecisionOption]:
+    """Up to TOP_OPTIONS other options of the decision, best first. The
+    "keep" and "none" options are not a correction, so they are left out."""
+    ranked = sorted(
+        (
+            (option, p)
+            for option, p in answer.probabilities.items()
+            if option != answer.choice
+            and option in question.options
+            and option not in (o.KEEP, o.NONE)
+            and p > 0
+        ),
+        key=lambda item: -item[1],
+    )
+    return [
+        ZapDecisionOption(
+            label=_option_label(name, question, option, labels),
+            probability=round(p, 3),
+        )
+        for option, p in ranked[:TOP_OPTIONS]
+    ]
+
+
+def _decision(
+    name: str,
+    question: Question,
+    answer: Answer,
+    labels: Optional[dict[str, str]] = None,
+) -> ZapDecision:
+    """A jev decision. `labels` replaces the option text in the other
+    options, e.g. the area name for "Pará (state-province, gadm)", so that
+    a selected option reads as a request."""
     return ZapDecision(
         question=QUESTION_LABELS[name],
-        label=label,
+        label=_option_label(name, question, answer.choice),
         probability=round(answer.probability, 3),
         source="jev",
+        options=_other_options(name, question, answer, labels),
+        clear=jev_clear(answer.choice, answer.probabilities),
     )
 
 
@@ -196,6 +256,7 @@ def _value_decision(
         label=label,
         probability=round(probability, 3),
         source=source,
+        clear=clairic_clear(probability),
     )
 
 
@@ -245,8 +306,16 @@ async def plan_zap(
     current: ZapCurrent,
     user_id: str,
     today: Optional[date] = None,
+    dashboard: Optional["ZapDashboard"] = None,
 ) -> ZapPlan:
+    """The plan for one request. On a dashboard page (`current.page`), the
+    dashboard planner (`dashboard.py`) makes the plan; `dashboard` replaces
+    the database row, for the eval and the tests."""
     today = today or date.today()
+    if current.page == "dashboard":
+        from src.api.services.zap.dashboard import plan_dashboard
+
+        return await plan_dashboard(prompt, current, user_id, today, dashboard)
     current_dataset = (
         CATALOG[current.dataset_id]["dataset_name"]
         if current.dataset_id in CATALOG
@@ -427,8 +496,16 @@ async def plan_zap(
         )
     later = await decide(state, second) if second else {}
     later = {k: v for k, v in later.items() if k in second}
+    area_names = {_area_option(r): r["name"] for r in candidates}
     for name, answer in later.items():
-        decisions.append(_decision(name, second[name], answer))
+        decisions.append(
+            _decision(
+                name,
+                second[name],
+                answer,
+                area_names if name == "area" else None,
+            )
+        )
 
     area: Optional[ZapArea] = None
     if "area" in later and later["area"].choice != o.NONE:
@@ -563,4 +640,13 @@ async def plan_zap(
         after = current.model_copy(update={"area": analysis_area})
         if result and not (current.start_date and current.end_date):
             after.start_date, after.end_date = dates
-    return ZapPlan(steps=steps, decisions=decisions, notes=notes, state=after)
+    return ZapPlan(
+        steps=steps,
+        decisions=decisions,
+        notes=notes,
+        state=after,
+        # Map changes are tier 0: applied with no confirmation, and undo
+        # takes them back.
+        tier=TIER_MAP if steps else None,
+        needs_confirmation=False if steps else None,
+    )

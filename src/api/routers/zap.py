@@ -30,6 +30,14 @@ async def zap(request: ZapRequest, user: UserModel = Depends(require_admin)):
     the steps (`state`), which the client sends back as `current` with the
     next prompt. Changes nothing on the server: the chart step runs through
     POST /api/analyze.
+
+    On a dashboard page (`current.page` is "dashboard", with
+    `current.dashboard_id`), the plan adds content to the dashboard: a
+    chart, a map, an analysis template section or Sentinel-2 imagery, for
+    the first area of the dashboard. The frontend runs each step through
+    the dashboard endpoints (see "Dashboard step contract" in
+    docs/zap-mode-plan.md). Only the owner of the dashboard gets steps. A
+    plan with a decision that is not clear has `needs_confirmation`.
     """
     try:
         return await plan_zap(request.prompt, request.current, user.id)

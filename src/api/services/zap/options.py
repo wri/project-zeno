@@ -123,3 +123,50 @@ def period_range(
     if period.isdigit():
         return f"{period}-01-01", f"{period}-12-31"
     return None, None
+
+
+# --- The dashboard page -----------------------------------------------------
+
+ACTION_INSTRUCTIONS = (
+    "What does the user want to do on the dashboard? Pick an 'add' option "
+    "only when the request asks for new content. Pick 'edit' when the "
+    "request asks to change, move, resize, rename, remove or delete what is "
+    "there, to write a note, or to publish or share the dashboard. Pick "
+    f"'{NONE}' when the request asks for nothing on the dashboard."
+)
+
+# Short, uniform texts, in the form of the dataset cards: what the user
+# gets, then what it shows.
+ACTIONS: dict[str, str] = {
+    "add_chart": "Add a chart: one dataset for the dashboard area, with its "
+    "numbers",
+    "add_map": "Add a map: one dataset as a map layer of the dashboard area",
+    "add_template": "Add a ready-made section: recent alerts, natural forest "
+    "loss, or loss drivers",
+    "add_imagery": "Add satellite imagery: a Sentinel-2 image of the area "
+    "near a date",
+    "edit": "Change the dashboard: move, resize, rename, remove, re-date, "
+    "note, publish",
+    NONE: "Nothing on the dashboard: a question, a greeting, or another "
+    "subject",
+}
+
+ADD_ACTIONS = ("add_chart", "add_map", "add_template", "add_imagery")
+
+TEMPLATE_INSTRUCTIONS = (
+    "Which ready-made section does the request ask for? "
+    f"Pick '{NONE}' when no section fits the request."
+)
+
+# One card for each analysis template in
+# src/api/services/analysis_templates/registry.py. A test checks that the
+# names agree with the registry.
+TEMPLATE_CARDS: dict[str, str] = {
+    "nrt-monitoring": "Recent disturbance alerts: the integrated alerts of "
+    "the last 30 days, day by day, with their list and recent imagery",
+    "post-2020-forest-loss": "Natural forest loss since 2021: the share of "
+    "tree cover loss in natural forest, year by year, with a loss map and "
+    "recent imagery",
+    "forest-loss-drivers": "Tree cover loss and its drivers: the loss each "
+    "year since 2001, its causes, and a map of the drivers",
+}

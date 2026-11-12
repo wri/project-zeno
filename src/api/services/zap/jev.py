@@ -23,6 +23,15 @@ CONTEXT = (
 )
 
 
+# The same for a dashboard page. Zap adds content to the dashboard.
+DASHBOARD_CONTEXT = (
+    "The user edits a dashboard with short, informal requests. A dashboard "
+    "is a page of charts, maps and notes about one area. Act on what the "
+    "user means, not only on the words: a question about a topic asks for "
+    "the dataset that measures it."
+)
+
+
 @dataclass
 class Question:
     """One choice question: option id to the text jev reads."""
@@ -42,13 +51,21 @@ class JevError(RuntimeError):
     """jev could not answer."""
 
 
-def build_state(prompt: str, current: dict[str, str], today: str) -> str:
+def build_state(
+    prompt: str,
+    current: dict[str, str],
+    today: str,
+    page: str = "map",
+) -> str:
+    """The text jev reads: the app, today's date, the request and the
+    current map or dashboard."""
     lines = "\n".join(
         f"- {label}: {value}" for label, value in current.items()
     )
+    context = DASHBOARD_CONTEXT if page == "dashboard" else CONTEXT
     return (
-        f"{CONTEXT}\n\nToday is {today}.\n\nUser request: {prompt}\n\n"
-        f"Current map:\n{lines}"
+        f"{context}\n\nToday is {today}.\n\nUser request: {prompt}\n\n"
+        f"Current {page}:\n{lines}"
     )
 
 

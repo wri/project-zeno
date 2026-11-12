@@ -69,9 +69,21 @@ END = (
     "If the period runs up to now, the reference date."
 )
 
+CLOUD = (
+    "The maximum cloud cover of satellite imagery, only if the request "
+    "names a cloud cover limit, e.g. 'less than 10% clouds' or 'cloud-free "
+    "under 5%'. Other percentages are not the cloud cover."
+)
+
 CALL_A = {
     "place": {"type": "text", "instructions": PLACE},
     "canopy": {"type": "number", "unit": "percent", "instructions": CANOPY},
+}
+# Call A on a dashboard: the area is the area of the dashboard, so there is
+# no place field. The cloud cover is for imagery widgets.
+CALL_A_DASHBOARD = {
+    "canopy": {"type": "number", "unit": "percent", "instructions": CANOPY},
+    "cloud": {"type": "number", "unit": "percent", "instructions": CLOUD},
 }
 CALL_B = {
     "when": {"type": "text", "instructions": WHEN},
@@ -97,6 +109,17 @@ class PlaceExtraction:
     place_probability: float
     canopy: Optional[float]
     canopy_probability: float
+    answers: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class NumberExtraction:
+    """What call A read on a dashboard. None means "not in the request"."""
+
+    canopy: Optional[float]
+    canopy_probability: float
+    cloud: Optional[float]
+    cloud_probability: float
     answers: dict[str, Any] = field(default_factory=dict)
 
 
@@ -203,6 +226,26 @@ def _probability(answer: Optional[dict]) -> float:
     return float(answer.get("confidence") or 0.0)
 
 
+def _percent(answer: Optional[dict]) -> Optional[float]:
+    value = _value(answer)
+    if not isinstance(value, (int, float)) or not 0 < value <= 100:
+        return None
+    return float(value)
+
+
+async def extract_numbers(prompt: str) -> NumberExtraction:
+    """Call A on a dashboard: the canopy cover and the cloud cover, from
+    the request only."""
+    answers = await extract_fields(prompt, CALL_A_DASHBOARD)
+    return NumberExtraction(
+        canopy=_percent(answers["canopy"]),
+        canopy_probability=_probability(answers["canopy"]),
+        cloud=_percent(answers["cloud"]),
+        cloud_probability=_probability(answers["cloud"]),
+        answers=answers,
+    )
+
+
 async def extract_place(prompt: str) -> PlaceExtraction:
     """Call A: the place and the canopy cover, from the request only."""
     answers = await extract_fields(prompt, CALL_A)
@@ -263,6 +306,19 @@ async def extract(
         return_exceptions=True,
     )
     return place, time
+
+
+async def extract_dashboard(
+    prompt: str, today: date
+) -> tuple[NumberExtraction | BaseException, TimeExtraction | BaseException]:
+    """Call A on a dashboard and call B, at the same time. A failed call
+    gives its exception."""
+    numbers, time = await asyncio.gather(
+        extract_numbers(prompt),
+        extract_time(prompt, today),
+        return_exceptions=True,
+    )
+    return numbers, time
 
 
 def _iso(value: Any) -> Optional[str]:

@@ -456,3 +456,66 @@ async def test_state_shows_the_driver_layer(jev, clairic):
     jev(dict(dataset=o.KEEP, place=o.KEEP, scope="single", period=o.KEEP))
     again = await planner.plan_zap("thanks", plan.state, "u", TODAY)
     assert again.steps == []
+
+
+# --- Phase 4: the other options of a decision, and the tier -----------------
+
+
+async def test_map_decisions_carry_their_other_options(monkeypatch, jev):
+    async def fake_decide(state, questions):
+        if "dataset" in questions:
+            return {
+                "dataset": Answer(
+                    choice="4",
+                    probability=0.7,
+                    probabilities={
+                        "4": 0.7,
+                        "10": 0.15,
+                        o.KEEP: 0.08,
+                        "8": 0.05,
+                        "6": 0.01,
+                        "1": 0.01,
+                    },
+                ),
+                "place": Answer(choice="Huelva", probability=0.9),
+                "scope": Answer(choice="single", probability=0.9),
+                "period": Answer(choice=o.KEEP, probability=0.9),
+            }
+        return {
+            "area": Answer(
+                choice="gadm:ESP.1.5_1",
+                probability=0.9,
+                probabilities={"gadm:ESP.1.5_1": 0.9, o.NONE: 0.1},
+            ),
+            "context": Answer(choice=o.NONE, probability=0.9),
+            "canopy": Answer(choice=o.NONE, probability=0.9),
+        }
+
+    monkeypatch.setattr(planner, "decide", fake_decide)
+
+    plan = await planner.plan_zap("loss in Huelva", ZapCurrent(), "u", TODAY)
+
+    dataset = next(d for d in plan.decisions if d.question == "Dataset")
+    # Best first, at most three, with no "keep" option.
+    assert [opt.label for opt in dataset.options] == [
+        planner.CATALOG[10]["dataset_name"],
+        planner.CATALOG[8]["dataset_name"],
+        planner.CATALOG[6]["dataset_name"],
+    ]
+    assert dataset.options[0].probability == 0.15
+    assert dataset.clear is True
+    area = next(d for d in plan.decisions if d.question == "Area")
+    assert area.label == "Huelva, Andalucía, Spain (state-province, gadm)"
+    assert area.options == []
+    # A map plan is tier 0 and needs no confirmation.
+    assert plan.tier == 0
+    assert plan.needs_confirmation is False
+
+
+async def test_a_map_plan_with_no_steps_has_no_tier(jev):
+    jev(dict(dataset=o.KEEP, place=o.KEEP, scope="single", period=o.KEEP))
+
+    plan = await planner.plan_zap("hello", ZapCurrent(), "u", TODAY)
+
+    assert plan.tier is None
+    assert plan.needs_confirmation is None

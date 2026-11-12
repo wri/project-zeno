@@ -335,3 +335,32 @@ async def test_extract_gives_the_error_of_a_failed_call(answers, monkeypatch):
     place, time = await x.extract("Pará", TODAY)
     assert isinstance(place, x.PlaceExtraction)
     assert isinstance(time, x.ExtractError)
+
+
+async def test_dashboard_numbers_have_no_place(answers):
+    states = answers(
+        {
+            "canopy": _answer(None, p_null=0.97),
+            "cloud": _answer(10, p_null=0.05),
+        }
+    )
+    numbers = await x.extract_numbers("imagery with under 10% clouds")
+    assert states == ["imagery with under 10% clouds"]
+    assert set(x.CALL_A_DASHBOARD) == {"canopy", "cloud"}
+    assert numbers.canopy is None
+    assert numbers.cloud == 10
+    assert numbers.cloud_probability == 0.95
+
+
+async def test_extract_dashboard_gives_the_error_of_a_failed_call(
+    answers, monkeypatch
+):
+    answers({"canopy": _answer(None), "cloud": _answer(None)})
+
+    async def fail(prompt, today):
+        raise x.ExtractError("no answer")
+
+    monkeypatch.setattr(x, "extract_time", fail)
+    numbers, time = await x.extract_dashboard("add a map", TODAY)
+    assert isinstance(numbers, x.NumberExtraction)
+    assert isinstance(time, x.ExtractError)
