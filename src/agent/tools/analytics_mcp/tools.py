@@ -133,7 +133,8 @@ class AnalyticsMcpTools:
         """Select a dataset by its name from list_datasets. intersections are
         the ones the analysis will request, such as ["driver"], since some
         intersections are datasets of their own. Returns the dataset's
-        cautions and the payload schema pull_data accepts."""
+        description, cautions, citation, map layers and the payload schema
+        pull_data accepts."""
         try:
             detail = await self.mcp.call(
                 "describe_dataset", {"dataset": dataset}
@@ -144,14 +145,15 @@ class AnalyticsMcpTools:
         except (AnalyticsMcpError, UnknownDatasetError) as error:
             return reply(str(error), tool_call_id)
         update = await self.state_updates.dataset_picked(dataset, dataset_id)
-        # The API's dataset card is left out: the catalog's cautions and
-        # instructions already reach the model, and the card buries the
-        # payload schema.
+        selection = update["dataset"]
         content = json.dumps(
             {
                 "name": detail["name"],
+                "description": detail.get("description"),
                 "request_schema": detail["request_schema"],
-                "cautions": update["dataset"].get("cautions"),
+                "cautions": selection.get("cautions"),
+                "citation": selection.get("citation"),
+                "map_layers": map_layers(selection),
             },
             ensure_ascii=False,
         )
@@ -241,6 +243,14 @@ def feedback(content: str, tool_call_id: str) -> Command:
         response_metadata={"msg_type": "human_feedback"},
     )
     return Command(update={"messages": [message]})
+
+
+def map_layers(selection: dict[str, Any]) -> list[dict[str, Any]]:
+    """The dataset's map layers, by name and tile URL."""
+    layers = []
+    for layer in selection.get("layers") or []:
+        layers.append({"name": layer["name"], "tile_url": layer["tile_url"]})
+    return layers
 
 
 def named_aois(matches: list[dict[str, Any]]) -> list[dict[str, Any]]:

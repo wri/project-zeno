@@ -75,6 +75,13 @@ class FakeDatasets:
             "dataset_id": dataset_id,
             "dataset_name": "Tree cover loss",
             "cautions": "Loss is not deforestation.",
+            "citation": "Hansen et al. 2013",
+            "layers": [
+                {
+                    "name": "tree_cover_loss",
+                    "tile_url": "https://tiles/{z}/{x}/{y}",
+                }
+            ],
             "start_date": "2001-01-01",
             "end_date": "2025-12-31",
             "context_layer": context_layer,
@@ -183,7 +190,7 @@ async def test_pick_aoi_without_matches_changes_nothing():
 async def test_pick_dataset_selects_the_catalog_dataset():
     detail = {
         "name": "tree_cover_loss",
-        "description": "# Primary Dataset ... a long dataset card",
+        "description": "Annual loss at 30 m resolution.",
         "request_schema": {"title": "Payload"},
     }
     tools = build_tools(FakeMcp({"describe_dataset": [detail]}))
@@ -200,7 +207,9 @@ async def test_pick_dataset_selects_the_catalog_dataset():
     content = command.update["messages"][0].content
     assert '"title": "Payload"' in content
     assert "Loss is not deforestation." in content
-    assert "dataset card" not in content
+    assert "Annual loss at 30 m resolution." in content
+    assert "Hansen et al. 2013" in content
+    assert "https://tiles/{z}/{x}/{y}" in content
 
 
 async def test_pick_dataset_reports_an_unknown_dataset():
