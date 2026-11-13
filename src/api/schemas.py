@@ -1020,6 +1020,24 @@ class DashboardSubscriptionsRequest(BaseModel):
     channels: List[SubscriptionChannel]
 
 
+class BulkSubscriptionsRequest(BaseModel):
+    """Dashboards to subscribe to a channel, for every dataset."""
+
+    channel: SubscriptionChannel
+    dashboard_ids: List[UUID] = Field(min_length=1)
+
+
+class BulkSubscriptionsResponse(BaseModel):
+    dashboard_ids: List[UUID] = Field(
+        description="The dashboards whose subscription changed."
+    )
+    skipped: List[UUID] = Field(
+        default_factory=list,
+        description="Requested dashboards that are not the user's or not "
+        "eligible for subscription.",
+    )
+
+
 class AnalysisTemplateResponse(BaseModel):
     name: str = Field(description="Template name, e.g. `nrt-monitoring`.")
     label: str = Field(description="Display name in the user's language.")
