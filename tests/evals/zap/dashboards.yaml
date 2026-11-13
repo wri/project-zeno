@@ -1,0 +1,74 @@
+# The fixed dashboards of the zap dashboard eval. The script builds a
+# `ZapDashboard` from each one, so the run needs no dashboard rows in the
+# database. The format and the rules are in README.md.
+#
+# Phase 5 gave each section and widget an id, a section and, for a chart or
+# a dataset map, its analysis (the data that `change_period` builds again).
+# It also added widgets with near titles (para) and a widget at the top
+# level next to the sections (sebangau). A widget can also be a short text,
+# "chart: <title>", as in phase 4: it then gets a made-up id.
+dashboards:
+  para:
+    id: 00000000-0000-4000-8000-00000000000a
+    name: Pará forest monitoring
+    area: {id: gadm:BRA.14_1, name: "Pará, Brazil", subtype: state-province}
+    sections:
+      - {id: sec-para-overview, title: Overview}
+      - {id: sec-para-drivers, title: Drivers}
+    widgets:
+      - id: w-para-loss-chart
+        kind: chart
+        title: Tree cover loss per year
+        section: sec-para-overview
+        analysis: {dataset: 4, start: "2001-01-01", end: "2025-12-31"}
+      - id: w-para-primary-chart
+        kind: chart
+        title: Primary forest loss per year
+        section: sec-para-overview
+        analysis: {dataset: 4, start: "2002-01-01", end: "2025-12-31", context: primary_forest}
+      - id: w-para-loss-map
+        kind: map
+        title: Tree cover loss
+        analysis: {dataset: 4, start: "2001-01-01", end: "2025-12-31"}
+      - id: w-para-driver-chart
+        kind: chart
+        title: Tree cover loss by driver
+        section: sec-para-drivers
+        config: {size: single}
+        analysis: {dataset: 8, start: "2001-01-01", end: "2025-12-31"}
+  ghana:
+    id: 00000000-0000-4000-8000-00000000000b
+    name: Ghana cocoa landscapes
+    area: {id: gadm:GHA, name: Ghana, subtype: country}
+    sections: []
+    widgets:
+      - id: w-ghana-alerts-chart
+        kind: chart
+        title: Integrated alerts by day
+        analysis: {dataset: 11, start: "2025-11-12", end: "2026-11-12"}
+      - id: w-ghana-alerts-map
+        kind: map
+        title: Integrated alerts
+        analysis: {dataset: 11, start: "2025-11-12", end: "2026-11-12"}
+  sebangau:
+    id: 00000000-0000-4000-8000-00000000000c
+    name: Sebangau National Park
+    area: {id: wdpa:317262, name: Sebangau, subtype: protected-area}
+    sections:
+      - {id: sec-seb-fires, title: Fires}
+      - {id: sec-seb-imagery, title: Imagery}
+    widgets:
+      - id: w-seb-flux-chart
+        kind: chart
+        title: Forest greenhouse gas net flux
+        analysis: {dataset: 6, start: "2001-01-01", end: "2025-12-31"}
+      - id: w-seb-fire-chart
+        kind: chart
+        title: Tree cover loss due to fires
+        section: sec-seb-fires
+        config: {size: single}
+        analysis: {dataset: 10, start: "2001-01-01", end: "2025-12-31"}
+      - id: w-seb-imagery
+        kind: imagery
+        title: Sentinel-2 imagery
+        section: sec-seb-imagery

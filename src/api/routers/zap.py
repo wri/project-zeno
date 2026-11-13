@@ -17,17 +17,35 @@ router = APIRouter()
 @router.post("/api/zap", response_model=ZapPlan)
 async def zap(request: ZapRequest, user: UserModel = Depends(require_admin)):
     """
-    Plan the map changes for one prompt with the jev decision model.
+    Plan the map changes for one prompt with the Clairic extraction model
+    (the place, the time, the canopy cover) and the jev decision model (the
+    dataset, the area, the forest type). When Clairic fails, jev also gives
+    the place, the time and the canopy cover.
 
     Experimental: admins and superusers only.
 
     Returns up to three steps (show a dataset, go to an area, chart the
     dataset for the area) for the frontend to run in order, and the jev
-    decisions with their probabilities. Changes nothing on the server: the
-    chart step runs through POST /api/analyze.
+    decisions with their probabilities and sources, and the map state after
+    the steps (`state`), which the client sends back as `current` with the
+    next prompt. Changes nothing on the server: the chart step runs through
+    POST /api/analyze.
+
+    On a dashboard page (`current.page` is "dashboard", with
+    `current.dashboard_id`), the plan adds content to the dashboard (a
+    chart, a map, an analysis template section, Sentinel-2 imagery or an
+    empty section, for the first area of the dashboard) or edits it (move,
+    resize, rename, change the period of a widget, remove). The frontend
+    runs each step through the dashboard endpoints (see "Dashboard step
+    contract" in docs/zap-mode-plan.md). Only the owner of the dashboard
+    gets steps. A removal, a new period, and a plan with a decision that is
+    not clear have `needs_confirmation`. `choose` replaces jev answers with
+    the options that the user selected.
     """
     try:
-        return await plan_zap(request.prompt, request.current, user.id)
+        return await plan_zap(
+            request.prompt, request.current, user.id, choose=request.choose
+        )
     except JevError as exc:
         logger.error("zap_failed", error=str(exc))
         raise HTTPException(status_code=502, detail=str(exc))

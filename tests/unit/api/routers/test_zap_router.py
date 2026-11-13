@@ -13,8 +13,12 @@ from src.api.schemas import UserModel
 from src.api.services.zap.models import ZapPlan
 
 
-def _client(user_type: UserType, monkeypatch) -> TestClient:
-    async def fake_plan(prompt, current, user_id):
+def _client(
+    user_type: UserType, monkeypatch, sent: list | None = None
+) -> TestClient:
+    async def fake_plan(prompt, current, user_id, choose=None):
+        if sent is not None:
+            sent.append((current, user_id))
         return ZapPlan(steps=[], decisions=[], notes=[])
 
     monkeypatch.setattr(zap_router, "plan_zap", fake_plan)
@@ -47,3 +51,46 @@ def test_zap_is_for_admins_only(user_type, status, monkeypatch):
     response = client.post("/api/zap", json={"prompt": "fires in Bolivia"})
 
     assert response.status_code == status
+
+
+def test_the_page_and_the_dashboard_id_reach_the_planner(monkeypatch):
+    sent = []
+    client = _client(UserType.ADMIN, monkeypatch, sent)
+
+    response = client.post(
+        "/api/zap",
+        json={
+            "prompt": "add a tree cover loss chart",
+            "current": {"page": "dashboard", "dashboard_id": "d1"},
+        },
+    )
+
+    assert response.status_code == 200
+    current, user_id = sent[0]
+    assert current.page == "dashboard"
+    assert current.dashboard_id == "d1"
+    assert user_id == "u1"
+
+
+def test_a_request_with_no_page_is_a_map_request(monkeypatch):
+    sent = []
+    client = _client(UserType.ADMIN, monkeypatch, sent)
+
+    response = client.post("/api/zap", json={"prompt": "fires in Bolivia"})
+
+    assert response.status_code == 200
+    assert sent[0][0].page is None
+    # The new plan fields are optional: an empty plan sends them as null.
+    body = response.json()
+    assert body["tier"] is None
+    assert body["needs_confirmation"] is None
+
+
+def test_an_unknown_page_is_rejected(monkeypatch):
+    client = _client(UserType.ADMIN, monkeypatch)
+
+    response = client.post(
+        "/api/zap", json={"prompt": "x", "current": {"page": "settings"}}
+    )
+
+    assert response.status_code == 422

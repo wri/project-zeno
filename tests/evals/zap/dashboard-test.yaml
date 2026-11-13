@@ -1,0 +1,329 @@
+# Zap dashboard eval: the test part. Do not tune on it. Run it one time for
+# each planner version that you compare.
+# The dashboards are in dashboards.yaml. The format and the rules are in
+# README.md ("The dashboard set").
+today: "2026-11-12"
+cases:
+  # --- Add a chart ---
+  - id: dt-01
+    dashboard: sebangau
+    kind: chart
+    prompt: add a chart of the yearly tree cover loss
+    expect: {action: add_chart, dataset: 4, start: null, end: null, context: null, confirm: false}
+  - id: dt-02
+    dashboard: para
+    kind: chart
+    prompt: chart the deforestation in primary forest from 2018 to 2023
+    expect: {action: add_chart, dataset: 4, start: "2018-01-01", end: "2023-12-31", context: primary_forest, confirm: false}
+  - id: dt-03
+    dashboard: ghana
+    kind: chart
+    prompt: add a chart of the integrated alerts in October 2026
+    expect: {action: add_chart, dataset: 11, start: "2026-10-01", end: "2026-10-31", confirm: false}
+  - id: dt-04
+    dashboard: para
+    kind: chart
+    prompt: add a chart of grassland extent since 2010
+    expect: {action: add_chart, dataset: 2, start: "2010-01-01", end: "2026-11-12", confirm: false}
+  - id: dt-05
+    dashboard: ghana
+    kind: chart
+    prompt: show the causes of tree cover loss as a chart
+    expect: {action: add_chart, dataset: 8, start: null, end: null, confirm: false}
+  - id: dt-06
+    dashboard: sebangau
+    kind: chart
+    prompt: add a chart of the tree cover in 2000 with a 75% canopy threshold
+    expect: {action: add_chart, dataset: 7, start: null, end: null, canopy: 75, context: null, confirm: false}
+  - id: dt-07
+    dashboard: para
+    kind: chart
+    prompt: add a chart of land cover change between 2015 and 2024
+    expect: {action: add_chart, dataset: 1, start: "2015-01-01", end: "2024-12-31", confirm: false}
+  - id: dt-08
+    dashboard: ghana
+    kind: chart
+    prompt: chart the fire-driven tree cover loss in the last 5 years
+    expect: {action: add_chart, dataset: 10, start: "2021-01-01", end: "2026-11-12", relative: true, context: null, confirm: false}
+  # --- Add a map ---
+  - id: dt-09
+    dashboard: ghana
+    kind: map
+    prompt: add a map of tree cover loss
+    expect: {action: add_map, dataset: 4, start: null, end: null, context: null, confirm: false}
+  - id: dt-10
+    dashboard: para
+    kind: map
+    prompt: put a map of the disturbance alerts of the last month here
+    expect: {action: add_map, dataset: 11, ranges: [["2026-10-12", "2026-11-12"], ["2026-10-01", "2026-10-31"]], relative: true, confirm: false}
+  - id: dt-11
+    dashboard: sebangau
+    kind: map
+    prompt: add a map of the carbon flux of the forest
+    expect: {action: add_map, dataset: 6, start: null, end: null, confirm: false}
+  - id: dt-12
+    dashboard: para
+    kind: map
+    prompt: add a map layer of primary forest loss since 2020
+    expect: {action: add_map, dataset: 4, start: "2020-01-01", end: "2026-11-12", context: primary_forest, confirm: false}
+  # --- Add a template section ---
+  - id: dt-13
+    dashboard: para
+    kind: template
+    prompt: add the section on alerts of the last 30 days
+    expect: {action: add_template, template: nrt-monitoring, confirm: false}
+  - id: dt-14
+    dashboard: ghana
+    kind: template
+    prompt: add the post-2020 natural forest loss section
+    expect: {action: add_template, template: post-2020-forest-loss, confirm: false}
+  - id: dt-15
+    dashboard: sebangau
+    kind: template
+    prompt: add the ready-made section on loss and its drivers
+    expect: {action: add_template, template: forest-loss-drivers, confirm: false}
+  # --- Add imagery ---
+  - id: dt-16
+    dashboard: sebangau
+    kind: imagery
+    prompt: add Sentinel-2 imagery from July 2023 with at most 10% cloud cover
+    expect: {action: add_imagery, start: "2023-07-01", end: "2023-07-31", cloud: 10, confirm: false}
+  - id: dt-17
+    dashboard: para
+    kind: imagery
+    prompt: add the latest satellite image
+    expect: {action: add_imagery, start: null, end: null, confirm: false}
+  - id: dt-18
+    dashboard: ghana
+    kind: imagery
+    prompt: add satellite imagery of the dry season, December 2024 to February 2025
+    expect: {action: add_imagery, start: "2024-12-01", end: "2025-02-28", confirm: false}
+  # --- Phase 4 "later phase" cases: the edits of phase 5, and tier 3 ---
+  - id: dt-19
+    dashboard: sebangau
+    kind: remove
+    prompt: remove the imagery map
+    expect: {action: remove, target: w-seb-imagery, confirm: true}
+  - id: dt-20
+    dashboard: para
+    kind: rename
+    prompt: rename the Overview section to Summary
+    expect: {action: rename, target: sec-para-overview, title: Summary, confirm: false}
+  - id: dt-21
+    dashboard: ghana
+    kind: outside
+    prompt: make this dashboard public
+    expect: {action: none}
+  - id: dt-22
+    dashboard: para
+    kind: change-period
+    prompt: show the loss chart for 2020 to 2025 only
+    expect: {action: change_period, target: w-para-loss-chart, start: "2020-01-01", end: "2025-12-31", confirm: true}
+  - id: dt-23
+    dashboard: sebangau
+    kind: resize
+    prompt: put the fire chart at full width
+    expect: {action: resize, target: w-seb-fire-chart, size: double, confirm: false}
+  - id: dt-24
+    dashboard: ghana
+    kind: remove
+    prompt: delete the alerts chart
+    expect: {action: remove, target: w-ghana-alerts-chart, confirm: true}
+  - id: dt-25
+    dashboard: para
+    kind: outside
+    prompt: write a summary of this dashboard
+    expect: {action: none}
+  # --- No change ---
+  - id: dt-26
+    dashboard: sebangau
+    kind: no-change
+    prompt: ok great
+    expect: {action: none}
+  - id: dt-27
+    dashboard: para
+    kind: no-change
+    prompt: why did the loss peak in 2016?
+    expect: {action: none}
+  - id: dt-28
+    dashboard: ghana
+    kind: no-change
+    prompt: add a chart of tree cover loss for each region of Ghana
+    expect: {action: none}
+  # --- Not clear: a confirmation is necessary ---
+  - id: dt-29
+    dashboard: sebangau
+    kind: unclear
+    prompt: deforestation
+    expect: {action: [add_chart, add_map], dataset: [4, 8], start: null, end: null, context: [null, primary_forest], confirm: true}
+  - id: dt-30
+    dashboard: ghana
+    kind: unclear
+    prompt: add something on forest change
+    expect: {action: [add_chart, add_map, add_template], dataset: [4, 5, 1], start: null, end: null, context: null, template: [forest-loss-drivers, post-2020-forest-loss], confirm: true}
+  # --- Follow-up: the state of the last addition ---
+  - id: dt-31
+    dashboard: ghana
+    kind: follow-up
+    prompt: also add a chart of the same data
+    current: {dataset: 11, start: "2026-08-12", end: "2026-11-12"}
+    expect: {action: add_chart, dataset: 11, start: "2026-08-12", end: "2026-11-12", confirm: false}
+  - id: dt-32
+    dashboard: para
+    kind: follow-up
+    prompt: and a chart of it at 10% canopy
+    current: {dataset: 4, start: "2001-01-01", end: "2025-12-31"}
+    expect: {action: add_chart, dataset: 4, start: null, end: null, canopy: 10, context: null, confirm: false}
+  # --- Phase 5: add an empty section. The title is the words of the user ---
+  - id: dt-33
+    dashboard: sebangau
+    kind: add-section
+    prompt: create a section titled Peat fires
+    expect: {action: add_section, title: Peat fires, confirm: false}
+  - id: dt-34
+    dashboard: para
+    kind: add-section
+    prompt: "new section: Mining"
+    expect: {action: add_section, title: Mining, confirm: false}
+  - id: dt-35
+    dashboard: ghana
+    kind: add-section
+    prompt: add an empty section
+    expect: {action: none}
+  # --- Phase 5: move ---
+  - id: dt-36
+    dashboard: para
+    kind: move
+    prompt: move the primary forest chart to the Drivers section
+    expect: {action: move, target: w-para-primary-chart, destination: sec-para-drivers, confirm: false}
+  - id: dt-37
+    dashboard: sebangau
+    kind: move
+    prompt: move the imagery out of its section
+    expect: {action: move, target: w-seb-imagery, destination: top, confirm: false}
+  - id: dt-38
+    dashboard: para
+    kind: move
+    prompt: put the loss chart under Overview
+    expect: {action: none}
+  - id: dt-39
+    dashboard: ghana
+    kind: move
+    prompt: move the alerts map into the Cocoa section
+    expect: {action: none}
+  # --- Phase 5: resize ---
+  - id: dt-40
+    dashboard: ghana
+    kind: resize
+    prompt: make the alerts chart half width
+    expect: {action: resize, target: w-ghana-alerts-chart, size: single, confirm: false}
+  - id: dt-41
+    dashboard: para
+    kind: resize
+    prompt: widen the driver chart
+    expect: {action: resize, target: w-para-driver-chart, size: double, confirm: false}
+  # --- Phase 5: rename ---
+  - id: dt-42
+    dashboard: para
+    kind: rename
+    prompt: rename the dashboard to Pará deforestation watch
+    expect: {action: rename, target: dashboard, title: Pará deforestation watch, confirm: false}
+  - id: dt-43
+    dashboard: sebangau
+    kind: rename
+    prompt: change the title of the Fires section to Burned area
+    expect: {action: rename, target: sec-seb-fires, title: Burned area, confirm: false}
+  - id: dt-44
+    dashboard: para
+    kind: rename
+    prompt: give the Overview section a better name
+    expect: {action: none}
+  # --- Phase 5: change the period (always a confirmation) ---
+  - id: dt-45
+    dashboard: sebangau
+    kind: change-period
+    prompt: show the fire chart for 2024 only
+    expect: {action: change_period, target: w-seb-fire-chart, start: "2024-01-01", end: "2024-12-31", confirm: true}
+  - id: dt-46
+    dashboard: para
+    kind: change-period
+    prompt: change the loss map to show 2010 to 2020
+    expect: {action: change_period, target: w-para-loss-map, start: "2010-01-01", end: "2020-12-31", confirm: true}
+  - id: dt-47
+    dashboard: ghana
+    kind: change-period
+    prompt: show the alerts chart for last month
+    expect: {action: change_period, target: w-ghana-alerts-chart, start: "2026-10-01", end: "2026-10-31", confirm: true}
+  # --- Phase 5: remove (always a confirmation) ---
+  - id: dt-48
+    dashboard: sebangau
+    kind: remove
+    prompt: get rid of the carbon flux chart
+    expect: {action: remove, target: w-seb-flux-chart, confirm: true}
+  - id: dt-49
+    dashboard: para
+    kind: remove
+    prompt: remove the Drivers section, keep its chart
+    expect: {action: remove, target: sec-para-drivers, widgets: false, confirm: true}
+  - id: dt-50
+    dashboard: para
+    kind: remove
+    prompt: delete the Overview section with its charts
+    expect: {action: remove, target: sec-para-overview, widgets: true, confirm: true}
+  - id: dt-51
+    dashboard: sebangau
+    kind: remove
+    prompt: remove the deforestation alerts chart
+    expect: {action: none}
+  # --- Phase 5: two widgets with near titles ---
+  - id: dt-52
+    dashboard: para
+    kind: near-titles
+    prompt: remove the tree cover loss per year chart
+    expect: {action: remove, target: w-para-loss-chart, confirm: true}
+  - id: dt-53
+    dashboard: para
+    kind: near-titles
+    prompt: make the primary forest loss chart half width
+    expect: {action: resize, target: w-para-primary-chart, size: single, confirm: false}
+  # --- Phase 5: a follow-up on the last edit (the ids in `last`) ---
+  - id: dt-54
+    dashboard: ghana
+    kind: last-edit
+    prompt: remove that
+    add_widgets:
+      - {id: w-new-ghana-gain, kind: map, title: Tree cover gain, analysis: {dataset: 5, start: "2000-01-01", end: "2020-12-31"}}
+    last: [w-new-ghana-gain]
+    expect: {action: remove, target: w-new-ghana-gain, confirm: true}
+  - id: dt-55
+    dashboard: para
+    kind: last-edit
+    prompt: move it to the Drivers section
+    add_widgets:
+      - {id: w-new-para-fire, kind: chart, title: Tree cover loss due to fires, analysis: {dataset: 10, start: "2001-01-01", end: "2025-12-31"}}
+    last: [w-new-para-fire]
+    expect: {action: move, target: w-new-para-fire, destination: sec-para-drivers, confirm: false}
+  - id: dt-56
+    dashboard: sebangau
+    kind: last-edit
+    prompt: undo that, remove the new section
+    add_sections:
+      - {id: sec-new-peat, title: Peat}
+    last: [sec-new-peat]
+    expect: {action: remove, target: sec-new-peat, confirm: true}
+  # --- Phase 5: requests that must change nothing ---
+  - id: dt-57
+    dashboard: ghana
+    kind: no-change
+    prompt: how do I resize a widget?
+    expect: {action: none}
+  - id: dt-58
+    dashboard: sebangau
+    kind: no-change
+    prompt: nice, thanks
+    expect: {action: none}
+  - id: dt-59
+    dashboard: para
+    kind: no-change
+    prompt: remove everything
+    expect: {action: none}
