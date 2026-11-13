@@ -16,6 +16,7 @@ from src.agent.datasets.handlers.analytics_handler import (
     analytics_api_headers,
 )
 from src.agent.datasets.handlers.base import DataPullResult
+from src.agent.datasets.tiles import with_date_range
 from src.agent.i18n import t
 from src.agent.language import DEFAULT_LANGUAGE
 from src.agent.tool_spec import (
@@ -329,9 +330,6 @@ async def pull_data(
         effective_start,
         effective_end,
     ):
-        # Avoids a circular import.
-        from src.agent.subagents.pick_dataset import with_date_range
-
         try:
             update["dataset"] = with_date_range(
                 dataset, effective_start, effective_end

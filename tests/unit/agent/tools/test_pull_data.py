@@ -2,7 +2,6 @@
 date range from the one pick_dataset resolved, so the map tiles and the
 legend dates follow the analysis (PZB-1563)."""
 
-import sys
 from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock
 
@@ -100,11 +99,7 @@ async def test_tile_error_does_not_fail_the_pull(monkeypatch):
     def broken(*args):
         raise KeyError("dataset_id")
 
-    monkeypatch.setattr(
-        sys.modules["src.agent.subagents.pick_dataset"],
-        "with_date_range",
-        broken,
-    )
+    monkeypatch.setattr(pull_data_module, "with_date_range", broken)
 
     command = await _pull("2025-03-01", "2025-03-31")
 

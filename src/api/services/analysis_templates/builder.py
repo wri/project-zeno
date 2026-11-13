@@ -41,13 +41,11 @@ from src.agent.datasets.handlers.base import (
     DataPullResult,
     DataSourceHandler,
 )
+from src.agent.datasets.tiles import get_tile_services_for_dataset
 from src.agent.i18n import t
 from src.agent.imagery import ImageryRequest, Sentinel2ImageryProvider
 from src.agent.language import DEFAULT_LANGUAGE
 from src.agent.subagents.analyst.charts import Insight, InsightChart
-from src.agent.subagents.pick_dataset.tool import (
-    get_tile_services_for_dataset,
-)
 from src.api.data_models import DashboardOrm
 from src.api.repositories import dashboard_writer
 from src.api.repositories.dashboard_writer import SectionWidget
