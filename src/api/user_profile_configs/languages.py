@@ -7,4 +7,5 @@ LANGUAGES = {
     "es": "Español",
     "pt": "Português",
     "id": "Bahasa Indonesia",
+    "zh": "中文",
 }
