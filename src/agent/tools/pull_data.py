@@ -1,5 +1,5 @@
 import asyncio
-from typing import Annotated, Dict, Optional
+from typing import Annotated, Any, Dict, Optional
 
 import httpx
 import structlog
@@ -16,6 +16,7 @@ from src.agent.datasets.handlers.analytics_handler import (
     analytics_api_headers,
 )
 from src.agent.datasets.handlers.base import DataPullResult
+from src.agent.datasets.tiles import with_date_range
 from src.agent.i18n import t
 from src.agent.language import DEFAULT_LANGUAGE
 from src.agent.tool_spec import (
@@ -318,14 +319,25 @@ async def pull_data(
         statistics["id"] = str(statistics_row.id)
         await session.commit()
 
-    return Command(
-        update={
-            "statistics": [statistics],
-            "start_date": effective_start,
-            "end_date": effective_end,
-            "messages": [tool_message],
-        },
-    )
+    update: dict[str, Any] = {
+        "statistics": [statistics],
+        "start_date": effective_start,
+        "end_date": effective_end,
+        "messages": [tool_message],
+    }
+    # The map shows the dataset's dates, which can differ from the range analysed.
+    if (dataset.get("start_date"), dataset.get("end_date")) != (
+        effective_start,
+        effective_end,
+    ):
+        try:
+            update["dataset"] = with_date_range(
+                dataset, effective_start, effective_end
+            )
+        except Exception:
+            logger.exception("Could not move the map tiles to the new range")
+
+    return Command(update=update)
 
 
 SPEC = ToolSpec(
