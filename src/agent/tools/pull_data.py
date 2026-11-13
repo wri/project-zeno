@@ -324,20 +324,20 @@ async def pull_data(
         "end_date": effective_end,
         "messages": [tool_message],
     }
-    # The map tiles and the legend show the range pick_dataset resolved. A
-    # later turn can analyse another range without a new pick, so move the
-    # dataset's tiles to the analysed range.
+    # The map shows the dataset's dates, which can differ from the range analysed.
     if (dataset.get("start_date"), dataset.get("end_date")) != (
         effective_start,
         effective_end,
     ):
-        # Imported here: the subagents package imports the analyst, which
-        # imports this module.
-        from src.agent.subagents.pick_dataset import retile_dataset
+        # Avoids a circular import.
+        from src.agent.subagents.pick_dataset import with_date_range
 
-        update["dataset"] = retile_dataset(
-            dataset, effective_start, effective_end
-        )
+        try:
+            update["dataset"] = with_date_range(
+                dataset, effective_start, effective_end
+            )
+        except Exception:
+            logger.exception("Could not move the map tiles to the new range")
 
     return Command(update=update)
 

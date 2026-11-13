@@ -12,10 +12,10 @@ from src.agent.subagents.pick_dataset.tool import (
     get_tile_services_for_dataset,
     pick_dataset,
     rag_candidate_datasets,
-    retile_dataset,
     retriever_cache,
     select_best_dataset,
     to_dataset_layers,
+    with_date_range,
 )
 
 __all__ = [
@@ -30,8 +30,8 @@ __all__ = [
     "get_tile_services_for_dataset",
     "pick_dataset",
     "rag_candidate_datasets",
-    "retile_dataset",
     "retriever_cache",
     "select_best_dataset",
     "to_dataset_layers",
+    "with_date_range",
 ]

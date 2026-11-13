@@ -774,16 +774,8 @@ def get_tile_services_for_dataset(
     return tile_url, context_layers, layers
 
 
-def retile_dataset(dataset: dict, start_date: str, end_date: str) -> dict:
-    """The dataset in state, with its map tiles rebuilt for another date
-    range.
-
-    pick_dataset builds the tiles for the range it resolved. pull_data can
-    analyse a different range on a later turn without a new pick, and the
-    map and the legend must then show that range. The selection is rebuilt
-    from state; a dataset selected in the UI can carry parameters without a
-    description.
-    """
+def with_date_range(dataset: dict, start_date: str, end_date: str) -> dict:
+    """The dataset with its dates and map tiles moved to another range."""
     selection = DatasetOption(
         dataset_id=dataset["dataset_id"],
         context_layer=dataset.get("context_layer"),
@@ -804,12 +796,6 @@ def retile_dataset(dataset: dict, start_date: str, end_date: str) -> dict:
     )
     return {
         **dataset,
-        # The selection validated these, and the tiles follow it.
-        "context_layer": selection.context_layer,
-        "selected_layer": selection.selected_layer,
-        "parameters": [param.model_dump() for param in selection.parameters]
-        if selection.parameters
-        else None,
         "start_date": start_date,
         "end_date": end_date,
         "tile_url": tile_url,
