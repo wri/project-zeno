@@ -73,9 +73,10 @@ class StateUpdates:
         state: dict[str, Any],
     ) -> dict[str, Any]:
         """The areas, dataset choices, statistics and period of a finished
-        analysis. The choices are read from the request that ran, which
-        datasets wrapping another fill in, such as a forest filter. Raises
-        UnsupportedAreaError for areas Zeno can't select."""
+        analysis, read from the request that ran: the API fills in choices,
+        such as a forest filter, and areas, such as every country for the
+        global area. Raises UnsupportedAreaError for areas Zeno can't
+        select."""
         ran = outcome.get("metadata") or payload
         context_layer = self.payload_choices.context_layer(ran)
         selection = {
@@ -87,7 +88,7 @@ class StateUpdates:
             "analytics_dataset": dataset,
         }
         areas = analyzed_areas(
-            payload["aoi"],
+            ran["aoi"],
             state.get("aoi_selection") or {},
             names_seen(state.get("messages") or []),
         )

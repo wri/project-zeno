@@ -321,6 +321,22 @@ async def test_pull_data_records_every_analyzed_area():
     assert [area["name"] for area in selection["aois"]] == ["Nigeria", "Ghana"]
 
 
+async def test_pull_data_records_the_areas_the_analysis_ran_for():
+    countries = {"type": "admin", "ids": ["BRA", "IDN"]}
+    ran = {
+        **analysis("saved", {"aoi_id": ["BRA", "IDN"]}),
+        "metadata": {**PAYLOAD, "aoi": countries},
+    }
+    payload = {**PAYLOAD, "aoi": {"type": "admin", "ids": ["global"]}}
+
+    command = await build_tools(FakeMcp({"run_analysis": [ran]})).pull_data(
+        "tree_cover_loss", payload, state={}, tool_call_id="call-1"
+    )
+
+    selection = command.update["aoi_selection"]
+    assert [area["src_id"] for area in selection["aois"]] == ["BRA", "IDN"]
+
+
 async def test_list_subregions_passes_the_areas_through():
     listed = {"total": 34, "areas": []}
     mcp = FakeMcp({"list_subregions": [listed]})

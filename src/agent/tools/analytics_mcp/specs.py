@@ -121,7 +121,9 @@ LIST_DATASETS_SPEC = ToolSpec(
     prompt_fragment=(
         "- list_datasets(): the datasets that can be analyzed. To answer "
         "with data: pick_aoi, list_datasets, pick_dataset, pull_data, then "
-        "generate_insights."
+        "generate_insights. If the user could have meant different areas or "
+        "datasets, such as places sharing a name, call send_nudge with them "
+        "as options instead of choosing one."
     ),
 )
 PICK_DATASET_SPEC = ToolSpec(
@@ -141,8 +143,10 @@ PULL_DATA_SPEC = ToolSpec(
     category=ToolCategory.PRIMITIVE,
     prompt_fragment=(
         "- pull_data(dataset, payload): run the analysis, with a payload "
-        "matching pick_dataset's schema and the aoi from pick_aoi. Use exactly "
-        "the period asked for, through its last year. Then call "
+        "matching pick_dataset's schema and the aoi from pick_aoi. Use the "
+        "period asked for, through its last year; if no dataset that fits "
+        "the question covers all of it, use the closest period and say so. "
+        "Then call "
         "generate_insights with the question restated with the areas and "
         "period analyzed; for amounts or trends, ask it for the total over "
         "the period too."
