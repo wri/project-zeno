@@ -10,7 +10,8 @@ gives the orchestrator the data and the facts to answer from
 `analyst.charts`, whose package init imports `tool.py`.
 """
 
-from typing import Callable, Optional, Sequence
+import dataclasses
+from typing import Optional, Sequence
 
 from src.agent.datasets.handlers.analytics_handler import (
     canopy_cover_threshold,
@@ -28,14 +29,8 @@ from src.api.services.charts.facts import (
     unit_of,
 )
 from src.api.services.charts.gate import measures
-from src.api.services.charts.tcl_by_driver import driver_facts
+from src.api.services.charts.view_facts import VIEW_FACTS
 from src.api.services.charts.views import get_view
-
-# Facts of a view that its chart cannot give, from the pulled rows: for
-# example a class that the chart leaves out.
-VIEW_FACTS: dict[str, Callable[[list[dict]], list[str]]] = {
-    "tcl_by_driver.by_driver": driver_facts,
-}
 
 # A chart with more rows than this gets its facts only (for example the
 # alerts of each day of a long period).
@@ -234,6 +229,26 @@ def _header(
     return lines
 
 
+def chart_fact_sentences(
+    chart: InsightChart, rows: Sequence[dict] = ()
+) -> list[str]:
+    """The facts of a curated chart: the generic facts that are true for
+    its view (`fact_kinds`, `fact_shares`), then the view's own facts from
+    the pulled rows. A saved chart has no pulled rows: it gets the generic
+    facts only."""
+    view = get_view(chart.view_id) if chart.view_id else None
+    facts = measure_facts(chart)
+    if view is not None and view.fact_kinds is not None:
+        facts = [fact for fact in facts if fact.kind in view.fact_kinds]
+    if view is not None and not view.fact_shares:
+        facts = [dataclasses.replace(fact, share=None) for fact in facts]
+    sentences = [fact.sentence for fact in facts]
+    view_facts = VIEW_FACTS.get(chart.view_id or "")
+    if view_facts is not None and rows:
+        sentences += view_facts(list(rows))
+    return sentences
+
+
 def curated_facts_text(charts: Sequence[InsightChart]) -> str:
     """The facts of the curated charts (the charts with a `view_id`) of a
     saved insight; "" when it has none. A curated insight's summary is a
@@ -242,10 +257,10 @@ def curated_facts_text(charts: Sequence[InsightChart]) -> str:
     for chart in charts:
         if not chart.view_id:
             continue
-        facts = measure_facts(chart)
-        if facts:
+        sentences = chart_fact_sentences(chart)
+        if sentences:
             lines.append(f"Facts of {chart.title} (computed in code):")
-            lines += [f"- {fact.sentence}" for fact in facts]
+            lines += [f"- {sentence}" for sentence in sentences]
     return "\n".join(lines)
 
 
@@ -265,10 +280,7 @@ def build_curated_tool_message(
     lines = _header(charts, statistics, caption, other_columns)
     for index, chart in enumerate(charts, 1):
         lines += ["", f"Chart {index} rows:", format_rows(chart)]
-        sentences = [fact.sentence for fact in measure_facts(chart)]
-        view_facts = VIEW_FACTS.get(chart.view_id or "")
-        if view_facts is not None:
-            sentences += view_facts(list(rows))
+        sentences = chart_fact_sentences(chart, rows)
         if sentences:
             lines += ["", f"Chart {index} facts (computed in code):"]
             lines += [f"- {sentence}" for sentence in sentences]

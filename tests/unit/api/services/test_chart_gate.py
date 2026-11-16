@@ -1,8 +1,9 @@
 """Tests for the code gate of a curated chart in the agent."""
 
 from src.agent.datasets.handlers.analytics_handler import (
-    GRASSLANDS_ID,
+    INTEGRATED_ALERTS_ID,
     LAND_GHG_INVENTORY_ID,
+    TREE_COVER_GAIN_ID,
     TREE_COVER_ID,
     TREE_COVER_LOSS_ID,
 )
@@ -29,17 +30,29 @@ def _chart(view_id, rows, y_axis="area_ha", position=3):
 
 
 def test_the_enabled_views():
-    # Phase 1a: tree cover loss. Phase 1b adds one view at a time.
+    # Phase 1a: tree cover loss. Phase 1b: the one-area views whose
+    # generator agrees with the rules of its dataset.
     assert {v.id for v in VIEWS if v.agent_enabled} == {
         "tcl.annual_loss",
         "tcl.annual_emissions",
         "tcl_by_driver.by_driver",
+        "grasslands.by_year",
+        "land_cover.composition",
+        "natural_lands.by_class",
+        "forest_flux.net",
+        "tcl_by_fires.split",
+        "tcl_by_fires.annual_split",
+        "tree_cover.extent",
     }
     assert [v.id for v in agent_views(TREE_COVER_LOSS_ID)] == [
         "tcl.annual_loss",
         "tcl.annual_emissions",
     ]
-    assert agent_views(GRASSLANDS_ID) == []
+    # Held back: the alerts generator draws daily bars, but the dataset
+    # rules ask for a pie or a monthly line; the gain period labels do not
+    # agree with the cumulative periods of the dataset rules.
+    assert agent_views(INTEGRATED_ALERTS_ID) == []
+    assert agent_views(TREE_COVER_GAIN_ID) == []
     # LGMS keeps its curated-only path.
     assert agent_views(LAND_GHG_INVENTORY_ID) == []
 
@@ -70,11 +83,11 @@ def test_view_gate_several_areas_fail_a_one_area_view():
 
 
 def test_view_gate_fails_without_an_enabled_view():
-    assert not view_gate(GRASSLANDS_ID, 1).passed
+    assert not view_gate(TREE_COVER_GAIN_ID, 1).passed
     assert not view_gate(None, 1).passed
     # tree_cover.extent is many_areas but not enabled.
     assert get_view("tree_cover.extent").shape == "many_areas"
-    assert not view_gate(TREE_COVER_ID, 3).passed
+    assert not view_gate(INTEGRATED_ALERTS_ID, 1).passed
 
 
 def test_has_data():
@@ -90,10 +103,16 @@ def test_charts_with_data_leaves_out_empty_and_unknown_charts():
         [{"year": 2021, "carbon_emissions_MgCO2e": None}],
         y_axis="carbon_emissions_MgCO2e",
     )
-    not_enabled = _chart("grasslands.by_year", [{"area_ha": 1.0}])
+    not_enabled = _chart("tree_cover_gain.by_period", [{"area_ha": 1.0}])
     generated = _chart(None, [{"area_ha": 1.0}])
 
     kept = charts_with_data([emissions, not_enabled, generated, loss])
 
     assert kept == [loss]
     assert loss.position == 0
+
+
+def test_a_many_areas_view_passes_for_several_areas():
+    # Tree cover extent compares areas: one bar for each area.
+    assert view_gate(TREE_COVER_ID, 3).passed
+    assert view_gate(TREE_COVER_ID, 1).passed

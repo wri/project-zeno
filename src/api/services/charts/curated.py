@@ -76,6 +76,31 @@ async def context_layer_label(
     return context_layer.replace("_", " ")
 
 
+def drawn_columns(chart: InsightChart) -> list[str]:
+    """The columns that a chart draws: its axes, its series and its colour,
+    stack and group fields."""
+    columns = [
+        chart.x_axis,
+        chart.y_axis,
+        *chart.series_fields,
+        chart.color_field,
+        chart.stack_field,
+        chart.group_field,
+    ]
+    return list(dict.fromkeys(column for column in columns if column))
+
+
+def drawn_rows(chart: InsightChart) -> list[dict]:
+    """The rows of a chart with only the columns that it draws. The pull
+    also has the area id, its type and its name, and other measures; the
+    curated tool message names the columns that no chart shows."""
+    columns = drawn_columns(chart)
+    return [
+        {column: row[column] for column in columns if column in row}
+        for row in chart.chart_data
+    ]
+
+
 def dataset_context_layer(
     dataset_id: Optional[int], context_layer: Optional[str]
 ) -> Optional[str]:
@@ -122,6 +147,8 @@ async def build_curated_charts(
                 if view is not None:
                     chart.view_id = view.id
                     chart.view_revision = view.revision
+                    if view.agent_enabled:
+                        chart.chart_data = drawn_rows(chart)
             if titles is not None:
                 charts = [chart for chart in charts if chart.title in titles]
                 for position, chart in enumerate(charts):

@@ -65,6 +65,13 @@ class ChartView:
     # chart: what the figures cover when the chart cannot show it, for
     # example a fixed period or a class that the chart leaves out.
     agent_note: Optional[str] = None
+    # The kinds of generic facts (`facts.measure_facts`) that are true for
+    # the view; None for all. A sum is wrong for a stock (the grassland
+    # extent of each year) and for mixed signs (forest flux).
+    fact_kinds: Optional[tuple[str, ...]] = None
+    # False when the view must not give a value as a percent of the total
+    # (the tree cover rules ask for hectares only).
+    fact_shares: bool = True
 
     @property
     def title_key(self) -> str:
@@ -139,6 +146,11 @@ VIEWS: tuple[ChartView, ...] = (
         LAND_COVER_CHANGE_ID,
         "Area (ha) of each land cover class in one year, as a pie. Answers "
         "what the land cover of an area is and which class is the largest.",
+        agent_enabled=True,
+        agent_note=(
+            "The pie is the land cover of 2024. The dataset has only 2015 "
+            "and 2024; this chart does not show change."
+        ),
     ),
     ChartView(
         "forest_flux.net",
@@ -146,12 +158,26 @@ VIEWS: tuple[ChartView, ...] = (
         "Forest greenhouse gas gross emissions, gross removals and net flux "
         "(MgCO2e) for the whole period, as bars. Answers if the forest is a "
         "carbon source or a carbon sink.",
+        agent_enabled=True,
+        fact_kinds=(),
+        agent_note=(
+            "The values are totals for 2001 to 2025, not annual values. Do "
+            "not divide them by the number of years, and do not give or "
+            "suggest an annual average. Removals are negative."
+        ),
     ),
     ChartView(
         "grasslands.by_year",
         GRASSLANDS_ID,
         "Natural and semi-natural grassland area (ha) for each year, as "
         "bars. Answers how much grassland an area has and how it changed.",
+        agent_enabled=True,
+        fact_kinds=("max", "min", "change"),
+        agent_note=(
+            "Each bar is the grassland extent (ha) in that year. Do not add "
+            "the years: their sum is not an area. A gain is not restoration "
+            "and a loss is not a permanent conversion (see the cautions)."
+        ),
     ),
     ChartView(
         "natural_lands.by_class",
@@ -159,6 +185,12 @@ VIEWS: tuple[ChartView, ...] = (
         "Area (ha) of each natural and non-natural land class in 2020, as a "
         "pie. Answers how much of an area is natural land and which class "
         "is the largest.",
+        agent_enabled=True,
+        agent_note=(
+            "The pie is a 2020 snapshot. It cannot show change: for change, "
+            "recommend the Global Land Cover dataset. It does not show "
+            "protection status or legality."
+        ),
     ),
     ChartView(
         "sluc.by_gas",
@@ -191,6 +223,11 @@ VIEWS: tuple[ChartView, ...] = (
         TREE_COVER_LOSS_BY_FIRES_ID,
         "Tree cover loss area (ha) in one year, split into loss from fires "
         "and loss from other causes, as a pie.",
+        agent_enabled=True,
+        agent_note=(
+            "The pie is the loss of the pulled period, from fires and from "
+            "other causes. Never give the carbon emissions of this dataset."
+        ),
     ),
     ChartView(
         "tcl_by_fires.annual_split",
@@ -198,6 +235,11 @@ VIEWS: tuple[ChartView, ...] = (
         "Tree cover loss area (ha) for each year, split into loss from "
         "fires and loss from other causes, as stacked bars. Answers how "
         "much loss fires caused and in which year fires caused the most.",
+        agent_enabled=True,
+        agent_note=(
+            "Each bar is the loss of one year, from fires and from other "
+            "causes. Never give the carbon emissions of this dataset."
+        ),
     ),
     ChartView(
         "tree_cover.extent",
@@ -205,6 +247,14 @@ VIEWS: tuple[ChartView, ...] = (
         "Tree cover area (ha) in 2000 for each area of the pull, as bars, "
         "largest first. Answers how much tree cover an area had.",
         shape="many_areas",
+        agent_enabled=True,
+        fact_shares=False,
+        agent_note=(
+            "Tree cover extent in 2000 only. It cannot show change: for "
+            "change, recommend the Tree cover loss and Tree cover gain "
+            "datasets. Say tree cover, not forest, unless a forest context "
+            "layer is active. Give areas in hectares, not percentages."
+        ),
     ),
     ChartView(
         "tree_cover_gain.by_period",
