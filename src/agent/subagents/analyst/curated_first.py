@@ -45,7 +45,9 @@ CURATED_ANSWER_INSTRUCTION = (
     "and tell them that they can ask for more detail or for a custom "
     "chart.\n"
     "- State the period, the context layer and the canopy cover threshold "
-    "that the figures apply to.\n"
+    "that the figures apply to. Name only the context layer of the header "
+    "above. If the user asked for a context layer that the header does not "
+    "give, tell them that these figures are not for that layer.\n"
     '- Call generate_insights with chart="custom" only when the user asks '
     "for something that the standard chart does not have. Do not call it "
     "now for this question."
