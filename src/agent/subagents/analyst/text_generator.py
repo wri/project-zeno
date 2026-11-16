@@ -93,12 +93,14 @@ class InsightTextGenerator:
     """Generates insight text from resolved charts."""
 
     def __init__(self, model=None):
-        # Not `with_structured_output`: Gemini's schema-constrained decoding
-        # intermittently replaces accented characters with control characters
-        # ("Piau\u0000"), in roughly 1 of 5 answers in our probe runs. The JSON
-        # mime type without a schema did not (0 of 300).
-        # `resilient_json_output` requests JSON that way and also keeps the
-        # retry and fallback policy of the other model calls made from tools.
+        # Explicitly use the JSON mime type here without a schema, because
+        # Gemini Flash's schema constrained decoding (using
+        # 'with_structured_output') intermittently replaces accented characters
+        # with control characters ("Piau\u0000"), in roughly 1 of 5 answers in
+        # our test runs. Using the JSON mime type without a schema did not
+        # exhibit this problem (0 of 300). `resilient_json_output` requests
+        # JSON that way and also keeps the retry and fallback policy of the
+        # other model calls made from tools.
         self._chain = (
             _PROMPT | resilient_json_output(InsightText, model)
         ).with_config(run_name="generate_insight_text")
@@ -115,7 +117,9 @@ class InsightTextGenerator:
         charts_block = "\n".join(
             c.model_dump_json(exclude={"insight"}) for c in charts
         )
-        data = {
+        inputs = {
+            "wording_guide": WORDING_GUIDE,
+            "language": language_name(language),
             "query": query or "(none provided)",
             "executor_context": executor_context or "(none)",
             "cautions": dataset.get(
@@ -125,11 +129,6 @@ class InsightTextGenerator:
                 "presentation_instructions", "(none)"
             ),
             "charts": charts_block,
-        }
-        inputs = {
-            "wording_guide": WORDING_GUIDE,
-            "language": language_name(language),
-            **data,
         }
         raw: InsightText = await self._chain.ainvoke(inputs, config=config)
         # Strip any control character the model wrote, and log it, so the text
