@@ -16,6 +16,23 @@ uv run pytest tests/evals
 
 Each session writes a JSON file with every test's query, tool output, judge prompt, judge response and verdict to `tests/evals/results/` (gitignored).
 
+## Routing set
+
+The routing set measures curated charts first (`docs/curated-charts-first-plan.md`). Each case is a chart request of a user, with the dataset, the number of areas, and the route that the request must take: `standard` (a curated chart) or `custom` (a chart from the code executor). The harness is in `routing/routing_set.py`. It does not call a model.
+
+The harness counts two kinds of error:
+
+- **Wrong answer**: the agent shows a curated chart for a request that needs a custom chart.
+- **Cost**: the code executor runs for a request that a curated chart answers.
+
+`routing/seed.jsonl` has a small set of invented prompts. The real prompts of the demand analysis are internal to WRI. Do not add them to this repository. Keep them in a file outside the repository, and give its path to the harness:
+
+```bash
+uv run python -m tests.evals.routing.routing_set /path/to/routing-set.jsonl
+```
+
+You can also set `ZENO_ROUTING_SET` to the path. The file can be JSON Lines or CSV. The fields are in the docstring of `routing_set.py`. The unit tests of the format are in `tests/unit/agent/test_routing_set.py`.
+
 ## End-to-end eval cases
 
 End-to-end cases (a question in, the final agent state scored) belong in the GOLD regression suite, [wri/gnw-gold-evals](https://github.com/wri/gnw-gold-evals). Add a feature's acceptance cases there.
