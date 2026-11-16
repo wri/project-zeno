@@ -168,6 +168,8 @@ data/
 nbs/data
 .pgdata/
 *.jsonl
+# The routing set's invented seed prompts; the real prompts stay outside the repository.
+!tests/evals/routing/seed.jsonl
 *.duckdb
 *.ddb
 *.db
