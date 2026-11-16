@@ -43,7 +43,7 @@ async def move_dashboard_widget(
     section: Optional[str] = None,
     ungroup: bool = False,
     position: Optional[int] = None,
-    state: Annotated[Dict, InjectedState] | None = None,
+    state: Annotated[Optional[Dict], InjectedState] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """Move a widget into a dashboard section, or back out of one.

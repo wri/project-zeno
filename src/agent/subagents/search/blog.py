@@ -490,7 +490,7 @@ def _cited_articles_for_search(text: str, messages: list) -> list[dict]:
 @tool("search_blogs")
 async def search_blogs(
     query: str,
-    state: Annotated[dict, InjectedState] | None = None,
+    state: Annotated[Optional[dict], InjectedState] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """Search Insights blog articles and return a synthesized, cited answer.

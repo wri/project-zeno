@@ -43,7 +43,7 @@ def _aoi_refs(aois: list[dict]) -> list[dict]:
 @tool("create_dashboard")
 async def create_dashboard(
     name: Optional[str] = None,
-    state: Annotated[Dict, InjectedState] | None = None,
+    state: Annotated[Optional[Dict], InjectedState] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """Create a dashboard for the currently selected area.

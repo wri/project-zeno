@@ -90,7 +90,7 @@ async def add_map_widget(
     dashboard_id: Optional[str] = None,
     title: Optional[str] = None,
     section: Optional[str] = None,
-    state: Annotated[Dict, InjectedState] | None = None,
+    state: Annotated[Optional[Dict], InjectedState] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """Add a map widget to a dashboard.

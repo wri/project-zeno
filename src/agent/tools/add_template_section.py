@@ -53,7 +53,7 @@ async def add_template_section(
     template: TemplateName,  # type: ignore[valid-type]
     template_args: Optional[Dict[str, Any]] = None,
     dashboard_id: Optional[str] = None,
-    state: Annotated[Dict, InjectedState] | None = None,
+    state: Annotated[Optional[Dict], InjectedState] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """Build a new dashboard section from an analysis template.

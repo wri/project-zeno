@@ -68,7 +68,7 @@ async def add_to_dashboard(
     insight_id: Optional[str] = None,
     dashboard_id: Optional[str] = None,
     section: Optional[str] = None,
-    state: Annotated[Dict, InjectedState] | None = None,
+    state: Annotated[Optional[Dict], InjectedState] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """Add an insight to a dashboard as a widget.

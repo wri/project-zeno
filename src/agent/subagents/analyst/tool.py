@@ -872,7 +872,7 @@ async def _generate(
 @tool("generate_insights")
 async def generate_insights(
     query: str,
-    state: Annotated[Dict, InjectedState] | None = None,
+    state: Annotated[Optional[Dict], InjectedState] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """Analyze pulled data and produce one chart insight with follow-up suggestions."""
@@ -883,7 +883,7 @@ async def generate_insights(
 async def generate_insights_curated_first(
     query: str,
     chart: ChartRoute = "standard",
-    state: Annotated[Dict, InjectedState] | None = None,
+    state: Annotated[Optional[Dict], InjectedState] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """Analyze pulled data and produce one chart insight.

@@ -53,7 +53,7 @@ async def add_text_widget(
     dashboard_id: Optional[str] = None,
     position: Optional[int] = None,
     section: Optional[str] = None,
-    state: Annotated[Dict, InjectedState] | None = None,
+    state: Annotated[Optional[Dict], InjectedState] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """Add a text widget (a markdown note) to a dashboard.
