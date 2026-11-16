@@ -15,33 +15,34 @@ keywords:
 - gain
 - forest regrowth
 analytics_api_endpoint: /v0/land_change/tree_cover_gain/analytics
-prompt_instructions: 'Shows cumulative tree cover gain over the periods  2000-2020, 2005-2020, 2010-2020 or 2015-2020. Tree
-  cover gain is defined as a change in tree height from under 5m to over 5m and is not necessarily the same as forest restoration.
-  Avoid using the term "restoration" (other than to Use it to warn users about the differences between tree cover gain and
-  restoration). Note that "net" loss cannot be calculated by subtracting gain from loss, as the methodologies for the two
-  datasets differ. The data can be displayed as a bar chart showing the gain area per period. If asked for gain area through
-  time, it should be be shown using bar charts with one bar per time period. Gain area for a given time period can be calculated
-  by using the following: Area [Year1 to Year2] = Area [Year1 to 2020] - Area [Year2 to 2020]. Warn that these are estimates
-  that can be used as indicators of tree gain but are not suitable for precise verification of restoration activities at local
-  scales. If a user asks for net gain/loss, refuse and explain that the methodologies for the two datasets differ and thus
-  they cannot be combined directly to calculate net change.
-
-  '
+prompt_instructions: |
+  Shows tree cover gain in four 5-year periods: 2000-2005, 2005-2010, 2010-2015 and 2015-2020. The periods do not
+  overlap: the gain from 2000 to 2020 is the sum of the four periods. Tree cover gain is defined as a change in tree
+  height from under 5m to over 5m and is not necessarily the same as forest restoration. Avoid using the term
+  "restoration" (other than to warn users about the differences between tree cover gain and restoration). Note that
+  "net" loss cannot be calculated by subtracting gain from loss, as the methodologies for the two datasets differ. Show
+  gain area through time as a bar chart with one bar per 5-year period. The gain for a longer period is the sum of the
+  5-year periods in it: Area [2005 to 2020] = Area [2005-2010] + Area [2010-2015] + Area [2015-2020]. Warn that these
+  are estimates that can be used as indicators of tree gain but are not suitable for precise verification of
+  restoration activities at local scales. If a user asks for net gain/loss, refuse and explain that the methodologies
+  for the two datasets differ and thus they cannot be combined directly to calculate net change.
 selection_hints: 'Shows cumulative tree cover gain (vegetation growing above 5m height) over 4 periods: 2000-2020, 2005-2020,
   2010-2020, 2015-2020. Resolution 30m, global coverage. Gain ≠ restoration — may be plantation cycles, natural regrowth,
   or land abandonment. Cannot calculate net change by combining with tree cover loss (different methodologies). For tree cover
   loss questions, use Tree Cover Loss dataset instead.
 
   '
-code_instructions: "CHART TYPES: - Default: bar chart with one bar per CUMULATIVE period (2000-2020, 2005-2020, 2010-2020,\
-  \ 2015-2020) - X-axis labels MUST use the raw cumulative period labels, NOT decomposed intervals - Do NOT split cumulative\
-  \ periods into 5-year buckets unless the user explicitly asks DATA RULES: - Cumulative gain over 4 periods: 2000-2020, 2005-2020,\
-  \ 2010-2020, 2015-2020 - ONLY if user explicitly asks for a specific sub-period (e.g., \"gain between 2005 and 2010\"):\n\
-  \  calculate Area[Y1 to Y2] = Area[Y1 to 2020] - Area[Y2 to 2020]\n- All areas in hectares (ha) DO/DON'T: - Do NOT use the\
-  \ term \"restoration\" — use \"tree cover gain\" - If user asks for net gain/loss or net change: EITHER refuse entirely\
-  \ OR show gain\n  data with a MANDATORY warning. Either way, the insight text MUST state that gain and\n  loss datasets\
-  \ use different methodologies and CANNOT be combined for net change.\n- These are estimates suitable as indicators, NOT\
-  \ for precise verification of\n  restoration activities at local scales\n"
+code_instructions: |-
+  CHART TYPES: - Default: bar chart with one bar per 5-year period (x=tree_cover_gain_period: 2000-2005, 2005-2010,
+  2010-2015, 2015-2020; y=area_ha) - X-axis labels MUST use the raw period labels of the data DATA RULES: - The 4 periods
+  do not overlap: the gain from 2000 to 2020 is the sum of the 4 periods - For a longer period (e.g., "gain between 2005
+  and 2020"), sum the 5-year periods in it. Do NOT subtract periods - A period that does not start and end on these
+  5-year bounds cannot be calculated: say so
+  - All areas in hectares (ha) DO/DON'T: - Do NOT use the term "restoration" — use "tree cover gain" - If user asks for
+  net gain/loss or net change: EITHER refuse entirely OR show gain data with a MANDATORY warning. Either way, the
+  insight text MUST state that gain and loss datasets use different methodologies and CANNOT be combined for net
+  change.
+  - These are estimates suitable as indicators, NOT for precise verification of restoration activities at local scales
 presentation_instructions: 'Use "tree cover gain" not "restoration" — gain includes plantation cycles, natural regrowth, and
   land abandonment, not just ecological restoration. Tree cover gain is defined as vegetation growing from under 5m to over
   5m height. Cannot be subtracted from tree cover loss for net change — different methodologies. ALWAYS include this warning
