@@ -34,7 +34,12 @@ MAX_MESSAGE_ROWS = 120
 CURATED_ANSWER_INSTRUCTION = (
     "How to answer:\n"
     "- Answer the question of the user from the figures above. Copy the "
-    "figures with their units. Do not calculate new figures.\n"
+    "figures with their units. Do not calculate new figures: no averages, "
+    "no medians, no rates per year, no sums or differences over a part of "
+    "the pulled period, and no percentages that the facts do not give.\n"
+    "- If the pulled period is not the period that the user asked for, "
+    "say so. Give the figures of the pulled period. Do not add or remove "
+    "years yourself.\n"
     "- If the figures above do not answer the question, do not give an "
     "answer that they do not support. Tell the user what the chart shows, "
     "and tell them that they can ask for more detail or for a custom "
