@@ -56,6 +56,11 @@ class ChartView:
     # False for a view that only an analysis template can build, because
     # its rows do not come from a plain pull of the dataset.
     from_pull: bool = True
+    # True when `generate_insights` can show the view in place of a chart
+    # from the code executor (docs/curated-charts-first-plan.md). Release
+    # each view by itself, after its generator agrees with the rules of
+    # its dataset.
+    agent_enabled: bool = False
 
     @property
     def title_key(self) -> str:
@@ -70,12 +75,14 @@ VIEWS: tuple[ChartView, ...] = (
         "Tree cover loss area (ha) for each year, as bars. Answers how much "
         "tree cover was lost, in one year or in total, and which year had "
         "the most loss.",
+        agent_enabled=True,
     ),
     ChartView(
         "tcl.annual_emissions",
         TREE_COVER_LOSS_ID,
         "Greenhouse gas emissions (MgCO2e) from tree cover loss for each "
         "year, as bars. Answers how much carbon the loss emitted.",
+        agent_enabled=True,
     ),
     ChartView(
         "tcl_natural_forest.annual_split",
@@ -221,4 +228,12 @@ def views_for_dataset(
         view
         for view in VIEWS
         if view.dataset_id == dataset_id and (view.from_pull or not from_pull)
+    ]
+
+
+def agent_views(dataset_id: int) -> list[ChartView]:
+    """The views of a dataset that the agent can show in place of a
+    generated chart, in registry order."""
+    return [
+        view for view in views_for_dataset(dataset_id) if view.agent_enabled
     ]
