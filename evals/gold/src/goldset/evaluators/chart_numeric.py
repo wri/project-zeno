@@ -76,6 +76,11 @@ _NUMBER = re.compile(r"(?<![A-Za-z0-9])(-?\d[\d,]*(?:\.\d+)?)")
 
 _YEAR = re.compile(r"^(19|20)\d{2}$")
 
+# A decimal comma, as French, Spanish and Portuguese write it: "289,11
+# hectares". A thousands group has three digits, so one comma with one or two
+# digits after it can only be a decimal mark.
+_DECIMAL_COMMA = re.compile(r"^-?\d+,\d{1,2}$")
+
 
 def format_number(value: float) -> str:
     """Render a figure the way expected answers write it, not as 2.5e+07.
@@ -127,6 +132,8 @@ def parse_expected_number(expected_answer: str) -> ExpectedNumber | None:
     if _AMBIGUOUS_DECIMAL.match(magnitude):
         return None
 
+    if _DECIMAL_COMMA.match(token):
+        token = token.replace(",", ".")
     try:
         value = float(token.replace(",", ""))
     except ValueError:
@@ -263,7 +270,8 @@ def _cross_column_totals(node: Any) -> list[float]:
 
 
 def _percent_candidates(node: Any) -> list[float]:
-    """Each measure value as a percentage of its own column total.
+    """Each measure value as a percentage of its own column total, and the
+    change from a column's first value to its last value in percent.
 
     Charts encode areas, but expected answers often give a share ("8.57%"), so the
     share is derived here rather than asked of the model.
@@ -293,6 +301,13 @@ def _percent_candidates(node: Any) -> list[float]:
                 total = sum(numbers)
                 if total:
                     shares.extend(number / total * 100 for number in numbers)
+                # The change from the first to the last value in percent, as
+                # the agent's chart facts state it ("-39.95%", or "39.95%
+                # lower"). Rows are in chart order, which is time order for
+                # a time series.
+                if len(numbers) > 1 and numbers[0]:
+                    change = (numbers[-1] - numbers[0]) / numbers[0] * 100
+                    shares.extend((change, abs(change)))
         for item in value:
             walk(item)
 
