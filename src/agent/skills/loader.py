@@ -18,6 +18,10 @@ class SkillMeta:
     # Tools the skill's workflow requires; the skill is only advertised in a
     # profile that binds all of them. Empty for informational skills.
     requires: tuple[str, ...] = ()
+    # One line that merges `description` and `when_to_use`, for the
+    # concise-replies flag (docs/concise-agent-plan.md). Temporary: when the
+    # concise profile is the default, it replaces the two fields.
+    brief: str = ""
 
 
 def _parse(path: Path) -> SkillMeta | None:
@@ -45,6 +49,7 @@ def _parse(path: Path) -> SkillMeta | None:
         when_to_use=meta.get("when_to_use", ""),
         body=body,
         requires=requires,
+        brief=meta.get("brief", ""),
     )
 
 

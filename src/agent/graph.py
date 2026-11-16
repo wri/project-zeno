@@ -93,10 +93,13 @@ def get_prompt(
     if CONCISE_REPLIES in config.flags:
         # Numbered markdown sections (src/agent/prompts/); the tool list is
         # not in the prompt: each tool's schema description is its single
-        # description (docs/concise-agent-plan.md, iteration 2).
+        # description (docs/concise-agent-plan.md, iteration 2). Each skill
+        # is one line, its `brief`.
         available = config.availability()
         return build_prompt(
-            available, skill_lines, prompt_section(page, available)
+            available,
+            [f"- {s.name}: {s.brief}" for s in config.skill_metas()],
+            prompt_section(page, available),
         )
     # A profile without skills (base) binds no read_skill, so the whole
     # skills section — including the read_skill instruction — is omitted.

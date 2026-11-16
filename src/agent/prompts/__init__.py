@@ -82,9 +82,9 @@ def skills_section(skill_lines: Iterable[str], number: int) -> str:
         return ""
     return (
         f"# {number}. Skills\n\n"
-        "A skill is a workflow for one kind of request. When a skill's "
-        '"use when" matches the request, call `read_skill(name)` one time '
-        "and follow it. Usually one skill applies.\n\n" + "\n".join(lines)
+        "A skill is a workflow for one kind of request. When a skill "
+        "below matches the request, call `read_skill(name)` one time and "
+        "follow it. Usually one skill applies.\n\n" + "\n".join(lines)
     )
 
 

@@ -112,3 +112,26 @@ def test_concise_profile_binds_the_short_descriptions():
         assert default[name].description != text
         # The copy keeps the schema and the function of the tool.
         assert concise[name].args == default[name].args
+
+
+def test_every_skill_has_a_brief_with_its_routing_pointers():
+    """The concise skills list shows only `brief`, so it must keep each
+    "use `other-skill`" pointer of `when_to_use`."""
+    from src.agent.skills.loader import all_skills
+
+    for skill in all_skills():
+        assert skill.brief, skill.name
+        pointers = set(re.findall(r"`([a-z-]+)`", skill.when_to_use))
+        assert pointers <= set(
+            re.findall(r"`([a-z-]+)`", skill.brief)
+        ), skill.name
+
+
+def test_concise_skills_list_is_one_brief_line_per_skill():
+    cfg = default_registry.resolve(CONCISE_PROFILE)
+    prompt = get_prompt(cfg)
+    for skill in cfg.skill_metas():
+        assert f"- {skill.name}: {skill.brief}\n" in prompt + "\n"
+    assert "(use when:" not in prompt
+    default = get_prompt(default_registry.resolve(DEFAULT_PROFILE))
+    assert "(use when:" in default
