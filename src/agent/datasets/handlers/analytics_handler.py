@@ -1,7 +1,7 @@
 import asyncio
 import os
 from time import monotonic
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import httpx
 
@@ -187,6 +187,37 @@ DEFAULT_CANOPY_COVER = 30
 # Default canopy cover threshold for natural forest loss. A user-selected
 # threshold still applies. The API returns no emissions below 30%.
 NATURAL_FOREST_DEFAULT_CANOPY_COVER = 10
+
+# The datasets whose pull sends a canopy cover threshold.
+CANOPY_COVER_DATASET_IDS = frozenset(
+    {
+        TREE_COVER_LOSS_ID,
+        TREE_COVER_ID,
+        TREE_COVER_LOSS_BY_DRIVER_ID,
+        TREE_COVER_LOSS_BY_FIRES_ID,
+        FOREST_CARBON_FLUX_ID,
+    }
+)
+
+
+def canopy_cover_threshold(
+    dataset_id: Optional[int],
+    context_layer: Optional[str],
+    parameters: Optional[list[dict]],
+) -> Optional[int]:
+    """The canopy cover threshold (percent) that a pull of the dataset
+    sends to the analytics API; None for a dataset without one."""
+    if dataset_id not in CANOPY_COVER_DATASET_IDS:
+        return None
+    canopy_cover = (
+        NATURAL_FOREST_DEFAULT_CANOPY_COVER
+        if context_layer == "natural_forest"
+        else DEFAULT_CANOPY_COVER
+    )
+    for param in parameters or []:
+        if param["name"] == "canopy_cover":
+            canopy_cover = int(max(param["values"]))
+    return canopy_cover
 
 
 def _first_list_len(section: Any) -> int:
@@ -539,25 +570,12 @@ class AnalyticsHandler(DataSourceHandler):
                 f"Unknown dataset ID: {dataset.get('dataset_id')}"
             )
 
-        if dataset.get("dataset_id") in [
-            TREE_COVER_LOSS_ID,
-            TREE_COVER_ID,
-            TREE_COVER_LOSS_BY_DRIVER_ID,
-            TREE_COVER_LOSS_BY_FIRES_ID,
-            FOREST_CARBON_FLUX_ID,
-        ]:
-            natural_forest = dataset.get("context_layer") == "natural_forest"
-            canopy_cover: int = (
-                NATURAL_FOREST_DEFAULT_CANOPY_COVER
-                if natural_forest
-                else DEFAULT_CANOPY_COVER
-            )
-            params = dataset.get("parameters")
-            if params is not None:
-                for param in params:
-                    if param["name"] == "canopy_cover":
-                        canopy_cover = int(max(param["values"]))
-
+        canopy_cover = canopy_cover_threshold(
+            dataset.get("dataset_id"),
+            dataset.get("context_layer"),
+            dataset.get("parameters"),
+        )
+        if canopy_cover is not None:
             payload = {**payload, "canopy_cover": canopy_cover}
 
         return payload
