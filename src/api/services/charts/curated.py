@@ -19,6 +19,7 @@ from src.agent.language import DEFAULT_LANGUAGE
 from src.agent.subagents.analyst.charts import InsightChart
 from src.api.services.charts.base import ChartGenerator
 from src.api.services.charts.registry import DETERMINISTIC_GENERATORS
+from src.api.services.charts.views import view_for_title
 
 
 async def _localise(
@@ -70,7 +71,8 @@ async def build_curated_charts(
     period: Optional[tuple[str, str]] = None,
 ) -> list[InsightChart]:
     """Curated charts for `dataset_id` from `rows`; [] when no generator
-    handles the dataset. Charts carry `dataset_id`. `titles` keeps only
+    handles the dataset. Charts carry `dataset_id` and, for a chart in the
+    view registry, `view_id` and `view_revision`. `titles` keeps only
     the charts with those title keys; None keeps them all. `period` is the
     start and end date of the pull, for a chart whose axis spans it."""
     for generator in generators:
@@ -78,8 +80,13 @@ async def build_curated_charts(
             if period is not None:
                 generator = generator.for_period(*period)
             charts = generator.generate(rows)
+            # Before _localise, while the titles are still keys.
+            for chart in charts:
+                view = view_for_title(chart.title)
+                if view is not None:
+                    chart.view_id = view.id
+                    chart.view_revision = view.revision
             if titles is not None:
-                # Before _localise, while the titles are still keys.
                 charts = [chart for chart in charts if chart.title in titles]
                 for position, chart in enumerate(charts):
                     chart.position = position
