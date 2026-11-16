@@ -10,14 +10,14 @@ it nests as a span in the active Langfuse trace via the ambient
 `RunnableConfig`. Callers outside a traced context may pass an explicit `config`.
 """
 
-import re
 from typing import List, Optional
 
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnableConfig, RunnableLambda
-from pydantic import BaseModel, Field, ValidationError
+from langchain_core.runnables import RunnableConfig
+from pydantic import BaseModel, Field, field_validator
 
 from src.agent.language import DEFAULT_LANGUAGE, language_name
+from src.agent.llms import json_reply_instruction, resilient_json_output
 from src.agent.subagents.analyst.charts.model import InsightChart
 from src.agent.subagents.analyst.prompts import WORDING_GUIDE
 from src.shared.logging_config import get_logger
@@ -36,15 +36,21 @@ class InsightText(BaseModel):
         description="1-2 follow-up suggestions based on the available data"
     )
 
+    @field_validator("primary_insight")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        # The reply is validated here, not by a response schema, so "present
+        # but empty" has to be rejected explicitly (and is then retried).
+        if not value.strip():
+            raise ValueError("primary_insight must not be blank")
+        return value
 
-# Appended to the system prompt: the JSON mime type guarantees valid JSON, not
-# its shape, so the keys are spelled out. No braces, so it is safe in a template.
-JSON_REPLY_INSTRUCTION = """Reply with a single JSON object and nothing else, \
-with exactly these keys: "primary_insight" (a string) and \
-"follow_up_suggestions" (an array of strings). Do not wrap it in code fences."""
 
-_SYSTEM = (
-    """You write the narrative insight for one or two charts that have \
+# The JSON mime type guarantees valid JSON, not its shape, so the keys are
+# spelled out in the prompt. Kept as a constant for scripts/probe_gemini_nul.py.
+JSON_REPLY_INSTRUCTION = json_reply_instruction(InsightText)
+
+_SYSTEM = """You write the narrative insight for one or two charts that have \
 already been produced from geospatial data. Describe what the data shows — do \
 not invent numbers, and do not redescribe the chart mechanics.
 
@@ -61,9 +67,7 @@ cautions, or presentation instructions below are written in.
 
 {wording_guide}
 
-"""
-    + JSON_REPLY_INSTRUCTION
-)
+{reply_format}"""
 
 _USER = """## User query
 {query}
@@ -82,39 +86,7 @@ _USER = """## User query
 
 _PROMPT = ChatPromptTemplate.from_messages(
     [("system", _SYSTEM), ("user", _USER)]
-)
-
-
-class InsightTextFormatError(ValueError):
-    """The model's reply was not the JSON object the prompt asked for."""
-
-
-_CODE_FENCE = re.compile(r"^```(?:json)?\s*|\s*```$")
-
-
-def _parse_insight_text(message) -> InsightText:
-    """Turn the model's reply into an ``InsightText``.
-
-    The reply is requested as JSON through the JSON mime type, without a
-    response schema, so the shape is checked here. Code fences are tolerated.
-    """
-    text = message if isinstance(message, str) else str(message.text)
-    try:
-        result = InsightText.model_validate_json(
-            _CODE_FENCE.sub("", text.strip())
-        )
-    except ValidationError as exc:
-        reason = f"{exc.error_count()} validation error(s)"
-        logger.warning(
-            "insight_text_format_error", reason=reason, length=len(text)
-        )
-        raise InsightTextFormatError(reason) from exc
-    if not result.primary_insight.strip():
-        logger.warning(
-            "insight_text_format_error", reason="empty", length=len(text)
-        )
-        raise InsightTextFormatError("primary_insight is empty")
-    return result
+).partial(reply_format=JSON_REPLY_INSTRUCTION)
 
 
 class InsightTextGenerator:
@@ -124,21 +96,12 @@ class InsightTextGenerator:
         # Not `with_structured_output`: Gemini's schema-constrained decoding
         # intermittently replaces accented characters with control characters
         # ("Piau\u0000"), in roughly 1 of 5 answers in our probe runs. The JSON
-        # mime type without a schema did not (0 of 300). The reply is parsed
-        # and validated here, and one malformed reply is retried.
+        # mime type without a schema did not (0 of 300).
+        # `resilient_json_output` requests JSON that way and also keeps the
+        # retry and fallback policy of the other model calls made from tools.
         self._chain = (
-            (
-                _PROMPT
-                | model.bind(response_mime_type="application/json")
-                | RunnableLambda(_parse_insight_text)
-            )
-            .with_retry(
-                retry_if_exception_type=(InsightTextFormatError,),
-                stop_after_attempt=2,
-                wait_exponential_jitter=False,
-            )
-            .with_config(run_name="generate_insight_text")
-        )
+            _PROMPT | resilient_json_output(InsightText, model)
+        ).with_config(run_name="generate_insight_text")
 
     async def generate(
         self,
@@ -175,11 +138,13 @@ class InsightTextGenerator:
             primary_insight=strip_control_chars(
                 raw.primary_insight,
                 field="text_stage.primary_insight",
+                extra={"language": language},
             ),
             follow_up_suggestions=[
                 strip_control_chars(
                     s,
                     field="text_stage.follow_up_suggestion",
+                    extra={"language": language},
                 )
                 for s in raw.follow_up_suggestions
             ],

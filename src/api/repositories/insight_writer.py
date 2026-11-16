@@ -24,9 +24,11 @@ logger = get_logger(__name__)
 # other control characters, e.g. Gemini Flash writing "Piau\x00" for "Piauí".
 # Postgres rejects NUL and fails the whole write, so everything LLM-written is
 # cleaned on its way in. This is the last line of defense.
-def _chart_row(chart) -> InsightChartOrm:
+def _chart_row(chart, path: str) -> InsightChartOrm:
+    # `path` ("create" or "update") tells a warning which writer cleaned the
+    # row: update_insight is where the display reviser's output arrives.
     return InsightChartOrm(
-        **clean_json(chart.to_orm_kwargs(), field="chart_row")
+        **clean_json(chart.to_orm_kwargs(), field=f"chart_row:{path}")
     )
 
 
@@ -62,7 +64,7 @@ def add_insight_rows(
         codeact_types=[p["type"] for p in codeact_parts],
         codeact_contents=[p["content"] for p in codeact_parts],
         is_public=is_public,
-        charts=[_chart_row(chart) for chart in insight.charts],
+        charts=[_chart_row(chart, "create") for chart in insight.charts],
     )
     session.add(insight_orm)
     return insight_orm
@@ -139,7 +141,9 @@ async def update_insight(insight_id: str, insight: Insight) -> bool:
         ]
         # Reassigning the collection lets the delete-orphan cascade drop the old
         # chart rows and insert the revised ones in their place.
-        insight_orm.charts = [_chart_row(chart) for chart in insight.charts]
+        insight_orm.charts = [
+            _chart_row(chart, "update") for chart in insight.charts
+        ]
 
         await session.commit()
 

@@ -47,9 +47,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 import structlog.testing
-from langchain_core.messages import AIMessage
 from langchain_core.output_parsers import PydanticOutputParser
-from langchain_core.runnables import RunnableLambda
 from sqlalchemy import select
 
 from src.agent.subagents.analyst.charts.model import Insight, InsightChart
@@ -72,6 +70,7 @@ from src.api.repositories.insight_writer import (
 )
 from src.shared.request_context import bound_user_id
 from tests.conftest import async_session_maker
+from tests.fakes import ScriptedGemini, prompt_text
 
 # C0 control characters other than tab / newline / carriage return, and DEL:
 # none of these belong in a narrative. Same set src.shared.text_sanitize strips.
@@ -120,20 +119,6 @@ RAW_GEMINI_CASES = [
 ]
 
 
-class _ReplayModel:
-    """Chat-model stand-in that replays a captured raw message.
-
-    The text stage parses the reply as JSON, which is where ``\\u0000``
-    becomes a real NUL character.
-    """
-
-    def __init__(self, raw_text: str):
-        self.raw_text = raw_text
-
-    def bind(self, **_kwargs):
-        return RunnableLambda(lambda _prompt: AIMessage(content=self.raw_text))
-
-
 def _insight(primary_insight: str) -> Insight:
     return Insight(
         charts=[
@@ -165,38 +150,29 @@ def test_raw_responses_really_contain_the_control_char(raw_text, char):
     assert char in parsed.primary_insight
 
 
-class _AccentGlitchModel:
-    """Chat-model stand-in that reproduces the observed Gemini fault.
+def _accent_glitch_model(glitch_char: str) -> ScriptedGemini:
+    """A model that reproduces the observed Gemini fault.
 
     It writes a short narrative about the area named in the user query and,
     like the real model, replaces every non-ASCII character it has to emit
     with a control character.
     """
 
-    def __init__(self, glitch_char: str = "\x03"):
-        self.glitch_char = glitch_char
-        self.prompts: list[str] = []
+    def respond(messages) -> str:
+        prompt = prompt_text(messages)
+        area = re.search(r"## User query\nTree cover loss in (.+)", prompt)
+        broken = re.sub(r"[^\x00-\x7f]", glitch_char, area.group(1).strip())
+        return json.dumps(
+            {
+                "primary_insight": f"{broken} lost 3,600 ha in total.",
+                "follow_up_suggestions": [
+                    f"Compare {broken} with a neighbouring area.",
+                    "Analyze the drivers of the decrease.",
+                ],
+            }
+        )
 
-    def bind(self, **_kwargs):
-        def respond(prompt_value) -> AIMessage:
-            prompt = prompt_value.to_string()
-            self.prompts.append(prompt)
-            area = re.search(r"## User query\nTree cover loss in (.+)", prompt)
-            name = area.group(1).strip()
-            broken = re.sub(r"[^\x00-\x7f]", self.glitch_char, name)
-            return AIMessage(
-                content=json.dumps(
-                    {
-                        "primary_insight": f"{broken} lost 3,600 ha in total.",
-                        "follow_up_suggestions": [
-                            f"Compare {broken} with a neighbouring area.",
-                            "Analyze the drivers of the decrease.",
-                        ],
-                    }
-                )
-            )
-
-        return RunnableLambda(respond)
+    return ScriptedGemini(respond, repeat=True)
 
 
 @pytest.mark.parametrize("glitch_char", ["\x00", "\x03"])
@@ -212,7 +188,7 @@ async def test_text_generator_strips_what_a_glitching_model_writes(
     letters ("Paraná" -> "Paran"), but no control character is returned and
     the corruption is logged so a rise in it can be noticed.
     """
-    model = _AccentGlitchModel(glitch_char)
+    model = _accent_glitch_model(glitch_char)
     generator = InsightTextGenerator(model=model)
 
     with structlog.testing.capture_logs() as logs:
@@ -228,9 +204,14 @@ async def test_text_generator_strips_what_a_glitching_model_writes(
         assert_clean(suggestion)
     plain = re.sub(r"[^\x00-\x7f]", "", name)
     assert result.primary_insight == f"{plain} lost 3,600 ha in total."
-    assert any(log["event"] == "control_chars_stripped" for log in logs)
+    stripped = [
+        log for log in logs if log["event"] == "control_chars_stripped"
+    ]
+    assert stripped
+    # The warning says which language the text was written in.
+    assert {log["language"] for log in stripped} == {"en"}
     # The real name is sent as it is: nothing is masked or transliterated.
-    assert f"Tree cover loss in {name}" in model.prompts[0]
+    assert f"Tree cover loss in {name}" in prompt_text(model.calls[0][0])
 
 
 @pytest.mark.parametrize("clean, corrupted", CORRUPTED_NAMES)
@@ -323,7 +304,9 @@ async def test_analyze_with_corrupted_model_output(user, raw_text, clean):
         ),
         patch(
             "src.agent.subagents.analyst.tool.InsightTextGenerator",
-            lambda: InsightTextGenerator(model=_ReplayModel(raw_text)),
+            lambda: InsightTextGenerator(
+                model=ScriptedGemini(raw_text, repeat=True)
+            ),
         ),
         patch(
             "src.agent.subagents.analyst.tool._build_tool_message",
@@ -455,3 +438,35 @@ async def test_persist_logs_what_it_strips(user):
         if log["event"] == "control_chars_stripped"
     )
     assert fields == ["follow_up_suggestion", "insight_text"]
+
+
+async def test_chart_row_warnings_say_which_writer_cleaned_them(user):
+    """update_insight is where the display reviser's output arrives, so its
+    chart rows are tagged apart from the ones persist_insight writes."""
+    insight = Insight(
+        charts=[
+            InsightChart(
+                position=0,
+                title="Loss in Piau\x00",
+                chart_type="bar",
+                x_axis="year",
+                y_axis="loss",
+                chart_data=[{"year": 2020, "loss": 5}],
+            )
+        ],
+        primary_insight="Tree cover loss rose 12%.",
+        follow_up_suggestions=[],
+    ).stamp_insight()
+
+    with structlog.testing.capture_logs() as logs:
+        insight_id = await persist_insight(
+            insight, user_id=user.id, thread_id="thread-1"
+        )
+        await update_insight(str(insight_id), insight)
+
+    fields = [
+        log["field"]
+        for log in logs
+        if log["event"] == "control_chars_stripped"
+    ]
+    assert fields == ["chart_row:create", "chart_row:update"]

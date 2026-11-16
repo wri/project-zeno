@@ -7,15 +7,16 @@ honors the wording guide.
 
 import pytest
 import structlog.testing
-from langchain_core.language_models.fake_chat_models import FakeListChatModel
-from pydantic import Field
+from google.genai.errors import ServerError
 
+from src.agent import llms
+from src.agent.llms import StructuredOutputFormatError
 from src.agent.subagents.analyst.charts.model import InsightChart
 from src.agent.subagents.analyst.text_generator import (
     InsightText,
-    InsightTextFormatError,
     InsightTextGenerator,
 )
+from tests.fakes import ScriptedGemini
 
 
 class _FakeChain:
@@ -124,20 +125,6 @@ async def test_config_is_forwarded_to_chain(generator):
 # with the JSON mime type and no schema, and parses the reply itself.
 
 
-class _ScriptedModel(FakeListChatModel):
-    """Replies with the scripted texts in order and records every call."""
-
-    calls: list = Field(default_factory=list)
-
-    def _call(self, messages, stop=None, run_manager=None, **kwargs):
-        self.calls.append((messages, kwargs))
-        return super()._call(messages, stop, run_manager, **kwargs)
-
-    async def _acall(self, messages, stop=None, run_manager=None, **kwargs):
-        self.calls.append((messages, kwargs))
-        return await super()._acall(messages, stop, run_manager, **kwargs)
-
-
 GOOD_REPLY = (
     '{"primary_insight": "Piauí lost 3,600 ha.", '
     '"follow_up_suggestions": ["Compare Maranhão with Piauí."]}'
@@ -145,7 +132,7 @@ GOOD_REPLY = (
 
 
 def _generator_for(*replies: str):
-    model = _ScriptedModel(responses=list(replies))
+    model = ScriptedGemini(*replies)
     return InsightTextGenerator(model=model), model
 
 
@@ -221,7 +208,7 @@ async def test_a_malformed_reply_is_retried_once(bad_reply):
     assert [
         log["log_level"]
         for log in logs
-        if log["event"] == "insight_text_format_error"
+        if log["event"] == "structured_output_format_error"
     ] == ["warning"]
 
 
@@ -229,10 +216,89 @@ async def test_a_malformed_reply_is_retried_once(bad_reply):
 async def test_two_malformed_replies_raise_instead_of_looping():
     gen, model = _generator_for("nope", "still nope", GOOD_REPLY)
 
-    with pytest.raises(InsightTextFormatError):
+    with pytest.raises(StructuredOutputFormatError):
         await gen.generate(CHARTS, DATASET, query="Loss?")
 
     assert len(model.calls) == 2
+
+
+def _service_unavailable():
+    """The 503 Gemini answers when it is briefly overloaded."""
+    return ServerError(
+        503,
+        {
+            "error": {
+                "code": 503,
+                "message": "high demand",
+                "status": "UNAVAILABLE",
+            }
+        },
+    )
+
+
+@pytest.fixture
+def small_models(monkeypatch):
+    """Point the default model (and its fallback) at scripted models."""
+
+    def use(small, *fallbacks):
+        monkeypatch.setattr(llms, "SMALL_MODEL", small)
+        monkeypatch.setattr(llms, "SMALL_FALLBACK_MODELS", list(fallbacks))
+        monkeypatch.setattr(
+            llms, "RETRY_WAIT", {"initial": 0, "max": 0, "jitter": 0}
+        )
+
+    return use
+
+
+@pytest.mark.asyncio
+async def test_the_production_constructor_builds_with_the_default_model(
+    small_models,
+):
+    # tool.py calls InsightTextGenerator() with no arguments.
+    small = ScriptedGemini(GOOD_REPLY)
+    small_models(small)
+
+    result = await InsightTextGenerator().generate(CHARTS, DATASET, query="?")
+
+    assert result.primary_insight == "Piauí lost 3,600 ha."
+    assert len(small.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_a_transient_503_is_retried_on_the_default_model(small_models):
+    small = ScriptedGemini(_service_unavailable(), GOOD_REPLY)
+    fallback = ScriptedGemini(GOOD_REPLY)
+    small_models(small, fallback)
+
+    result = await InsightTextGenerator().generate(CHARTS, DATASET, query="?")
+
+    assert result.primary_insight == "Piauí lost 3,600 ha."
+    assert (len(small.calls), len(fallback.calls)) == (2, 0)
+
+
+@pytest.mark.asyncio
+async def test_persistent_503s_fall_back_to_the_next_model(small_models):
+    small = ScriptedGemini(*[_service_unavailable()] * llms.RETRY_ATTEMPTS)
+    fallback = ScriptedGemini(GOOD_REPLY)
+    small_models(small, fallback)
+
+    result = await InsightTextGenerator().generate(CHARTS, DATASET, query="?")
+
+    assert result.primary_insight == "Piauí lost 3,600 ha."
+    assert len(small.calls) == llms.RETRY_ATTEMPTS
+    assert len(fallback.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_malformed_replies_fall_back_to_the_next_model(small_models):
+    small = ScriptedGemini("not json", "still not json")
+    fallback = ScriptedGemini(GOOD_REPLY)
+    small_models(small, fallback)
+
+    result = await InsightTextGenerator().generate(CHARTS, DATASET, query="?")
+
+    assert result.primary_insight == "Piauí lost 3,600 ha."
+    assert (len(small.calls), len(fallback.calls)) == (2, 1)
 
 
 @pytest.mark.asyncio
@@ -311,3 +377,4 @@ async def test_control_characters_the_model_writes_itself_are_stripped():
         ("warning", "text_stage.follow_up_suggestion"),
     ]
     assert all(log["count"] >= 1 and log["codepoints"] for log in stripped)
+    assert {log["language"] for log in stripped} == {"pt"}

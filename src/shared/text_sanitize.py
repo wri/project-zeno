@@ -16,6 +16,7 @@ writing control characters and the earlier defences are not catching them.
 """
 
 import re
+from collections.abc import Mapping
 from typing import Any
 
 from src.shared.logging_config import get_logger
@@ -43,9 +44,15 @@ def _strip(text: str) -> tuple[str, list[str], str]:
     )
 
 
-def _warn(field: str | None, removed: list[str], snippet: str) -> None:
+def _warn(
+    field: str | None,
+    removed: list[str],
+    snippet: str,
+    extra: Mapping[str, Any] | None,
+) -> None:
     logger.warning(
         "control_chars_stripped",
+        **(extra or {}),
         field=field,
         count=len(removed),
         codepoints=sorted({f"U+{ord(c):04X}" for c in removed}),
@@ -53,18 +60,30 @@ def _warn(field: str | None, removed: list[str], snippet: str) -> None:
     )
 
 
-def strip_control_chars(text: str, *, field: str | None = None) -> str:
+def strip_control_chars(
+    text: str,
+    *,
+    field: str | None = None,
+    extra: Mapping[str, Any] | None = None,
+) -> str:
     """Remove NUL and other control characters from ``text``.
 
-    Logs a warning, tagged with ``field``, when anything was removed.
+    Logs a warning, tagged with ``field``, when anything was removed. ``extra``
+    adds more fields to that warning (the language the text was written in,
+    say) so a pattern in the corruption can be seen in the logs.
     """
     clean, removed, snippet = _strip(text)
     if removed:
-        _warn(field, removed, snippet)
+        _warn(field, removed, snippet, extra)
     return clean
 
 
-def clean_json(value: Any, *, field: str | None = None) -> Any:
+def clean_json(
+    value: Any,
+    *,
+    field: str | None = None,
+    extra: Mapping[str, Any] | None = None,
+) -> Any:
     """Return ``value`` with control characters stripped from every string.
 
     Walks dicts (keys too), lists and tuples; other types pass through. Meant
@@ -75,7 +94,7 @@ def clean_json(value: Any, *, field: str | None = None) -> Any:
     clean = _clean_json(value, hits)
     if hits:
         removed = [c for chars, _ in hits for c in chars]
-        _warn(field, removed, hits[0][1])
+        _warn(field, removed, hits[0][1], extra)
     return clean
 
 
