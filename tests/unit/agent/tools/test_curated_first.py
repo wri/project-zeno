@@ -207,6 +207,33 @@ async def test_a_context_layer_keeps_the_curated_chart(run):
         "(primary forest, canopy cover ≥ 30%)."
     )
     assert "Context layer: primary forest" in _content(command)
+    insight = run.persist.await_args.args[0]
+    assert [c.title for c in insight.charts] == [
+        "Annual Tree Cover Loss (primary forest)",
+        "Annual GHG Emissions from Tree Cover Loss (primary forest)",
+    ]
+
+
+async def test_no_context_layer_keeps_the_plain_title(run):
+    await _analyze(_statistics())
+
+    insight = run.persist.await_args.args[0]
+    assert insight.charts[0].title == "Annual Tree Cover Loss"
+
+
+async def test_rows_keep_the_drawn_columns_and_the_message_names_the_rest(run):
+    command = await _analyze(_statistics())
+
+    insight = run.persist.await_args.args[0]
+    for chart in insight.charts:
+        assert {k for row in chart.chart_data for k in row} == {
+            chart.x_axis,
+            chart.y_axis,
+        }
+    assert (
+        "Columns of the pulled data that no chart shows: aoi_id, name"
+        in _content(command)
+    )
 
 
 async def test_a_chart_with_no_data_is_left_out(run):

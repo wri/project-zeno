@@ -87,10 +87,19 @@ def test_emissions_chart_is_separate_bar_with_correct_axes():
 
 
 def test_drops_rows_where_area_ha_is_zero():
-    charts = TCLChartGenerator().generate(TCL_ROWS)
-    for chart in charts:
+    zero_years = {
+        row["tree_cover_loss_year"] for row in TCL_ROWS if row["area_ha"] == 0
+    }
+    assert zero_years, "the fixture must have a year with no loss"
+    for chart in TCLChartGenerator().generate(TCL_ROWS):
+        years = {row["tree_cover_loss_year"] for row in chart.chart_data}
+        assert not years & zero_years
+
+
+def test_rows_have_only_the_columns_the_chart_draws():
+    for chart in TCLChartGenerator().generate(TCL_ROWS):
         for row in chart.chart_data:
-            assert row["area_ha"] != 0
+            assert set(row) == {chart.x_axis, chart.y_axis}
 
 
 def test_sorts_rows_by_year():

@@ -748,6 +748,7 @@ class Analyst:
         from src.agent.subagents.analyst.curated_first import (
             build_curated_tool_message,
             curated_caption,
+            unshown_columns,
         )
         from src.api.services.charts import column_to_rows
         from src.api.services.charts.curated import build_curated_charts
@@ -783,6 +784,7 @@ class Analyst:
                     language,
                     titles=gate.title_keys,
                     period=period,
+                    context_layer=statistics.get("context_layer"),
                 )
             )
         if not charts:
@@ -812,6 +814,7 @@ class Analyst:
                 statistics,
                 caption,
                 cautions=_catalog_cautions(dataset_id),
+                other_columns=unshown_columns(rows, charts),
             ),
             tool_call_id,
         )

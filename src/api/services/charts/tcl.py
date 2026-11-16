@@ -12,6 +12,8 @@ LOSS_COLOR = PALETTES[TREE_COVER_LOSS_ID]["series_color"]
 if LOSS_COLOR is None:
     raise RuntimeError("The tree cover loss palette has no series_color")
 
+YEAR = "tree_cover_loss_year"
+
 
 class TCLChartGenerator(ChartGenerator):
     """Tree Cover Loss: annual loss area + annual GHG emissions, as two bars."""
@@ -30,17 +32,24 @@ class TCLChartGenerator(ChartGenerator):
                 position=0,
                 title="charts.tcl.annual_loss",
                 chart_type="bar",
-                x_axis="tree_cover_loss_year",
+                x_axis=YEAR,
                 y_axis="area_ha",
                 series_color=LOSS_COLOR,
-                chart_data=rows,
+                chart_data=_columns(rows, YEAR, "area_ha"),
             ),
             InsightChart(
                 position=1,
                 title="charts.tcl.annual_emissions",
                 chart_type="bar",
-                x_axis="tree_cover_loss_year",
+                x_axis=YEAR,
                 y_axis="carbon_emissions_MgCO2e",
-                chart_data=rows,
+                chart_data=_columns(rows, YEAR, "carbon_emissions_MgCO2e"),
             ),
         ]
+
+
+def _columns(rows: List[dict], *columns: str) -> List[dict]:
+    """Each row with only the columns that the chart draws. The pull also
+    has the area id, its type and its name, and the measure of the other
+    chart; a chart does not need them."""
+    return [{column: row.get(column) for column in columns} for row in rows]

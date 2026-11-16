@@ -77,6 +77,7 @@ class AnalyzeService:
                 language,
                 self._generators,
                 period=await _chart_period(start_date, end_date, dataset_id),
+                context_layer=context_layer,
             )
 
         source_urls = (

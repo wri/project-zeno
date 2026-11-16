@@ -130,11 +130,17 @@ def _best_match(rows: list[InsightOrm], query: str) -> InsightOrm:
 def _recalled_message(insight_id, insight: Insight, query: str) -> str:
     """The recall report to the model — including the stop instruction, since
     the recalled insight is already on screen and terminal for this turn."""
+    # Lazy: the analyst package init imports its tool module.
+    from src.agent.subagents.analyst.curated_first import curated_facts_text
+
     chart_titles = ", ".join(c.title for c in insight.charts) or "(no charts)"
+    facts = curated_facts_text(insight.charts)
+    facts_block = f"{facts}\n\n" if facts else ""
     return (
         f"Found a past insight ({insight_id}) matching '{query}'.\n"
         f"Charts: {chart_titles}.\n\n"
         f"Summary: {insight.primary_insight}\n\n"
+        f"{facts_block}"
         "STOP HERE. This insight already exists and is now on screen. Do "
         "NOT call pull_data, generate_insights or any other tool. Reply to "
         "the user with a one-line summary of this recalled insight and "

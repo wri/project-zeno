@@ -15,9 +15,10 @@ from typing import Optional, Sequence
 from src.agent.datasets.handlers.analytics_handler import (
     canopy_cover_threshold,
 )
-from src.agent.i18n import MESSAGES, t
+from src.agent.i18n import t
 from src.agent.language import DEFAULT_LANGUAGE
 from src.agent.subagents.analyst.charts import InsightChart
+from src.api.services.charts.curated import context_layer_label
 from src.api.services.charts.facts import (
     is_time_axis,
     measure_facts,
@@ -52,23 +53,6 @@ CURATED_ANSWER_INSTRUCTION = (
     "for something that the standard chart does not have. Do not call it "
     "now for this question."
 )
-
-
-def context_layer_key(context_layer: str) -> str:
-    return f"context_layer.{context_layer}"
-
-
-async def context_layer_label(
-    context_layer: Optional[str], language: str
-) -> Optional[str]:
-    """The name of a context layer in `language`; the raw value without
-    underscores when it has no message."""
-    if not context_layer:
-        return None
-    key = context_layer_key(context_layer)
-    if key in MESSAGES:
-        return await t(key, language)
-    return context_layer.replace("_", " ")
 
 
 def period_label(start: Optional[str], end: Optional[str]) -> str:
@@ -166,8 +150,32 @@ def covered_x(charts: Sequence[InsightChart]) -> Optional[str]:
     return values[0] if len(values) == 1 else f"{values[0]} to {values[-1]}"
 
 
+def unshown_columns(
+    rows: Sequence[dict], charts: Sequence[InsightChart]
+) -> list[str]:
+    """The columns of the pulled rows that have a value and that no chart
+    has, in pull order. A column with no value in any row is left out: it
+    has no data to offer."""
+    shown = {
+        column
+        for chart in charts
+        for row in chart.chart_data
+        for column in row
+    }
+    pulled = dict.fromkeys(
+        column
+        for row in rows
+        for column, value in row.items()
+        if value is not None
+    )
+    return [column for column in pulled if column not in shown]
+
+
 def _header(
-    charts: Sequence[InsightChart], statistics: dict, caption: str
+    charts: Sequence[InsightChart],
+    statistics: dict,
+    caption: str,
+    other_columns: Sequence[str] = (),
 ) -> list[str]:
     context_layer = statistics.get("context_layer")
     threshold = canopy_cover_threshold(
@@ -198,8 +206,28 @@ def _header(
     )
     if threshold is not None:
         lines.append(f"Canopy cover threshold: {threshold}%")
+    if other_columns:
+        lines.append(
+            "Columns of the pulled data that no chart shows: "
+            + ", ".join(other_columns)
+        )
     lines.append(f"Caption shown under the chart: {caption}")
     return lines
+
+
+def curated_facts_text(charts: Sequence[InsightChart]) -> str:
+    """The facts of the curated charts (the charts with a `view_id`) of a
+    saved insight; "" when it has none. A curated insight's summary is a
+    caption with no figures, so a recall or an update gives these."""
+    lines: list[str] = []
+    for chart in charts:
+        if not chart.view_id:
+            continue
+        facts = measure_facts(chart)
+        if facts:
+            lines.append(f"Facts of {chart.title} (computed in code):")
+            lines += [f"- {fact.sentence}" for fact in facts]
+    return "\n".join(lines)
 
 
 def build_curated_tool_message(
@@ -207,11 +235,13 @@ def build_curated_tool_message(
     statistics: dict,
     caption: str,
     cautions: Optional[str] = None,
+    other_columns: Sequence[str] = (),
 ) -> str:
     """The tool message of a curated chart: the header, the rows of each
     chart in full, the facts with units, the dataset cautions, and the
-    instruction for the answer."""
-    lines = _header(charts, statistics, caption)
+    instruction for the answer. `other_columns` are the pulled columns
+    that no chart shows; the header names them."""
+    lines = _header(charts, statistics, caption, other_columns)
     for index, chart in enumerate(charts, 1):
         lines += ["", f"Chart {index} rows:", format_rows(chart)]
         facts = measure_facts(chart)

@@ -14,7 +14,7 @@ keyed by its series; `_localise` renames those keys with the series.
 
 from typing import Optional, Sequence
 
-from src.agent.i18n import t
+from src.agent.i18n import MESSAGES, t
 from src.agent.language import DEFAULT_LANGUAGE
 from src.agent.subagents.analyst.charts import InsightChart
 from src.api.services.charts.base import ChartGenerator
@@ -62,6 +62,19 @@ async def _localise_series(chart: InsightChart, language: str) -> None:
     }
 
 
+async def context_layer_label(
+    context_layer: Optional[str], language: Optional[str]
+) -> Optional[str]:
+    """The name of a context layer in `language`; the raw value without
+    underscores when it has no message."""
+    if not context_layer:
+        return None
+    key = f"context_layer.{context_layer}"
+    if key in MESSAGES:
+        return await t(key, language or DEFAULT_LANGUAGE)
+    return context_layer.replace("_", " ")
+
+
 async def build_curated_charts(
     dataset_id: int,
     rows: list[dict],
@@ -69,12 +82,15 @@ async def build_curated_charts(
     generators: Sequence[ChartGenerator] = DETERMINISTIC_GENERATORS,
     titles: Optional[Sequence[str]] = None,
     period: Optional[tuple[str, str]] = None,
+    context_layer: Optional[str] = None,
 ) -> list[InsightChart]:
     """Curated charts for `dataset_id` from `rows`; [] when no generator
     handles the dataset. Charts carry `dataset_id` and, for a chart in the
     view registry, `view_id` and `view_revision`. `titles` keeps only
     the charts with those title keys; None keeps them all. `period` is the
-    start and end date of the pull, for a chart whose axis spans it."""
+    start and end date of the pull, for a chart whose axis spans it.
+    `context_layer` is the context layer of the pull: each title then
+    names it, as in "Annual Tree Cover Loss (primary forest)"."""
     for generator in generators:
         if generator.can_handle(dataset_id):
             if period is not None:
@@ -91,7 +107,10 @@ async def build_curated_charts(
                 for position, chart in enumerate(charts):
                     chart.position = position
             await _localise(charts, generator, language)
+            layer = await context_layer_label(context_layer, language)
             for chart in charts:
                 chart.dataset_id = dataset_id
+                if layer:
+                    chart.title = f"{chart.title} ({layer})"
             return charts
     return []

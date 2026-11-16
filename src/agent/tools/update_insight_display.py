@@ -196,13 +196,18 @@ async def update_insight_display(
             tool_call_id,
         )
 
+    # Lazy: the analyst package init imports its tool module.
+    from src.agent.subagents.analyst.curated_first import curated_facts_text
+
     chart_titles = ", ".join(c.title for c in updated.charts)
+    facts = curated_facts_text(updated.charts)
+    facts_block = f"\n\n{facts}" if facts else ""
     return insight_updated_command(
         target_id,
         updated,
         (
             f"Updated insight {target_id}. Charts: {chart_titles}.\n\n"
-            f"Summary: {updated.primary_insight}"
+            f"Summary: {updated.primary_insight}{facts_block}"
         ),
         tool_call_id,
     )
