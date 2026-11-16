@@ -1,6 +1,6 @@
 # Concise agent plan
 
-Status: proposal, 2026-11-16. No code is changed yet.
+Status: in progress. Iterations 1 and 2 are on the `concise` profile (2026-11-16).
 
 ## Goal
 
@@ -295,3 +295,142 @@ Default profile against `--ff concise`, same API process, inner-loop subset,
   cause before the short style becomes the default.
 - The latency increase is not explained. The two runs were not at the same
   time. Measure again with the runs in the opposite sequence.
+
+## Iteration 2 result (2026-11-16)
+
+### What changed
+
+All changes are behind the `concise-replies` flag. The default profile and
+the other profiles send the same prompt and the same tool schemas as before
+(checked byte for byte on the map, dashboard and no-page prompts).
+
+1. **Prompt as numbered markdown sections.** `src/agent/prompts/sections/`
+   holds `01-role.md`, `02-rules.md` (ranked rules), `03-work.md` (order,
+   routing rows, stop conditions) and `04-surfaces.md` (app selections).
+   `build_prompt` joins them and adds the skills list and the current
+   surface. A block between `<!-- tool: NAME -->` (or `<!-- skill: NAME -->`)
+   and `<!-- end -->` is kept only when the profile can serve that tool or
+   skill. Each rule is written one time. The date is not in the prompt
+   (the session block has it), so the prompt does not change from day to
+   day.
+2. **One description for each tool.** The concise prompt has no tool list.
+   The schema description is the one description of a tool. The concise
+   profile binds copies of 16 tools with short descriptions
+   (`src/agent/prompts/tool_descriptions.py`). The docstrings did not
+   change, so the default profile did not change.
+3. **Dashboard schemas only when needed.** `DeferredToolsMiddleware` leaves
+   the nine dashboard edit tools (`create_dashboard`, `add_to_dashboard`,
+   `add_map_widget`, `add_text_widget`, `edit_text_widget`,
+   `add_dashboard_section`, `add_template_section`,
+   `edit_dashboard_section`, `move_dashboard_widget`) out of a model call
+   until the thread has read skill `dashboard`, or while the user is on a
+   dashboard page. The tools stay registered, so all dashboard actions are
+   still possible. `03-work.md` tells the model that reading the skill
+   makes the tools available. `inspect_view_context`, `send_nudge` and
+   `search_insights` are always sent, because other workflows use them.
+
+Options that were considered for item 3:
+
+| Option | Result |
+|---|---|
+| Send the dashboard tools only on the dashboard page | Rejected: users create dashboards from the map page. |
+| Send them after `read_skill("dashboard")`, and on the dashboard page | Built. The skill read is the documented route already; GOLD shows no extra model call. |
+| Defer the tools of every skill (imagery, research) | Not built. Each skill has two tools or fewer, so the gain is small, and an imagery request with no skill read would lose its tools. |
+
+### Static size (`scripts/prompt_size.py`)
+
+| Part (characters) | Default | Concise | Change |
+|---|---|---|---|
+| System prompt | 14,536 | 7,813 | -46% |
+| Tool schemas, all bound tools | 18,828 | 14,061 | -25% |
+| Tool schemas sent before a skill read | 18,828 | 7,622 | -60% |
+| Fixed cost of a model call | 33,364 | 15,435 | -54% |
+
+With the ratio of the default (33,364 characters are about 7,570 tokens),
+the concise fixed cost is about 3,500 tokens for each model call. A call
+after `read_skill("dashboard")` also sends the 6,439 characters of the
+dashboard schemas.
+
+### GOLD (inner-loop subset, 3 trials)
+
+Default profile against `--ff concise`. One API process from this branch.
+The two runs were started at the same time, so that load and time of day
+are the same for both. The runs are not committed.
+
+| Metric (median for each case) | Default | Concise | Change |
+|---|---|---|---|
+| Orchestrator input tokens | 44,477 | 26,857 | -40% |
+| Orchestrator input tokens, p90 | 56,124 | 32,146 | -43% |
+| Orchestrator output tokens | 570 | 284 | -50% |
+| Answer words | 211 | 64 | -70% |
+| Model calls | 5 | 5 | 0 |
+| Latency (s) | 29.9 | 25.7 | -14% |
+
+- The input saving is about 3,500 tokens for each model call (17,620 tokens
+  over 5 calls). This agrees with the static estimate.
+- Dashboard cases make the same number of model calls (6) on both
+  profiles: the default model reads skill `dashboard` too.
+- Latency: in iteration 1 the concise run was 19% slower, but the runs were
+  not at the same time. With the runs at the same time, concise is 14%
+  faster. The iteration 1 latency result was most likely drift.
+
+Gating checks, before the re-run: 2 regressions (`charts_answer` on 1-033,
+`chart_integrity` on 1-060), 0 recoveries, and 1 gating check lost
+(`dashboard_widgets_valid` on 1-096). One concise trial of mt-001 stopped
+with an error. Each of these cases was run again with 3 trials:
+
+| Case | Re-run | Verdict |
+|---|---|---|
+| 1-060 `chart_integrity` | passes 3 of 3 | noise |
+| mt-001 (error) | passes 3 of 3 | noise, see open item 2 |
+| 1-096 `dashboard_widgets_valid` | not evaluated | not a regression: the user asks only to create the dashboard. The default added widgets in 1 trial of 3; concise added none. |
+| 1-033 `charts_answer` | fails 3 of 3 | not caused by this change, see open item 1 |
+
+- 1-080 passes 2 of 3 on concise (3 of 3 failed in iteration 1).
+- `charts_answer_judge` (info-only) on 1-009 fails 3 of 3. The chart and the
+  figure (3.93%) are correct. The judge wants the answer to say that
+  "highest confidence" means "detected by several systems". The default
+  answer says it; the short answer does not.
+- `answer_traceability` (info-only) is lost on 20 cases. Cause: the check
+  reads only bold figures ("no bolded numeric claim found"), and short
+  answers have no bold. This closes the open item of iteration 1. The check
+  must read plain figures before the short style becomes the default.
+
+### Open items
+
+1. **1-033 gives the wrong figure on both profiles.** Both profiles answer
+   1,435.95 ha for Corona Forestal in 2023; the case expects 79.25 ha, and
+   `agent_answer` fails on both. The default passes `charts_answer` only
+   because its 2001-2025 chart has a different value near 79 (78.98). The
+   concise analyst draws only 2023. The case notes say that 1,436.02 ha was
+   a wrong value from an earlier run. Triage the AOI (which WDPA polygon
+   the agent selects) apart from this plan.
+2. **A parallel tool call.** In one trial of mt-001 the model called
+   `pick_aoi` and `pick_dataset` in the same step. Both set `nudge`, and
+   LangGraph stopped the run (`INVALID_CONCURRENT_GRAPH_UPDATE`). The rule
+   "one at a time" is in both prompts. It did not happen again in 3 trials.
+   A code guard is more reliable than a prompt rule: for example
+   `parallel_tool_calls=False` where the model supports it, or a reducer on
+   `nudge`.
+3. **Injected `state` argument in the schemas.** Eleven tools declare
+   `state: Annotated[Dict, InjectedState] | None`. The tools get the state
+   at run time (the dashboard cases pass), but with `| None` outside the
+   `Annotated` the schema filter does not remove the argument. The model
+   therefore sees a `state` parameter (about 70 characters for each tool,
+   and the model can fill it). Fix for all profiles:
+   `Annotated[Optional[Dict], InjectedState] = None`. Check that the tools
+   still get the state.
+4. **Skills list.** The skills list is now the largest generated part
+   (about 2,300 characters). Each skill has a `description` and a
+   `when_to_use` that say the same thing in part. They are shared with the
+   default profile, so they did not change.
+5. **When concise becomes the default:** move each text of
+   `tool_descriptions.py` into the docstring of its tool and delete the
+   module; delete `ToolSpec.prompt_fragment`, `ROUTING_ROWS`,
+   `tool_descriptions()` and the old `get_prompt` body. The
+   `curated-charts-first` flag puts its `chart` argument guidance in the
+   `prompt_fragment` of `generate_insights`. That guidance must move into
+   the docstring of the curated variant before the tool list goes.
+6. **Implicit prompt caching.** The tool set changes after
+   `read_skill("dashboard")`, so a cached prefix is not used for that one
+   call. This is a small cost, and it applies only to dashboard threads.
