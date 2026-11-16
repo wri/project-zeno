@@ -7,7 +7,7 @@ Status: phases 0 and 1 are done. Phases 2 to 4 are a proposal.
 Give the public launch an agent that costs much less than the full agent
 and that works with small models. The agent selects a curated chart ("view")
 from a library. It does not write chart code. The gold evals
-(`wri/gnw-gold-evals`) must continue to pass where a curated view can
+(`evals/gold`, cases in `evals/gold/cases/v2`) must continue to pass where a curated view can
 answer the question.
 
 The feel of the mode can be different from the full agent. The quality of

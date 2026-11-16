@@ -140,7 +140,7 @@ change.
 
 ### 4. The data in the tool message
 
-The gold set (`wri/gnw-gold-evals`, `cases/v2`, 96 active cases) shows
+The gold set (`evals/gold`, cases in `evals/gold/cases/v2`, 96 active cases) shows
 what a standard question needs. The table gives the question kinds for one
 area and the data that answers each of them.
 
