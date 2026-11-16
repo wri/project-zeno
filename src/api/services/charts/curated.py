@@ -14,6 +14,7 @@ keyed by its series; `_localise` renames those keys with the series.
 
 from typing import Optional, Sequence
 
+from src.agent.datasets.config import DATASETS
 from src.agent.i18n import MESSAGES, t
 from src.agent.language import DEFAULT_LANGUAGE
 from src.agent.subagents.analyst.charts import InsightChart
@@ -75,6 +76,25 @@ async def context_layer_label(
     return context_layer.replace("_", " ")
 
 
+def dataset_context_layer(
+    dataset_id: Optional[int], context_layer: Optional[str]
+) -> Optional[str]:
+    """`context_layer` when it is one of the dataset's context layers in
+    the catalog; else None. A pull can carry another value: the driver
+    dataset always has "driver", which selects the driver intersection
+    (src/agent/subagents/pick_dataset/schema.py). A title, a caption or a
+    tool message must not name it as a context layer."""
+    if not context_layer or dataset_id is None:
+        return None
+    dataset = next(
+        (d for d in DATASETS if d["dataset_id"] == dataset_id), None
+    )
+    layers = (dataset or {}).get("context_layers") or []
+    if any(layer.get("value") == context_layer for layer in layers):
+        return context_layer
+    return None
+
+
 async def build_curated_charts(
     dataset_id: int,
     rows: list[dict],
@@ -107,7 +127,9 @@ async def build_curated_charts(
                 for position, chart in enumerate(charts):
                     chart.position = position
             await _localise(charts, generator, language)
-            layer = await context_layer_label(context_layer, language)
+            layer = await context_layer_label(
+                dataset_context_layer(dataset_id, context_layer), language
+            )
             for chart in charts:
                 chart.dataset_id = dataset_id
                 if layer:

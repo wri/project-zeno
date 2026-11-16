@@ -61,6 +61,10 @@ class ChartView:
     # each view by itself, after its generator agrees with the rules of
     # its dataset.
     agent_enabled: bool = False
+    # Model-facing text that the curated tool message gives under the
+    # chart: what the figures cover when the chart cannot show it, for
+    # example a fixed period or a class that the chart leaves out.
+    agent_note: Optional[str] = None
 
     @property
     def title_key(self) -> str:
@@ -173,6 +177,14 @@ VIEWS: tuple[ChartView, ...] = (
         "Tree cover loss area (ha) for each dominant driver over the whole "
         "period, as a pie, without the unknown driver. Answers what caused "
         "the loss and which cause is the largest.",
+        agent_enabled=True,
+        agent_note=(
+            "The drivers cover the whole period 2001 to 2025. The data has "
+            "no years, so it cannot give the drivers of one year or of a "
+            "shorter period. The chart leaves out the Unknown driver: the "
+            "total and the shares in its facts are of the loss with a known "
+            "driver."
+        ),
     ),
     ChartView(
         "tcl_by_fires.split",

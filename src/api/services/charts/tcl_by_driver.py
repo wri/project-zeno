@@ -1,5 +1,6 @@
 """Tree cover loss by dominant driver chart generator."""
 
+import math
 from typing import List
 
 from src.agent.datasets.handlers.analytics_handler import (
@@ -65,6 +66,72 @@ class TCLByDriverChartGenerator(ChartGenerator):
                 x_axis="tree_cover_loss_driver",
                 y_axis="area_ha",
                 color_map=_color_map(present),
-                chart_data=present,
+                # Only the columns that the pie draws. The pull also has
+                # the area id, its type and its name, and the emissions.
+                chart_data=[
+                    {
+                        "tree_cover_loss_driver": row[
+                            "tree_cover_loss_driver"
+                        ],
+                        "area_ha": row["area_ha"],
+                    }
+                    for row in present
+                ],
             )
         ]
+
+
+# The groups of drivers that the dataset's code instructions name
+# (src/agent/datasets/catalog/tree_cover_loss_by_dominant_driver.yml).
+DRIVER_GROUPS: dict[str, tuple[str, ...]] = {
+    "deforestation proxy": (
+        "Permanent agriculture",
+        "Hard commodities",
+        "Settlements and infrastructure",
+    ),
+    "temporary disturbance": (
+        "Shifting cultivation",
+        "Logging",
+        "Wildfire",
+        "Other natural disturbances",
+    ),
+    "all agriculture": ("Permanent agriculture", "Shifting cultivation"),
+}
+
+
+def driver_facts(rows: List[dict]) -> List[str]:
+    """Facts that the pie cannot give, as sentences for a model to copy:
+    the area of the Unknown driver and the total with it, and the area of
+    each group of drivers with its percent of the loss with a known
+    driver. [] when no row has an area."""
+    # Lazy: the charts package init imports this module through the
+    # generator registry.
+    from src.api.services.charts.facts import number
+
+    areas: dict[str, float] = {}
+    for row in rows:
+        area = row.get("area_ha")
+        if area is None:
+            continue
+        key = _fold(row.get("tree_cover_loss_driver") or "")
+        areas[key] = areas.get(key, 0.0) + float(area)
+    unknown = areas.pop(_fold(UNKNOWN_DRIVER), 0.0)
+    known = math.fsum(areas.values())
+    if not known and not unknown:
+        return []
+    facts = [
+        f"Unknown driver, not in the chart: {number(unknown)} ha.",
+        f"Total loss with the Unknown driver: {number(known + unknown)} ha.",
+    ]
+    for group, members in DRIVER_GROUPS.items():
+        area = math.fsum(areas.get(_fold(m), 0.0) for m in members)
+        share = (
+            f", {number(100 * area / known)}% of the loss with a known driver"
+            if known
+            else ""
+        )
+        facts.append(
+            f"Group {group} ({', '.join(m.lower() for m in members)}): "
+            f"{number(area)} ha{share}."
+        )
+    return facts

@@ -10,7 +10,7 @@ gives the orchestrator the data and the facts to answer from
 `analyst.charts`, whose package init imports `tool.py`.
 """
 
-from typing import Optional, Sequence
+from typing import Callable, Optional, Sequence
 
 from src.agent.datasets.handlers.analytics_handler import (
     canopy_cover_threshold,
@@ -18,13 +18,24 @@ from src.agent.datasets.handlers.analytics_handler import (
 from src.agent.i18n import t
 from src.agent.language import DEFAULT_LANGUAGE
 from src.agent.subagents.analyst.charts import InsightChart
-from src.api.services.charts.curated import context_layer_label
+from src.api.services.charts.curated import (
+    context_layer_label,
+    dataset_context_layer,
+)
 from src.api.services.charts.facts import (
     is_time_axis,
     measure_facts,
     unit_of,
 )
 from src.api.services.charts.gate import measures
+from src.api.services.charts.tcl_by_driver import driver_facts
+from src.api.services.charts.views import get_view
+
+# Facts of a view that its chart cannot give, from the pulled rows: for
+# example a class that the chart leaves out.
+VIEW_FACTS: dict[str, Callable[[list[dict]], list[str]]] = {
+    "tcl_by_driver.by_driver": driver_facts,
+}
 
 # A chart with more rows than this gets its facts only (for example the
 # alerts of each day of a long period).
@@ -72,7 +83,10 @@ async def curated_caption(statistics: dict, language: str) -> str:
     language = language or DEFAULT_LANGUAGE
     filters = []
     layer = await context_layer_label(
-        statistics.get("context_layer"), language
+        dataset_context_layer(
+            statistics.get("dataset_id"), statistics.get("context_layer")
+        ),
+        language,
     )
     if layer:
         filters.append(layer)
@@ -177,11 +191,13 @@ def _header(
     caption: str,
     other_columns: Sequence[str] = (),
 ) -> list[str]:
-    context_layer = statistics.get("context_layer")
     threshold = canopy_cover_threshold(
         statistics.get("dataset_id"),
-        context_layer,
+        statistics.get("context_layer"),
         statistics.get("parameters"),
+    )
+    context_layer = dataset_context_layer(
+        statistics.get("dataset_id"), statistics.get("context_layer")
     )
     lines = [
         f"Standard charts shown to the user: {len(charts)}. These are "
@@ -189,6 +205,9 @@ def _header(
     ]
     for index, chart in enumerate(charts, 1):
         lines.append(f"Chart {index}: {chart.title} (view {chart.view_id})")
+        view = get_view(chart.view_id) if chart.view_id else None
+        if view is not None and view.agent_note:
+            lines.append(f"Chart {index} note: {view.agent_note}")
     lines += [
         "",
         f"Area: {', '.join(statistics.get('aoi_names') or [])}",
@@ -236,18 +255,23 @@ def build_curated_tool_message(
     caption: str,
     cautions: Optional[str] = None,
     other_columns: Sequence[str] = (),
+    rows: Sequence[dict] = (),
 ) -> str:
     """The tool message of a curated chart: the header, the rows of each
     chart in full, the facts with units, the dataset cautions, and the
     instruction for the answer. `other_columns` are the pulled columns
-    that no chart shows; the header names them."""
+    that no chart shows; the header names them. `rows` are the pulled
+    rows, for the facts of a view that its chart cannot give."""
     lines = _header(charts, statistics, caption, other_columns)
     for index, chart in enumerate(charts, 1):
         lines += ["", f"Chart {index} rows:", format_rows(chart)]
-        facts = measure_facts(chart)
-        if facts:
+        sentences = [fact.sentence for fact in measure_facts(chart)]
+        view_facts = VIEW_FACTS.get(chart.view_id or "")
+        if view_facts is not None:
+            sentences += view_facts(list(rows))
+        if sentences:
             lines += ["", f"Chart {index} facts (computed in code):"]
-            lines += [f"- {fact.sentence}" for fact in facts]
+            lines += [f"- {sentence}" for sentence in sentences]
     if cautions:
         lines += ["", "Dataset cautions:", cautions.strip()]
     lines += ["", CURATED_ANSWER_INSTRUCTION]

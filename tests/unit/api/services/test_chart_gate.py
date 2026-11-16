@@ -28,10 +28,12 @@ def _chart(view_id, rows, y_axis="area_ha", position=3):
     )
 
 
-def test_only_tree_cover_loss_is_enabled():
+def test_the_enabled_views():
+    # Phase 1a: tree cover loss. Phase 1b adds one view at a time.
     assert {v.id for v in VIEWS if v.agent_enabled} == {
         "tcl.annual_loss",
         "tcl.annual_emissions",
+        "tcl_by_driver.by_driver",
     }
     assert [v.id for v in agent_views(TREE_COVER_LOSS_ID)] == [
         "tcl.annual_loss",

@@ -815,6 +815,7 @@ class Analyst:
                 caption,
                 cautions=_catalog_cautions(dataset_id),
                 other_columns=unshown_columns(rows, charts),
+                rows=rows,
             ),
             tool_call_id,
         )

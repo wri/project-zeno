@@ -14,6 +14,7 @@ from src.agent.agent_config import (
 )
 from src.agent.datasets.handlers.analytics_handler import (
     GRASSLANDS_ID,
+    TREE_COVER_LOSS_BY_DRIVER_ID,
     TREE_COVER_LOSS_ID,
 )
 from src.agent.skills.loader import get_skill, render_body
@@ -467,3 +468,66 @@ async def test_default_tool_passes_no_chart_argument():
         await SPEC.tool.coroutine("query", state={"statistics": []})
 
     assert analyze.await_args.kwargs["chart"] is None
+
+
+# --- tree cover loss by driver (phase 1b) ----------------------------------
+
+
+def _driver_data():
+    drivers = [
+        ("Shifting cultivation", 273519.47),
+        ("Logging", 71485.15),
+        ("Permanent agriculture", 64953.81),
+        ("Hard commodities", 22206.13),
+        ("Unknown", 20169.0),
+        ("Settlements and infrastructure", 5429.56),
+    ]
+    return {
+        "aoi_id": ["GAB"] * len(drivers),
+        "aoi_type": ["admin"] * len(drivers),
+        "name": ["Gabon"] * len(drivers),
+        "tree_cover_loss_driver": [d for d, _ in drivers],
+        "area_ha": [a for _, a in drivers],
+        "carbon_emissions_MgCO2e": [a * 600 for _, a in drivers],
+    }
+
+
+async def test_drivers_get_the_curated_pie_with_its_note_and_facts(run):
+    run.data = _driver_data()
+    statistics = _statistics(
+        aoi_names=("Gabon",), dataset_id=TREE_COVER_LOSS_BY_DRIVER_ID
+    )
+    statistics["start_date"], statistics["end_date"] = (
+        "2001-01-01",
+        "2025-12-31",
+    )
+
+    # The selector can set "driver", which is not a context layer.
+    statistics["context_layer"] = "driver"
+
+    command = await _analyze(statistics)
+
+    insight = run.persist.await_args.args[0]
+    assert [c.view_id for c in insight.charts] == ["tcl_by_driver.by_driver"]
+    assert insight.charts[0].title == "Tree Cover Loss by Dominant Driver"
+    assert "(driver" not in command.update["insight"]
+    assert "Context layer: none (all of the area)" in _content(command)
+    (chart,) = insight.charts
+    assert all(
+        set(row) == {"tree_cover_loss_driver", "area_ha"}
+        for row in chart.chart_data
+    )
+    content = _content(command)
+    assert (
+        "Chart 1 note: The drivers cover the whole period 2001 to 2025."
+        in content
+    )
+    assert "- Unknown driver, not in the chart: 20169 ha." in content
+    assert (
+        "- Group deforestation proxy (permanent agriculture, hard commodities, "
+        "settlements and infrastructure): 92589.50 ha" in content
+    )
+    assert (
+        "Columns of the pulled data that no chart shows: aoi_id, aoi_type, "
+        "name, carbon_emissions_MgCO2e" in content
+    )
