@@ -13,6 +13,7 @@ seen, not that the surface is frozen forever.
 
 from src.agent.agent_config import (
     BASE_PROFILE,
+    CURATED_CHARTS_PROFILE,
     DEFAULT_PROFILE,
     EXPERIMENTAL_PROFILE,
     LGMS_PROFILE,
@@ -128,6 +129,21 @@ def test_lgms_profile_manifest():
     assert default_registry.resolve(LGMS_PROFILE).describe() == expected
 
 
+def test_curated_charts_profile_manifest():
+    # The curated-charts profile only sets a flag: its skills and tools must
+    # stay exactly the default surface (the flag swaps the generate_insights
+    # spec for a variant of the same name).
+    expected = DEFAULT_MANIFEST.replace(
+        "profile: default\nextends: base\n",
+        "profile: curated-charts\nextends: default\n"
+        "flags: curated-charts-first\n",
+        1,
+    )
+    assert (
+        default_registry.resolve(CURATED_CHARTS_PROFILE).describe() == expected
+    )
+
+
 def test_every_production_profile_has_a_manifest_snapshot():
     """A new profile registered without a snapshot here would ship with an
     unreviewed surface."""
@@ -136,6 +152,7 @@ def test_every_production_profile_has_a_manifest_snapshot():
         DEFAULT_PROFILE,
         EXPERIMENTAL_PROFILE,
         LGMS_PROFILE,
+        CURATED_CHARTS_PROFILE,
     }
     registered = {config.name for config in default_registry.configs()}
     assert registered == snapshotted

@@ -10,6 +10,9 @@ Profiles form a chain, each one a small delta on its parent:
     experimental — default + standalone tools not yet owned by any skill.
     lgms         — default with the LGMS dataset revealed; open to every
                    user (see PUBLIC_PROFILES).
+    curated-charts — default with curated charts first: generate_insights
+                   takes a ``chart`` argument and shows a curated chart
+                   when one fits the pull (docs/curated-charts-first-plan.md).
 
 An ``AgentConfig`` declares three things:
 
@@ -46,6 +49,9 @@ from langchain_core.tools import BaseTool
 
 from src.agent.skills import SkillMeta, all_skills, get_skill
 from src.agent.skills.tool import SPEC as read_skill_spec
+from src.agent.subagents.analyst.tool import (
+    CURATED_FIRST_SPEC as generate_insights_curated_first_spec,
+)
 from src.agent.subagents.analyst.tool import SPEC as generate_insights_spec
 from src.agent.subagents.pick_aoi.tool import SPEC as pick_aoi_spec
 from src.agent.subagents.pick_dataset.tool import SPEC as pick_dataset_spec
@@ -157,6 +163,18 @@ EXPERIMENTAL_TOOLS = (add_template_section_spec,)
 # users who opt into LGMS (`?ff=net-flux`) but cannot use `experimental`.
 LGMS_PROFILE = "lgms"
 
+# Curated charts first (docs/curated-charts-first-plan.md, phase 1a): the
+# flag swaps generate_insights for the variant with a ``chart`` argument and
+# turns on the flagged parts of the skills (src/agent/skills/loader.py).
+# Admin, superuser and machine users only until gold passes on it.
+CURATED_CHARTS_FIRST = "curated-charts-first"
+CURATED_CHARTS_PROFILE = "curated-charts"
+
+# The tool specs that a flag puts in place of the spec of the same name.
+FLAG_TOOL_VARIANTS: dict[str, tuple[ToolSpec, ...]] = {
+    CURATED_CHARTS_FIRST: (generate_insights_curated_first_spec,),
+}
+
 # Profiles any authenticated user may select with `ff`. All other flags are
 # for admin, superuser and machine users only (see src/api/routers/chat.py).
 PUBLIC_PROFILES = frozenset({LGMS_PROFILE})
@@ -186,8 +204,18 @@ class AgentConfig:
     # ``extends`` chain (see AgentConfigRegistry.register): a child reveals a
     # parent-hidden dataset simply by not listing it.
     excluded_datasets: frozenset[str] = field(default_factory=frozenset)
+    # Behaviour flags. Like ``excluded_datasets``, they do NOT accumulate
+    # down the ``extends`` chain. A flag can swap tool specs
+    # (FLAG_TOOL_VARIANTS) and show the flagged parts of the skills.
+    flags: frozenset[str] = field(default_factory=frozenset)
 
     def __post_init__(self) -> None:
+        unknown_flags = self.flags - FLAG_TOOL_VARIANTS.keys()
+        if unknown_flags:
+            raise ValueError(
+                f"profile {self.name!r} declares unknown flags "
+                f"{sorted(unknown_flags)}"
+            )
         for skill_name in self.skills:
             skill = get_skill(skill_name)
             if skill is None:
@@ -229,7 +257,14 @@ class AgentConfig:
         unregistered = tuple(
             s for s in self.tools if s.tool.name not in _SPEC_BY_NAME
         )
-        return derived + unregistered
+        variants = {
+            spec.tool.name: spec
+            for flag in sorted(self.flags)
+            for spec in FLAG_TOOL_VARIANTS[flag]
+        }
+        return tuple(
+            variants.get(s.tool.name, s) for s in derived + unregistered
+        )
 
     def bound_tools(self) -> list[BaseTool]:
         return [s.tool for s in self.specs]
@@ -259,6 +294,7 @@ class AgentConfig:
             skills=frozenset(self.skills),
             tools=self.tool_names(),
             excluded_datasets=self.excluded_datasets,
+            flags=self.flags,
         )
 
     def describe(self) -> str:
@@ -274,6 +310,8 @@ class AgentConfig:
         lines = [f"profile: {self.name}"]
         if self.extends is not None:
             lines.append(f"extends: {self.extends}")
+        if self.flags:
+            lines.append(f"flags: {', '.join(sorted(self.flags))}")
 
         def section(title: str, entries: list[str]) -> None:
             lines.append(f"{title}:")
@@ -412,5 +450,14 @@ default_registry.register(
         extends=DEFAULT_PROFILE,
         # Excludes are not inherited, so an empty set reveals LGMS.
         excluded_datasets=frozenset(),
+    )
+)
+default_registry.register(
+    AgentConfig(
+        CURATED_CHARTS_PROFILE,
+        extends=DEFAULT_PROFILE,
+        # Excludes are not inherited: keep the default's.
+        excluded_datasets=DEFAULT_EXCLUDED_DATASETS,
+        flags=frozenset({CURATED_CHARTS_FIRST}),
     )
 )

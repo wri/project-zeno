@@ -86,6 +86,51 @@ MESSAGES: dict[str, dict[str, str]] = {
         "pt": "Gráficos padrão de {dataset_name} para {area}, {period}.",
         "id": "Bagan standar {dataset_name} untuk {area}, {period}.",
     },
+    # The fixed caption of a curated chart in the agent: no figures. The
+    # filters are the context layer and the canopy cover threshold of the
+    # pull, joined with ", ".
+    "analyst.curated_caption": {
+        "en": "Standard {dataset_name} charts for {area}, {period}.",
+        "es": "Gráficos estándar de {dataset_name} para {area}, {period}.",
+        "fr": "Graphiques standard de {dataset_name} pour {area}, {period}.",
+        "pt": "Gráficos padrão de {dataset_name} para {area}, {period}.",
+        "id": "Bagan standar {dataset_name} untuk {area}, {period}.",
+    },
+    "analyst.curated_caption_filtered": {
+        "en": "Standard {dataset_name} charts for {area}, {period} ({filters}).",
+        "es": "Gráficos estándar de {dataset_name} para {area}, {period} ({filters}).",
+        "fr": "Graphiques standard de {dataset_name} pour {area}, {period} ({filters}).",
+        "pt": "Gráficos padrão de {dataset_name} para {area}, {period} ({filters}).",
+        "id": "Bagan standar {dataset_name} untuk {area}, {period} ({filters}).",
+    },
+    "analyst.filter_canopy_cover": {
+        "en": "canopy cover ≥ {threshold}%",
+        "es": "cobertura de copa ≥ {threshold}%",
+        "fr": "couvert arboré ≥ {threshold} %",
+        "pt": "cobertura de copa ≥ {threshold}%",
+        "id": "tutupan kanopi ≥ {threshold}%",
+    },
+    "context_layer.primary_forest": {
+        "en": "primary forest",
+        "es": "bosque primario",
+        "fr": "forêt primaire",
+        "pt": "floresta primária",
+        "id": "hutan primer",
+    },
+    "context_layer.intact_forest": {
+        "en": "intact forest",
+        "es": "bosque intacto",
+        "fr": "forêt intacte",
+        "pt": "floresta intacta",
+        "id": "hutan utuh",
+    },
+    "context_layer.natural_forest": {
+        "en": "natural forest",
+        "es": "bosque natural",
+        "fr": "forêt naturelle",
+        "pt": "floresta natural",
+        "id": "hutan alam",
+    },
     "analyst.dataset_cautions_header": {
         "en": "Dataset cautions:",
         "es": "Advertencias del conjunto de datos:",
