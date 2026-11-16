@@ -9,12 +9,14 @@ from src.agent.agent_config import (
     BASE_PROFILE,
     CONCISE_PROFILE,
     CONCISE_REPLIES,
+    DEFAULT_PROFILE,
     AgentConfig,
     AgentConfigRegistry,
     default_registry,
 )
 from src.agent.graph import get_prompt
 from src.agent.prompts import apply_gates, gates, section_texts
+from src.agent.prompts.tool_descriptions import CONCISE_TOOL_DESCRIPTIONS
 from src.agent.skills import get_skill
 from src.agent.tool_spec import Availability
 
@@ -94,3 +96,19 @@ def test_concise_prompt_surface_section_is_numbered_last():
         default_registry.resolve(CONCISE_PROFILE), page="dashboard"
     )
     assert re.search(r"^# 6\. Current surface$", prompt, flags=re.MULTILINE)
+
+
+def test_concise_profile_binds_the_short_descriptions():
+    concise = {
+        t.name: t
+        for t in default_registry.resolve(CONCISE_PROFILE).bound_tools()
+    }
+    default = {
+        t.name: t
+        for t in default_registry.resolve(DEFAULT_PROFILE).bound_tools()
+    }
+    for name, text in CONCISE_TOOL_DESCRIPTIONS.items():
+        assert concise[name].description == text
+        assert default[name].description != text
+        # The copy keeps the schema and the function of the tool.
+        assert concise[name].args == default[name].args

@@ -47,6 +47,7 @@ from typing import Optional
 
 from langchain_core.tools import BaseTool
 
+from src.agent.prompts.tool_descriptions import CONCISE_TOOL_DESCRIPTIONS
 from src.agent.skills import SkillMeta, all_skills, get_skill
 from src.agent.skills.tool import SPEC as read_skill_spec
 from src.agent.subagents.analyst.tool import (
@@ -178,11 +179,21 @@ CURATED_CHARTS_PROFILE = "curated-charts"
 CONCISE_REPLIES = "concise-replies"
 CONCISE_PROFILE = "concise"
 
+# The concise flag also sends the prompt as markdown sections without the
+# tool list (src/agent/prompts/) and gives the tools short descriptions
+# (iteration 2).
+CONCISE_TOOL_SPECS = tuple(
+    replace(
+        _SPEC_BY_NAME[name],
+        tool=_SPEC_BY_NAME[name].tool.model_copy(update={"description": text}),
+    )
+    for name, text in CONCISE_TOOL_DESCRIPTIONS.items()
+)
 # The tool specs that a flag puts in place of the spec of the same name. A
 # flag that swaps no tool has an empty entry: the keys are the known flags.
 FLAG_TOOL_VARIANTS: dict[str, tuple[ToolSpec, ...]] = {
     CURATED_CHARTS_FIRST: (generate_insights_curated_first_spec,),
-    CONCISE_REPLIES: (),
+    CONCISE_REPLIES: CONCISE_TOOL_SPECS,
 }
 
 # Profiles any authenticated user may select with `ff`. All other flags are
