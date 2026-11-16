@@ -318,40 +318,32 @@ the other profiles send the same prompt and the same tool schemas as before
    profile binds copies of 16 tools with short descriptions
    (`src/agent/prompts/tool_descriptions.py`). The docstrings did not
    change, so the default profile did not change.
-3. **Dashboard schemas only when needed.** `DeferredToolsMiddleware` leaves
-   the nine dashboard edit tools (`create_dashboard`, `add_to_dashboard`,
-   `add_map_widget`, `add_text_widget`, `edit_text_widget`,
-   `add_dashboard_section`, `add_template_section`,
-   `edit_dashboard_section`, `move_dashboard_widget`) out of a model call
-   until the thread has read skill `dashboard`, or while the user is on a
-   dashboard page. The tools stay registered, so all dashboard actions are
-   still possible. `03-work.md` tells the model that reading the skill
-   makes the tools available. `inspect_view_context`, `send_nudge` and
-   `search_insights` are always sent, because other workflows use them.
-
-Options that were considered for item 3:
-
-| Option | Result |
-|---|---|
-| Send the dashboard tools only on the dashboard page | Rejected: users create dashboards from the map page. |
-| Send them after `read_skill("dashboard")`, and on the dashboard page | Built. The skill read is the documented route already; GOLD shows no extra model call. |
-| Defer the tools of every skill (imagery, research) | Not built. Each skill has two tools or fewer, so the gain is small, and an imagery request with no skill read would lose its tools. |
+3. **Dashboard schemas only when needed: built, then removed.** A
+   middleware left the nine dashboard edit tools out of a model call until
+   the thread had read skill `dashboard`, or while the user was on a
+   dashboard page. It gave 35% of the static saving (6,255 of 17,929
+   characters). The user rejected it: tools that appear and disappear by
+   page and by thread history are fragile (the agent can start on the
+   dashboard page, and a request can need a dashboard tool with no skill
+   read). The commit is reverted. All tools are sent on each model call.
 
 ### Static size (`scripts/prompt_size.py`)
 
 | Part (characters) | Default | Concise | Change |
 |---|---|---|---|
-| System prompt | 14,536 | 7,813 | -46% |
+| System prompt | 14,536 | 7,629 | -48% |
 | Tool schemas, all bound tools | 18,828 | 14,061 | -25% |
-| Tool schemas sent before a skill read | 18,828 | 7,622 | -60% |
-| Fixed cost of a model call | 33,364 | 15,435 | -54% |
+| Fixed cost of a model call | 33,364 | 21,690 | -35% |
 
 With the ratio of the default (33,364 characters are about 7,570 tokens),
-the concise fixed cost is about 3,500 tokens for each model call. A call
-after `read_skill("dashboard")` also sends the 6,439 characters of the
-dashboard schemas.
+the concise fixed cost is about 4,900 tokens for each model call. With the
+dashboard middleware it was 15,435 characters (-54%).
 
 ### GOLD (inner-loop subset, 3 trials)
+
+**These numbers are from the run with the dashboard middleware.** They are
+not measured again after its removal. Expect an input-token saving of
+about 25% to 30%, not 40%. Measure again before the numbers are used.
 
 Default profile against `--ff concise`. One API process from this branch.
 The two runs were started at the same time, so that load and time of day
@@ -431,6 +423,17 @@ with an error. Each of these cases was run again with 3 trials:
    `curated-charts-first` flag puts its `chart` argument guidance in the
    `prompt_fragment` of `generate_insights`. That guidance must move into
    the docstring of the curated variant before the tool list goes.
-6. **Implicit prompt caching.** The tool set changes after
-   `read_skill("dashboard")`, so a cached prefix is not used for that one
-   call. This is a small cost, and it applies only to dashboard threads.
+6. **Review of the rewrite (2026-11-16).** The default prompt and the
+   argument schemas are identical to before. No invented facts were found
+   in the short tool descriptions. Differences that the review found:
+   - Rule 7 no longer says that a caution with no trigger is left out.
+     Iteration 1 showed that cautions with no trigger still appear, so the
+     sentence must come back.
+   - `inspect_view_context` no longer names "the report" as a trigger, and
+     no longer says to call it only when the details are necessary.
+   - `show_planet_imagery` no longer says that the tool falls back to
+     Sentinel-2 by itself outside its footprint.
+   - The routing rows no longer say "unless asked for more".
+   - All seven dashboard cases and the imagery case pass on both profiles
+     (3 trials), measured with the middleware. Not measured: a thread
+     where the dashboard request comes in a later turn.

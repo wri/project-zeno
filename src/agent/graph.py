@@ -17,17 +17,12 @@ from psycopg_pool import AsyncConnectionPool
 
 from src.agent.agent_config import (
     CONCISE_REPLIES,
-    DEFERRED_SKILL_PAGES,
-    DEFERRED_SKILL_TOOLS,
     AgentConfig,
     AgentConfigRegistry,
     default_registry,
 )
 from src.agent.llms import FALLBACK_MODELS, MODEL
-from src.agent.middleware import (
-    DeferredToolsMiddleware,
-    SessionContextMiddleware,
-)
+from src.agent.middleware import SessionContextMiddleware
 from src.agent.prompts import build_prompt
 from src.agent.state import AgentState
 from src.agent.tool_spec import Gate, set_bound_availability
@@ -261,7 +256,7 @@ async def handle_tool_errors(request, handler):
         )
 
 
-def _build_middleware(config: Optional[AgentConfig] = None):
+def _build_middleware():
     """Build the middleware stack: retry -> fallback -> tool error handling.
 
     Middleware execution order and interaction:
@@ -289,17 +284,6 @@ def _build_middleware(config: Optional[AgentConfig] = None):
     if FALLBACK_MODELS:
         middleware.append(ModelFallbackMiddleware(*FALLBACK_MODELS))
     middleware.append(handle_tool_errors)
-    if config is not None and CONCISE_REPLIES in config.flags:
-        middleware.append(
-            DeferredToolsMiddleware(
-                {
-                    skill: tools
-                    for skill, tools in DEFERRED_SKILL_TOOLS.items()
-                    if config.availability().has_skill(skill)
-                },
-                DEFERRED_SKILL_PAGES,
-            )
-        )
     middleware.append(SessionContextMiddleware())
     return middleware
 
@@ -340,7 +324,7 @@ async def fetch_zeno(
         tools=config.bound_tools(),
         state_schema=AgentState,
         system_prompt=config.system_prompt or get_prompt(config, page=page),
-        middleware=_build_middleware(config),
+        middleware=_build_middleware(),
         checkpointer=checkpointer,
     )
     return zeno_agent

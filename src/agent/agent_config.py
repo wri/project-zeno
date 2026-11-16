@@ -180,9 +180,8 @@ CONCISE_REPLIES = "concise-replies"
 CONCISE_PROFILE = "concise"
 
 # The concise flag also sends the prompt as markdown sections without the
-# tool list (src/agent/prompts/), gives the tools short descriptions, and
-# leaves the dashboard tools out of a model call until the `dashboard`
-# skill is read or the user is on a dashboard page (iteration 2).
+# tool list (src/agent/prompts/) and gives the tools short descriptions
+# (iteration 2).
 CONCISE_TOOL_SPECS = tuple(
     replace(
         _SPEC_BY_NAME[name],
@@ -190,26 +189,6 @@ CONCISE_TOOL_SPECS = tuple(
     )
     for name, text in CONCISE_TOOL_DESCRIPTIONS.items()
 )
-DASHBOARD_EDIT_TOOLS = frozenset(
-    {
-        create_dashboard_spec.tool.name,
-        add_to_dashboard_spec.tool.name,
-        add_map_widget_spec.tool.name,
-        add_text_widget_spec.tool.name,
-        edit_text_widget_spec.tool.name,
-        add_dashboard_section_spec.tool.name,
-        add_template_section_spec.tool.name,
-        edit_dashboard_section_spec.tool.name,
-        move_dashboard_widget_spec.tool.name,
-    }
-)
-DEFERRED_SKILL_TOOLS: dict[str, frozenset[str]] = {
-    "dashboard": DASHBOARD_EDIT_TOOLS
-}
-DEFERRED_SKILL_PAGES: dict[str, frozenset[str]] = {
-    "dashboard": frozenset({"dashboard"})
-}
-
 # The tool specs that a flag puts in place of the spec of the same name. A
 # flag that swaps no tool has an empty entry: the keys are the known flags.
 FLAG_TOOL_VARIANTS: dict[str, tuple[ToolSpec, ...]] = {

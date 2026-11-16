@@ -24,7 +24,3 @@ A pending nudge records the options, not a selection. The user's answer arrives 
 
 Call `send_nudge` only for a new set of choices that you make yourself, never to restate the options of a tool.
 <!-- end -->
-<!-- skill: dashboard -->
-
-The dashboard tools (`create_dashboard`, `add_to_dashboard` and the other dashboard edits) become available after you read skill `dashboard`, or when the user is on a dashboard page.
-<!-- end -->
