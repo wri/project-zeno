@@ -1,0 +1,22 @@
+id: 1-144
+uid: 90ae9ff34402a586
+status: ready
+group: direct
+query: Show me disturbance alerts in Riau, Indonesia between January 2024 and March 2024 on
+  the map, considering high and highest confidence alerts only
+expected:
+  aoi_ids: IDN.24_1
+  aoi_source: gadm
+  dataset_id: '11'
+  dataset_name: Integrated alerts
+  start_date: '2024-01-01'
+  end_date: '2024-03-31'
+  scope: analyse
+notes:
+  authored: '2026-11-16: control row for wri/project-zeno#896. Riau is the province of the
+    oil palm concession rows (1-138, 1-139), so the place itself invites the concessions skill.
+    The request is for a dataset on the map, and the agent must still pick it and pull data.'
+  catches: An agent that reads "Riau ... on the map" as a concessions request shows a boundary
+    layer and pulls nothing (dataset_id, dates and scope fail).
+  design: IDN.24_1 is the province of IDN.24.7_1 (Kuantan Singingi), the id the agent resolved
+    in run 20261015T173835Z_staging (see 1-138). Confirm aoi_ids on the first run.

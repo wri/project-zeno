@@ -6,25 +6,26 @@ is stale (`--check`). Coverage counts use **gating** checks only;
 info-only checks are listed separately (they never enter a verdict).
 Terms are defined in the [README glossary](../../README.md#glossary).
 
-`caseset_version 295e4a6f3b7f8f11` · 145 cases · done 96 · not doing 30 · ready 13 · todo 6 · **115 active** (everything but `not doing` runs by default)
+`caseset_version 06f4782d811963ee` · 151 cases · done 96 · not doing 30 · ready 19 · todo 6 · **121 active** (everything but `not doing` runs by default)
 
-_Last updated: 2026-10-22_
+_Last updated: 2026-11-16_
 
 ## Groups
 
 | group | cases | active | statuses |
 |---|---|---|---|
+| boundary-layer | 3 | 3 | ready 3 |
 | class-comparison | 9 | 6 | done 6, not doing 3 |
 | comparative | 14 | 13 | done 11, not doing 1, todo 2 |
 | context-layer | 11 | 10 | done 8, not doing 1, todo 2 |
 | dashboard | 7 | 7 | done 7 |
 | dataset-parameters | 1 | 1 | done 1 |
 | dataset-suggestion | 8 | 6 | done 6, not doing 2 |
-| direct | 29 | 21 | done 19, not doing 8, ready 1, todo 1 |
+| direct | 31 | 23 | done 19, not doing 8, ready 3, todo 1 |
 | imagery | 5 | 1 | done 1, not doing 4 |
 | metadata | 5 | 5 | done 5 |
 | multilingual | 5 | 5 | done 5 |
-| multiturn | 12 | 8 | not doing 4, ready 8 |
+| multiturn | 13 | 9 | not doing 4, ready 9 |
 | nudge | 2 | 2 | ready 2 |
 | parent-child | 14 | 12 | done 11, not doing 2, ready 1 |
 | ranking | 1 | 1 | done 1 |
@@ -46,32 +47,32 @@ exists.
 
 | bucket | via dedicated check | via shared only | total | of active |
 |---|---|---|---|---|
-| retrieval | 109 | 0 | 109 | 95% |
-| analysis | 0 | 76 | 76 | 66% |
-| explanation | 29 | 65 | 94 | 82% |
-| output | 82 | 3 | 85 | 74% |
-| scope | 99 | 7 | 106 | 92% |
+| retrieval | 114 | 0 | 114 | 94% |
+| analysis | 0 | 76 | 76 | 63% |
+| explanation | 32 | 65 | 97 | 80% |
+| output | 82 | 3 | 85 | 70% |
+| scope | 105 | 7 | 112 | 93% |
 
 ## Expected-field census (active cases)
 
 | field | cases | switches on |
 |---|---|---|
-| dataset_id | 100 | dataset_id_match |
-| scope | 98 | scope_match |
-| aoi_source | 93 | no check of its own (dashboard_aoi_match also compares it) |
-| dataset_name | 93 | reference only |
-| aoi_ids | 81 | aoi_id_match |
+| scope | 104 | scope_match |
+| dataset_id | 103 | dataset_id_match |
+| aoi_source | 97 | no check of its own (dashboard_aoi_match also compares it) |
+| dataset_name | 95 | reference only |
+| aoi_ids | 86 | aoi_id_match |
 | answer | 76 | agent_answer, chart_produced, data_pull_exists, answered_without_data (+ charts_answer when a chart exists) |
-| text | 29 | expected_text_match |
+| text | 32 | expected_text_match |
 | context_layer | 19 | context_layer_match |
+| end_date | 9 | date_extraction (with start_date) |
+| start_date | 9 | date_extraction (with end_date) |
 | dashboard_created | 8 | dashboard_created |
-| end_date | 8 | date_extraction (with start_date) |
-| start_date | 8 | date_extraction (with end_date) |
 | class_values | 6 | class_value_match (info-only) |
+| nudge_options | 6 | nudge_match |
 | dashboard_widgets | 5 | dashboard_widgets_match (+ dashboard_widgets_valid when a dashboard exists) |
-| nudge_options | 5 | nudge_match |
 | clarification | 3 | clarification_requested |
-| nudge_type | 2 | nudge_match |
+| nudge_type | 3 | nudge_match |
 | chart_type | 1 | chart_type_match |
 | dataset_parameters | 1 | dataset_parameter_match |
 | ground_truth | 1 | ground_truth_match, ground_truth_answer (info-only) |
@@ -97,19 +98,19 @@ answer-graded column) exercise the other three.
 | 1 | Global land cover | 6 | 6 | — | — |
 | 2 | Global natural/semi-natural grassland extent | 12 | 11 | — | — |
 | 3 | SBTN Natural Lands Map | 5 | 5 | — | — |
-| 4 | Tree cover loss | 48 | 36 | canopy_cover ×1 | primary_forest ×5, intact_forest ×5, natural_forest ×5 |
+| 4 | Tree cover loss | 50 | 36 | canopy_cover ×1 | primary_forest ×5, intact_forest ×5, natural_forest ×5 |
 | 5 | Tree cover gain | 6 | 6 | — | — |
 | 6 | Forest greenhouse gas net flux | 3 | 3 | canopy_cover ×0 ← gap | — |
 | 7 | Tree cover | 3 | 3 | canopy_cover ×0 ← gap | primary_forest ×0 ← gap |
 | 8 | Tree cover loss by dominant driver | 5 | 5 | canopy_cover ×0 ← gap | — |
 | 9 | Deforestation (sLUC) Emission Factors by Agricultural Crop | 1 | 1 | — | — |
 | 10 | Tree cover loss due to fires | 2 | 1 | canopy_cover ×0 ← gap | primary_forest ×0 ← gap, intact_forest ×0 ← gap |
-| 11 | Integrated alerts | 11 | 9 | — | natural_lands ×4 |
+| 11 | Integrated alerts | 12 | 9 | — | natural_lands ×4 |
 | 12 | Land GHG Monitoring System (LGMS) | 0 ← gap | 0 | — | — |
 
 ## Multi-turn
 
-8 active conversations (16 turns). Delta assertions: absent ×1, changed ×8, retain ×7
+9 active conversations (18 turns). Delta assertions: absent ×1, changed ×9, retain ×7
 
 ## Parked and held cases
 
