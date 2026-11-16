@@ -340,3 +340,31 @@ def test_read_skill_serves_the_flagged_body():
     )
 
     assert 'chart="custom"' in read_skill.invoke({"name": "analyze"})
+
+
+_PROGRESS_OLD = "Provide short progress messages between tool calls"
+_PROGRESS_NEW = "Do not write progress messages between tool calls"
+
+
+def test_analyze_progress_message_rule_follows_the_concise_flag():
+    skill = get_skill("analyze")
+    default = apply_flags(skill.body, frozenset())
+    concise = apply_flags(skill.body, frozenset({"concise-replies"}))
+    assert _PROGRESS_OLD in default and _PROGRESS_NEW not in default
+    assert _PROGRESS_NEW in concise and _PROGRESS_OLD not in concise
+    # The search_blogs summary rule stays in both bodies.
+    assert "after `search_blogs`" in default
+    assert "after `search_blogs`" in concise
+
+
+def test_read_skill_serves_the_concise_analyze_body():
+    set_bound_availability(
+        Availability(
+            skills=frozenset({"analyze"}),
+            tools=frozenset(),
+            flags=frozenset({"concise-replies"}),
+        )
+    )
+    assert _PROGRESS_NEW in read_skill.invoke({"name": "analyze"})
+    set_bound_availability(_availability("analyze"))
+    assert _PROGRESS_OLD in read_skill.invoke({"name": "analyze"})

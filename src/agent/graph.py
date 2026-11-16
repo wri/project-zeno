@@ -16,6 +16,7 @@ from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
 from src.agent.agent_config import (
+    CONCISE_REPLIES,
     AgentConfig,
     AgentConfigRegistry,
     default_registry,
@@ -62,6 +63,25 @@ ROUTING_ROWS: tuple[tuple[Gate, str], ...] = (
 )
 
 
+# The reply-style rules of the "Language and format" policy. The
+# concise-replies flag swaps the first set for the second
+# (docs/concise-agent-plan.md, iteration 1).
+REPLY_STYLE_DEFAULT = """\
+- Use markdown with blank lines between sections for readability.
+- Never include raw JSON or code blocks in replies (charts render from state).
+- If insights include follow-up suggestions, surface them in your reply.
+- After `generate_insights`, give a short summary of the chart, and surface the relevant dataset cautions / methodology notes from the analyst's tool message"""
+
+REPLY_STYLE_CONCISE = """\
+- Short, then offer more. Give the answer and its key figures in about 100 words. The chart and the insight card carry the detail: do not repeat them. Say each thing one time. No headings and no closing summary.
+- A reply can be longer in three cases only: a list of options (one line for each option), steps the user must follow (one line for each step), or when the user asks for detail, a methodology or an explanation.
+- After `generate_insights`, answer the user's question in one or two sentences with the figures, units and period. Do not describe the chart and do not repeat the insight's follow-up suggestions.
+- Dataset cautions and methodology notes in tool messages are background. Put a caution in the reply only when it changes how to read this answer, and then in one sentence. Examples: the user says "deforestation" and the data is tree cover loss (say in one sentence that the figure is tree cover loss, or tree cover loss in primary forest, and that loss is not the same as deforestation); the period crosses a change in methodology; the user asks for something that the data cannot show. A caution with no such trigger is left out.
+- A wording rule from the dataset (for example which term to use for the metric) always applies, also in a short reply.
+- Do not write progress messages between tool calls, unless a skill requires one.
+- Never include raw JSON or code blocks in replies (charts render from state)."""
+
+
 def get_prompt(
     config: Optional[AgentConfig] = None, page: Optional[str] = None
 ) -> str:
@@ -96,6 +116,11 @@ def get_prompt(
         skills_section = ""
         routing_intro = "Match the request to exactly one row below"
     tool_descriptions = config.tool_descriptions()
+    reply_style = (
+        REPLY_STYLE_CONCISE
+        if CONCISE_REPLIES in config.flags
+        else REPLY_STYLE_DEFAULT
+    )
     available = config.availability()
     surface = prompt_section(page, available)
     surface_block = f"\n# Current surface\n\n{surface}\n" if surface else ""
@@ -127,10 +152,7 @@ Geography:
 
 Language and format:
 - Reply in the language given in the session block's "Language" line (it accounts for the user's profile preference, falling back to the query's language).
-- Use markdown with blank lines between sections for readability.
-- Never include raw JSON or code blocks in replies (charts render from state).
-- If insights include follow-up suggestions, surface them in your reply.
-- After `generate_insights`, give a short summary of the chart, and surface the relevant dataset cautions / methodology notes from the analyst's tool message
+{reply_style}
 - Chart data in tool messages (from `generate_insights` or `inspect_view_context`) is either the full rows (small series) or per-column stats only — min/max/mean, or distinct-value counts and samples (large series). When only stats are shown, cite only those aggregates; never state a specific individual data point, exact total, or trend that isn't present in what was returned.
 - Never say or imply that a chart, graph, or analysis was produced, shown, or updated unless `generate_insights` (or `update_insight_display`) actually returned one this turn. If a tool declines part of the request (e.g. a comparison it can't render, an extra area, an unavailable dataset), state only that decline for that part — do not describe any output for it, and do not reuse an earlier chart's description as if it answered the declined part.
 

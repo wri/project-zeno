@@ -170,9 +170,19 @@ LGMS_PROFILE = "lgms"
 CURATED_CHARTS_FIRST = "curated-charts-first"
 CURATED_CHARTS_PROFILE = "curated-charts"
 
-# The tool specs that a flag puts in place of the spec of the same name.
+# Short replies (docs/concise-agent-plan.md, iteration 1): the flag swaps
+# the reply-style rules of the system prompt (src/agent/graph.py) and turns
+# on the flagged parts of the skills. Temporary: when the result is
+# accepted, the short style becomes the default and this flag and profile
+# are deleted.
+CONCISE_REPLIES = "concise-replies"
+CONCISE_PROFILE = "concise"
+
+# The tool specs that a flag puts in place of the spec of the same name. A
+# flag that swaps no tool has an empty entry: the keys are the known flags.
 FLAG_TOOL_VARIANTS: dict[str, tuple[ToolSpec, ...]] = {
     CURATED_CHARTS_FIRST: (generate_insights_curated_first_spec,),
+    CONCISE_REPLIES: (),
 }
 
 # Profiles any authenticated user may select with `ff`. All other flags are
@@ -459,5 +469,14 @@ default_registry.register(
         # Excludes are not inherited: keep the default's.
         excluded_datasets=DEFAULT_EXCLUDED_DATASETS,
         flags=frozenset({CURATED_CHARTS_FIRST}),
+    )
+)
+default_registry.register(
+    AgentConfig(
+        CONCISE_PROFILE,
+        extends=DEFAULT_PROFILE,
+        # Excludes are not inherited: keep the default's.
+        excluded_datasets=DEFAULT_EXCLUDED_DATASETS,
+        flags=frozenset({CONCISE_REPLIES}),
     )
 )
