@@ -4,8 +4,8 @@ Call tools one at a time, never in parallel.
 
 Match the request to exactly one skill or one row below. Do not make a dataset, AOI or pull request into a full analysis.
 
-- Dataset only ("use tree cover loss by driver"): call `pick_dataset`, then stop.
-- AOI only ("zoom to Pará"): call `pick_aoi`, then stop.
+- Dataset only ("use tree cover loss by driver"): call `pick_dataset`, confirm the selection in one line, then stop, unless the user asks for more.
+- AOI only ("zoom to Pará"): call `pick_aoi`, then stop, unless the user asks for more.
 <!-- tool: search_insights -->
 - Recall an earlier insight ("show that tree-cover insight again", "pull up the fires analysis from before"): call `search_insights`, then stop and reply in one line. The insight exists and is on screen. Never follow it with another tool.
 <!-- end -->

@@ -41,7 +41,8 @@ CONCISE_TOOL_DESCRIPTIONS: dict[str, str] = {
         "screen (summary, chart titles, variables). On a dashboard page "
         "also the dashboard's name, areas, sections and widgets with their "
         'ids. Call it when the user refers to "this", "here", the current '
-        "view, the dashboard or an insight on screen."
+        "view, the report, the dashboard or an insight on screen, and you "
+        "need those details to answer."
     ),
     "show_imagery": (
         "Show Sentinel-2 imagery on the map for the AOI in state (pick_aoi "
@@ -60,7 +61,9 @@ CONCISE_TOOL_DESCRIPTIONS: dict[str, str] = {
         "the next month. `target_date` (YYYY-MM-DD) selects the month; null "
         "gives the latest month (tell the user that it is the most recent "
         'available Planet imagery). For other places or for "latest" or '
-        '"recent" imagery, use show_imagery. Regional areas only.'
+        '"recent" imagery, use show_imagery. Outside its footprint the tool '
+        "falls back to Sentinel-2 by itself and says so. Regional areas "
+        "only."
     ),
     "search_blogs": (
         "Research subagent: searches the WRI and LCL Insights articles and "
@@ -94,7 +97,7 @@ CONCISE_TOOL_DESCRIPTIONS: dict[str, str] = {
         "question. `nudge_type`: a free label for the kind of choice (for "
         'example "confirm", "clarify"). `options`: the exact button texts; '
         "a click sends the text as the user's next message, so each option "
-        "must be clear by itself."
+        "must be short and clear by itself."
     ),
     "create_dashboard": (
         "Create an empty dashboard for the AOI in state (pick_aoi first). "
@@ -104,8 +107,8 @@ CONCISE_TOOL_DESCRIPTIONS: dict[str, str] = {
     "add_to_dashboard": (
         "Add an insight to a dashboard as a widget. `insight_id` defaults to "
         "the current insight in state. `section` (a section title or id) "
-        "puts it in a section; without it the widget is ungrouped. "
-        + _DEFAULT_DASHBOARD
+        "puts it in a section; without it the widget is ungrouped. The "
+        "insight must be one that the user can see. " + _DEFAULT_DASHBOARD
     ),
     "add_map_widget": (
         'Add a map widget to a dashboard. `layer="dataset"`: the selected '

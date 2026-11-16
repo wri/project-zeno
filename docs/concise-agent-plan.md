@@ -437,3 +437,80 @@ with an error. Each of these cases was run again with 3 trials:
    - All seven dashboard cases and the imagery case pass on both profiles
      (3 trials), measured with the middleware. Not measured: a thread
      where the dashboard request comes in a later turn.
+
+## Rule audit of the concise prompt (2026-11-16)
+
+Each rule of the default prompt (`get_prompt` for the `default` profile),
+of `ROUTING_ROWS`, of each `ToolSpec.prompt_fragment` and of each tool
+docstring, and where the concise profile has it now. "Description" is the
+short tool description in `tool_descriptions.py`. `pull_data`,
+`generate_insights` and `read_skill` keep their docstrings on both
+profiles. The skills list and the skill bodies are the same on both
+profiles.
+
+The four review findings and three rules that this audit found are put
+back (marked "restored").
+
+### System prompt
+
+| Default rule | Concise |
+|---|---|
+| Role: answer with tools and subagents, never invent data | 01-role |
+| `Today: <date>` | Dropped. The session block gives the date on each call, and a date in the prompt changes the prompt each day. |
+| Trust the session block; do not resolve the AOI or the dataset again unless the user changes it | 01-role (also names the fields of the block) |
+| Call tools one at a time | 03-work |
+| Tool list (`# Tools`, `# Subagents`) | Dropped as a list. Each line is in the tool description, or in 03-work when it crosses tools (rows below). |
+| Skills: call `read_skill` only when "use when" matches; usually one skill | 5. Skills |
+| Routing intro: one skill or one row; do not make a dataset, AOI or pull request into a full analysis | 03-work |
+| Row: dataset only, then stop; no AOI, pull or insights unless asked | 03-work (restored: "unless the user asks for more") |
+| Row: AOI only, then stop unless asked for more | 03-work (restored: "unless the user asks for more") |
+| Row: recall with `search_insights`, then stop; never followed by `pick_aoi`, `pick_dataset`, `pull_data`, `generate_insights`; one-line reply | 03-work: "Never follow it with another tool". The sentence "show/recall/pull up is a recall request, never new analysis" is merged into the row's examples. |
+| Global and continent scale; "Global World" for a worldwide question | 01-role. The example question is dropped. |
+| Concessions: relay and stop; never give figures for concessions that `pick_aoi` did not select | Rule 3 |
+| Reply in the session block's language | Rule 4. The note on how the language is computed is dropped: the session block computes it. |
+| Markdown with blank lines between sections | Replaced by rule 5 (no headings in a short answer). Decision of iteration 1. |
+| No raw JSON or code blocks | Rule 8 |
+| Surface the follow-up suggestions | Reversed by rule 6 (the insight card shows them). Decision of iteration 1. |
+| After `generate_insights`: summary of the chart and the relevant cautions | Replaced by rules 6 and 7. Decision of iteration 1. |
+| Chart data is full rows or column statistics; with statistics, give only aggregates | Rule 1 |
+| Say that a chart was made only when a tool returned it this turn; on a decline, state only the decline | Rule 2 |
+| UI selections: acknowledge, check AOI, dataset and date range, new request overrides | 04-surfaces |
+| Nudges: a tool's own options are the pending nudge; do not call `send_nudge` after it; summarize and stop | 03-work, stop list, and the `send_nudge` block |
+| Nudges: `send_nudge` only for a new set of choices | 03-work, `send_nudge` block |
+| Nudges: a plain decline from `pull_data` or `generate_insights`: relay and stop, do not retry with the area selected before | 03-work, stop list |
+| Nudges: a pending nudge is not a selection; give the answer back to the tool; check "AOI: none" / "Dataset: none" | 03-work, last paragraph |
+
+Rules that the concise prompt adds: rule 5 (about 100 words), rule 7
+(cautions by trigger), "no progress messages" (rule 8), and the stop when
+`pull_data` fails or has no data (03-work; the `analyze` skill has it too).
+
+### Tool fragments and docstrings
+
+| Tool | Default text | Concise |
+|---|---|---|
+| `pull_data` | Run `pick_aoi` and `pick_dataset` first | 03-work, analysis order |
+| `read_skill` | Call it one time, after you commit to the skill | 5. Skills ("one time and follow it") |
+| `generate_insights` | Needs `pull_data` first | 03-work, analysis order |
+| `pick_aoi` | Pass the place verbatim; it extracts, translates, finds subregions and global areas itself; set the type of area when obvious; updates the AOI or returns a question | Description. The example "protected areas in Peru" is dropped. |
+| `pick_dataset` | No dataset or alternatives: relay, do not pull | 03-work, stop list |
+| `pick_dataset` | Dataset only: no AOI needed, do not ask for a place, no `pick_aoi`, `pull_data` or `generate_insights` unless asked | Description and 03-work row |
+| `pick_dataset` | Dataset only: confirm the selection briefly | 03-work row (restored) |
+| `pick_dataset` | Call again when the dataset, context layer or a parameter changes; dates clamp to the closest valid range | Description |
+| `inspect_view_context` | Page, viewport, layers, AOIs, insights, dashboard; triggers "this", "here", current view, the report, the dashboard, an insight on screen; only when the details are necessary | Description (restored: "the report", "when you need those details to answer") |
+| `show_imagery` | Global, any date; date rules; defaults and limits of `window_days` and `max_cloud_cover`; raise only when nothing is found and the user agrees; `pick_aoi` first; regional only | Description |
+| `show_planet_imagery` | Amazon alerts; 500 m buffer; from September 2020; published about the 15th; null date gives the latest month, tell the user; other places use `show_imagery`; falls back to Sentinel-2 by itself; regional only | Description (restored: the fallback). "There is never a current-month mosaic" is merged into "published about the 15th of the next month". |
+| `search_blogs` | Routing to `explore` and `wri-insights` | Skills list (`when_to_use` of the two skills) |
+| `search_blogs` | After `pull_data`, before `generate_insights` | `wri-insights` skill body |
+| `search_blogs` | Keep the markers, number by first appearance, never invent URLs, no Sources list | Description and rule 9 |
+| `update_insight_display` | Restyle only; no new data; most recent insight by default; `insight_choice` nudge when not clear | Description. "Or running code" is dropped: "no new data or charts" covers it. |
+| `search_insights` | Find and show again, all conversations and public ones, no compute | Description. "Terminal" is in 03-work. |
+| `send_nudge` | 2 to 4 options; free label; exact button texts; short and clear by itself; not to restate a tool's options | Description (restored: "short") and 03-work |
+| `create_dashboard` | AOI in state, `pick_aoi` first; starts empty; name default | Description. "Persistent" is dropped (no decision depends on it). "Use when" is in the `dashboard` skill. |
+| `add_to_dashboard` | Defaults of `insight_id` and `dashboard_id`; `section`; own dashboards only; the insight must be one the user can see | Description (restored: the insight rule) |
+| `add_map_widget` | `layer` values and their sources; defaults; `title`; `section`; own dashboards only | Description. "Renders focused on the dashboard's area" is dropped: the model makes no choice on it. |
+| `add_text_widget` | Write the markdown yourself; no raw data; heading in the markdown; `section`, `position` | Description. "Summary of findings from this conversation" is merged into "summary". |
+| `edit_text_widget` | Full replacement; default widget; error lists ids | Description |
+| `add_dashboard_section` | Short topical title within the character cap; description optional; position; starts empty; use for several topics | Description; the cap is `maxLength` in the schema; "several topics" is in the `dashboard` skill. "Compose it yourself" for `description` is dropped. |
+| `edit_dashboard_section` | Title or description, at least one, full replacement; default section; error lists them | Description ("or both" states "at least one") |
+| `move_dashboard_widget` | `section` or `ungroup`, exactly one; position; reorder in place; ids from `inspect_view_context`; own dashboards only | Description |
+| All "Use when the user asks to ..." lines of the dashboard tools | `dashboard` skill `when_to_use` and body |
