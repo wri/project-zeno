@@ -1,6 +1,13 @@
 import pytest
 
-from src.agent.datasets.handlers.analytics_handler import INTEGRATED_ALERTS_ID
+from src.agent.datasets.config import DATASETS
+from src.agent.datasets.handlers.analytics_handler import (
+    FOREST_CARBON_FLUX_ID,
+    INTEGRATED_ALERTS_ID,
+    TREE_COVER_LOSS_BY_FIRES_ID,
+    TREE_COVER_LOSS_ID,
+    AnalyticsHandler,
+)
 from src.agent.datasets.handlers.base import DataPullResult, DataSourceHandler
 from src.agent.i18n import t
 from src.agent.subagents.analyst.charts import InsightChart
@@ -89,7 +96,10 @@ async def test_analyze_passes_correct_args_to_handler():
         end_date="2020-12-31",
     )
 
-    assert handler.last_call["dataset"] == {"dataset_id": HANDLED_DATASET_ID}
+    assert handler.last_call["dataset"] == {
+        "dataset_id": HANDLED_DATASET_ID,
+        "parameters": None,
+    }
     assert handler.last_call["aois"] == [AOI]
     assert handler.last_call["start_date"] == "2020-01-01"
     assert handler.last_call["end_date"] == "2020-12-31"
@@ -297,3 +307,57 @@ async def test_analyze_passes_context_layer_and_canopy_to_handler():
         "context_layer": "primary_forest",
         "parameters": [{"name": "canopy_cover", "values": [50]}],
     }
+
+
+GADM_COUNTRY = {
+    "source": "gadm",
+    "src_id": "IDN",
+    "name": "Indonesia",
+    "subtype": "country",
+}
+
+
+# --- the default canopy cover threshold --------------------------------------
+
+
+async def _payload_canopy(dataset: dict) -> int | None:
+    """The threshold that the analytics handler sends for `dataset`, after
+    it merges the catalog entry under the fields, as `pull_data` does."""
+    catalog = next(
+        d for d in DATASETS if d["dataset_id"] == dataset["dataset_id"]
+    )
+    payload = await AnalyticsHandler()._build_payload(
+        catalog | dataset, [GADM_COUNTRY], "2019-01-01", "2019-12-31"
+    )
+    return payload.get("canopy_cover")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "dataset_id",
+    [TREE_COVER_LOSS_ID, TREE_COVER_LOSS_BY_FIRES_ID, FOREST_CARBON_FLUX_ID],
+)
+async def test_analyze_without_canopy_cover_pulls_at_the_default(dataset_id):
+    # The frontend sends no canopy_cover. The pull took the largest
+    # threshold of the catalog, 75, while the map and the agent use 30.
+    handler = FakeHandler(SUCCESS_RESULT)
+    await make_service(handler).analyze(
+        aois=[AOI],
+        dataset_id=dataset_id,
+        start_date="2019-01-01",
+        end_date="2019-12-31",
+    )
+    assert await _payload_canopy(handler.last_call["dataset"]) == 30
+
+
+@pytest.mark.asyncio
+async def test_analyze_with_canopy_cover_pulls_at_that_threshold():
+    handler = FakeHandler(SUCCESS_RESULT)
+    await make_service(handler).analyze(
+        aois=[AOI],
+        dataset_id=TREE_COVER_LOSS_ID,
+        start_date="2019-01-01",
+        end_date="2019-12-31",
+        canopy_cover=50,
+    )
+    assert await _payload_canopy(handler.last_call["dataset"]) == 50
