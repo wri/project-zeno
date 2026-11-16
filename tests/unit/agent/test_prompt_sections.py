@@ -1,0 +1,96 @@
+"""The concise profile's prompt sections (src/agent/prompts/),
+docs/concise-agent-plan.md, iteration 2."""
+
+import re
+
+import pytest
+
+from src.agent.agent_config import (
+    BASE_PROFILE,
+    CONCISE_PROFILE,
+    CONCISE_REPLIES,
+    AgentConfig,
+    AgentConfigRegistry,
+    default_registry,
+)
+from src.agent.graph import get_prompt
+from src.agent.prompts import apply_gates, gates, section_texts
+from src.agent.skills import get_skill
+from src.agent.tool_spec import Availability
+
+NONE = Availability(skills=frozenset(), tools=frozenset())
+GATED = """a
+<!-- tool: t -->
+tool line
+<!-- end -->
+<!-- skill: s -->
+skill line
+<!-- end -->
+b
+"""
+
+
+def test_apply_gates_keeps_only_what_the_profile_serves():
+    assert apply_gates(GATED, NONE) == "a\nb\n"
+    both = Availability(skills=frozenset({"s"}), tools=frozenset({"t"}))
+    assert apply_gates(GATED, both) == "a\ntool line\nskill line\nb\n"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "<!-- tool: t -->\nx\n",
+        "x\n<!-- end -->\n",
+        "<!-- tool: t -->\n<!-- skill: s -->\n<!-- end -->\n",
+    ],
+)
+def test_apply_gates_rejects_bad_blocks(text):
+    with pytest.raises(ValueError):
+        apply_gates(text, NONE)
+
+
+def test_every_gate_names_a_real_skill_or_tool():
+    from src.agent.agent_config import ALL_SPECS
+
+    tools = {s.tool.name for s in ALL_SPECS}
+    for name, text in section_texts():
+        for kind, gate in gates(text):
+            if kind == "tool":
+                assert gate in tools, (name, gate)
+            else:
+                assert get_skill(gate) is not None, (name, gate)
+
+
+def test_concise_prompt_has_no_tool_list_and_numbered_sections():
+    prompt = get_prompt(default_registry.resolve(CONCISE_PROFILE))
+    assert "<!--" not in prompt
+    assert "# Tools" not in prompt
+    assert "# Subagents" not in prompt
+    headings = re.findall(r"^# (\d+)\. ", prompt, flags=re.MULTILINE)
+    assert headings == [str(n) for n in range(1, len(headings) + 1)]
+    assert "- dashboard:" in prompt
+    assert "search_insights" in prompt
+
+
+def test_concise_prompt_without_skills_drops_skill_and_tool_blocks():
+    registry = AgentConfigRegistry()
+    registry.register(
+        AgentConfig(
+            "lean",
+            tools=default_registry.resolve(BASE_PROFILE).tools,
+            flags=frozenset({CONCISE_REPLIES}),
+        )
+    )
+    prompt = get_prompt(registry.resolve("lean"))
+    assert "Skills" not in prompt
+    assert "read_skill" not in prompt
+    assert "search_insights" not in prompt
+    assert "send_nudge" not in prompt
+    assert "dashboard" not in prompt
+
+
+def test_concise_prompt_surface_section_is_numbered_last():
+    prompt = get_prompt(
+        default_registry.resolve(CONCISE_PROFILE), page="dashboard"
+    )
+    assert re.search(r"^# 6\. Current surface$", prompt, flags=re.MULTILINE)

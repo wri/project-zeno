@@ -23,6 +23,7 @@ from src.agent.agent_config import (
 )
 from src.agent.llms import FALLBACK_MODELS, MODEL
 from src.agent.middleware import SessionContextMiddleware
+from src.agent.prompts import build_prompt
 from src.agent.state import AgentState
 from src.agent.tool_spec import Gate, set_bound_availability
 from src.agent.view_pages import prompt_section
@@ -64,22 +65,13 @@ ROUTING_ROWS: tuple[tuple[Gate, str], ...] = (
 
 
 # The reply-style rules of the "Language and format" policy. The
-# concise-replies flag swaps the first set for the second
-# (docs/concise-agent-plan.md, iteration 1).
+# concise-replies flag uses the prompt sections in src/agent/prompts/
+# instead (docs/concise-agent-plan.md).
 REPLY_STYLE_DEFAULT = """\
 - Use markdown with blank lines between sections for readability.
 - Never include raw JSON or code blocks in replies (charts render from state).
 - If insights include follow-up suggestions, surface them in your reply.
 - After `generate_insights`, give a short summary of the chart, and surface the relevant dataset cautions / methodology notes from the analyst's tool message"""
-
-REPLY_STYLE_CONCISE = """\
-- Short, then offer more. Give the answer and its key figures in about 100 words. The chart and the insight card carry the detail: do not repeat them. Say each thing one time. No headings and no closing summary.
-- A reply can be longer in three cases only: a list of options (one line for each option), steps the user must follow (one line for each step), or when the user asks for detail, a methodology or an explanation.
-- After `generate_insights`, answer the user's question in one or two sentences with the figures, units and period. Do not describe the chart and do not repeat the insight's follow-up suggestions.
-- Dataset cautions and methodology notes in tool messages are background. Put a caution in the reply only when it changes how to read this answer, and then in one sentence. Examples: the user says "deforestation" and the data is tree cover loss (say in one sentence that the figure is tree cover loss, or tree cover loss in primary forest, and that loss is not the same as deforestation); the period crosses a change in methodology; the user asks for something that the data cannot show. A caution with no such trigger is left out.
-- A wording rule from the dataset (for example which term to use for the metric) always applies, also in a short reply.
-- Do not write progress messages between tool calls, unless a skill requires one.
-- Never include raw JSON or code blocks in replies (charts render from state)."""
 
 
 def get_prompt(
@@ -98,6 +90,14 @@ def get_prompt(
         f"- {s.name}: {s.description} (use when: {s.when_to_use})"
         for s in config.skill_metas()
     ]
+    if CONCISE_REPLIES in config.flags:
+        # Numbered markdown sections (src/agent/prompts/); the tool list is
+        # not in the prompt: each tool's schema description is its single
+        # description (docs/concise-agent-plan.md, iteration 2).
+        available = config.availability()
+        return build_prompt(
+            available, skill_lines, prompt_section(page, available)
+        )
     # A profile without skills (base) binds no read_skill, so the whole
     # skills section — including the read_skill instruction — is omitted.
     if skill_lines:
@@ -116,11 +116,7 @@ def get_prompt(
         skills_section = ""
         routing_intro = "Match the request to exactly one row below"
     tool_descriptions = config.tool_descriptions()
-    reply_style = (
-        REPLY_STYLE_CONCISE
-        if CONCISE_REPLIES in config.flags
-        else REPLY_STYLE_DEFAULT
-    )
+    reply_style = REPLY_STYLE_DEFAULT
     available = config.availability()
     surface = prompt_section(page, available)
     surface_block = f"\n# Current surface\n\n{surface}\n" if surface else ""

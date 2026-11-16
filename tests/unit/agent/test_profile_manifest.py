@@ -20,11 +20,7 @@ from src.agent.agent_config import (
     LGMS_PROFILE,
     default_registry,
 )
-from src.agent.graph import (
-    REPLY_STYLE_CONCISE,
-    REPLY_STYLE_DEFAULT,
-    get_prompt,
-)
+from src.agent.graph import REPLY_STYLE_DEFAULT, get_prompt
 
 BASE_MANIFEST = """\
 profile: base
@@ -161,16 +157,12 @@ def test_concise_profile_manifest():
     assert default_registry.resolve(CONCISE_PROFILE).describe() == expected
 
 
-def test_concise_flag_swaps_only_the_reply_style_rules():
+def test_concise_flag_uses_the_prompt_sections():
     default = get_prompt(default_registry.resolve(DEFAULT_PROFILE))
     concise = get_prompt(default_registry.resolve(CONCISE_PROFILE))
     assert REPLY_STYLE_DEFAULT in default
-    assert REPLY_STYLE_CONCISE not in default
-    assert REPLY_STYLE_CONCISE in concise
     assert REPLY_STYLE_DEFAULT not in concise
-    assert default.replace(REPLY_STYLE_DEFAULT, "") == concise.replace(
-        REPLY_STYLE_CONCISE, ""
-    )
+    assert concise.startswith("# 1. Role")
 
 
 def test_every_production_profile_has_a_manifest_snapshot():

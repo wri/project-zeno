@@ -113,7 +113,7 @@
       "tools_total": 3437
     },
     "concise": {
-      "system_prompt": 15593,
+      "system_prompt": 7629,
       "tools": {
         "add_dashboard_section": 1171,
         "add_map_widget": 1135,
