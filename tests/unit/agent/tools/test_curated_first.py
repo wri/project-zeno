@@ -14,7 +14,7 @@ from src.agent.agent_config import (
 )
 from src.agent.datasets.handlers.analytics_handler import (
     GRASSLANDS_ID,
-    TREE_COVER_GAIN_ID,
+    SLUC_EMISSION_FACTORS_ID,
     TREE_COVER_LOSS_BY_DRIVER_ID,
     TREE_COVER_LOSS_ID,
 )
@@ -198,7 +198,7 @@ async def test_no_chart_argument_goes_to_the_code_executor(run):
 
 async def test_a_dataset_without_an_agent_view_goes_to_the_code_executor(run):
     with pytest.raises(_Executor):
-        await _analyze(_statistics(dataset_id=TREE_COVER_GAIN_ID))
+        await _analyze(_statistics(dataset_id=SLUC_EMISSION_FACTORS_ID))
 
 
 async def test_a_context_layer_keeps_the_curated_chart(run):

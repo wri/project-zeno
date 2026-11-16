@@ -177,3 +177,54 @@ def test_view_facts_without_rows_are_empty():
     assert natural_lands_facts([]) == []
     assert forest_flux_facts([]) == []
     assert fires_facts([]) == []
+
+
+def test_alert_series_take_the_unit_of_the_y_axis():
+    chart = InsightChart(
+        title="t",
+        chart_type="stacked-bar",
+        x_axis="alert_date",
+        y_axis="area_ha",
+        series_fields=["Highest confidence", "High confidence"],
+        chart_data=[
+            {
+                "alert_date": "2026-08-01",
+                "Highest confidence": 2.0,
+                "High confidence": 5.0,
+            },
+            {
+                "alert_date": "2026-08-02",
+                "Highest confidence": 4.0,
+                "High confidence": 1.0,
+            },
+        ],
+        view_id="integrated_alerts.by_confidence",
+    )
+    sentences = chart_fact_sentences(chart)
+    assert (
+        "Total Highest confidence from 2026-08-01 to 2026-08-02: 6 ha."
+        in sentences
+    )
+    assert "Largest High confidence: 5 ha in 2026-08-01." in sentences
+    assert "Total all series: 12 ha." in sentences
+    # No change from the first day to the last, and no smallest day.
+    assert not any(s.startswith(("Change", "Smallest")) for s in sentences)
+
+
+def test_gain_periods_have_a_total_and_shares():
+    # The periods do not overlap (confirmed against production and GFW), so
+    # the total is the gain from 2000 to 2020; the model copies it.
+    chart = _chart(
+        "tree_cover_gain.by_period",
+        "tree_cover_gain_period",
+        "area_ha",
+        [
+            {"tree_cover_gain_period": "2000-2005", "area_ha": 30.0},
+            {"tree_cover_gain_period": "2005-2010", "area_ha": 10.0},
+        ],
+    )
+    assert chart_fact_sentences(chart) == [
+        "Total area_ha: 40 ha.",
+        "Rank 1 of area_ha: 2000-2005, 30 ha, 75% of the total.",
+        "Rank 2 of area_ha: 2005-2010, 10 ha, 25% of the total.",
+    ]

@@ -292,14 +292,18 @@ def measure_facts(chart: InsightChart) -> list[Fact]:
     when they have one unit."""
     time = is_time_axis(chart)
     columns = measures(chart)
+
+    def unit(measure: str) -> str:
+        # A series with a display name ("Highest confidence") has no unit
+        # in its name: the unit of the chart's y axis applies.
+        return unit_of(measure) or unit_of(chart.y_axis)
+
     facts: list[Fact] = []
     for measure in columns:
         points = _points(chart, measure)
         if points:
-            facts.extend(
-                _series_facts(measure, unit_of(measure), points, time)
-            )
-    units = {unit_of(measure) for measure in columns}
+            facts.extend(_series_facts(measure, unit(measure), points, time))
+    units = {unit(measure) for measure in columns}
     if len(columns) > 1 and len(units) == 1:
         values = [
             float(row[measure])

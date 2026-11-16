@@ -108,6 +108,14 @@ VIEWS: tuple[ChartView, ...] = (
         "Disturbance alert area (ha) for each day, split by confidence "
         "(low, high, highest), as stacked bars. Answers how much area had "
         "alerts in a period and when the alerts occurred.",
+        agent_enabled=True,
+        fact_kinds=("total", "max"),
+        agent_note=(
+            "Alerts are indicators of potential disturbance, not confirmed "
+            "loss. Highest confidence means that two or more alert systems "
+            "detected it. Do not use alerts for area estimates or long-term "
+            "trends: for those, recommend annual tree cover loss."
+        ),
     ),
     ChartView(
         "lgms.annual_average",
@@ -259,8 +267,16 @@ VIEWS: tuple[ChartView, ...] = (
     ChartView(
         "tree_cover_gain.by_period",
         TREE_COVER_GAIN_ID,
-        "Tree cover gain area (ha) for each period that ends in 2020, as "
-        "bars. Answers how much tree cover an area gained.",
+        "Tree cover gain area (ha) for each 5-year period from 2000 to "
+        "2020, as bars. Answers how much tree cover an area gained.",
+        agent_enabled=True,
+        agent_note=(
+            "Each bar is the tree cover gain of one 5-year period, as "
+            "production and GFW show it. The periods do not overlap, so "
+            "their total is the gain from 2000 to 2020. Do not combine gain "
+            "with tree cover loss for a net change: the two datasets use "
+            "different methods. Say tree cover gain, not restoration."
+        ),
     ),
 )
 

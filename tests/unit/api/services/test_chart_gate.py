@@ -1,9 +1,8 @@
 """Tests for the code gate of a curated chart in the agent."""
 
 from src.agent.datasets.handlers.analytics_handler import (
-    INTEGRATED_ALERTS_ID,
     LAND_GHG_INVENTORY_ID,
-    TREE_COVER_GAIN_ID,
+    SLUC_EMISSION_FACTORS_ID,
     TREE_COVER_ID,
     TREE_COVER_LOSS_ID,
 )
@@ -43,16 +42,14 @@ def test_the_enabled_views():
         "tcl_by_fires.split",
         "tcl_by_fires.annual_split",
         "tree_cover.extent",
+        "integrated_alerts.by_confidence",
+        "tree_cover_gain.by_period",
     }
     assert [v.id for v in agent_views(TREE_COVER_LOSS_ID)] == [
         "tcl.annual_loss",
         "tcl.annual_emissions",
     ]
-    # Held back: the alerts generator draws daily bars, but the dataset
-    # rules ask for a pie or a monthly line; the gain period labels do not
-    # agree with the cumulative periods of the dataset rules.
-    assert agent_views(INTEGRATED_ALERTS_ID) == []
-    assert agent_views(TREE_COVER_GAIN_ID) == []
+    assert agent_views(SLUC_EMISSION_FACTORS_ID) == []
     # LGMS keeps its curated-only path.
     assert agent_views(LAND_GHG_INVENTORY_ID) == []
 
@@ -83,11 +80,11 @@ def test_view_gate_several_areas_fail_a_one_area_view():
 
 
 def test_view_gate_fails_without_an_enabled_view():
-    assert not view_gate(TREE_COVER_GAIN_ID, 1).passed
+    assert not view_gate(SLUC_EMISSION_FACTORS_ID, 1).passed
     assert not view_gate(None, 1).passed
     # tree_cover.extent is many_areas but not enabled.
     assert get_view("tree_cover.extent").shape == "many_areas"
-    assert not view_gate(INTEGRATED_ALERTS_ID, 1).passed
+    assert not view_gate(LAND_GHG_INVENTORY_ID, 1).passed
 
 
 def test_has_data():
@@ -103,7 +100,7 @@ def test_charts_with_data_leaves_out_empty_and_unknown_charts():
         [{"year": 2021, "carbon_emissions_MgCO2e": None}],
         y_axis="carbon_emissions_MgCO2e",
     )
-    not_enabled = _chart("tree_cover_gain.by_period", [{"area_ha": 1.0}])
+    not_enabled = _chart("sluc.by_gas", [{"area_ha": 1.0}])
     generated = _chart(None, [{"area_ha": 1.0}])
 
     kept = charts_with_data([emissions, not_enabled, generated, loss])
