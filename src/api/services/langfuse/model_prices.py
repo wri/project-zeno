@@ -102,8 +102,7 @@ DEFINITIONS: list[dict[str, Any]] = [
     _definition(
         "gemini-3.1-flash-lite-preview", _standard(_prices(0.25, 0.025, 1.50))
     ),
-    # From third-party price trackers, not Google's rate sheet; check against
-    # ai.google.dev/gemini-api/docs/pricing.
+    # Standard paid tier, per Google's Gemini API pricing page (2026-11).
     _definition("gemini-3.5-flash-lite", _standard(_prices(0.30, 0.03, 2.50))),
     # Overrides the built-in definition, which has no input_cache_read price.
     _definition(
