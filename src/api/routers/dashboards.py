@@ -45,6 +45,7 @@ from src.api.schemas import (
     DashboardAlertsSummaryResponse,
     DashboardAoiResponse,
     DashboardCreateRequest,
+    DashboardDatasetSubscription,
     DashboardPublicToggleRequest,
     DashboardPublicToggleResponse,
     DashboardResponse,
@@ -76,6 +77,7 @@ from src.api.services.dashboard_alerts import (
     InvalidPeriodError,
 )
 from src.api.services.dashboard_aoi import dashboard_aoi
+from src.api.services.subscription import Dataset, SubscriptionChannel
 from src.shared.database import get_session_from_pool_dependency
 from src.shared.logging_config import get_logger
 from src.shared.tile_urls import absolutize_widget_config
@@ -92,14 +94,35 @@ def _is_privileged(user: Optional[UserModel]) -> bool:
     )
 
 
+def _sees_subscriptions(row: DashboardOrm, user: Optional[UserModel]) -> bool:
+    """Subscriptions are shown to the dashboard owner and to superusers,
+    not to admins."""
+    return user is not None and (
+        row.user_id == user.id or user.user_type == UserType.SUPERUSER
+    )
+
+
+def _subscriptions_response(row: DashboardOrm) -> dict:
+    """The subscribed channels, listed for every dataset."""
+    on = {(s.dataset, s.channel) for s in row.subscriptions}
+    return {
+        dataset: DashboardDatasetSubscription(
+            channels=[c for c in SubscriptionChannel if (dataset, c) in on]
+        )
+        for dataset in Dataset
+    }
+
+
 def _row_to_response(
     row: DashboardOrm,
     insights_by_id: Optional[dict] = None,
+    viewer: Optional[UserModel] = None,
 ) -> DashboardResponse:
     """Map a dashboard row (aois + sections + widgets loaded) to the response.
 
     ``insights_by_id`` carries the pre-loaded insight rows the viewer may see;
-    widgets referencing anything else keep ``insight=None``.
+    widgets referencing anything else keep ``insight=None``. Subscriptions are
+    included only for a viewer allowed to see them.
     """
     insights_by_id = insights_by_id or {}
     return DashboardResponse(
@@ -108,6 +131,7 @@ def _row_to_response(
         name=row.name,
         description=row.description,
         is_public=row.is_public,
+        eligible_for_subscription=row.eligible_for_subscription,
         created_at=row.created_at,
         updated_at=row.updated_at,
         aois=[
@@ -134,6 +158,11 @@ def _row_to_response(
             )
             for widget in row.widgets or []
         ],
+        subscriptions=(
+            _subscriptions_response(row)
+            if _sees_subscriptions(row, viewer)
+            else None
+        ),
     )
 
 
@@ -180,7 +209,7 @@ async def _expanded_response(
             if insight_is_visible_to_user(insight, user_id)
             or _is_privileged(user)
         }
-    return _row_to_response(row, insights_by_id)
+    return _row_to_response(row, insights_by_id, user)
 
 
 @router.post(
@@ -199,7 +228,9 @@ async def create_dashboard(
         description=body.description,
         aois=[aoi.model_dump() for aoi in body.aois],
     )
-    return _row_to_response(await _refetch_dashboard(dashboard_id))
+    return _row_to_response(
+        await _refetch_dashboard(dashboard_id), viewer=user
+    )
 
 
 @router.get("/api/dashboards", response_model=list[DashboardResponse])
@@ -214,11 +245,14 @@ async def list_dashboards(
             selectinload(DashboardOrm.aois),
             selectinload(DashboardOrm.sections),
             selectinload(DashboardOrm.widgets),
+            selectinload(DashboardOrm.subscriptions),
         )
         .where(DashboardOrm.user_id == user.id)
         .order_by(DashboardOrm.created_at.desc())
     )
-    return [_row_to_response(row) for row in result.scalars().all()]
+    return [
+        _row_to_response(row, viewer=user) for row in result.scalars().all()
+    ]
 
 
 @router.get("/api/dashboards/{dashboard_id}", response_model=DashboardResponse)
@@ -305,7 +339,9 @@ async def update_dashboard(
     await dashboard_writer.update_dashboard(
         dashboard_id, name=body.name, description=body.description
     )
-    return _row_to_response(await _refetch_dashboard(dashboard_id))
+    return _row_to_response(
+        await _refetch_dashboard(dashboard_id), viewer=user
+    )
 
 
 @router.patch(
@@ -327,7 +363,9 @@ async def toggle_dashboard_public(
     publicized = await dashboard_writer.set_dashboard_public(
         dashboard_id, body.is_public
     )
-    base = _row_to_response(await _refetch_dashboard(dashboard_id))
+    base = _row_to_response(
+        await _refetch_dashboard(dashboard_id), viewer=user
+    )
     return DashboardPublicToggleResponse(
         **base.model_dump(),
         publicized_insight_ids=[UUID(i) for i in publicized or []],
@@ -356,7 +394,9 @@ async def add_section(
         description=body.description,
         position=body.position,
     )
-    return _row_to_response(await _refetch_dashboard(dashboard_id))
+    return _row_to_response(
+        await _refetch_dashboard(dashboard_id), viewer=user
+    )
 
 
 @router.patch(
@@ -386,7 +426,9 @@ async def update_section(
         description=description,
         position=body.position,
     )
-    return _row_to_response(await _refetch_dashboard(dashboard_id))
+    return _row_to_response(
+        await _refetch_dashboard(dashboard_id), viewer=user
+    )
 
 
 @router.delete(
@@ -468,7 +510,9 @@ async def add_widget(
         )
     except dashboard_writer.UnknownSectionError:
         raise HTTPException(status_code=404, detail="Section not found")
-    return _row_to_response(await _refetch_dashboard(dashboard_id))
+    return _row_to_response(
+        await _refetch_dashboard(dashboard_id), viewer=user
+    )
 
 
 @router.patch(
@@ -503,7 +547,9 @@ async def update_widget(
         )
     except dashboard_writer.UnknownSectionError:
         raise HTTPException(status_code=404, detail="Section not found")
-    return _row_to_response(await _refetch_dashboard(dashboard_id))
+    return _row_to_response(
+        await _refetch_dashboard(dashboard_id), viewer=user
+    )
 
 
 @router.delete(

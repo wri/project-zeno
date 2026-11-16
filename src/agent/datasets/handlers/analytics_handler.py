@@ -173,6 +173,9 @@ GEOMETRY_UNSUPPORTED_IDS = {
     TREE_COVER_ID,
     LAND_GHG_INVENTORY_ID,
 }
+# Datasets the analytics API serves for saved custom areas by id, so their
+# geometry needn't be sent.
+SAVED_CUSTOM_AOI_DATASET_IDS = {INTEGRATED_ALERTS_ID}
 # The API accepts a feature collection with this context layer, but the
 # analysis then fails.
 GEOMETRY_UNSUPPORTED_CONTEXT_LAYERS = {"intact_forest"}
@@ -337,10 +340,15 @@ class AnalyticsHandler(DataSourceHandler):
             LAND_GHG_INVENTORY_ID,
         ]
 
-    def _get_aoi_type(self, aoi: Dict) -> dict[str, str]:
+    def _get_aoi_type(self, aoi: Dict, dataset: dict) -> dict[str, str]:
         """Get the type of the AOI"""
 
-        if aoi["subtype"] in ADMIN_SUBTYPES:
+        if (
+            aoi["subtype"] == "custom-area"
+            and dataset.get("dataset_id") in SAVED_CUSTOM_AOI_DATASET_IDS
+        ):
+            aoi_type = "custom_aoi"
+        elif aoi["subtype"] in ADMIN_SUBTYPES:
             aoi_type = "admin"
         elif aoi["subtype"] in NAMED_AOI_TYPES:
             aoi_type = NAMED_AOI_TYPES[aoi["subtype"]]
@@ -362,6 +370,37 @@ class AnalyticsHandler(DataSourceHandler):
         else:
             return {"type": aoi_type}
 
+    async def _read_feature_collection_aoi(self, aois: list[dict]) -> dict:
+        """Read the areas' geometries and return them as a feature collection
+        AOI."""
+        features = []
+        for aoi in aois:
+            geometry_data = await get_geometry_data(
+                aoi.get("source", "custom"), aoi["src_id"]
+            )
+            if not geometry_data:
+                raise ValueError(
+                    f"{aoi.get('source', 'custom')} area not found: "
+                    f"{aoi['src_id']}"
+                )
+            features.append(
+                {
+                    "type": "Feature",
+                    "geometry": geometry_data["geometry"],
+                    "properties": {
+                        "name": geometry_data["name"],
+                        "id": geometry_data["src_id"],
+                    },
+                }
+            )
+        return {
+            "type": "feature_collection",
+            "feature_collection": {
+                "type": "FeatureCollection",
+                "features": features,
+            },
+        }
+
     async def _build_payload(
         self,
         dataset: dict,
@@ -371,45 +410,17 @@ class AnalyticsHandler(DataSourceHandler):
     ) -> Dict:
         """Build the API payload based on dataset type"""
         # Base payload structure common to all endpoints
-        aoi_type = self._get_aoi_type(aois[0])
+        aoi_type = self._get_aoi_type(aois[0], dataset)
         # Fix for GADM IDs which come with a _1 suffix
         for aoi in aois:
             if aoi["src_id"][-2:] in ["_1", "_2", "_3", "_4", "_5"]:
                 aoi["src_id"] = aoi["src_id"][:-2]
 
-        # Custom areas and concessions are sent as a feature collection
+        # Areas sent as geometry (custom areas for most datasets, and
+        # concessions) go as a feature collection
         if aoi_type["type"] == "feature_collection":
-            features = []
-            for aoi in aois:
-                geometry_data = await get_geometry_data(
-                    aoi.get("source", "custom"), aoi["src_id"]
-                )
-                if not geometry_data:
-                    raise ValueError(
-                        f"{aoi.get('source', 'custom')} area not found: "
-                        f"{aoi['src_id']}"
-                    )
-                features.append(
-                    {
-                        "type": "Feature",
-                        "geometry": geometry_data["geometry"],
-                        "properties": {
-                            "name": geometry_data["name"],
-                            "id": geometry_data["src_id"],
-                        },
-                    }
-                )
-
-            feature_collection = {
-                "type": "FeatureCollection",
-                "features": features,
-            }
-
             base_payload = {
-                "aoi": {
-                    "type": aoi_type["type"],
-                    "feature_collection": feature_collection,
-                }
+                "aoi": await self._read_feature_collection_aoi(aois)
             }
         else:
             aoi_ids = [format_id(aoi["src_id"]) for aoi in aois]
@@ -550,6 +561,33 @@ class AnalyticsHandler(DataSourceHandler):
             payload = {**payload, "canopy_cover": canopy_cover}
 
         return payload
+
+    async def _request_analysis(
+        self, endpoint_url: str, headers: dict, payload: dict, aois: list[dict]
+    ) -> httpx.Response:
+        """Post an analysis request, sending saved custom areas again as their
+        geometry if the analytics API doesn't have them yet."""
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                endpoint_url, headers=headers, json=payload
+            )
+            if (
+                response.status_code == 404
+                and payload["aoi"]["type"] == "custom_aoi"
+            ):
+                # A just-saved area may not have reached the analytics API yet.
+                logger.warning(
+                    "Saved custom areas not found by the analytics API; "
+                    f"sending their geometry instead: {payload['aoi']['ids']}"
+                )
+                geometry_payload = {
+                    **payload,
+                    "aoi": await self._read_feature_collection_aoi(aois),
+                }
+                response = await client.post(
+                    endpoint_url, headers=headers, json=geometry_payload
+                )
+        return response
 
     async def _poll_for_completion(
         self,
@@ -764,10 +802,9 @@ class AnalyticsHandler(DataSourceHandler):
             logger.info(f"Analytics API Request - Headers: {redacted_headers}")
             logger.info(f"Analytics API Request - Payload: {payload}")
 
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    endpoint_url, headers=headers, json=payload
-                )
+            response = await self._request_analysis(
+                endpoint_url, headers, payload, aois
+            )
 
             # Debug logging for response
             logger.info(

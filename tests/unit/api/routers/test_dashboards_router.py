@@ -82,6 +82,7 @@ def _dashboard_row(aois=None, widgets=None, sections=None, **overrides):
         name="Paraná",
         description=None,
         is_public=False,
+        eligible_for_subscription=False,
         created_at=NOW,
         updated_at=NOW,
         aois=aois or [],

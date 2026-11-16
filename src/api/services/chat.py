@@ -12,10 +12,10 @@ from langfuse.langchain import CallbackHandler
 
 from src.agent.agent_config import AgentConfigRegistry, default_registry
 from src.agent.datasets.config import catalog_layers, resolve_selected_layer
+from src.agent.datasets.tiles import to_dataset_layers
 from src.agent.graph import fetch_zeno
 from src.agent.language import resolve_language
 from src.agent.llms import resilient_structured_output
-from src.agent.subagents.pick_dataset import to_dataset_layers
 from src.api.schemas import ThreadNameOutput
 from src.shared.geocoding_helpers import fetch_aoi_bbox
 from src.shared.langfuse_tracing import auxiliary_config

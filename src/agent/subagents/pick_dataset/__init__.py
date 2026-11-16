@@ -7,14 +7,11 @@ from src.agent.subagents.pick_dataset.schema import (
 )
 from src.agent.subagents.pick_dataset.tool import (
     DatasetSelector,
-    get_dataset_layers,
     get_filtered_contextual_layers,
-    get_tile_services_for_dataset,
     pick_dataset,
     rag_candidate_datasets,
     retriever_cache,
     select_best_dataset,
-    to_dataset_layers,
 )
 
 __all__ = [
@@ -24,12 +21,9 @@ __all__ = [
     "DatasetParameter",
     "DatasetSelectionResult",
     "DatasetSelector",
-    "get_dataset_layers",
     "get_filtered_contextual_layers",
-    "get_tile_services_for_dataset",
     "pick_dataset",
     "rag_candidate_datasets",
     "retriever_cache",
     "select_best_dataset",
-    "to_dataset_layers",
 ]

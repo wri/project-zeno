@@ -22,6 +22,7 @@ from src.api.routers import (
     jobs,
     metadata,
     mosaic,
+    subscriptions,
     threads,
     thumbnails,
     traces,
@@ -185,6 +186,7 @@ app.include_router(geometry.router)
 app.include_router(thumbnails.router)
 app.include_router(insights.router)
 app.include_router(dashboards.router)
+app.include_router(subscriptions.router)
 app.include_router(alerts.router)
 app.include_router(metadata.router)
 app.include_router(admin.router)

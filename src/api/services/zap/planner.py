@@ -20,12 +20,12 @@ import pandas as pd
 
 from src.agent.datasets.config import DATASETS
 from src.agent.datasets.dates import revise_date_range
+from src.agent.datasets.tiles import get_tile_services_for_dataset
 from src.agent.subagents.pick_dataset.schema import (
     DatasetOption,
     DatasetParameter,
     DatasetSelectionResult,
 )
-from src.agent.subagents.pick_dataset.tool import get_tile_services_for_dataset
 from src.api.services.zap import options as o
 from src.api.services.zap.jev import Answer, Question, build_state, decide
 from src.api.services.zap.models import (

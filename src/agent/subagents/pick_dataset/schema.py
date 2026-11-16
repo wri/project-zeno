@@ -6,33 +6,13 @@ from src.agent.datasets.config import DATASETS, resolve_selected_layer
 from src.agent.datasets.handlers.analytics_handler import (
     TREE_COVER_LOSS_BY_DRIVER_ID,
 )
+from src.agent.datasets.tiles import ContextLayer, DatasetLayer
 
 
 class DatasetParameter(BaseModel):
     name: str
     description: str
     values: List[Any]
-
-
-class ContextLayer(BaseModel):
-    name: str
-    tile_url: Optional[str]
-
-
-class DatasetLayer(BaseModel):
-    """A dataset's primary, independently-toggleable data layer. Distinct from
-    ContextLayer, which is a mutually-exclusive masking/reference overlay —
-    sibling DatasetLayers can all be shown at once (e.g. LGMS's "agriculture"
-    and "lulucf" layers)."""
-
-    name: str
-    tile_url: str
-    # Human label and plain-language meaning (including what the layer
-    # measures, e.g. net flux vs gross emissions). `name` stays the machine id.
-    title: Optional[str] = None
-    description: Optional[str] = None
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
 
 
 class DatasetOption(BaseModel):

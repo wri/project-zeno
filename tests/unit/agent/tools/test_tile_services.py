@@ -13,13 +13,16 @@ from types import SimpleNamespace
 
 import pytest
 
+from src.agent.datasets.config import DATASETS
+from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import (
     INTEGRATED_ALERTS_ID,
     TREE_COVER_LOSS_ID,
 )
-from src.agent.subagents.pick_dataset.tool import (
+from src.agent.datasets.tiles import (
     get_dataset_layers,
     get_tile_services_for_dataset,
+    with_date_range,
 )
 
 IA_TILE = (
@@ -249,3 +252,85 @@ def test_get_dataset_layers_carries_title_and_description():
     assert agriculture.description == "Gross emissions."
     assert lulucf.title is None
     assert lulucf.description is None
+
+
+def test_with_date_range_moves_integrated_alerts_tiles_to_new_range():
+    picked = {
+        "dataset_id": INTEGRATED_ALERTS_ID,
+        "dataset_name": "Integrated alerts",
+        "context_layer": None,
+        "selected_layer": None,
+        "parameters": None,
+        "start_date": "2023-12-01",
+        "end_date": "2026-11-06",
+        "tile_url": "https://tiles.example.com/old.png",
+        "layers": [
+            {
+                "name": "Integrated alerts",
+                "tile_url": "https://tiles.example.com/old.png",
+            }
+        ],
+        "context_layers": [],
+        "reason": "Alerts answer the question.",
+    }
+
+    moved = with_date_range(picked, "2025-03-01", "2025-03-31")
+
+    assert moved["start_date"] == "2025-03-01"
+    assert moved["end_date"] == "2025-03-31"
+    assert moved["tile_url"].endswith(
+        "&start_date=2025-03-01&end_date=2025-03-31"
+    )
+    assert [layer["tile_url"] for layer in moved["layers"]] == [
+        moved["tile_url"]
+    ]
+    assert moved["reason"] == picked["reason"]
+    assert picked["tile_url"] == "https://tiles.example.com/old.png"
+
+
+def test_with_date_range_keeps_threshold_and_context_layer():
+    """A dataset selected in the UI can carry parameters without a
+    description; the canopy threshold and context layer must survive."""
+    picked = {
+        "dataset_id": TREE_COVER_LOSS_ID,
+        "dataset_name": "Tree cover loss",
+        "context_layer": "primary_forest",
+        "parameters": [{"name": "canopy_cover", "values": [50]}],
+        "start_date": "2001-01-01",
+        "end_date": "2025-12-31",
+        "tile_url": "https://tiles.example.com/old.png",
+    }
+
+    moved = with_date_range(picked, "2020-01-01", "2022-12-31")
+
+    assert "tree_cover_density_threshold=50" in moved["tile_url"]
+    assert moved["tile_url"].endswith("&start_year=2020&end_year=2022")
+    assert [layer["name"] for layer in moved["context_layers"]] == [
+        "primary_forest",
+        "canopy_cover",
+    ]
+    assert moved["parameters"] == picked["parameters"]
+    assert moved["context_layer"] == picked["context_layer"]
+
+
+@pytest.mark.parametrize(
+    "dataset_id, context_layer",
+    [
+        (ds["dataset_id"], context_layer)
+        for ds in DATASETS
+        for context_layer in [None]
+        + [layer["value"] for layer in ds.get("context_layers") or []]
+    ],
+)
+async def test_every_catalog_dataset_can_be_moved(dataset_id, context_layer):
+    """pull_data retiles whatever dataset is in state, so a catalog entry
+    that cannot be moved would break every pull of it."""
+    start, end, _ = await revise_date_range(
+        None, None, dataset_id, context_layer
+    )
+
+    moved = with_date_range(
+        {"dataset_id": dataset_id, "context_layer": context_layer}, start, end
+    )
+
+    assert (moved["start_date"], moved["end_date"]) == (start, end)

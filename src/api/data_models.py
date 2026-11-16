@@ -26,6 +26,8 @@ from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
 from sqlalchemy.orm import declarative_base, relationship
 
+from src.api.services.subscription import Dataset, SubscriptionChannel
+
 # Add Any declaration so mypy knows Base is a class.
 Base: Any = declarative_base()
 
@@ -558,6 +560,11 @@ class DashboardOrm(Base):
     name = Column(String, nullable=False)
     description = Column(String, nullable=True)
     is_public = Column(Boolean, nullable=False, server_default="false")
+    # True when the dashboard has an integrated alerts widget, which a
+    # notification email subscription needs. The backend updates it whenever the widgets change.
+    eligible_for_subscription = Column(
+        Boolean, nullable=False, server_default="false"
+    )
     created_at = Column(DateTime, nullable=False, default=datetime.now)
     updated_at = Column(
         DateTime,
@@ -583,6 +590,14 @@ class DashboardOrm(Base):
         back_populates="dashboard",
         cascade="all, delete-orphan",
         order_by="DashboardSectionOrm.position",
+    )
+    # passive_deletes: the FK's ON DELETE CASCADE clears the rows, so a
+    # dashboard delete needn't load them first.
+    subscriptions = relationship(
+        "SubscriptionOrm",
+        back_populates="dashboard",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
 
@@ -615,6 +630,67 @@ class DashboardAoiOrm(Base):
     position = Column(Integer, nullable=False, server_default="0")
 
     dashboard = relationship("DashboardOrm", back_populates="aois")
+
+
+class SubscriptionOrm(Base):
+    """One channel a dashboard owner subscribed to for one dataset. A row
+    means subscribed; unsubscribing deletes the row."""
+
+    __tablename__ = "subscriptions"
+    __table_args__ = (
+        UniqueConstraint(
+            "dashboard_id",
+            "dataset",
+            "channel",
+            name="uq_subscriptions_dashboard_dataset_channel",
+        ),
+    )
+
+    id = Column(
+        PostgresUUID,
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    dashboard_id = Column(
+        PostgresUUID,
+        ForeignKey("dashboards.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    # The dashboard's own AOI row for now: per dashboard, deleted with it.
+    aoi_id = Column(
+        PostgresUUID,
+        ForeignKey("dashboard_aois.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    dataset = Column(
+        Enum(
+            Dataset,
+            native_enum=False,
+            create_constraint=True,
+            values_callable=lambda e: [m.value for m in e],
+            name="subscription_dataset",
+        ),
+        nullable=False,
+    )
+    channel = Column(
+        Enum(
+            SubscriptionChannel,
+            native_enum=False,
+            create_constraint=True,
+            values_callable=lambda e: [m.value for m in e],
+            name="subscription_channel",
+        ),
+        nullable=False,
+    )
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.now,
+        server_default=text("now()"),
+    )
+
+    dashboard = relationship("DashboardOrm", back_populates="subscriptions")
 
 
 class DashboardSectionOrm(Base):
