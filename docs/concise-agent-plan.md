@@ -514,3 +514,130 @@ Rules that the concise prompt adds: rule 5 (about 100 words), rule 7
 | `edit_dashboard_section` | Title or description, at least one, full replacement; default section; error lists them | Description ("or both" states "at least one") |
 | `move_dashboard_widget` | `section` or `ungroup`, exactly one; position; reorder in place; ids from `inspect_view_context`; own dashboards only | Description |
 | All "Use when the user asks to ..." lines of the dashboard tools | `dashboard` skill `when_to_use` and body |
+
+## Iteration 2.1: fixed cost without hidden tools (2026-11-16)
+
+No tool is hidden, deferred or gated. Each step was measured with
+`scripts/prompt_size.py` (characters; system prompt + all tool schemas).
+
+| Step | Commit | Concise fixed cost | Default fixed cost |
+|---|---|---|---|
+| Start (after the revert of the dashboard middleware) | `d4e5ef94` | 21,690 | 33,364 |
+| 1. Review fixes and audit restorations | `efd2c657` | 22,012 (+322) | 33,364 |
+| 2. Injected `state` argument removed from the schemas | `da337d50` | 20,835 (-1,177) | 32,187 (-1,177) |
+| 3. Parameter descriptions | no change | 20,835 | 32,187 |
+| 4. One `brief` line for each skill | `df4395b9` | 19,963 (-872) | 32,187 |
+| 5. Session block in the user message | not shipped | 19,963 | 32,187 |
+
+Total: concise -1,727 characters (-8%) against the start; -38% against the
+default profile.
+
+### Step 3: no parameter has a description
+
+No parameter of a bound tool has a `description` in its schema (the
+docstrings have no parsed `Args:` sections). The 4,399 characters of
+parameter schemas in the concise profile are names, types, defaults,
+`maxLength` and the `area_of_interest` enum. These are constraints, so
+nothing is removed.
+
+### Step 5: the session block and the prompt cache
+
+Finding: langchain-google-genai puts each `SystemMessage` (at any position)
+into Gemini's system instruction. The session block is therefore part of
+the system instruction on each call.
+
+Test: behind the flag, the block went into the user's latest message
+instead. Same build, concise profile, inner-loop subset, 1 trial each,
+`input_token_details.cache_read` read from the thread state of each call:
+
+| Call | Cache read, block in system instruction | Cache read, block in user message |
+|---|---|---|
+| 1 | 1,997 | 1,997 |
+| 2 | 1,994 | 1,994 |
+| 3 | 2,000 | 2,000 |
+| 4 | 4,000 | 4,000 |
+| 5 | 3,996 | 4,002 |
+| Share of all input tokens | 43.7% | 43.3% |
+
+- The position of the block does not change the cache. The cache reads
+  come in steps of about 1,000, 2,000 and 4,000 tokens. The cached part
+  is longer than the system prompt (about 1,800 tokens). Thus the tool
+  schemas come before the block in both cases. This is an inference from
+  the numbers: Google does not document the order.
+- The smoke diff showed possible behaviour changes with the block in the
+  user message (1-082 lost `nudge_match` and `clarification_requested`;
+  1-009, 1-050 and 1-134 made no chart). It was 1 trial only, but with no
+  gain there is no reason to accept the risk.
+- Result: not shipped. The code is reverted.
+- The earlier figure "cache reads about 4,000 of 7,570 tokens" is the
+  default profile. The concise profile gets about 2,000 to 4,000.
+- To cache more, the stable prefix must be longer than the next step
+  (about 8,000 tokens), or an explicit cache (Gemini `cachedContents`)
+  must be used. Not tried.
+
+## Options not built (decision for the user)
+
+### A. Merge the dashboard tools into fewer tools
+
+Today: eight dashboard edit tools (`create_dashboard`, `add_to_dashboard`,
+`add_map_widget`, `add_text_widget`, `edit_text_widget`,
+`add_dashboard_section`, `edit_dashboard_section`,
+`move_dashboard_widget`), 5,630 of the 13,070 schema characters of the
+concise profile. `inspect_view_context` is also used outside dashboards
+and stays.
+
+- **Change.** For example three tools: `create_dashboard`,
+  `add_dashboard_item(kind: insight | map | text | section, ...)` and
+  `edit_dashboard_item(kind: text | section | move, ...)`. The tool code
+  dispatches on `kind` to the current functions. The `dashboard` skill
+  body and the audit table change with it.
+- **Expected saving.** About 2,500 to 3,000 characters (about 650 to 800
+  tokens) on each orchestrator call, 13% to 15% of the concise fixed
+  cost. Most of these tokens are in the cached prefix, so the saving in
+  cost is smaller than the saving in tokens. Latency: no measurable
+  change (prefill of 700 tokens).
+- **Risk.** Each kind needs other arguments. A flat argument list loses
+  the `required` fields of the schema: a missing `text` or `layer` becomes
+  a run-time error, not a schema error. A nested `anyOf` of objects is
+  less reliable with Gemini function calling. The model can choose the
+  wrong `kind`.
+- **How GOLD shows a regression.** Cases 1-096 to 1-102:
+  `dashboard_created`, `dashboard_aoi_match`, `dashboard_widgets_match`,
+  `dashboard_widgets_valid`; more model calls (a retry after a run-time
+  error) in the efficiency report. Gap: no case edits an existing
+  dashboard in a later turn (text edit, section rename, move). Add such
+  cases before this change.
+
+### B. Run `pick_aoi` and `pick_dataset` in the same step
+
+Today: `pick_aoi` → `pick_dataset` → `pull_data` → `generate_insights` →
+reply, five orchestrator calls. With both pickers in one step, four.
+
+- **Expected saving.** One orchestrator call for each analysis: its input
+  (about 4,700 tokens on the concise profile, 15% to 20% of a case's
+  input tokens) and its time to first token. The two subagents also run
+  at the same time, so the shorter one is hidden. Estimate: 3 to 6 s of
+  about 26 s. Not measured.
+- **What must change.**
+  1. `pick_dataset` reads `aoi_selection` from the state to remove the
+     context layers that do not cover the AOI
+     (`get_filtered_contextual_layers`). In the same step it sees no AOI,
+     or the AOI of an earlier turn. That filter must move to `pull_data`,
+     or `pick_dataset` must run it again after the AOI is known.
+  2. Both tools write `nudge` (and `messages`). LangGraph stops the run
+     with `INVALID_CONCURRENT_GRAPH_UPDATE` when two tools of one step
+     write the same key with no reducer (seen once in mt-001). `nudge`
+     needs a reducer, and a rule for two nudges in one step (for example:
+     the AOI question comes first, the dataset options wait).
+  3. The prompt rule "call tools one at a time" gets one exception.
+- **Risk.** The wrong context layer for an AOI outside the layer's extent;
+  a lost or wrong nudge when both tools ask a question; the AOI of an
+  earlier turn used for the filter in a multi-turn thread.
+- **How GOLD shows a regression.** `context_layer_match`,
+  `dataset_id_match`, `aoi_id_match`, `nudge_match`,
+  `clarification_requested` and `scope_match`; errors in the multi-turn
+  cases (mt-001, mt-004); `model_calls` in the efficiency report must
+  drop from 5 to 4.
+- **Smaller, safe part.** A reducer on `nudge` (or
+  `parallel_tool_calls=False`) is worth it without this option: it
+  removes the mt-001 error (open item 2).
