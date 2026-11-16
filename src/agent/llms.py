@@ -42,7 +42,7 @@ GEMINI_FLASH = ChatGoogleGenerativeAI(
     timeout=300,
 )
 GEMINI_FLASH_LITE = ChatGoogleGenerativeAI(
-    model="gemini-3.1-flash-lite-preview",
+    model="gemini-3.5-flash-lite",
     max_tokens=None,  # max_tokens=None means no limit
     include_thoughts=False,
     max_retries=AgentSettings.llm_max_retries,
@@ -53,7 +53,7 @@ GEMINI_FLASH_LITE = ChatGoogleGenerativeAI(
 # minimal thinking cuts latency roughly in half vs. GEMINI_FLASH_LITE's "low"
 # for tasks that need no reasoning at all, just a short constrained answer.
 GEMINI_FLASH_LITE_MINIMAL = ChatGoogleGenerativeAI(
-    model="gemini-3.1-flash-lite-preview",
+    model="gemini-3.5-flash-lite",
     max_tokens=20,
     include_thoughts=False,
     max_retries=AgentSettings.llm_max_retries,
