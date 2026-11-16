@@ -81,6 +81,7 @@ app = FastAPI(
     title="Zeno API",
     description="API for Zeno LangGraph-based agent workflow",
     version=get_version(),
+    telemetry={"tracing": False, "metrics": False, "logs": False},
 )
 
 app.add_middleware(
