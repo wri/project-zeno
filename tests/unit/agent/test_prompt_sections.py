@@ -1,20 +1,24 @@
-"""The concise profile's prompt sections (src/agent/prompts/),
-docs/concise-agent-plan.md, iteration 2."""
+"""The concise profile's prompt sections (src/agent/prompts/) and the
+deferred dashboard tools (docs/concise-agent-plan.md, iteration 2)."""
 
 import re
 
 import pytest
+from langchain_core.messages import AIMessage, HumanMessage
 
 from src.agent.agent_config import (
     BASE_PROFILE,
     CONCISE_PROFILE,
     CONCISE_REPLIES,
     DEFAULT_PROFILE,
+    DEFERRED_SKILL_PAGES,
+    DEFERRED_SKILL_TOOLS,
     AgentConfig,
     AgentConfigRegistry,
     default_registry,
 )
 from src.agent.graph import get_prompt
+from src.agent.middleware import DeferredToolsMiddleware
 from src.agent.prompts import apply_gates, gates, section_texts
 from src.agent.prompts.tool_descriptions import CONCISE_TOOL_DESCRIPTIONS
 from src.agent.skills import get_skill
@@ -112,3 +116,58 @@ def test_concise_profile_binds_the_short_descriptions():
         assert default[name].description != text
         # The copy keeps the schema and the function of the tool.
         assert concise[name].args == default[name].args
+
+
+def test_deferred_tools_are_real_dashboard_tools():
+    from src.agent.agent_config import ALL_SPECS
+
+    tools = {s.tool.name for s in ALL_SPECS}
+    for skill, names in DEFERRED_SKILL_TOOLS.items():
+        assert get_skill(skill) is not None
+        assert names <= tools
+        # Tools other skills call are never deferred.
+        assert "send_nudge" not in names
+        assert "search_insights" not in names
+        assert "inspect_view_context" not in names
+
+
+def _middleware():
+    return DeferredToolsMiddleware(DEFERRED_SKILL_TOOLS, DEFERRED_SKILL_PAGES)
+
+
+def test_dashboard_tools_hidden_until_the_skill_is_read():
+    mw = _middleware()
+    asked = [HumanMessage("Create a dashboard for Brazil")]
+    assert mw.hidden_tools({}, asked) == DEFERRED_SKILL_TOOLS["dashboard"]
+
+    read = asked + [
+        AIMessage(
+            "",
+            tool_calls=[
+                {
+                    "name": "read_skill",
+                    "args": {"name": "dashboard"},
+                    "id": "1",
+                }
+            ],
+        )
+    ]
+    assert mw.hidden_tools({}, read) == frozenset()
+
+    other = asked + [
+        AIMessage(
+            "",
+            tool_calls=[
+                {"name": "read_skill", "args": {"name": "analyze"}, "id": "1"}
+            ],
+        )
+    ]
+    assert mw.hidden_tools({}, other) == DEFERRED_SKILL_TOOLS["dashboard"]
+
+
+def test_dashboard_tools_sent_on_the_dashboard_page():
+    mw = _middleware()
+    state = {"view_context": {"page": "dashboard"}}
+    assert mw.hidden_tools(state, []) == frozenset()
+    state = {"view_context": {"page": "map"}}
+    assert mw.hidden_tools(state, []) == DEFERRED_SKILL_TOOLS["dashboard"]

@@ -8,7 +8,10 @@ estimated tokens for:
 
 - the system prompt (``get_prompt(cfg)``),
 - the bound tool schemas (``cfg.bound_tools()`` through
-  ``convert_to_openai_tool``), each tool and the total,
+  ``convert_to_openai_tool``), each tool and the total, and the part that
+  the profile leaves out of a model call until a skill is read,
+- the fixed cost of a model call: the system prompt plus the schemas that
+  are sent before any skill is read,
 - each skill body (what ``read_skill`` returns),
 - each dataset's model-instruction fields in the catalog.
 
@@ -69,6 +72,23 @@ def tool_schema_chars(tool) -> int:
     return len(json.dumps(convert_to_openai_tool(tool), ensure_ascii=False))
 
 
+def deferred_tool_names(cfg) -> frozenset[str]:
+    """The bound tools that a profile leaves out of a model call until a
+    skill is read (DeferredToolsMiddleware); empty for most profiles."""
+    from src.agent.agent_config import CONCISE_REPLIES, DEFERRED_SKILL_TOOLS
+
+    if CONCISE_REPLIES not in cfg.flags:
+        return frozenset()
+    names = cfg.tool_names()
+    return frozenset(
+        tool
+        for skill, tools in DEFERRED_SKILL_TOOLS.items()
+        if cfg.availability().has_skill(skill)
+        for tool in tools
+        if tool in names
+    )
+
+
 def profile_sizes() -> dict:
     from src.agent.agent_config import default_registry
     from src.agent.graph import get_prompt
@@ -76,10 +96,14 @@ def profile_sizes() -> dict:
     profiles = {}
     for cfg in default_registry.configs():
         tools = {t.name: tool_schema_chars(t) for t in cfg.bound_tools()}
+        deferred = deferred_tool_names(cfg)
         profiles[cfg.name] = {
             "system_prompt": len(get_prompt(cfg)),
             "tools": tools,
             "tools_total": sum(tools.values()),
+            "tools_deferred": sum(
+                c for t, c in tools.items() if t in deferred
+            ),
         }
     return profiles
 
@@ -127,7 +151,10 @@ def with_tokens(data: dict) -> dict:
             "system_prompt": _size(p["system_prompt"]),
             "tools": {t: _size(c) for t, c in p["tools"].items()},
             "tools_total": _size(p["tools_total"]),
-            "fixed_per_call": _size(p["system_prompt"] + p["tools_total"]),
+            "tools_deferred": _size(p["tools_deferred"]),
+            "fixed_per_call": _size(
+                p["system_prompt"] + p["tools_total"] - p["tools_deferred"]
+            ),
         }
     datasets = {}
     for name, fields in data["datasets"].items():
@@ -155,6 +182,10 @@ def render_text(data: dict) -> str:
         lines += ["", f"profile: {name}", head]
         lines.append(_row("system prompt", p["system_prompt"]))
         lines.append(_row("tool schemas, total", p["tools_total"]))
+        if p["tools_deferred"]["chars"]:
+            lines.append(
+                _row("  of which deferred until a skill", p["tools_deferred"])
+            )
         lines.append(
             _row("fixed cost of each model call", p["fixed_per_call"])
         )

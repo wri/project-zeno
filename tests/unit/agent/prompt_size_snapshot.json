@@ -110,10 +110,11 @@
         "pick_dataset": 1307,
         "pull_data": 492
       },
+      "tools_deferred": 0,
       "tools_total": 3437
     },
     "concise": {
-      "system_prompt": 7629,
+      "system_prompt": 7813,
       "tools": {
         "add_dashboard_section": 971,
         "add_map_widget": 877,
@@ -136,6 +137,7 @@
         "show_planet_imagery": 799,
         "update_insight_display": 941
       },
+      "tools_deferred": 6439,
       "tools_total": 14061
     },
     "curated-charts": {
@@ -162,6 +164,7 @@
         "show_planet_imagery": 1039,
         "update_insight_display": 1378
       },
+      "tools_deferred": 0,
       "tools_total": 19138
     },
     "default": {
@@ -188,6 +191,7 @@
         "show_planet_imagery": 1039,
         "update_insight_display": 1378
       },
+      "tools_deferred": 0,
       "tools_total": 18828
     },
     "experimental": {
@@ -215,6 +219,7 @@
         "show_planet_imagery": 1039,
         "update_insight_display": 1378
       },
+      "tools_deferred": 0,
       "tools_total": 19863
     },
     "lgms": {
@@ -241,6 +246,7 @@
         "show_planet_imagery": 1039,
         "update_insight_display": 1378
       },
+      "tools_deferred": 0,
       "tools_total": 18828
     }
   },
