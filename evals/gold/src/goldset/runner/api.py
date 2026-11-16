@@ -16,6 +16,7 @@ import httpx
 from langchain_core._api import suppress_langchain_beta_warning
 from langchain_core.load import loads
 
+from goldset.efficiency import turn_efficiency
 from goldset.eval_types import ExpectedData, TestResult
 from goldset.runner.artifacts import build_artifact
 from goldset.runner.base import BaseTestRunner
@@ -260,6 +261,15 @@ class APITestRunner(BaseTestRunner):
 
             api_duration_seconds = time.time() - start_time
 
+            # Info-only; a failure here must never fail the trial.
+            try:
+                efficiency = turn_efficiency(
+                    list(agent_state.get("messages") or []), query
+                )
+            except Exception as efficiency_error:
+                print(f"Warning: efficiency metrics failed: {efficiency_error}")
+                efficiency = None
+
             # Capture raw signals before scoring; capture must never fail a row.
             if artifact_sink is not None:
                 try:
@@ -314,6 +324,7 @@ class APITestRunner(BaseTestRunner):
                 overall_score=overall_score,
                 execution_time=datetime.now().isoformat(),
                 duration_seconds=api_duration_seconds,
+                efficiency=efficiency,
                 **kwargs,
             )
 

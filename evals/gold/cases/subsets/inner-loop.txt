@@ -1,0 +1,36 @@
+# Inner-loop subset: 30 cases across the case groups, for local runs of the
+# agent while a change is in progress (docs/concise-agent-plan.md).
+# Use it with: gold run --api-base-url http://localhost:8000 --ids-file cases/subsets/inner-loop.txt --trials 3
+# Case 1-046 is not in the subset: it needs ground truth from the
+# production analytics API.
+# Compare a local run only with a local run. Do not commit it.
+1-009
+1-063
+1-004
+1-050
+1-087
+1-134
+1-096
+1-097
+1-095
+1-056
+1-082
+1-002
+1-012
+1-033
+1-076
+1-104
+1-065
+1-067
+1-090
+1-094
+mt-001
+mt-004
+1-105
+1-107
+1-020
+1-060
+1-078
+1-089
+1-071
+1-080

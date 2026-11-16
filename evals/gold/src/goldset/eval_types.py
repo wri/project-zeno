@@ -45,6 +45,8 @@ class TestResult(BaseModel):
     overall_score: float
     execution_time: str
     duration_seconds: float | None = None
+    # Info-only per-case efficiency metrics (goldset.efficiency); never scored.
+    efficiency: dict[str, int | None] | None = None
 
     # AOI evaluation fields: separate binary scores (0/1/None)
     aoi_id_match_score: float | None = None

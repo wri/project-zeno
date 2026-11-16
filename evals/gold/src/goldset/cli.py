@@ -177,6 +177,8 @@ def result_to_entry(result: TestResult, uid: str) -> dict:
         entry["judge_errors"] = judge_errors
     if result.duration_seconds is not None:
         entry["latency_s"] = round(result.duration_seconds, 1)
+    if result.efficiency:
+        entry["efficiency"] = result.efficiency
     if result.trace_url:
         entry["trace_url"] = result.trace_url
     if result.error:
@@ -205,7 +207,12 @@ def merge_trials(entries: list[dict]) -> dict:
         name: majority([e["checks"].get(name) for e in entries]) for name in check_names
     }
     merged["trials"] = [
-        {"checks": e["checks"], "latency_s": e.get("latency_s")} for e in entries
+        {
+            "checks": e["checks"],
+            "latency_s": e.get("latency_s"),
+            **({"efficiency": e["efficiency"]} if e.get("efficiency") else {}),
+        }
+        for e in entries
     ]
     # Errors from ANY trial must survive the merge: the base copy above only
     # carries the final trial's metadata.
@@ -235,9 +242,36 @@ def _harness_sha() -> str:
         return "unknown"
 
 
+def read_ids_file(path: Path) -> list[str]:
+    """Case ids from a file: one for each line. A ``#`` starts a comment (a
+    whole line or the end of a line); blank lines are skipped."""
+    ids: list[str] = []
+    for line in path.read_text().splitlines():
+        text = line.split("#", 1)[0].strip()
+        if text:
+            ids.append(text)
+    return ids
+
+
+def merge_ids(ids: list[str] | None, ids_file: Path | None) -> list[str] | None:
+    """The ``--id`` values followed by the ``--ids-file`` values, without
+    duplicates. None when neither is given (all cases)."""
+    if not ids and ids_file is None:
+        return None
+    merged = list(ids or [])
+    if ids_file is not None:
+        merged += read_ids_file(ids_file)
+    return list(dict.fromkeys(merged))
+
+
 def select_cases(args: argparse.Namespace) -> list[Case]:
     excluded = {s.strip().lower() for s in args.status_exclude.split(",") if s.strip()}
     cases = [case for _path, case, _uid in load_store(args.cases_dir)]
+    if args.id:
+        known = {c.id.lower() for c in cases}
+        unknown = [i for i in args.id if i.lower() not in known]
+        if unknown:
+            raise ValueError("unknown case id(s): " + ", ".join(unknown))
     cases = [c for c in cases if c.status.lower() not in excluded]
     if args.id:
         wanted = {i.lower() for i in args.id}
@@ -472,8 +506,7 @@ def prefetch_ground_truth(args: argparse.Namespace, cases: list[Case]) -> bool:
         base_url=args.analytics_base_url,
     )
     print(
-        f"prefetch: {len(targets)} ground-truth case(s) "
-        f"from {args.analytics_base_url}",
+        f"prefetch: {len(targets)} ground-truth case(s) from {args.analytics_base_url}",
         flush=True,
     )
     started_fetch = time.monotonic()
@@ -565,7 +598,12 @@ def resume_run(args: argparse.Namespace) -> int:
     os.environ[JUDGE_BACKEND_ENV_VAR] = args.judge_backend
 
     done_uids = {entry["uid"] for entry in done}
-    remaining = [c for c in select_cases(args) if c.uid not in done_uids]
+    try:
+        selected = select_cases(args)
+    except ValueError as exc:
+        print(f"error: {exc}")
+        return 1
+    remaining = [c for c in selected if c.uid not in done_uids]
     print(
         f"resume {args.run_id}: {len(done)} case(s) already scored, "
         f"{len(remaining)} remaining against {args.resolved_url}",
@@ -663,6 +701,13 @@ def main() -> int:
     run.add_argument(
         "--id", action="append", default=None, help="run only this case id (repeatable)"
     )
+    run.add_argument(
+        "--ids-file",
+        type=Path,
+        default=None,
+        help="run only the case ids in this file (one for each line, # comments); "
+        "adds to --id. An unknown id stops the run before any API call.",
+    )
     run.add_argument("--group", default=None, help="substring match on group")
     run.add_argument("--cases-dir", type=Path, default=Path("cases/v2"))
     run.add_argument("--results-dir", type=Path, default=Path("results"))
@@ -724,7 +769,12 @@ def main() -> int:
     if manifest is None:
         print(f"no manifest under {args.cases_dir}")
         return 1
-    cases = select_cases(args)
+    try:
+        args.id = merge_ids(args.id, args.ids_file)
+        cases = select_cases(args)
+    except (OSError, ValueError) as exc:
+        print(f"error: {exc}")
+        return 1
     if not cases:
         print("no cases selected")
         return 1
@@ -792,8 +842,7 @@ def main() -> int:
         flush=True,
     )
     print(
-        f"  in-flight ledger: {partial} "
-        f"(if killed: gold run --resume {args.run_id})",
+        f"  in-flight ledger: {partial} (if killed: gold run --resume {args.run_id})",
         flush=True,
     )
     entries = asyncio.run(
