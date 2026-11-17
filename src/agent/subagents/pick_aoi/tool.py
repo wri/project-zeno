@@ -1,8 +1,11 @@
 import asyncio
+import os
 import re
+from functools import partial
 from typing import (
     Annotated,
     Any,
+    Callable,
     Dict,
     Literal,
     NamedTuple,
@@ -26,6 +29,9 @@ from src.agent.config import AgentSettings
 from src.agent.i18n import t
 from src.agent.language import DEFAULT_LANGUAGE
 from src.agent.llms import resilient_structured_output
+from src.agent.subagents.pick_aoi.analytics_aoi_search import (
+    AnalyticsApiAoiSearch,
+)
 from src.agent.subagents.pick_aoi.global_queries import (
     handle_global_request,
     is_global_request,
@@ -36,6 +42,7 @@ from src.agent.subagents.pick_aoi.selection_name_util import (
     build_selection_name,
 )
 from src.agent.subagents.pick_aoi.types import (
+    AoiCandidateSearch,
     AreaOfInterestType,
     aoi_to_table,
 )
@@ -119,10 +126,38 @@ async def query_aoi_database(
     )
 
 
+class DatabaseAoiSearch:
+    """Finds AOIs by name in Zeno's own database."""
+
+    async def candidates(
+        self,
+        place_name: str,
+        aoi_type: Optional[AreaOfInterestType],
+        limit: int,
+    ) -> pd.DataFrame:
+        return await query_aoi_database(place_name, aoi_type, limit)
+
+
+def aoi_search_for(setting: str) -> AoiCandidateSearch:
+    """The AOI search the `AOI_SEARCH` setting names."""
+    searches: Dict[str, Callable[[], AoiCandidateSearch]] = {
+        "database": DatabaseAoiSearch,
+        "analytics_api": partial(
+            AnalyticsApiAoiSearch,
+            os.getenv(
+                "ANALYTICS_API_BASE_URL",
+                "https://analytics.globalnaturewatch.org",
+            ),
+        ),
+    }
+    return searches[setting]()
+
+
 async def query_aoi_database_multiterm(
     search_terms: list[str],
     aoi_type: Optional[AreaOfInterestType],
     result_limit: int = RESULT_LIMIT,
+    search: Optional[AoiCandidateSearch] = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Find the AOIs matching any of *search_terms*, merged.
 
@@ -155,9 +190,10 @@ async def query_aoi_database_multiterm(
     if not search_terms:
         raise ValueError("query_aoi_database_multiterm needs a search term")
 
+    search = search or DatabaseAoiSearch()
     frames = await asyncio.gather(
         *[
-            query_aoi_database(term, aoi_type, result_limit)
+            search.candidates(term, aoi_type, result_limit)
             for term in search_terms
         ]
     )
@@ -789,6 +825,7 @@ async def _resolve_place(
     question: str,
     aoi_type: Optional[AreaOfInterestType],
     normalized: bool,
+    search: AoiCandidateSearch,
 ) -> _PlaceResolution:
     """Search one place and pick its AOI, planned once at the top.
 
@@ -818,14 +855,18 @@ async def _resolve_place(
         if effective_type is None:
             effective_type = place.area_type
 
-    merged, primary = await query_aoi_database_multiterm(terms, effective_type)
+    merged, primary = await query_aoi_database_multiterm(
+        terms, effective_type, search=search
+    )
     if merged.empty and normalized and effective_type is not None:
         logger.info(
             "GEOCODER: no %s candidates for %r; retrying every source",
             effective_type,
             place.place,
         )
-        merged, primary = await query_aoi_database_multiterm(terms, None)
+        merged, primary = await query_aoi_database_multiterm(
+            terms, None, search=search
+        )
 
     if normalized:
         # No model chooses among candidates: identical candidates always
@@ -896,8 +937,12 @@ class Geocoder:
          best candidate, expands subregions and validates the selection.
 
     All place / country / subregion logic lives behind this boundary, so the
-    tool call itself stays trivial.
+    tool call itself stays trivial. Candidates come from the given search,
+    Zeno's own database by default.
     """
+
+    def __init__(self, search: Optional[AoiCandidateSearch] = None):
+        self.search = search or DatabaseAoiSearch()
 
     async def resolve(
         self,
@@ -1004,7 +1049,9 @@ class Geocoder:
         parent_type = None if subregion else aoi_type
         resolutions = await asyncio.gather(
             *[
-                _resolve_place(place, question, parent_type, normalized)
+                _resolve_place(
+                    place, question, parent_type, normalized, self.search
+                )
                 for place in places
             ]
         )
@@ -1235,7 +1282,8 @@ async def pick_aoi(
     it returns a clarifying question for the user instead.
     """
     language = (state or {}).get("language") or DEFAULT_LANGUAGE
-    return await Geocoder().resolve(
+    search = aoi_search_for(AgentSettings.aoi_search)
+    return await Geocoder(search).resolve(
         question, area_of_interest, tool_call_id, language
     )
 

@@ -1,11 +1,15 @@
 from unittest.mock import MagicMock
 
+import httpx
 import pandas as pd
 import pytest
 from google.genai.errors import ServerError
 
 from src.agent.config import AgentSettings
 from src.agent.subagents.pick_aoi import Geocoder, pick_aoi
+from src.agent.subagents.pick_aoi.analytics_aoi_search import (
+    AnalyticsApiAoiSearch,
+)
 from src.agent.subagents.pick_aoi.tool import (
     AOIIndex,
     ExtractedPlace,
@@ -1369,3 +1373,58 @@ async def test_a_resubmitted_nudge_option_is_searched_without_its_decoration(
 
     assert [call[0] for call in calls] == ["Paris, Île-de-France, France"]
     assert command.update["aoi_selection"]["aois"][0]["src_id"] == "FRA.8.3_1"
+
+
+def analytics_search_returning(matches, requests):
+    def handle(request):
+        requests.append(request)
+        return httpx.Response(200, json={"data": matches, "status": "success"})
+
+    return AnalyticsApiAoiSearch(
+        "http://analytics.test", transport=httpx.MockTransport(handle)
+    )
+
+
+@pytest.mark.asyncio
+async def test_the_geocoder_finds_candidates_through_its_search(monkeypatch):
+    def fail_database_search(*args, **kwargs):
+        raise AssertionError("the database search must not be used")
+
+    monkeypatch.setattr(
+        tool_module, "query_aoi_database", fail_database_search
+    )
+    requests = []
+    search = analytics_search_returning(
+        [
+            {
+                "aoi_type": "admin",
+                "aoi_id": "BRA.14",
+                "name": "Pará",
+                "display_name": "Pará, Brazil",
+                "bbox": [-58.9, -9.8, -46.1, 2.6],
+            }
+        ],
+        requests,
+    )
+
+    command = await Geocoder(search).lookup(
+        places=[ExtractedPlace(place="Pará")],
+        question="tree cover loss in Para",
+        tool_call_id="tc-1",
+    )
+
+    assert requests[0].url.params["q"] == "Pará"
+    assert command.update["aoi_selection"]["aois"][0]["src_id"] == "BRA.14_1"
+
+
+def test_the_aoi_search_setting_chooses_the_analytics_api():
+    from src.agent.subagents.pick_aoi.analytics_aoi_search import (
+        AnalyticsApiAoiSearch,
+    )
+    from src.agent.subagents.pick_aoi.tool import (
+        DatabaseAoiSearch,
+        aoi_search_for,
+    )
+
+    assert isinstance(aoi_search_for("analytics_api"), AnalyticsApiAoiSearch)
+    assert isinstance(aoi_search_for("database"), DatabaseAoiSearch)

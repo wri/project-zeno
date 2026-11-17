@@ -26,6 +26,9 @@ class _AgentSettings(BaseSettings):
     small_fallback_models: str = Field(
         default="gemini-flash-lite", alias="SMALL_FALLBACK_MODELS"
     )
+    # Where pick_aoi looks areas up by name: "database" (Zeno's own AOI
+    # tables) or "analytics_api" (the analytics API's area search)
+    aoi_search: str = Field(default="database", alias="AOI_SEARCH")
     # Retries handled by ModelRetryMiddleware, so default should be 0
     # this is only used in unit tests
     llm_max_retries: int = Field(default=0, alias="LLM_MAX_RETRIES")

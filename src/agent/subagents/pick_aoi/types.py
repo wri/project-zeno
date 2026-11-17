@@ -7,6 +7,9 @@ in tool.py so the prompt can import them without importing the tool.
 """
 
 from enum import StrEnum
+from typing import Optional, Protocol
+
+import pandas as pd
 
 
 class AreaOfInterestType(StrEnum):
@@ -22,3 +25,15 @@ aoi_to_table = {
     AreaOfInterestType.LANDMARK: "landmark",
     AreaOfInterestType.KBA: "kba",
 }
+
+
+class AoiCandidateSearch(Protocol):
+    """Finds the AOIs whose names match a place, as rows with at least the
+    columns ``source, src_id, name, subtype, bbox, similarity_score``."""
+
+    async def candidates(
+        self,
+        place_name: str,
+        aoi_type: Optional[AreaOfInterestType],
+        limit: int,
+    ) -> pd.DataFrame: ...
