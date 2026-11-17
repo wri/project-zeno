@@ -154,7 +154,8 @@ async def add_to_dashboard(
         dashboard.name,
         (
             f"Added insight {target_insight} to dashboard "
-            f"'{dashboard.name}' ({dashboard.id}){placement}.\n"
+            f"'{dashboard.name}' ({dashboard.id}){placement} as widget "
+            f"{widget_id}.\n"
             f"Insight: {_insight_summary(insight)}"
         ),
         tool_call_id,

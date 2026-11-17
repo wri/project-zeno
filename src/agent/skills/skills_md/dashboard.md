@@ -187,9 +187,10 @@ or moves a widget. Both default to the dashboard in state or on screen.
 
 # Changing a dashboard
 
-- Before you group or move widgets, call `inspect_view_context`: it lists the
-  sections, the widgets in each and the widget ids. Use a matching section;
-  do not make a near-duplicate.
+- To move a widget, you need its widget id (not the insight id). The reply
+  that added the widget gives it. For a dashboard on screen,
+  `inspect_view_context` lists the sections, the widgets in each and their
+  ids. Use a matching section; do not make a near-duplicate.
 - Add a widget to a section: pass `section` (a title or id).
 - Move a widget that is on the dashboard: `edit_dashboard_item(kind="move",
   widget_id, section)` or `ungroup=true`.

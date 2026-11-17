@@ -117,7 +117,7 @@
       "tools": {
         "add_dashboard_item": 1792,
         "create_dashboard": 344,
-        "edit_dashboard_item": 1552,
+        "edit_dashboard_item": 1658,
         "generate_insights": 261,
         "inspect_view_context": 559,
         "pick_aoi": 921,
@@ -131,7 +131,7 @@
         "show_planet_imagery": 878,
         "update_insight_display": 834
       },
-      "tools_total": 11128
+      "tools_total": 11234
     },
     "curated-charts": {
       "system_prompt": 15041,

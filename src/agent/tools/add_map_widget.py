@@ -167,7 +167,7 @@ async def add_map_widget(
                 if target_section
                 else ""
             )
-            + "."
+            + f" as widget {widget_id}."
         ),
         tool_call_id,
     )

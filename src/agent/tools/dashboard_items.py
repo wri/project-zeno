@@ -235,7 +235,9 @@ EDIT_DASHBOARD_ITEM_DESCRIPTION = (
     '`kind="move"`: move the widget `widget_id` into `section` or back to '
     "the top level (`ungroup=true`), exactly one of the two; `position` sets "
     "the slot (default last); to reorder only, name the section it is in. "
-    "Get widget ids from inspect_view_context. " + _DEFAULT_DASHBOARD
+    "A widget id is in the reply that added the widget; "
+    "inspect_view_context lists the ids of the dashboard on screen. "
+    "An insight id is not a widget id. " + _DEFAULT_DASHBOARD
 )
 
 add_dashboard_item.description = ADD_DASHBOARD_ITEM_DESCRIPTION
