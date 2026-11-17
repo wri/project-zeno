@@ -204,6 +204,15 @@ USER_MESSAGE_SELECTION_RULES = SELECTION_RULES.replace(
     "the request that no dataset gives (why something happened, what the "
     "figures are for, a policy, a commodity) is not a reason to choose no "
     "dataset: the agent explains that part.",
+) + (
+    # The tree cover loss hints make primary forest the default for "general
+    # forest loss" in the humid tropics. With the user's message, the
+    # selection applied it to plain "tree cover loss in Antioquia in 2023"
+    # (45 of 178 tree cover loss attempts, BENCHMARK 2026-11-17).
+    "\n- Select a context layer only when the request names it or asks for "
+    "a kind of forest (primary, intact, natural, plantation). A plain "
+    '"tree cover loss" request gets no context layer, also in the humid '
+    "tropics."
 )
 assert USER_MESSAGE_SELECTION_RULES != SELECTION_RULES
 
