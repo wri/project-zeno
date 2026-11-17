@@ -1,5 +1,7 @@
 # BENCHMARK 2026-draft-5: concise profile with curated charts (2026-11-17)
 
+> **Update, later on 2026-11-17.** After the changes in "Changes after the run", a full run on `0cf9eed5` gives a North Star of **78.4% (211 of 269)**, the same as prod, and 66.2% right every time (prod 65.1%). See "Full run on `0cf9eed5`". The sections below that one are about the first run.
+
 ## Result
 
 | | Prod baseline (default profile) | This PR (`ff=concise`) |
@@ -51,7 +53,49 @@ Back: the caveat questions `ch-causal-018`, `ch-causal-026` and `ch-comp-173`; t
 
 Still failing: `ch-quant-169` (the selection adds a context layer), `ch-port-018` (context layer), `ch-quant-153` (needs two datasets), `ch-comp-031`, `ch-comp-157`, `ch-port-003`, `ch-trend-037` and `ch-trend-080` (right on 1 of 3). Gains lost again: `ch-mon-035` (`pick_aoi` does not find the Wampis territory), `ch-causal-012` (answers from the WRI posts without a pull), `ch-quant-166`, `ch-quant-172` and `ch-quant-199`.
 
-With the other 228 questions as in the full run, the North Star would be about 216 of 269 (80.3%), against 78.4% on prod. This is an estimate: the selection change can also change the other 228 questions. A full run is necessary before this number is reported.
+With the other 228 questions as in the full run, the estimate was about 216 of 269 (80.3%). The full run on `0cf9eed5` gave 211 of 269 (see "Full run on `0cf9eed5`").
+
+## Full run on `0cf9eed5`
+
+The same set, 3 attempts, local, `ff=concise`, with the fixed `chart_well_formed` check from the start (no rescore).
+
+| | Prod baseline | First run | `0cf9eed5` |
+|---|---|---|---|
+| **North Star** | **78.4%** (211) | 76.6% (206) | **78.4%** (211; Wilson 95% CI 73.1 to 82.9%) |
+| Right every time | 65.1% | 60.6% | 66.2% |
+| Right at least once | 86.2% | 85.9% | 84.0% |
+| Consistency | 175 of 211 | 163 of 206 | 178 of 211 |
+| Failure modes (scope, retrieval, analysis, explanation) | 2, 31, 7, 18 | 1, 31, 7, 24 | 0, 27, 10, 21 |
+
+| Type | Prod | First run | `0cf9eed5` |
+|---|---|---|---|
+| Quantification | 70 of 84 | 73 | 65 |
+| Comparison | 46 of 57 | 46 | 50 |
+| Monitoring | 30 of 41 | 31 | 33 |
+| Causal | 20 of 31 | 14 | 17 |
+| Trend | 20 of 23 | 18 | 21 |
+| Refusal | 5 of 9 | 5 | 6 |
+| Geospatial | 8 of 9 | 8 | 8 |
+| Portfolio | 6 of 9 | 5 | 5 |
+| Dataset | 6 of 6 | 6 | 6 |
+
+Against prod, 20 questions gained and 20 lost (McNemar p = 1.0). Against the first run, 19 gained and 14 lost (p = 0.49). The estimate of 80.3% from the rerun of 41 questions did not hold: the other questions changed too.
+
+**Unasked primary forest.** Of the 14 questions lost against the first run, 5 (`ch-quant-151`, `ch-quant-165`, `ch-quant-166`, `ch-quant-174`, `ch-quant-177`) pulled tree cover loss with the primary forest layer for a plain "tree cover loss" question. The selection gave the reason: primary forest is "the default for general forest loss requests" in the humid tropics. This default is in the tree cover loss selection hints and occurs on prod too, but less: unasked primary forest in 19 tree cover loss attempts on prod, 13 in the first run and 45 in this run.
+
+Offline, on 37 plain tree cover loss questions (2 calls each):
+
+| Selection input | Primary forest added |
+|---|---|
+| Orchestrator's query (first run) | 27 of 74 |
+| User's message (`0cf9eed5`) | 25 of 74 |
+| User's message and a rule: a layer only when the request names one (`3a9075df`) | 3 of 74 |
+
+So the user's message does not cause the default. The live difference also has run-to-run variance. `3a9075df` adds the rule for the concise profile. Natural forest stays on EUDR and sourcing questions after 2020, where it is the layer that the regulation uses.
+
+**Other losses against the first run:** `ch-causal-012` and `ch-causal-017` stop at a dataset choice; `ch-quant-172` answers from WRI posts without a pull; `ch-mon-035` (`pick_aoi` does not find the Wampis territory); `ch-quant-033` (period); `ch-comp-162` (figure); `ch-port-011`, `ch-quant-186` and `ch-quant-199` (text, 1 of 3).
+
+`3a9075df` has no benchmark run yet.
 
 ## What ran
 
