@@ -26,6 +26,7 @@ EXPECTED_ORDER = (
     "dashboard_created",
     "dashboard_aoi",
     "dashboard_widgets",
+    "dashboard_layout",
     "guards",
     "analysis_checks",
     "traceability",
@@ -41,7 +42,7 @@ def test_registry_order_matches_legacy_merge_order():
 def test_every_known_score_field_is_owned_exactly_once():
     # Pinned so that adding or removing a score field is a deliberate,
     # visible edit.
-    assert len(ALL_SCORE_FIELDS) == len(set(ALL_SCORE_FIELDS)) == 30
+    assert len(ALL_SCORE_FIELDS) == len(set(ALL_SCORE_FIELDS)) == 32
 
 
 def test_run_evaluations_with_no_expectations_scores_nothing():

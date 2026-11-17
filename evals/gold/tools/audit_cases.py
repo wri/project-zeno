@@ -75,6 +75,8 @@ DETERMINISTIC_FIELDS = {
     "nudge_options",
     "dashboard_created",
     "dashboard_widgets",
+    "dashboard_sections",
+    "dashboard_text",
     "scope",
     "chart_type",
     "class_values",

@@ -4,6 +4,7 @@ from .clarification_evaluator import evaluate_clarification
 from .dashboard_evaluator import (
     evaluate_dashboard_aoi,
     evaluate_dashboard_created,
+    evaluate_dashboard_layout,
     evaluate_dashboard_widgets,
 )
 from .data_pull_evaluator import (
@@ -20,6 +21,7 @@ __all__ = [
     "evaluate_clarification",
     "evaluate_dashboard_aoi",
     "evaluate_dashboard_created",
+    "evaluate_dashboard_layout",
     "evaluate_dashboard_widgets",
     "evaluate_data_pull",
     "evaluate_dataset_selection",

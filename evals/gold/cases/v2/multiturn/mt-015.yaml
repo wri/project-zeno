@@ -1,0 +1,31 @@
+id: mt-015
+uid: f950e67f2aaf8e46
+status: ready
+group: multiturn
+turns:
+- query: How much tree cover loss did Colombia have in 2023?
+  expected:
+    aoi_ids: COL
+    dataset_id: '4'
+    scope: analyse
+- query: Add that chart to a new dashboard
+  expected:
+    dashboard_created: 'TRUE'
+    dashboard_widgets: insight
+  deltas:
+    retain:
+    - aoi_ids
+    - dataset_id
+- query: Put the chart in a section called Trends
+  expected:
+    dashboard_created: 'TRUE'
+    dashboard_widgets: insight
+    dashboard_sections: 'Trends: insight'
+  deltas:
+    retain:
+    - dashboard_id
+notes:
+  scenario: add an existing insight to a new dashboard, then group it in a section (dashboard
+    edit tools)
+  dashboard_created: the last turn sets it because the thread keeps dashboard_id; retain checks
+    that no new dashboard was made

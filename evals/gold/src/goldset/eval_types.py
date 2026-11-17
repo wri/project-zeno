@@ -119,6 +119,10 @@ class TestResult(BaseModel):
     dashboard_widgets_match_score: float | None = None
     actual_dashboard_widget_types: str | None = None
     dashboard_widgets_valid_score: float | None = None
+    dashboard_sections_match_score: float | None = None
+    actual_dashboard_sections: str | None = None
+    dashboard_text_match_score: float | None = None
+    actual_dashboard_text: str | None = None
 
     # Ground-truth evaluation fields
     ground_truth_match_score: float | None = None
@@ -144,6 +148,8 @@ class TestResult(BaseModel):
     expected_suggested_datasets: list[str] = []
     expected_dashboard_created: bool | None = None
     expected_dashboard_widgets: list[str] | None = None
+    expected_dashboard_sections: dict[str, list[str]] | None = None
+    expected_dashboard_text: list[str] | None = None
     expected_nudge_type: str = ""
     expected_nudge_options: list[str] = []
     test_group: str = "unknown"
@@ -174,6 +180,8 @@ class TestResult(BaseModel):
     dashboard_aoi_match_score_std: float | None = None
     dashboard_widgets_match_score_std: float | None = None
     dashboard_widgets_valid_score_std: float | None = None
+    dashboard_sections_match_score_std: float | None = None
+    dashboard_text_match_score_std: float | None = None
     nudge_match_score_std: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -200,6 +208,8 @@ class ExpectedData(BaseModel):
     expected_suggested_datasets: list[str] = []
     expected_dashboard_created: bool | None = None
     expected_dashboard_widgets: list[str] | None = None
+    expected_dashboard_sections: dict[str, list[str]] | None = None
+    expected_dashboard_text: list[str] | None = None
     expected_nudge_type: str = ""
     expected_nudge_options: list[str] = []
     expected_ground_truth: str = ""  # the selector, from the case
@@ -211,6 +221,31 @@ class ExpectedData(BaseModel):
     test_id: str = ""
     test_group: str = "unknown"
     status: str = "ready"
+
+    @field_validator("expected_dashboard_sections", mode="before")
+    @classmethod
+    def split_dashboard_sections(
+        cls, v: str | dict[str, list[str]] | None
+    ) -> dict[str, list[str]] | None:
+        """Parse 'Title: type, type; Other title' into title -> widget types."""
+        if v is None or isinstance(v, dict):
+            return v or None
+        sections: dict[str, list[str]] = {}
+        for item in str(v).split(";"):
+            if not item.strip():
+                continue
+            title, _, types = item.partition(":")
+            sections[title.strip()] = [t.strip() for t in types.split(",") if t.strip()]
+        return sections or None
+
+    @field_validator("expected_dashboard_text", mode="before")
+    @classmethod
+    def split_dashboard_text(cls, v: str | list[str] | None) -> list[str] | None:
+        """Split semicolon-separated phrases into a list of strings."""
+        if v is None or isinstance(v, list):
+            return v or None
+        items = [item.strip() for item in str(v).split(";") if item.strip()]
+        return items or None
 
     @field_validator("expected_dashboard_widgets", mode="before")
     @classmethod

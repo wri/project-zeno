@@ -75,6 +75,8 @@ This is the canonical check-to-bucket map; other docs link here. Bucket tags com
 | [`dashboard_aoi_match`](#dashboard_aoi_match) | output | gating | deterministic | `dashboard_evaluator.evaluate_dashboard_aoi` | `aoi_ids`, and a dashboard was fetched |
 | [`dashboard_widgets_match`](#dashboard_widgets_match) | output | gating | deterministic | `dashboard_evaluator.evaluate_dashboard_widgets` | `dashboard_widgets`, and a dashboard was fetched |
 | [`dashboard_widgets_valid`](#dashboard_widgets_valid) | output | gating | deterministic | `dashboard_evaluator.evaluate_dashboard_widgets` | a fetched dashboard with widgets, or `dashboard_widgets` with none delivered |
+| [`dashboard_sections_match`](#dashboard_sections_match) | output | gating | deterministic | `dashboard_evaluator.evaluate_dashboard_layout` | `dashboard_sections`, and a dashboard was fetched |
+| [`dashboard_text_match`](#dashboard_text_match) | output | gating | deterministic | `dashboard_evaluator.evaluate_dashboard_layout` | `dashboard_text`, and a dashboard was fetched |
 | [`clarification_requested`](#clarification_requested) | scope | gating | judge | `clarification_evaluator.evaluate_clarification` | `clarification` |
 | [`nudge_match`](#nudge_match) | scope | gating | deterministic | `nudge_evaluator.evaluate_nudge` | `nudge_type` or `nudge_options` |
 | [`scope_match`](#scope_match) | scope | gating | deterministic | `scope_checks.evaluate_scope` | `scope` |
@@ -491,6 +493,30 @@ Output · gating · deterministic · `dashboard_evaluator.evaluate_dashboard_wid
 - There is no way to write "expect zero widgets" (an empty value means no expectation), so an empty dashboard on a case with no widget expectation scores `null`.
 
 **Why it is built this way.** An empty dashboard fails only when widgets were asked for. Failing it otherwise would reward the agent for adding widgets nobody requested.
+
+## `dashboard_sections_match`
+
+Output · gating · deterministic · `dashboard_evaluator.evaluate_dashboard_layout` · runs when: `dashboard_sections` is set and a dashboard was fetched
+
+**Measures.** The dashboard's sections and the widget types in each. `dashboard_sections` is `Title: type, type; Other title`. Titles compare case-insensitively. The types compare as a multiset; a title with no types asks only that the section exists. Sections that the case does not name are not checked.
+
+**Scores.** `1.0` when each named section exists with its widget types · `0.0` when a section is missing or has other widgets · `null` when `dashboard_sections` is not set or there is no dashboard payload.
+
+**Evidence.** `actuals.dashboard_sections_match` (failing rows only): `actual_dashboard_sections`, title (lowercase) to widget types.
+
+**Why it is built this way.** The cases for dashboard edits in a later turn (add a section, move a widget, rename a section) need a check on the structure, not only on the widget types.
+
+## `dashboard_text_match`
+
+Output · gating · deterministic · `dashboard_evaluator.evaluate_dashboard_layout` · runs when: `dashboard_text` is set and a dashboard was fetched
+
+**Measures.** Whether each phrase of `dashboard_text` (`;`-separated) is in at least one text widget, case-insensitively.
+
+**Scores.** `1.0` when each phrase is found · `0.0` when a phrase is not in any text widget · `null` when `dashboard_text` is not set or there is no dashboard payload.
+
+**Evidence.** `actuals.dashboard_text_match` (failing rows only): `actual_dashboard_text`, the first 200 characters of each text widget.
+
+**Triage.** Use short phrases that any correct wording contains, such as a figure (`25%`). The check does not show that an old phrase was removed.
 
 ## `clarification_requested`
 

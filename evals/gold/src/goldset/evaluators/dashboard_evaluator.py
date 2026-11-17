@@ -182,3 +182,71 @@ def evaluate_dashboard_widgets(
         result["dashboard_widgets_valid_score"] = None
 
     return result
+
+
+def _widget_text(widget: dict[str, Any]) -> str:
+    config = widget.get("config") or {}
+    return str(config.get("text") or widget.get("text") or "")
+
+
+def evaluate_dashboard_layout(
+    dashboard: dict[str, Any] | None,
+    expected_dashboard_sections: dict[str, list[str]] | None,
+    expected_dashboard_text: list[str] | None,
+) -> dict[str, Any]:
+    """Check the dashboard's sections and the content of its text widgets.
+
+    These checks are for edits in a later turn: a section added or renamed, a
+    widget moved into a section, a text block written or changed.
+
+    Args:
+        dashboard: Fetched dashboard payload (GET /api/dashboards/{id}), or None
+        expected_dashboard_sections: Section title -> widget types in that
+            section. Titles compare case-insensitively. The widget types
+            compare as a multiset; an empty list asks only that the section
+            exists. Sections that are not named are not checked.
+        expected_dashboard_text: Phrases. Each must be in at least one text
+            widget (case-insensitive).
+
+    Returns:
+        Dict with dashboard_sections_match_score, dashboard_text_match_score
+        (0/1/None) and actual_dashboard_sections, actual_dashboard_text.
+
+    """
+    result: dict[str, Any] = {
+        "dashboard_sections_match_score": None,
+        "dashboard_text_match_score": None,
+        "actual_dashboard_sections": None,
+        "actual_dashboard_text": None,
+    }
+    if dashboard is None:
+        return result
+
+    widgets = dashboard.get("widgets") or []
+    sections = dashboard.get("sections") or []
+    by_section: dict[str, list[str]] = {}
+    for section in sections:
+        types = [
+            w.get("widget_type", "")
+            for w in widgets
+            if str(w.get("section_id")) == str(section.get("id"))
+        ]
+        by_section[str(section.get("title", "")).strip().lower()] = types
+    result["actual_dashboard_sections"] = str(by_section)
+
+    if expected_dashboard_sections:
+        ok = True
+        for title, types in expected_dashboard_sections.items():
+            actual = by_section.get(title.strip().lower())
+            if actual is None or (types and Counter(actual) != Counter(types)):
+                ok = False
+        result["dashboard_sections_match_score"] = 1.0 if ok else 0.0
+
+    texts = [_widget_text(w) for w in widgets if w.get("widget_type") == "text"]
+    result["actual_dashboard_text"] = " | ".join(t[:200] for t in texts)
+    if expected_dashboard_text:
+        joined = [t.lower() for t in texts]
+        ok = all(any(p.lower() in t for t in joined) for p in expected_dashboard_text)
+        result["dashboard_text_match_score"] = 1.0 if ok else 0.0
+
+    return result

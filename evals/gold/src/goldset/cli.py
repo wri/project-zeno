@@ -129,6 +129,8 @@ ACTUALS_FOR_CHECK = {
     "dashboard_created": ("actual_dashboard_created",),
     "dashboard_aoi_match": ("actual_dashboard_aoi_id", "actual_dashboard_aoi_count"),
     "dashboard_widgets_match": ("actual_dashboard_widget_types",),
+    "dashboard_sections_match": ("actual_dashboard_sections",),
+    "dashboard_text_match": ("actual_dashboard_text",),
     "web_fallback": ("actual_web_links",),
     "pull_source_match": ("actual_pull_source",),
     "ground_truth_match": ("agent_ground_truth",),

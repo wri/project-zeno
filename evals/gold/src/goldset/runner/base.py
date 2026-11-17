@@ -200,6 +200,10 @@ class BaseTestRunner(ABC):
             scores.append(evaluations.get("dashboard_widgets_match_score"))
         if expected_data.expected_dashboard_created:
             scores.append(evaluations.get("dashboard_widgets_valid_score"))
+        if expected_data.expected_dashboard_sections:
+            scores.append(evaluations.get("dashboard_sections_match_score"))
+        if expected_data.expected_dashboard_text:
+            scores.append(evaluations.get("dashboard_text_match_score"))
 
         if expected_data.expected_answer:
             scores.append(evaluations.get("charts_answer_score"))

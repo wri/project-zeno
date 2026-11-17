@@ -6,9 +6,9 @@ is stale (`--check`). Coverage counts use **gating** checks only;
 info-only checks are listed separately (they never enter a verdict).
 Terms are defined in the [README glossary](../../README.md#glossary).
 
-`caseset_version 295e4a6f3b7f8f11` · 145 cases · done 96 · not doing 30 · ready 13 · todo 6 · **115 active** (everything but `not doing` runs by default)
+`caseset_version 75560941d0e47f72` · 148 cases · done 96 · not doing 30 · ready 16 · todo 6 · **118 active** (everything but `not doing` runs by default)
 
-_Last updated: 2026-10-22_
+_Last updated: 2026-11-17_
 
 ## Groups
 
@@ -24,7 +24,7 @@ _Last updated: 2026-10-22_
 | imagery | 5 | 1 | done 1, not doing 4 |
 | metadata | 5 | 5 | done 5 |
 | multilingual | 5 | 5 | done 5 |
-| multiturn | 12 | 8 | not doing 4, ready 8 |
+| multiturn | 15 | 11 | not doing 4, ready 11 |
 | nudge | 2 | 2 | ready 2 |
 | parent-child | 14 | 12 | done 11, not doing 2, ready 1 |
 | ranking | 1 | 1 | done 1 |
@@ -46,33 +46,35 @@ exists.
 
 | bucket | via dedicated check | via shared only | total | of active |
 |---|---|---|---|---|
-| retrieval | 109 | 0 | 109 | 95% |
-| analysis | 0 | 76 | 76 | 66% |
-| explanation | 29 | 65 | 94 | 82% |
-| output | 82 | 3 | 85 | 74% |
-| scope | 99 | 7 | 106 | 92% |
+| retrieval | 112 | 0 | 112 | 95% |
+| analysis | 0 | 76 | 76 | 64% |
+| explanation | 29 | 65 | 94 | 80% |
+| output | 85 | 3 | 88 | 75% |
+| scope | 100 | 9 | 109 | 92% |
 
 ## Expected-field census (active cases)
 
 | field | cases | switches on |
 |---|---|---|
-| dataset_id | 100 | dataset_id_match |
-| scope | 98 | scope_match |
-| aoi_source | 93 | no check of its own (dashboard_aoi_match also compares it) |
+| dataset_id | 101 | dataset_id_match |
+| scope | 99 | scope_match |
+| aoi_source | 95 | no check of its own (dashboard_aoi_match also compares it) |
 | dataset_name | 93 | reference only |
-| aoi_ids | 81 | aoi_id_match |
+| aoi_ids | 84 | aoi_id_match |
 | answer | 76 | agent_answer, chart_produced, data_pull_exists, answered_without_data (+ charts_answer when a chart exists) |
 | text | 29 | expected_text_match |
 | context_layer | 19 | context_layer_match |
-| dashboard_created | 8 | dashboard_created |
+| dashboard_created | 11 | dashboard_created |
+| dashboard_widgets | 8 | dashboard_widgets_match (+ dashboard_widgets_valid when a dashboard exists) |
 | end_date | 8 | date_extraction (with start_date) |
 | start_date | 8 | date_extraction (with end_date) |
 | class_values | 6 | class_value_match (info-only) |
-| dashboard_widgets | 5 | dashboard_widgets_match (+ dashboard_widgets_valid when a dashboard exists) |
 | nudge_options | 5 | nudge_match |
 | clarification | 3 | clarification_requested |
+| dashboard_sections | 2 | dashboard_sections_match |
 | nudge_type | 2 | nudge_match |
 | chart_type | 1 | chart_type_match |
+| dashboard_text | 1 | dashboard_text_match |
 | dataset_parameters | 1 | dataset_parameter_match |
 | ground_truth | 1 | ground_truth_match, ground_truth_answer (info-only) |
 | suggested_datasets | 0 ← unused | suggested_datasets_match (legacy: the agent now writes nudge; author nudge_type / nudge_options) |
@@ -97,7 +99,7 @@ answer-graded column) exercise the other three.
 | 1 | Global land cover | 6 | 6 | — | — |
 | 2 | Global natural/semi-natural grassland extent | 12 | 11 | — | — |
 | 3 | SBTN Natural Lands Map | 5 | 5 | — | — |
-| 4 | Tree cover loss | 48 | 36 | canopy_cover ×1 | primary_forest ×5, intact_forest ×5, natural_forest ×5 |
+| 4 | Tree cover loss | 49 | 36 | canopy_cover ×1 | primary_forest ×5, intact_forest ×5, natural_forest ×5 |
 | 5 | Tree cover gain | 6 | 6 | — | — |
 | 6 | Forest greenhouse gas net flux | 3 | 3 | canopy_cover ×0 ← gap | — |
 | 7 | Tree cover | 3 | 3 | canopy_cover ×0 ← gap | primary_forest ×0 ← gap |
@@ -109,7 +111,7 @@ answer-graded column) exercise the other three.
 
 ## Multi-turn
 
-8 active conversations (16 turns). Delta assertions: absent ×1, changed ×8, retain ×7
+11 active conversations (25 turns). Delta assertions: absent ×1, changed ×8, retain ×14
 
 ## Parked and held cases
 
