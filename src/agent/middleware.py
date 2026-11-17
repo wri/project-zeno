@@ -166,3 +166,45 @@ class SessionContextMiddleware(AgentMiddleware):
                 }
             )
         return await handler(request)
+
+
+# Tools that write no state key without a reducer. They can run in the same
+# step as any other tool.
+PARALLEL_SAFE_TOOLS = frozenset(
+    {"read_skill", "inspect_view_context", "search_blogs"}
+)
+
+
+class OneStateWriterMiddleware(AgentMiddleware):
+    """Keep at most one state-writing tool call in each model step.
+
+    Most tools return a Command that writes state keys with no reducer
+    (`nudge`, `dashboard_id`, `insight`, ...). When the model calls two of
+    them in one step, LangGraph stops the run with
+    INVALID_CONCURRENT_GRAPH_UPDATE (seen with `pick_aoi` and
+    `pick_dataset`). The prompt already says to call tools one at a time;
+    this makes it a guarantee. The calls in PARALLEL_SAFE_TOOLS are kept,
+    and so is the first other call. The model sees the result and calls the
+    dropped tools again in the next step if it still needs them. The first
+    call of the step is always kept, so Gemini's thought signature (on the
+    first function call) stays valid.
+    """
+
+    def after_model(self, state, runtime):
+        messages = state.get("messages") or []
+        if not messages:
+            return None
+        last = messages[-1]
+        tool_calls = getattr(last, "tool_calls", None) or []
+        if len(tool_calls) < 2:
+            return None
+        kept, writer_seen = [], False
+        for call in tool_calls:
+            if call["name"] in PARALLEL_SAFE_TOOLS:
+                kept.append(call)
+            elif not writer_seen:
+                kept.append(call)
+                writer_seen = True
+        if len(kept) == len(tool_calls):
+            return None
+        return {"messages": [last.model_copy(update={"tool_calls": kept})]}

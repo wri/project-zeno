@@ -22,7 +22,10 @@ from src.agent.agent_config import (
     default_registry,
 )
 from src.agent.llms import FALLBACK_MODELS, MODEL
-from src.agent.middleware import SessionContextMiddleware
+from src.agent.middleware import (
+    OneStateWriterMiddleware,
+    SessionContextMiddleware,
+)
 from src.agent.prompts import build_prompt
 from src.agent.state import AgentState
 from src.agent.tool_spec import Gate, set_bound_availability
@@ -275,6 +278,9 @@ def _build_middleware():
 
     4. SessionContextMiddleware: Prepends a live state snapshot before every
        model call (innermost, so it runs on every retry/fallback attempt)
+
+    5. OneStateWriterMiddleware: keeps one state-writing tool call in each
+       model step, so two tools never write the same state key in one step
     """
     middleware = [
         ModelRetryMiddleware(
@@ -288,6 +294,7 @@ def _build_middleware():
         middleware.append(ModelFallbackMiddleware(*FALLBACK_MODELS))
     middleware.append(handle_tool_errors)
     middleware.append(SessionContextMiddleware())
+    middleware.append(OneStateWriterMiddleware())
     return middleware
 
 
