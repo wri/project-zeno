@@ -847,7 +847,9 @@ async def _build_curated_insight(
         charts,
         statistics,
         caption,
-        cautions=_catalog_cautions(dataset_id),
+        # With concise replies, the cautions are in the pick_dataset
+        # message (as in _build_tool_message).
+        cautions=None if concise_replies() else _catalog_cautions(dataset_id),
         other_columns=unshown_columns(rows, charts),
         rows=rows,
     )

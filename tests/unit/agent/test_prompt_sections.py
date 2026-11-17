@@ -43,6 +43,30 @@ def test_apply_gates_keeps_only_what_the_profile_serves():
     assert apply_gates(GATED, both) == "a\ntool line\nskill line\nb\n"
 
 
+def test_a_flag_gate_keeps_its_block_only_for_the_flag():
+    text = "a\n<!-- flag: f -->\nflag line\n<!-- end -->\nb\n"
+    flagged = Availability(
+        skills=frozenset(), tools=frozenset(), flags=frozenset({"f"})
+    )
+    assert apply_gates(text, NONE) == "a\nb\n"
+    assert apply_gates(text, flagged) == "a\nflag line\nb\n"
+
+
+def test_concise_prompt_has_the_chart_argument_guidance():
+    """The concise profile has curated charts first. Its prompt has no tool
+    list and no analyze skill, so the work section gives the guidance for
+    the chart argument, only to a profile with that flag."""
+    guidance = "`generate_insights` `chart`"
+    assert guidance in get_prompt(default_registry.resolve(CONCISE_PROFILE))
+    work = dict(section_texts())["03-work.md"]
+    concise_only = Availability(
+        skills=frozenset(),
+        tools=frozenset({"generate_insights"}),
+        flags=frozenset({CONCISE_REPLIES}),
+    )
+    assert guidance not in apply_gates(work, concise_only)
+
+
 @pytest.mark.parametrize(
     "text",
     [
@@ -56,14 +80,16 @@ def test_apply_gates_rejects_bad_blocks(text):
         apply_gates(text, NONE)
 
 
-def test_every_gate_names_a_real_skill_or_tool():
-    from src.agent.agent_config import ALL_SPECS
+def test_every_gate_names_a_real_skill_tool_or_flag():
+    from src.agent.agent_config import ALL_SPECS, FLAG_TOOL_VARIANTS
 
     tools = {s.tool.name for s in ALL_SPECS}
     for name, text in section_texts():
         for kind, gate in gates(text):
             if kind == "tool":
                 assert gate in tools, (name, gate)
+            elif kind == "flag":
+                assert gate in FLAG_TOOL_VARIANTS, (name, gate)
             else:
                 assert get_skill(gate) is not None, (name, gate)
 

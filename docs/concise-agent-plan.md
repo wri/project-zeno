@@ -436,6 +436,12 @@ cases, were run again with 3 trials on both profiles at the same time:
    `curated-charts-first` flag puts its `chart` argument guidance in the
    `prompt_fragment` of `generate_insights`. That guidance must move into
    the docstring of the curated variant before the tool list goes.
+   Since 2026-11-17 the concise profile also has the
+   `curated-charts-first` flag, so one `ff=concise` measures the two
+   together. Its prompt gets the `chart` guidance from a
+   `<!-- flag: curated-charts-first -->` block in `03-work.md`, and the
+   curated tool message leaves out the dataset cautions, as the other
+   concise `generate_insights` messages do.
 6. **Done (`efd2c657`). Review of the rewrite (2026-11-16).** The default prompt and the
    argument schemas are identical to before. No invented facts were found
    in the short tool descriptions. Differences that the review found:

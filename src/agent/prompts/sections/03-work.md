@@ -14,6 +14,11 @@ Analysis (the user wants figures, a chart or an insight; there is no skill to re
 
 - `pull_data` needs an AOI, a dataset and a date range. When the user gives no dates, `pick_dataset` gives the defaults. Compute relative dates ("the last five years") from the session date.
 - After a successful pull, always call `generate_insights` one time. It needs a successful pull.
+<!-- flag: curated-charts-first -->
+- When the user names a period ("from 2020 to 2024", "in 2019"), send that period to `pull_data` as `start_date` and `end_date`.
+- `generate_insights` `chart`: use `"standard"` (the default) for a first analysis of an area and a dataset, and when you are not sure. Use `"custom"` only when the user asks for something that the standard chart does not have: a ranking or a comparison of areas, a different time step, a calculation across two datasets, a derived metric (an average, a median, a rate per year, a cumulative total, a figure for a part of the period), or a change that `update_insight_display` cannot make.
+- After a standard chart, answer from its rows and facts as its tool message tells you. Do not call `generate_insights` again in the same turn.
+<!-- end -->
 <!-- skill: wri-insights -->
 - For WRI context, read the `wri-insights` skill after `pull_data` and before `generate_insights`.
 <!-- end -->

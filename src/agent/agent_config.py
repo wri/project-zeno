@@ -184,9 +184,10 @@ LGMS_PROFILE = "lgms"
 CURATED_CHARTS_FIRST = "curated-charts-first"
 CURATED_CHARTS_PROFILE = "curated-charts"
 
-# Short replies (docs/concise-agent-plan.md, iteration 1): the flag swaps
-# the reply-style rules of the system prompt (src/agent/graph.py) and turns
-# on the flagged parts of the skills. Temporary: when the result is
+# Short replies (docs/concise-agent-plan.md, iteration 1). The concise
+# profile also has curated charts first (CURATED_CHARTS_FIRST). The
+# concise-replies flag swaps the reply-style rules of the system prompt
+# (src/agent/graph.py) and turns on the flagged parts of the skills. Temporary: when the result is
 # accepted, the short style becomes the default and this flag and profile
 # are deleted.
 CONCISE_PROFILE = "concise"
@@ -543,6 +544,9 @@ default_registry.register(
         extends=DEFAULT_PROFILE,
         # Excludes are not inherited: keep the default's.
         excluded_datasets=DEFAULT_EXCLUDED_DATASETS,
-        flags=frozenset({CONCISE_REPLIES}),
+        # Curated charts first (#910) is part of this profile, so one flag
+        # measures the two together. The work section of the concise
+        # prompt has the guidance for the chart argument.
+        flags=frozenset({CONCISE_REPLIES, CURATED_CHARTS_FIRST}),
     )
 )

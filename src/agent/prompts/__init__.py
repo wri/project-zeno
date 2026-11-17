@@ -6,8 +6,9 @@ section; ``build_prompt`` joins them in file-name order and adds the parts
 that depend on the profile: the skills list and the current surface.
 
 A block of a section that names a skill or a tool is kept only when the
-profile can serve it. The block is the lines between
-``<!-- tool: NAME -->`` (or ``<!-- skill: NAME -->``) and ``<!-- end -->``,
+profile can serve it, and a block that names a flag only when the profile
+has that flag. The block is the lines between ``<!-- tool: NAME -->`` (or
+``<!-- skill: NAME -->``, ``<!-- flag: NAME -->``) and ``<!-- end -->``,
 each marker on a line of its own. The marker lines are never shown. No
 nesting.
 
@@ -30,7 +31,7 @@ SECTIONS_DIR = Path(__file__).resolve().parent / "sections"
 # (docs/concise-agent-plan.md, iteration 3). read_skill still serves them.
 INLINE_SKILLS = frozenset({"analyze"})
 
-_GATE_START = re.compile(r"^<!-- (tool|skill): ([a-z0-9_-]+) -->$")
+_GATE_START = re.compile(r"^<!-- (tool|skill|flag): ([a-z0-9_-]+) -->$")
 _GATE_END = "<!-- end -->"
 
 

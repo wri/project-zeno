@@ -157,7 +157,8 @@ def test_concise_profile_manifest():
     )
     expected = DEFAULT_MANIFEST.replace(
         "profile: default\nextends: base\n",
-        "profile: concise\nextends: default\nflags: concise-replies\n",
+        "profile: concise\nextends: default\n"
+        "flags: concise-replies, curated-charts-first\n",
         1,
     ).replace(replaced, "add_dashboard_item, edit_dashboard_item", 1)
     tool_lines = (
