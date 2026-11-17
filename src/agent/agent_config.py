@@ -188,7 +188,7 @@ MCP_TOOLS = (
 
 # Profiles any authenticated user may select with `ff`. All other flags are
 # for admin, superuser and machine users only (see src/api/routers/chat.py).
-PUBLIC_PROFILES = frozenset({LGMS_PROFILE})
+PUBLIC_PROFILES = frozenset({LGMS_PROFILE, MCP_PROFILE})
 
 
 @dataclass(frozen=True)
