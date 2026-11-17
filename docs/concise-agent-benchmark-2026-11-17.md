@@ -109,12 +109,31 @@ Of the 481 attempts that called `generate_insights`, 279 (58%) showed a curated 
 
 Final replies: median 88 words, 90th percentile 120 words. The baseline page keeps only an excerpt of each reply, so this run has no word count to compare with.
 
+## Latency and cost
+
+**Latency.** The harness records the time of each attempt (`stream_s`: from the chat request to the last line of the stream). Both runs used 10 workers.
+
+| | Prod baseline | This PR (`ff=concise`) |
+|---|---|---|
+| Median | 31.2 s | 15.3 s |
+| 90th percentile | 53.3 s | 44.0 s |
+
+The median is half of the baseline. This agrees with the curated path: no code executor call and a shorter tool message. But the comparison is not clean. The baseline ran on prod with the build of 2026-10-27. This run used a local API, with a different network, database and analytics API. Do not report the difference as a gain of this PR.
+
+**Cost.** This run did not measure cost:
+
+- The gnw-gold-evals ledger records no tokens. Only the `efficiency` object of `evals/gold` in this PR records them.
+- Langfuse tracing was off for the local API, so the run has no traces.
+- The local thread states give the orchestrator tokens, but not the tokens of the subagents and the code executor. Those model calls are not in the thread state. Curated charts should save most in the code executor: 279 of the 481 attempts that called `generate_insights` did not call it.
+
+**To measure the gain:** run the default profile and `ff=concise` on the same build at the same time, on a local API with local Langfuse tracing on. Then compare the latency and the tokens of all model calls, including the subagents and the code executor, with the price of each model.
+
 ## Recommendations
 
 1. **Caveats.** Decide which caveats a short reply must keep. The four lost questions want a caveat about the use of the figures (NDC tracking, results verification) or about what the data cannot show (commodities, a boundary that is not defined). Concise rule 7 gives a caveat only with a trigger word. These questions have no trigger word.
 2. **Fire questions.** Examine why `pick_dataset` offers the drivers dataset, or the choice of two datasets, for "fire-driven loss" questions. Tree cover loss due to fires has the years these questions need.
 3. **Dataset choice stops.** The increase (143 to 160 attempts) is small, but 6 lost questions come from it. A comparison run on the default profile with the same build would show if this PR causes it.
-4. **Before release:** run the benchmark on the default profile of the same build, or on prod after the merge. That separates the effect of this PR from the other changes since 2026-10-27.
+4. **Before release:** run the benchmark on the default profile and on `ff=concise` of the same build, with Langfuse tracing on. That separates the effect of this PR from the other changes since 2026-10-27, and it measures the latency and cost gain (see "Latency and cost").
 
 ## Files
 
