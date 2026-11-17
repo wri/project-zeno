@@ -5,7 +5,7 @@ when_to_use: User asks to build/create a dashboard for a place, to add an insigh
 brief: Create or build a dashboard for a place; add an insight, a map layer or satellite imagery to a dashboard; group, organize or restructure its content in sections. Not for a one-off analysis with no dashboard: use `analyze`.
 requires: create_dashboard, add_to_dashboard, add_map_widget, add_text_widget, edit_text_widget, add_dashboard_section, edit_dashboard_section, move_dashboard_widget, inspect_view_context, send_nudge, search_insights
 ---
-
+<!-- no flag: concise-replies -->
 # Dashboards
 
 A dashboard is a persistent collection of widgets for ONE area (a country, a
@@ -142,3 +142,71 @@ widget; if several exist the tool lists their ids so you can retry with
   contains and stop. Suggest at most one follow-up topic; do not run it.
 - If a step fails (no data, insight not found), report it and continue with
   the remaining topics rather than aborting the whole dashboard.
+<!-- end flag -->
+<!-- flag: concise-replies -->
+# Dashboards
+
+A dashboard is a persistent collection of widgets for ONE area (a country, a
+state, a protected area). Widgets are insights, maps and text notes. Adding
+to a dashboard never computes again: a widget uses work that exists.
+
+A dashboard has one optional level of grouping: sections (a title and an
+optional description). Each widget is in one section or is ungrouped;
+ungrouped widgets show above the first section. The order is kept.
+
+`add_dashboard_item(kind=...)` adds an insight, a map, a text note or a
+section. `edit_dashboard_item(kind=...)` changes a text note or a section,
+or moves a widget. Both default to the dashboard in state or on screen.
+
+# Which dashboard to use
+
+- If the user views a dashboard (view_context has a `dashboard_id`; check
+  with `inspect_view_context` if unsure) or one was made or used earlier in
+  this conversation, use it again.
+- Call `create_dashboard` only when there is no dashboard, or the user asks
+  for a new one. It needs an AOI in state: run `pick_aoi` first if none is
+  selected. One area for each dashboard; for "a dashboard for X and Y", ask
+  the user to pick one area.
+- When it is not clear whether the user wants a new dashboard or the current
+  one, do not guess: call `send_nudge(nudge_type="dashboard_choice",
+  options=["Create a new dashboard", "Update the current dashboard"])` and
+  wait for the answer.
+
+# Composing ("build me a dashboard for X about A, B, C")
+
+1. `pick_aoi` for X (skip if it is selected), then `create_dashboard`.
+2. For two or more different topics, first add one section for each topic
+   (`kind="section"`, `title`), then add each topic's widgets with
+   `section="<that title>"`. For one topic, add no section.
+3. For each topic, use existing work first: if the user refers to an earlier
+   finding, `search_insights`, then `kind="insight"`. Otherwise run
+   pick_dataset, pull_data and generate_insights, then `kind="insight"`. For
+   a map of a topic, `kind="map"` after the dataset is picked
+   (`layer="dataset"`) or after `show_imagery` (`layer="imagery"`). A map
+   needs no insight.
+
+# Changing a dashboard
+
+- Before you group or move widgets, call `inspect_view_context`: it lists the
+  sections, the widgets in each and the widget ids. Use a matching section;
+  do not make a near-duplicate.
+- Add a widget to a section: pass `section` (a title or id).
+- Move a widget that is on the dashboard: `edit_dashboard_item(kind="move",
+  widget_id, section)` or `ungroup=true`.
+- Rename a section or change its description:
+  `edit_dashboard_item(kind="section", section, title?, description?)`.
+- Text notes: `kind="text"` with markdown that you write (short, no raw
+  data). To rewrite a note: `edit_dashboard_item(kind="text", text)`; with
+  several notes, the error lists their ids, then retry with `widget_id`.
+- Asked for a list or table of alerts: never write one yourself. Tell the
+  user to use the Near real-time monitoring template on the dashboard.
+- Do not change a dashboard in a way the user did not ask for.
+
+# Stop conditions
+
+- Add only what the user asked for.
+- After the requested changes, say in one or two sentences what the
+  dashboard now contains and stop.
+- If a step fails (no data, insight not found), say so and continue with the
+  other topics.
+<!-- end flag -->

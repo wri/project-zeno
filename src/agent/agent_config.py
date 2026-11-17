@@ -68,6 +68,14 @@ from src.agent.tools.add_template_section import (
 from src.agent.tools.add_text_widget import SPEC as add_text_widget_spec
 from src.agent.tools.add_to_dashboard import SPEC as add_to_dashboard_spec
 from src.agent.tools.create_dashboard import SPEC as create_dashboard_spec
+from src.agent.tools.dashboard_items import ADD_SPEC as add_dashboard_item_spec
+from src.agent.tools.dashboard_items import (
+    EDIT_SPEC as edit_dashboard_item_spec,
+)
+from src.agent.tools.dashboard_items import (
+    REPLACED_TOOLS as DASHBOARD_ITEM_REPLACED_TOOLS,
+)
+from src.agent.tools.dashboard_items import create_dashboard_concise
 from src.agent.tools.edit_dashboard_section import (
     SPEC as edit_dashboard_section_spec,
 )
@@ -182,10 +190,14 @@ CONCISE_PROFILE = "concise"
 # The concise flag also sends the prompt as markdown sections without the
 # tool list (src/agent/prompts/) and gives the tools short descriptions
 # (iteration 2).
+# The concise create_dashboard names the new dashboard tools in its reply.
+_CONCISE_TOOLS = {"create_dashboard": create_dashboard_concise}
 CONCISE_TOOL_SPECS = tuple(
     replace(
         _SPEC_BY_NAME[name],
-        tool=_SPEC_BY_NAME[name].tool.model_copy(update={"description": text}),
+        tool=_CONCISE_TOOLS.get(name, _SPEC_BY_NAME[name].tool).model_copy(
+            update={"description": text}
+        ),
     )
     for name, text in CONCISE_TOOL_DESCRIPTIONS.items()
 )
@@ -194,6 +206,20 @@ CONCISE_TOOL_SPECS = tuple(
 FLAG_TOOL_VARIANTS: dict[str, tuple[ToolSpec, ...]] = {
     CURATED_CHARTS_FIRST: (generate_insights_curated_first_spec,),
     CONCISE_REPLIES: CONCISE_TOOL_SPECS,
+}
+
+# The tools that a flag puts in place of a group of tools: (the names it
+# removes, the specs it adds at the position of the first removed tool).
+# Applied only when the profile binds one of the removed tools.
+FLAG_TOOL_MERGES: dict[
+    str, tuple[tuple[frozenset[str], tuple[ToolSpec, ...]], ...]
+] = {
+    CONCISE_REPLIES: (
+        (
+            frozenset(DASHBOARD_ITEM_REPLACED_TOOLS),
+            (add_dashboard_item_spec, edit_dashboard_item_spec),
+        ),
+    ),
 }
 
 # Profiles any authenticated user may select with `ff`. All other flags are
@@ -283,9 +309,34 @@ class AgentConfig:
             for flag in sorted(self.flags)
             for spec in FLAG_TOOL_VARIANTS[flag]
         }
-        return tuple(
-            variants.get(s.tool.name, s) for s in derived + unregistered
-        )
+        specs = [variants.get(s.tool.name, s) for s in derived + unregistered]
+        for flag in sorted(self.flags):
+            for removed, added in FLAG_TOOL_MERGES.get(flag, ()):
+                hits = [
+                    i for i, s in enumerate(specs) if s.tool.name in removed
+                ]
+                if not hits:
+                    continue
+                kept = [s for s in specs if s.tool.name not in removed]
+                at = sum(
+                    1 for s in specs[: hits[0]] if s.tool.name not in removed
+                )
+                specs = kept[:at] + list(added) + kept[at:]
+        return tuple(specs)
+
+    def requires(self, skill: SkillMeta) -> tuple[str, ...]:
+        """The tools that ``skill`` uses in this profile: its ``requires``,
+        with the tools that a flag merges (FLAG_TOOL_MERGES) replaced by the
+        tools that take their place."""
+        names: list[str] = []
+        for tool_name in skill.requires:
+            replacement = (tool_name,)
+            for flag in sorted(self.flags):
+                for removed, added in FLAG_TOOL_MERGES.get(flag, ()):
+                    if tool_name in removed:
+                        replacement = tuple(s.tool.name for s in added)
+            names.extend(n for n in replacement if n not in names)
+        return tuple(names)
 
     def bound_tools(self) -> list[BaseTool]:
         return [s.tool for s in self.specs]
@@ -345,7 +396,7 @@ class AgentConfig:
         for skill in self.skill_metas():
             if skill.requires:
                 skill_entries.append(
-                    f"{skill.name} (requires: {', '.join(skill.requires)})"
+                    f"{skill.name} (requires: {', '.join(self.requires(skill))})"
                 )
             else:
                 skill_entries.append(skill.name)

@@ -147,12 +147,27 @@ def test_curated_charts_profile_manifest():
 
 
 def test_concise_profile_manifest():
-    # The concise profile only sets a flag: its skills and tools must stay
-    # exactly the default surface (the flag swaps reply-style prompt text).
+    # The concise profile only sets a flag. Its skills are the default
+    # skills; the flag swaps the reply-style prompt text and puts two
+    # dashboard tools in place of seven (FLAG_TOOL_MERGES).
+    replaced = (
+        "add_to_dashboard, add_map_widget, add_text_widget, "
+        "edit_text_widget, add_dashboard_section, edit_dashboard_section, "
+        "move_dashboard_widget"
+    )
     expected = DEFAULT_MANIFEST.replace(
         "profile: default\nextends: base\n",
         "profile: concise\nextends: default\nflags: concise-replies\n",
         1,
+    ).replace(replaced, "add_dashboard_item, edit_dashboard_item", 1)
+    tool_lines = (
+        "  - add_to_dashboard\n  - add_map_widget\n  - add_text_widget\n"
+        "  - edit_text_widget\n  - add_dashboard_section\n"
+        "  - edit_dashboard_section\n  - move_dashboard_widget\n"
+    )
+    assert tool_lines in expected
+    expected = expected.replace(
+        tool_lines, "  - add_dashboard_item\n  - edit_dashboard_item\n", 1
     )
     assert default_registry.resolve(CONCISE_PROFILE).describe() == expected
 

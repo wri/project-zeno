@@ -115,16 +115,11 @@
     "concise": {
       "system_prompt": 7034,
       "tools": {
-        "add_dashboard_section": 864,
-        "add_map_widget": 770,
-        "add_text_widget": 810,
-        "add_to_dashboard": 722,
-        "create_dashboard": 342,
-        "edit_dashboard_section": 782,
-        "edit_text_widget": 607,
+        "add_dashboard_item": 1792,
+        "create_dashboard": 344,
+        "edit_dashboard_item": 1552,
         "generate_insights": 261,
         "inspect_view_context": 559,
-        "move_dashboard_widget": 733,
         "pick_aoi": 921,
         "pick_dataset": 866,
         "pull_data": 492,
@@ -136,7 +131,7 @@
         "show_planet_imagery": 878,
         "update_insight_display": 834
       },
-      "tools_total": 13070
+      "tools_total": 11128
     },
     "curated-charts": {
       "system_prompt": 15041,
