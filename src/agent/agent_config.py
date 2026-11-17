@@ -57,7 +57,12 @@ from src.agent.subagents.analyst.tool import SPEC as generate_insights_spec
 from src.agent.subagents.pick_aoi.tool import SPEC as pick_aoi_spec
 from src.agent.subagents.pick_dataset.tool import SPEC as pick_dataset_spec
 from src.agent.subagents.search.blog import SPEC as search_blogs_spec
-from src.agent.tool_spec import Availability, ToolCategory, ToolSpec
+from src.agent.tool_spec import (
+    CONCISE_REPLIES,
+    Availability,
+    ToolCategory,
+    ToolSpec,
+)
 from src.agent.tools.add_dashboard_section import (
     SPEC as add_dashboard_section_spec,
 )
@@ -184,7 +189,6 @@ CURATED_CHARTS_PROFILE = "curated-charts"
 # on the flagged parts of the skills. Temporary: when the result is
 # accepted, the short style becomes the default and this flag and profile
 # are deleted.
-CONCISE_REPLIES = "concise-replies"
 CONCISE_PROFILE = "concise"
 
 # The concise flag also sends the prompt as markdown sections without the

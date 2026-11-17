@@ -36,7 +36,7 @@ from src.agent.subagents.analyst.code_executors.base import (
 )
 from src.agent.subagents.analyst.prompts import EXECUTOR_WORKFLOW
 from src.agent.subagents.analyst.text_generator import InsightTextGenerator
-from src.agent.tool_spec import ToolCategory, ToolSpec
+from src.agent.tool_spec import ToolCategory, ToolSpec, concise_replies
 from src.agent.tools.inspect_view_context import format_chart_data
 from src.agent.tools.pull_data import fetch_statistics_from_url
 from src.api.repositories.insight_writer import persist_insight
@@ -340,6 +340,11 @@ async def _build_tool_message(
 
     for chart in insight.charts:
         tool_message += "\n" + await format_chart_data(chart, language)
+
+    if concise_replies():
+        # The cautions are in the pick_dataset message, and the insight card
+        # shows the follow-up suggestions (concise rule 6).
+        return tool_message
 
     if dataset_cautions:
         header = await t("analyst.dataset_cautions_header", language)

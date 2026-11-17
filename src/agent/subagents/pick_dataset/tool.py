@@ -33,7 +33,12 @@ from src.agent.subagents.pick_dataset.schema import (
     DatasetSelectionResult,
 )
 from src.agent.subagents.progress import emit_progress
-from src.agent.tool_spec import ToolCategory, ToolSpec, bound_availability
+from src.agent.tool_spec import (
+    ToolCategory,
+    ToolSpec,
+    bound_availability,
+    concise_replies,
+)
 from src.agent.tools.send_nudge import NUDGE_ALREADY_SET_NOTE
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
@@ -515,6 +520,16 @@ class DatasetSelector:
         else:
             available_layers = displayed_layer = "none"
 
+        # The concise profile leaves out the usage notes: they mostly repeat
+        # the description (iteration 4).
+        usage_notes = (
+            ""
+            if concise_replies()
+            else (
+                "    ## Function usage notes:\n\n"
+                f"    {dataset_result.function_usage_notes}\n\n"
+            )
+        )
         tool_message = f"""# About the selection
     Selected dataset name: {dataset_result.dataset_name}
     Selected context layer: {dataset_result.context_layer}
@@ -528,11 +543,7 @@ class DatasetSelector:
 
     {dataset_result.description}
 
-    ## Function usage notes:
-
-    {dataset_result.function_usage_notes}
-
-    ## Usage cautions
+{usage_notes}    ## Usage cautions
 
     {dataset_result.cautions}
 
