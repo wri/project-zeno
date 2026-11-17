@@ -1,6 +1,6 @@
 # Concise agent plan
 
-Status: in progress. Iterations 1 and 2 are on the `concise` profile (2026-11-16).
+Status: in progress. Iterations 1, 2 and 2.1 are on the `concise` profile (2026-11-17).
 
 ## Goal
 
@@ -339,54 +339,56 @@ With the ratio of the default (33,364 characters are about 7,570 tokens),
 the concise fixed cost is about 4,900 tokens for each model call. With the
 dashboard middleware it was 15,435 characters (-54%).
 
-### GOLD (inner-loop subset, 3 trials)
+### GOLD (inner-loop subset and dashboard cases, 3 trials)
 
-**These numbers are from the run with the dashboard middleware.** They are
-not measured again after its removal. Expect an input-token saving of
-about 25% to 30%, not 40%. Measure again before the numbers are used.
+Measured again on 2026-11-17, after the removal of the dashboard
+middleware and with the iteration 2.1 changes (see below): all tool
+schemas on each call, no `state` argument, one line for each skill.
 
-Default profile against `--ff concise`. One API process from this branch.
-The two runs were started at the same time, so that load and time of day
-are the same for both. The runs are not committed.
+Default profile against `--ff concise`. One API process from this branch
+(`df4395b9`), freshly started. The two runs were started at the same time.
+35 cases: the inner-loop subset and the dashboard cases 1-096 to 1-102.
+The runs are not committed.
 
 | Metric (median for each case) | Default | Concise | Change |
 |---|---|---|---|
-| Orchestrator input tokens | 44,477 | 26,857 | -40% |
-| Orchestrator input tokens, p90 | 56,124 | 32,146 | -43% |
-| Orchestrator output tokens | 570 | 284 | -50% |
-| Answer words | 211 | 64 | -70% |
+| Orchestrator input tokens | 45,983 | 26,583 | -42% |
+| Orchestrator input tokens, p90 | 56,736 | 31,634 | -44% |
+| Orchestrator output tokens | 526 | 284 | -46% |
+| Answer words | 208 | 74 | -64% |
+| Answer words, p90 | 257 | 99 | -62% |
 | Model calls | 5 | 5 | 0 |
-| Latency (s) | 29.9 | 25.7 | -14% |
+| Latency (s) | 27.5 | 24.7 | -10% |
 
-- The input saving is about 3,500 tokens for each model call (17,620 tokens
-  over 5 calls). This agrees with the static estimate.
-- Dashboard cases make the same number of model calls (6) on both
-  profiles: the default model reads skill `dashboard` too.
-- Latency: in iteration 1 the concise run was 19% slower, but the runs were
-  not at the same time. With the runs at the same time, concise is 14%
-  faster. The iteration 1 latency result was most likely drift.
+- The input saving (19,400 tokens for each case, about 3,900 for each
+  model call) is the same as with the dashboard middleware (-40%). The
+  `state` fix and the shorter skills list make up for the dashboard
+  schemas that are sent again. The cached part of the input is about
+  2,000 to 4,000 tokens for each call (see "Step 5" below).
+- The laptop slept during the runs. Each profile has one trial with an
+  error (HTTP 500 from `GET /api/threads/{id}/state`: 1-101 on default,
+  1-100 on concise). Latency figures include no sleep time (`latency_s`
+  is for each trial), but treat them with care.
 
-Gating checks, before the re-run: 2 regressions (`charts_answer` on 1-033,
-`chart_integrity` on 1-060), 0 recoveries, and 1 gating check lost
-(`dashboard_widgets_valid` on 1-096). One concise trial of mt-001 stopped
-with an error. Each of these cases was run again with 3 trials:
+Gating checks, before the re-run: 4 regressions (`chart_produced` on
+1-078, `dashboard_widgets_match` on 1-100, `charts_answer` on 1-033,
+`expected_text_match` on 1-080), 0 recoveries. Each flip, and the error
+cases, were run again with 3 trials on both profiles at the same time:
 
-| Case | Re-run | Verdict |
-|---|---|---|
-| 1-060 `chart_integrity` | passes 3 of 3 | noise |
-| mt-001 (error) | passes 3 of 3 | noise, see open item 2 |
-| 1-096 `dashboard_widgets_valid` | not evaluated | not a regression: the user asks only to create the dashboard. The default added widgets in 1 trial of 3; concise added none. |
-| 1-033 `charts_answer` | fails 3 of 3 | not caused by this change, see open item 1 |
+| Case | Default re-run | Concise re-run | Verdict |
+|---|---|---|---|
+| 1-078 `chart_produced` | 3 of 3 | 3 of 3 | noise |
+| 1-100 `dashboard_widgets_match` | 3 of 3 | 3 of 3 | noise |
+| 1-101 (error on default) | 3 of 3 | 3 of 3 | noise |
+| 1-033 `charts_answer` | fails 3 of 3 | fails 3 of 3 | not caused by this change, see open item 1 |
+| 1-080 `expected_text_match` | passes 2 of 3 | passes 1 of 3 | the caution question of iteration 1, not new |
 
-- 1-080 passes 2 of 3 on concise (3 of 3 failed in iteration 1).
-- `charts_answer_judge` (info-only) on 1-009 fails 3 of 3. The chart and the
-  figure (3.93%) are correct. The judge wants the answer to say that
-  "highest confidence" means "detected by several systems". The default
-  answer says it; the short answer does not.
-- `answer_traceability` (info-only) is lost on 20 cases. Cause: the check
-  reads only bold figures ("no bolded numeric claim found"), and short
-  answers have no bold. This closes the open item of iteration 1. The check
-  must read plain figures before the short style becomes the default.
+- All seven dashboard cases pass on both profiles. Not measured: a thread
+  where the dashboard request comes in a later turn.
+- `charts_answer_judge` (info-only) fails on 1-004 and 1-009 on concise:
+  the short answer leaves out an explanation that the judge wants.
+- `answer_traceability` (info-only) is lost on 20 cases, for the reason
+  given before (the check reads only bold figures).
 
 ### Open items
 
@@ -404,7 +406,7 @@ with an error. Each of these cases was run again with 3 trials:
    A code guard is more reliable than a prompt rule: for example
    `parallel_tool_calls=False` where the model supports it, or a reducer on
    `nudge`.
-3. **Injected `state` argument in the schemas.** Eleven tools declare
+3. **Done (`da337d50`). Injected `state` argument in the schemas.** Eleven tools declare
    `state: Annotated[Dict, InjectedState] | None`. The tools get the state
    at run time (the dashboard cases pass), but with `| None` outside the
    `Annotated` the schema filter does not remove the argument. The model
@@ -412,7 +414,7 @@ with an error. Each of these cases was run again with 3 trials:
    and the model can fill it). Fix for all profiles:
    `Annotated[Optional[Dict], InjectedState] = None`. Check that the tools
    still get the state.
-4. **Skills list.** The skills list is now the largest generated part
+4. **Done (`df4395b9`). Skills list.** The skills list is now the largest generated part
    (about 2,300 characters). Each skill has a `description` and a
    `when_to_use` that say the same thing in part. They are shared with the
    default profile, so they did not change.
@@ -423,7 +425,7 @@ with an error. Each of these cases was run again with 3 trials:
    `curated-charts-first` flag puts its `chart` argument guidance in the
    `prompt_fragment` of `generate_insights`. That guidance must move into
    the docstring of the curated variant before the tool list goes.
-6. **Review of the rewrite (2026-11-16).** The default prompt and the
+6. **Done (`efd2c657`). Review of the rewrite (2026-11-16).** The default prompt and the
    argument schemas are identical to before. No invented facts were found
    in the short tool descriptions. Differences that the review found:
    - Rule 7 no longer says that a caution with no trigger is left out.
