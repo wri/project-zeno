@@ -27,8 +27,11 @@ CONCISE_TOOL_DESCRIPTIONS: dict[str, str] = {
     ),
     "pick_dataset": (
         "Select the dataset, context layer and date range that best answer "
-        "the request (dataset-selection subagent). Pass the user's request "
-        "as `query`. `start_date`/`end_date` (YYYY-MM-DD) are optional; the "
+        "the request (dataset-selection subagent). The subagent reads the "
+        "user's latest message. In `query`, give the data request with what "
+        "that message does not say, for example a place or a dataset of an "
+        "earlier turn. Do not name a dataset that the user did not name. "
+        "`start_date`/`end_date` (YYYY-MM-DD) are optional; the "
         "closest valid range of the dataset is used. Call it again before "
         "`pull_data` when the user changes the dataset, the context layer "
         "(drivers, land cover change and so on) or a parameter. A "

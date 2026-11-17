@@ -191,6 +191,22 @@ SELECTION_RULES = """- Only choose a dataset if it can usefully answer ALL parts
 - Pick the most granular dataset/context layer/parameters that matches the query.
 - Keep explanations concise. Do not reference dataset IDs."""
 
+# The rules when the selection reads the user's own message (concise profile,
+# `selection_query`). A user's message often has parts that no dataset gives:
+# why something happened, what the figures are for ("for NDC tracking"), a
+# policy. With the first rule above, the selection then offered a choice of
+# datasets for "Why did Brazil lose so much primary forest in 2016?". The
+# agent explains those parts; the selection picks the data.
+USER_MESSAGE_SELECTION_RULES = SELECTION_RULES.replace(
+    "- Only choose a dataset if it can usefully answer ALL parts of the "
+    "user's question.",
+    "- Choose the dataset that gives the data the request needs. A part of "
+    "the request that no dataset gives (why something happened, what the "
+    "figures are for, a policy, a commodity) is not a reason to choose no "
+    "dataset: the agent explains that part.",
+)
+assert USER_MESSAGE_SELECTION_RULES != SELECTION_RULES
+
 
 def _format_selection_hints(candidate_datasets: pd.DataFrame) -> str:
     lines = []
@@ -232,6 +248,7 @@ async def select_best_dataset(
     end_date: Optional[str] = None,
     aoi_selection=None,
     language: str = DEFAULT_LANGUAGE,
+    rules: str = SELECTION_RULES,
 ) -> DatasetSelectionResponse:
     DATASET_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
         [
@@ -307,8 +324,45 @@ async def select_best_dataset(
             "removed_layers": removed_df,
             "selection_hints": selection_hints,
             "layer_options": layer_options,
-            "rules": SELECTION_RULES,
+            "rules": rules,
         }
+    )
+
+
+def latest_user_message(messages) -> Optional[str]:
+    """The text of the latest human message, or None."""
+    for message in reversed(messages or []):
+        if getattr(message, "type", None) != "human":
+            continue
+        content = message.content
+        if isinstance(content, list):
+            content = " ".join(
+                part if isinstance(part, str) else str(part.get("text", ""))
+                for part in content
+                if isinstance(part, (str, dict))
+            )
+        text = str(content or "").strip()
+        return text or None
+    return None
+
+
+def selection_query(query: str, user_message: Optional[str]) -> str:
+    """The query that the selection model reads.
+
+    The orchestrator often rewrites the request into a dataset phrase ("tree
+    cover loss by driver (fire)") and drops what the user asked for ("has
+    fire-driven loss gone down since 2019"). The selection then offers a
+    choice of datasets where the user's words fit one. So the user's message
+    comes first, and the orchestrator's query is context for what the message
+    does not say, for example a place or a dataset of an earlier turn.
+    """
+    if not user_message or user_message.strip() == query.strip():
+        return query
+    return (
+        f"{user_message}\n\nContext from the conversation (the agent's "
+        "summary of the data request; use it only for what the message above "
+        "does not say, for example a place or a dataset named in an earlier "
+        f"turn): {query}"
     )
 
 
@@ -330,12 +384,20 @@ class DatasetSelector:
         end_date: Optional[str] = None,
         tool_call_id: Optional[str] = None,
         language: str = DEFAULT_LANGUAGE,
+        user_message: Optional[str] = None,
     ) -> Command:
-        """Resolve a request to the best dataset and update state."""
+        """Resolve a request to the best dataset and update state.
+
+        `user_message` is the user's latest message. When it is given, the
+        retrieval uses it and the selection reads it before `query`
+        (`selection_query`)."""
         logger.info("DATASET-SELECTOR: resolving query")
+        selection_text = selection_query(query, user_message)
 
         # Step 1: RAG lookup of candidate datasets
-        candidate_datasets = await rag_candidate_datasets(query, k=5)
+        candidate_datasets = await rag_candidate_datasets(
+            user_message or query, k=5
+        )
         # Drop datasets the current agent profile (feature flag) excludes, so
         # they can never be selected under a flag that hides them.
         if not candidate_datasets.empty:
@@ -365,12 +427,17 @@ class DatasetSelector:
             )
         # Step 2: LLM picks the best dataset and context layer
         selection_result = await select_best_dataset(
-            query,
+            selection_text,
             candidate_datasets,
             start_date,
             end_date,
             aoi_selection,
             language=language,
+            rules=(
+                USER_MESSAGE_SELECTION_RULES
+                if selection_text != query
+                else SELECTION_RULES
+            ),
         )
 
         if selection_result.selected_dataset is None:
@@ -613,6 +680,13 @@ async def pick_dataset(
         end_date=end_date,
         tool_call_id=tool_call_id,
         language=language,
+        # Concise profile only, while it is compared with the default
+        # (docs/concise-agent-plan.md): the selection reads the user's words.
+        user_message=(
+            latest_user_message(state.get("messages"))
+            if concise_replies()
+            else None
+        ),
     )
 
 
