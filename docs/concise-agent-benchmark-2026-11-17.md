@@ -1,6 +1,6 @@
 # BENCHMARK 2026-draft-5: concise profile with curated charts (2026-11-17)
 
-> **Update, later on 2026-11-17.** After the changes in "Changes after the run", a full run on `0cf9eed5` gives a North Star of **78.4% (211 of 269)**, the same as prod, and 66.2% right every time (prod 65.1%). See "Full run on `0cf9eed5`". The sections below that one are about the first run.
+> **Update, later on 2026-11-17.** After the changes in "Changes after the run", a full run on `0cf9eed5` gives a North Star of **78.4% (211 of 269)**, the same as prod. With the context layer rule, a full run on `3a9075df` gives **81.4% (219 of 269)** and 69.9% right every time (prod 78.4% and 65.1%). See "Full run on `0cf9eed5`" and "Full run on `3a9075df`". The sections below those are about the first run.
 
 ## Result
 
@@ -95,7 +95,42 @@ So the user's message does not cause the default. The live difference also has r
 
 **Other losses against the first run:** `ch-causal-012` and `ch-causal-017` stop at a dataset choice; `ch-quant-172` answers from WRI posts without a pull; `ch-mon-035` (`pick_aoi` does not find the Wampis territory); `ch-quant-033` (period); `ch-comp-162` (figure); `ch-port-011`, `ch-quant-186` and `ch-quant-199` (text, 1 of 3).
 
-`3a9075df` has no benchmark run yet.
+## Full run on `3a9075df`
+
+The same set, 3 attempts, local, `ff=concise`. The only change from `0cf9eed5` is the context layer rule.
+
+| | Prod baseline | `0cf9eed5` | `3a9075df` |
+|---|---|---|---|
+| **North Star** | 78.4% (211) | 78.4% (211) | **81.4%** (219; Wilson 95% CI 76.3 to 85.6%) |
+| Right every time | 65.1% | 66.2% | **69.9%** |
+| Right at least once | 86.2% | 84.0% | 87.7% |
+| Consistency | 175 of 211 | 178 of 211 | 188 of 219 |
+| Failure modes (scope, retrieval, analysis, explanation) | 2, 31, 7, 18 | 0, 27, 10, 21 | 0, 22, 9, 19 |
+| Attempts with no reply | 1 of 807 | 2 of 807 | 7 of 807 |
+
+| Type | Prod | `0cf9eed5` | `3a9075df` |
+|---|---|---|---|
+| Quantification | 70 of 84 | 65 | 71 |
+| Comparison | 46 of 57 | 50 | 50 |
+| Monitoring | 30 of 41 | 33 | 32 |
+| Causal | 20 of 31 | 17 | 18 |
+| Trend | 20 of 23 | 21 | 21 |
+| Refusal | 5 of 9 | 6 | 7 |
+| Geospatial | 8 of 9 | 8 | 8 |
+| Portfolio | 6 of 9 | 5 | 6 |
+| Dataset | 6 of 6 | 6 | 6 |
+
+Against prod, 23 questions gained and 15 lost (McNemar p = 0.26). Against `0cf9eed5`, 17 gained and 9 lost (p = 0.17). The North Star is 8 questions higher than prod, but the difference is not significant at this sample size.
+
+**Context layer.** Tree cover loss pulls with the primary forest layer (asked and unasked) went from 77 of 159 to 33 of 159. Quantification went back from 65 to 71. Five gained questions had failed on `context_layer_match` before (`ch-quant-011`, `ch-quant-151`, `ch-quant-165`, `ch-quant-169`, `ch-quant-177`).
+
+**One side effect.** `ch-quant-009` ("How much deforestation occurred in Brazil in 2023?") was right 3 of 3 and is now wrong 3 of 3. The benchmark expects the primary or the natural forest layer for "deforestation". With the rule, the selection gives no layer. A rule that counts "deforestation" as a request for a kind of forest can correct this. This change is not made yet.
+
+**No reply.** 5 of the 7 attempts with no reply stop after a standard chart, with no final message. Two of them are `ch-quant-009` (about 220 s each). `0cf9eed5` had 5 such attempts too, so this is not from the rule.
+
+**Other losses against `0cf9eed5`:** figures in `ch-mon-030`, `ch-comp-150` and `ch-comp-163`; no pull in `ch-mon-056` and `ch-mon-058`; text in `ch-trend-053` and `ch-causal-026`; the area in `ch-quant-182`. Each of these was right on 1 or 2 attempts in one of the two runs. `ch-mon-035` (Wampis territory) passes now on 3 of 3.
+
+**Latency.** The median attempt took 33.4 s, against 17.8 s on `0cf9eed5`. The tool calls are the same (3.3 per attempt, the same mix of standard and CodeAct charts). The slow attempts are all in the first third of the run (median 65.8 s, against 31.1 s for the same questions on `0cf9eed5`). The last two thirds are equal to `0cf9eed5`. So the cause is not in the code; the model API was slower during that hour. Do not use this run for latency.
 
 ## What ran
 
