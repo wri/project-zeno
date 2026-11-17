@@ -79,7 +79,7 @@
       "code_instructions": 1711,
       "context_layer_descriptions": 1565,
       "function_usage_notes": 42,
-      "presentation_instructions": 2377,
+      "presentation_instructions": 2827,
       "prompt_instructions": 1425,
       "selection_hints": 770
     },
@@ -113,7 +113,7 @@
       "tools_total": 3330
     },
     "concise": {
-      "system_prompt": 6893,
+      "system_prompt": 7034,
       "tools": {
         "add_dashboard_section": 864,
         "add_map_widget": 770,

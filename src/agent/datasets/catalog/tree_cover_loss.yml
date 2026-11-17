@@ -72,7 +72,11 @@ code_instructions: 'CHART TYPES: - Yearly loss → bar chart (x=year, y=area_ha)
   Cover Loss in Intact Forests in DRC (2001-2025)"
 
   '
-presentation_instructions: 'Use "tree cover loss" rather than "deforestation" only when no primary, intact or natural forest
+presentation_instructions: 'When the user''s question says "deforestation", or another word that is not tree cover loss
+  (for example "forest loss" or "clearing"), always add one sentence that the figure is tree cover loss (primary forest loss,
+  tree cover loss in intact forests or natural forest loss when that layer is applied) and that loss is not the same as
+  deforestation. This applies with every context layer. When the user says "tree cover loss", leave this sentence out. Use
+  "tree cover loss" rather than "deforestation" only when no primary, intact or natural forest
   context layer is applied. When intact_forest is applied, "deforestation" may describe the process but never takes
   intact forest as its object. This measures canopy loss only; it doesn''t track regrowth or permanence. Always state the canopy density threshold
   used (30% by default). With natural_forest, state the threshold used (10% by default), that natural forest follows the
