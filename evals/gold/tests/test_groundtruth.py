@@ -240,13 +240,12 @@ def test_missing_aoi_fields_abort_loudly():
 
 
 def test_canopy_cover_defaults_and_pins():
+    pinned = {"dataset_parameters": '[{"name": "canopy_cover", "values": [50]}]'}
     assert canopy_cover({}) == 30
-    assert (
-        canopy_cover(
-            {"dataset_parameters": '[{"name": "canopy_cover", "values": [50]}]'}
-        )
-        == 50
-    )
+    assert canopy_cover(pinned) == 50
+    # zeno's natural forest default; a pinned value still wins
+    assert canopy_cover({}, "natural_forest") == 10
+    assert canopy_cover(pinned, "natural_forest") == 50
 
 
 def _pull_read_environment(run_environment: str) -> str:
@@ -318,6 +317,15 @@ def test_the_loss_family_takes_either_forest_layer(dataset_id, layer):
     assert request.payload["forest_filter"] == layer
 
 
+@pytest.mark.parametrize("dataset_id", ["4", "8", "10"])
+def test_natural_forest_loss_is_the_natural_forest_only_filter_at_10(dataset_id):
+    """zeno maps the natural_forest layer to `natural_forest_only`, and its
+    canopy default to 10. Without both the request is all tree cover loss."""
+    payload = build_request(_layer_case(dataset_id, "natural_forest")).payload
+    assert payload["forest_filter"] == "natural_forest_only"
+    assert payload["canopy_cover"] == 10
+
+
 @pytest.mark.parametrize("dataset_id", ["5", "7"])
 def test_gain_and_extent_take_primary_forest_only(dataset_id):
     """Only the tree-cover-loss datasets have an `intact_forest` filter. Tree
@@ -333,6 +341,25 @@ def test_gain_and_extent_take_primary_forest_only(dataset_id):
         build_request(_layer_case(dataset_id, "intact_forest")).payload["forest_filter"]
         is None
     )
+    assert (
+        build_request(_layer_case(dataset_id, "natural_forest")).payload[
+            "forest_filter"
+        ]
+        is None
+    )
+
+
+def test_tree_cover_takes_the_natural_forest_canopy_default():
+    """Tree cover has no natural forest filter, but zeno still drops its
+    canopy default to 10 for that layer."""
+    payload = build_request(_layer_case("7", "natural_forest")).payload
+    assert payload["canopy_cover"] == 10
+
+
+def test_a_layer_with_alternatives_is_refused():
+    """A ground-truth case is one request, so it names one layer."""
+    with pytest.raises(RequestError, match="offers alternatives"):
+        build_request(_layer_case("4", "primary_forest | natural_forest"))
 
 
 @pytest.mark.parametrize("dataset_id", ["4", "5", "7", "8", "10"])
@@ -345,11 +372,20 @@ def test_a_layer_that_is_not_a_forest_filter_is_dropped(dataset_id):
     )
 
 
-@pytest.mark.parametrize("layer", [None, "natural_lands"])
-def test_integrated_alerts_payload_is_dates_only(layer):
-    """Integrated Alerts takes the AOI and full dates only. The API rejects
-    unknown fields with a 422, including an empty `intersections` list, and
-    zeno sends no context layer for this dataset, so neither may appear."""
+@pytest.mark.parametrize(
+    ("layer", "land_filter"),
+    [
+        (None, None),
+        ("no_selection", None),
+        ("natural_lands", "natural_lands"),
+        ("natural_forests", "natural_forests"),
+    ],
+)
+def test_integrated_alerts_payload_is_dates_and_land_filter(layer, land_filter):
+    """Integrated Alerts takes the AOI, full dates and land_filter. The API
+    rejects unknown fields with a 422, including an empty `intersections`
+    list. zeno always sends land_filter: the layer when it is a land filter,
+    else null."""
     expected = {
         "aoi_ids": "BRA.25_1",
         "aoi_source": "gadm",
@@ -367,6 +403,7 @@ def test_integrated_alerts_payload_is_dates_only(layer):
         "aoi": {"type": "admin", "ids": ["BRA.25"]},
         "start_date": "2024-07-01",
         "end_date": "2024-12-31",
+        "land_filter": land_filter,
     }
 
 

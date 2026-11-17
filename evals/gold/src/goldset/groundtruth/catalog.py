@@ -16,7 +16,7 @@ from pathlib import Path
 
 # How a dataset's payload is shaped beyond the mandatory ``aoi`` block.
 #   none        AOI only
-#   date        start_date/end_date only (zeno's Integrated Alerts branch)
+#   date        start_date/end_date + land_filter (zeno's Integrated Alerts branch)
 #   year        start_year/end_year
 #   loss        start_year/end_year + forest_filter + intersections + canopy_cover
 #   gain        start_year/end_year snapped to 5-year buckets + forest_filter
@@ -26,6 +26,8 @@ from pathlib import Path
 PayloadStyle = str
 
 DEFAULT_CANOPY_COVER = 30
+# zeno's default when the context layer is natural_forest.
+NATURAL_FOREST_DEFAULT_CANOPY_COVER = 10
 
 SNAPSHOT_PATH = Path(__file__).resolve().parents[3] / "cases" / "zeno_catalog.json"
 
