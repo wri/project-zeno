@@ -34,7 +34,7 @@
     },
     "Integrated alerts": {
       "cautions": 946,
-      "code_instructions": 1682,
+      "code_instructions": 1566,
       "context_layer_descriptions": 607,
       "function_usage_notes": 217,
       "presentation_instructions": 919,
@@ -68,10 +68,10 @@
     },
     "Tree cover gain": {
       "cautions": 1122,
-      "code_instructions": 1005,
+      "code_instructions": 975,
       "function_usage_notes": 37,
       "presentation_instructions": 618,
-      "prompt_instructions": 1149,
+      "prompt_instructions": 1118,
       "selection_hints": 406
     },
     "Tree cover loss": {
