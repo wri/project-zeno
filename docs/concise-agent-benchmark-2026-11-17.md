@@ -15,6 +15,44 @@ The difference is not significant. 18 questions pass now and failed on prod. 23 
 
 The failures moved between stages. Retrieval failures are the same (31). Explanation failures increased from 18 to 24. The main cause is that the short replies leave out caveats that some questions require (see "Lost questions").
 
+## Changes after the run (`0cf9eed5`)
+
+The lost questions are the part to fix. If the 23 lost questions passed as on prod and the 18 gains stayed, the North Star would be 229 of 269 (85.1%). That is an upper bound: prod also has questions that pass by chance. About 13 of the 23 losses come from the agent: caveats left out (4), stops at the dataset choice (6) and fire questions on the drivers dataset (3). Fixing these gives about 219 of 269 (81%).
+
+Three changes, all for the concise profile only:
+
+1. **The dataset selection reads the user's message.** The orchestrator never passed the user's words to `pick_dataset` (0 of 674 calls). It wrote a dataset phrase, for example "tree cover loss by driver (fire)" for "Has fire-driven tree cover loss in Bolivia gone down since the 2019 fire season?". The selection then offered a choice. Now `pick_dataset` gives the selection the user's latest message first, and the orchestrator's query as context for earlier turns. Retrieval uses the user's message.
+2. **A part that no dataset gives does not stop the selection.** With the user's whole message, the rule "only choose a dataset if it can answer ALL parts" made the selection decline "why" questions and questions with a purpose ("We need it for NDC tracking"). With the user's message, the rule now says that the agent explains such a part, and the selection picks the data.
+3. **Reply length by kind of turn, and new caution triggers.** One or two sentences for a selection only. One line for each option. Up to about 200 words after an analysis: the figures, what they mean for the question, then the cautions. As long as needed when the user asks for detail. New caution triggers: the user says what the figures are for (NDC or inventory tracking, verification, payments, compliance), or asks about a cause, a commodity or a boundary that the data does not identify.
+
+### Offline selection test
+
+The selection only, on the 48 questions where the run offered a choice and the question expects a dataset (one call each, two repetitions):
+
+| Selection input | Expected dataset picked | Wrong dataset picked |
+|---|---|---|
+| The orchestrator's query (as in the run) | 1 of 41 (first test set) | 0 |
+| User's message, query as context | 21 of 48 | 0 |
+| The same, with the new rule | 25 to 26 of 48 | 0 |
+
+All six fire questions pick tree cover loss due to fires on each call. Before, the selection offered drivers or fires. For 14 questions that expect no dataset, the new rule picks a dataset for 2 more (`ch-quant-187` social forestry, `ch-quant-184` production forest). The new caution trigger for an area with no defined boundary must cover these.
+
+### Rerun of the 41 changed questions
+
+The 23 lost and 18 gained questions, 3 attempts each, on `0cf9eed5`:
+
+| | Full run | Rerun |
+|---|---|---|
+| Lost questions that pass | 0 of 23 | 15 of 23 |
+| Gained questions that pass | 18 of 18 | 13 of 18 |
+| Total | 18 of 41 | 28 of 41 |
+
+Back: the caveat questions `ch-causal-018`, `ch-causal-026` and `ch-comp-173`; the fire questions `ch-quant-011` and `ch-causal-003`; the dataset-choice questions `ch-comp-093`, `ch-quant-133` and `ch-comp-152`; the "why" question `ch-causal-010`; and `ch-aoi-118`, `ch-causal-025`, `ch-comp-163`, `ch-mon-030`, `ch-quant-162` and `ch-trend-067`.
+
+Still failing: `ch-quant-169` (the selection adds a context layer), `ch-port-018` (context layer), `ch-quant-153` (needs two datasets), `ch-comp-031`, `ch-comp-157`, `ch-port-003`, `ch-trend-037` and `ch-trend-080` (right on 1 of 3). Gains lost again: `ch-mon-035` (`pick_aoi` does not find the Wampis territory), `ch-causal-012` (answers from the WRI posts without a pull), `ch-quant-166`, `ch-quant-172` and `ch-quant-199`.
+
+With the other 228 questions as in the full run, the North Star would be about 216 of 269 (80.3%), against 78.4% on prod. This is an estimate: the selection change can also change the other 228 questions. A full run is necessary before this number is reported.
+
 ## What ran
 
 - **Agent:** `feat/concise-agent` at `9eb54f40`, local API, `ff=concise`. This commit adds curated charts first (#910) to the concise profile. So the run measures the two changes together: short replies and curated charts.
