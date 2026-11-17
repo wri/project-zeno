@@ -15,7 +15,12 @@ from src.agent.agent_config import (
     default_registry,
 )
 from src.agent.graph import get_prompt
-from src.agent.prompts import apply_gates, gates, section_texts
+from src.agent.prompts import (
+    INLINE_SKILLS,
+    apply_gates,
+    gates,
+    section_texts,
+)
 from src.agent.prompts.tool_descriptions import CONCISE_TOOL_DESCRIPTIONS
 from src.agent.skills import get_skill
 from src.agent.tool_spec import Availability
@@ -131,7 +136,11 @@ def test_concise_skills_list_is_one_brief_line_per_skill():
     cfg = default_registry.resolve(CONCISE_PROFILE)
     prompt = get_prompt(cfg)
     for skill in cfg.skill_metas():
-        assert f"- {skill.name}: {skill.brief}\n" in prompt + "\n"
+        line = f"- {skill.name}: {skill.brief}\n"
+        if skill.name in INLINE_SKILLS:
+            assert line not in prompt + "\n"
+        else:
+            assert line in prompt + "\n"
     assert "(use when:" not in prompt
     default = get_prompt(default_registry.resolve(DEFAULT_PROFILE))
     assert "(use when:" in default

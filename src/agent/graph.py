@@ -26,7 +26,7 @@ from src.agent.middleware import (
     OneStateWriterMiddleware,
     SessionContextMiddleware,
 )
-from src.agent.prompts import build_prompt
+from src.agent.prompts import INLINE_SKILLS, build_prompt
 from src.agent.state import AgentState
 from src.agent.tool_spec import Gate, set_bound_availability
 from src.agent.view_pages import prompt_section
@@ -97,11 +97,16 @@ def get_prompt(
         # Numbered markdown sections (src/agent/prompts/); the tool list is
         # not in the prompt: each tool's schema description is its single
         # description (docs/concise-agent-plan.md, iteration 2). Each skill
-        # is one line, its `brief`.
+        # is one line, its `brief`. The skills in INLINE_SKILLS are not
+        # listed: their workflow is in the sections (iteration 3).
         available = config.availability()
         return build_prompt(
             available,
-            [f"- {s.name}: {s.brief}" for s in config.skill_metas()],
+            [
+                f"- {s.name}: {s.brief}"
+                for s in config.skill_metas()
+                if s.name not in INLINE_SKILLS
+            ],
             prompt_section(page, available),
         )
     # A profile without skills (base) binds no read_skill, so the whole

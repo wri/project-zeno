@@ -25,6 +25,11 @@ from src.agent.tool_spec import Availability
 
 SECTIONS_DIR = Path(__file__).resolve().parent / "sections"
 
+# Skills whose workflow is written in the sections, so the skills list
+# leaves them out and the model does not spend a model call to read them
+# (docs/concise-agent-plan.md, iteration 3). read_skill still serves them.
+INLINE_SKILLS = frozenset({"analyze"})
+
 _GATE_START = re.compile(r"^<!-- (tool|skill): ([a-z0-9_-]+) -->$")
 _GATE_END = "<!-- end -->"
 

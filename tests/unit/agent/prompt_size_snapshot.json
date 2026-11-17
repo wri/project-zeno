@@ -113,7 +113,7 @@
       "tools_total": 3330
     },
     "concise": {
-      "system_prompt": 7034,
+      "system_prompt": 7217,
       "tools": {
         "add_dashboard_item": 1792,
         "create_dashboard": 344,
