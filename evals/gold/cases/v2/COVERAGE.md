@@ -6,7 +6,7 @@ is stale (`--check`). Coverage counts use **gating** checks only;
 info-only checks are listed separately (they never enter a verdict).
 Terms are defined in the [README glossary](../../README.md#glossary).
 
-`caseset_version 0f2b0737a9e27427` · 154 cases · done 91 · not doing 33 · ready 27 · todo 3 · **121 active** (everything but `not doing` runs by default)
+`caseset_version 0f2b0737a9e27427` · 154 cases · done 92 · not doing 33 · ready 27 · todo 2 · **121 active** (everything but `not doing` runs by default)
 
 _Last updated: 2026-11-19_
 
@@ -17,7 +17,7 @@ _Last updated: 2026-11-19_
 | boundary-layer | 3 | 3 | ready 3 |
 | class-comparison | 9 | 6 | done 6, not doing 3 |
 | comparative | 14 | 13 | done 11, not doing 1, ready 1, todo 1 |
-| context-layer | 11 | 9 | done 7, not doing 2, ready 1, todo 1 |
+| context-layer | 11 | 9 | done 8, not doing 2, ready 1 |
 | dashboard | 7 | 7 | done 7 |
 | dataset-parameters | 1 | 1 | done 1 |
 | dataset-suggestion | 8 | 6 | done 6, not doing 2 |
@@ -153,7 +153,6 @@ answer-graded column) exercise the other three.
 | mt-012 | not doing | multiturn | 2026-09-16: not doing. The behaviour is unreleased - wri/project-zeno#827 was open at authoring time, and t... |
 | 1-027 | todo | direct | CHART aggregates results, hiding requested class |
 | 1-030 | todo | comparative | Expecting SBTN analysis but using the Blog skill |
-| 1-130 | todo | context-layer | todo 2026-10-09: blocked on project-zeno applying a 10% canopy threshold with the natural_forest layer (AJ,... |
 
 ## Known gaps
 
