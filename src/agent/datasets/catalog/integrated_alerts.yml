@@ -46,11 +46,10 @@ selection_hints: >-
   historical or long-term tree cover change, prefer Tree Cover Loss; for driver attribution of tree cover loss, prefer
   Tree Cover Loss by Dominant Driver.
 code_instructions: |-
-  CHART TYPES — generate EXACTLY ONE chart for Integrated alerts, chosen by the query; never emit both a pie and a line:
+  CHART TYPES — generate EXACTLY ONE chart for Integrated alerts, chosen by the query; never emit both a pie and a chart over time:
   - Totals / breakdown by confidence → PIE chart, one slice per confidence tier (low, high, highest), value = total area_ha summed over the period
-  - Alerts over time / recent trends → LINE chart ONLY (x=alert month from alert_date, y=area_ha, one line per confidence tier); the x-axis may be aggregated to month, but render it as a line, NOT as bars
-  - The charts list must contain exactly one chart. If the query does not clearly ask for totals, default to the LINE over time.
-  - Do NOT use bar charts for Integrated alerts unless specifically asked by the user
+  - Alerts over time / recent trends → stacked BAR chart or LINE chart (x=alert_date, or alert month from alert_date, y=area_ha, one series per confidence tier)
+  - The charts list must contain exactly one chart. If the query does not clearly ask for totals, default to the chart over time.
   DATA RULES:
   - Result columns are: aoi_id, alert_date, alert_confidence, area_ha, aoi_type
   - All areas are in hectares (ha) in the area_ha column

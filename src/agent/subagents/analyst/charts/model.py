@@ -68,6 +68,13 @@ class InsightChart(BaseModel):
     series_color: Optional[str] = None
     divergent_colors: Optional[Dict[str, str]] = None
 
+    # Provenance of a curated chart: the view that built it and the view's
+    # revision at that time (see src/api/services/charts/views.py). Both are
+    # None for a chart that the code executor made. Persisted only; not
+    # sent to the frontend.
+    view_id: Optional[str] = None
+    view_revision: Optional[int] = None
+
     @field_validator("chart_data")
     @classmethod
     def sanitize_chart_data(cls, rows: List[dict]) -> List[dict]:
@@ -185,6 +192,8 @@ class InsightChart(BaseModel):
             color_map=row.color_map or {},
             series_color=row.series_color,
             divergent_colors=row.divergent_colors,
+            view_id=row.view_id,
+            view_revision=row.view_revision,
         )
 
 

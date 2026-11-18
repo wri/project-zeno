@@ -43,6 +43,9 @@ class Availability:
     skills: frozenset[str]
     tools: frozenset[str]
     excluded_datasets: frozenset[str] = frozenset()
+    # Behaviour flags of the profile (see AgentConfig.flags), for example
+    # the parts of a skill that only a flagged profile reads.
+    flags: frozenset[str] = frozenset()
 
     def has_skill(self, name: str) -> bool:
         return name in self.skills

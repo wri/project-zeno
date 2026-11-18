@@ -1,5 +1,6 @@
 import pytest
 
+from src.agent.agent_config import FLAG_TOOL_VARIANTS
 from src.agent.skills import (
     all_skills,
     get_skill,
@@ -7,6 +8,7 @@ from src.agent.skills import (
     load_skills,
 )
 from src.agent.skills.capabilities import load_datasets_info
+from src.agent.skills.loader import apply_flags, flag_names
 from src.agent.skills.tool import read_skill
 from src.agent.tool_spec import Availability, set_bound_availability
 
@@ -287,3 +289,55 @@ def test_get_prompt_routing_gates_recall_row_on_search_insights():
 
     default_prompt = get_prompt()
     assert "Recall a past insight" in default_prompt
+
+
+# --- flagged blocks -----------------------------------------------------------
+
+FLAGGED = """a
+<!-- flag: f -->
+on
+<!-- end flag -->
+<!-- no flag: f -->
+off
+<!-- end flag -->
+b
+"""
+
+
+def test_apply_flags_selects_blocks_and_drops_markers():
+    assert apply_flags(FLAGGED, frozenset()) == "a\noff\nb\n"
+    assert apply_flags(FLAGGED, frozenset({"f"})) == "a\non\nb\n"
+    assert apply_flags("plain\n", frozenset({"f"})) == "plain\n"
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "<!-- flag: f -->\nx\n",
+        "x\n<!-- end flag -->\n",
+        "<!-- flag: f -->\n<!-- flag: g -->\n<!-- end flag -->\n",
+    ],
+)
+def test_apply_flags_rejects_bad_blocks(body):
+    with pytest.raises(ValueError):
+        apply_flags(body, frozenset())
+
+
+def test_skills_name_only_known_flags_and_render_with_each():
+    known = set(FLAG_TOOL_VARIANTS)
+    for skill in all_skills():
+        assert flag_names(skill.body) <= known, skill.name
+        for flags in (frozenset(), frozenset(known)):
+            assert "<!--" not in apply_flags(skill.body, flags)
+
+
+def test_read_skill_serves_the_flagged_body():
+    set_bound_availability(
+        Availability(
+            skills=frozenset({"analyze"}),
+            tools=frozenset(),
+            flags=frozenset({"curated-charts-first"}),
+        )
+    )
+
+    assert 'chart="custom"' in read_skill.invoke({"name": "analyze"})

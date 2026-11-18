@@ -29,6 +29,7 @@ from src.api.services.charts import (
     TreeCoverChartGenerator,
     TreeCoverGainChartGenerator,
 )
+from src.api.services.charts.tcl_by_driver import driver_facts
 
 CASES = [
     (NaturalLandsChartGenerator, NATURAL_LANDS_ID),
@@ -331,3 +332,47 @@ def test_titles_do_not_assert_a_period(generator, dataset_id, rows):
     naming a fixed period can contradict the data it labels."""
     for chart in generator().generate(rows):
         assert not re.search(r"\d{4}", chart.title), chart.title
+
+
+def test_tcl_by_driver_rows_have_only_the_drawn_columns():
+    rows = [
+        {
+            "aoi_id": "GAB",
+            "name": "Gabon",
+            "tree_cover_loss_driver": "Logging",
+            "area_ha": 2.0,
+            "carbon_emissions_MgCO2e": 9.0,
+        }
+    ]
+    (chart,) = TCLByDriverChartGenerator().generate(rows)
+    assert chart.chart_data == [
+        {"tree_cover_loss_driver": "Logging", "area_ha": 2.0}
+    ]
+
+
+def test_driver_facts_give_unknown_and_the_groups():
+    rows = [
+        {"tree_cover_loss_driver": "Permanent agriculture", "area_ha": 60.0},
+        {
+            "tree_cover_loss_driver": "Settlements & Infrastructure",
+            "area_ha": 10.0,
+        },
+        {"tree_cover_loss_driver": "Shifting cultivation", "area_ha": 30.0},
+        {"tree_cover_loss_driver": "Unknown", "area_ha": 25.0},
+    ]
+    assert driver_facts(rows) == [
+        "Unknown driver, not in the chart: 25 ha.",
+        "Total loss with the Unknown driver: 125 ha.",
+        "Group deforestation proxy (permanent agriculture, hard commodities, "
+        "settlements and infrastructure): 70 ha, 70% of the loss with a "
+        "known driver.",
+        "Group temporary disturbance (shifting cultivation, logging, "
+        "wildfire, other natural disturbances): 30 ha, 30% of the loss with "
+        "a known driver.",
+        "Group all agriculture (permanent agriculture, shifting "
+        "cultivation): 90 ha, 90% of the loss with a known driver.",
+    ]
+
+
+def test_driver_facts_without_areas_are_empty():
+    assert driver_facts([]) == []

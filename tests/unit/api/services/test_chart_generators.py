@@ -87,10 +87,42 @@ def test_emissions_chart_is_separate_bar_with_correct_axes():
 
 
 def test_drops_rows_where_area_ha_is_zero():
-    charts = TCLChartGenerator().generate(TCL_ROWS)
+    zero_years = {
+        row["tree_cover_loss_year"] for row in TCL_ROWS if row["area_ha"] == 0
+    }
+    assert zero_years, "the fixture must have a year with no loss"
+    for chart in TCLChartGenerator().generate(TCL_ROWS):
+        years = {row["tree_cover_loss_year"] for row in chart.chart_data}
+        assert not years & zero_years
+
+
+@pytest.mark.asyncio
+async def test_rest_charts_keep_every_column_and_their_titles():
+    # /api/analyze and the templates: the CSV download keeps the area
+    # columns and the other measure, and the title names no layer.
+    rows = column_to_rows(TCL_DATA)
+    charts = await build_curated_charts(
+        TREE_COVER_LOSS_ID, rows, context_layer="primary_forest"
+    )
     for chart in charts:
         for row in chart.chart_data:
-            assert row["area_ha"] != 0
+            assert {"aoi_id", "carbon_emissions_MgCO2e", "area_ha"} <= set(row)
+        assert "(" not in chart.title
+
+
+@pytest.mark.asyncio
+async def test_agent_charts_keep_only_the_drawn_columns():
+    rows = column_to_rows(TCL_DATA)
+    charts = await build_curated_charts(
+        TREE_COVER_LOSS_ID,
+        rows,
+        context_layer="primary_forest",
+        for_agent=True,
+    )
+    for chart in charts:
+        for row in chart.chart_data:
+            assert set(row) == {chart.x_axis, chart.y_axis}
+        assert chart.title.endswith("(primary forest)")
 
 
 def test_sorts_rows_by_year():

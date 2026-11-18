@@ -545,6 +545,11 @@ class InsightChartOrm(Base):
     series_color = Column(String, nullable=True)
     divergent_colors = Column(JSONB, nullable=True)
 
+    # The curated view that built the chart and its revision at that time
+    # (src/api/services/charts/views.py). Null for a generated chart.
+    view_id = Column(String, nullable=True)
+    view_revision = Column(Integer, nullable=True)
+
     insight = relationship("InsightOrm", back_populates="charts")
 
 

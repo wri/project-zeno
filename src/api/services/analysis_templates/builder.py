@@ -56,11 +56,6 @@ from src.api.services.alerts_list import (
     LatestAlertDateSource,
     UnsupportedAreaError,
 )
-from src.api.services.analysis_templates.facts import (
-    chart_facts,
-    hectares,
-    percent,
-)
 from src.api.services.analysis_templates.models import (
     AlertsWidgetSpec,
     AnalysisTemplate,
@@ -75,6 +70,11 @@ from src.api.services.analysis_templates.text import generate_section_text
 from src.api.services.analyze import AnalyzeService
 from src.api.services.charts import column_to_rows
 from src.api.services.charts.curated import build_curated_charts
+from src.api.services.charts.facts import (
+    chart_facts,
+    hectares,
+    percent,
+)
 from src.api.services.charts.tcl_natural_forest import (
     TCLNaturalForestChartGenerator,
     natural_forest_totals,

@@ -9,9 +9,20 @@ from src.agent.subagents.analyst.charts import InsightChart
 
 
 def column_to_rows(data: dict) -> List[dict]:
-    """Convert column-oriented data ({col: [..]}) to a list of row dicts."""
-    keys = list(data.keys())
-    return [dict(zip(keys, values)) for values in zip(*data.values())]
+    """Convert column-oriented data ({col: [..]}) to a list of row dicts.
+
+    A column with one value in place of a list (the grasslands API returns
+    `"aoi_type": "admin"`) applies to every row. Zipped as it is, the
+    string would cut the rows to its number of characters."""
+    lists = {k: v for k, v in data.items() if isinstance(v, (list, tuple))}
+    scalars = {k: v for k, v in data.items() if k not in lists}
+    if not lists:
+        return []
+    keys = list(lists.keys())
+    return [
+        {**dict(zip(keys, values)), **scalars}
+        for values in zip(*lists.values())
+    ]
 
 
 def _metric_values(rows: List[dict], field: str) -> np.ndarray:

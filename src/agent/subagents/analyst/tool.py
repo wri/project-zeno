@@ -1,7 +1,7 @@
 import asyncio
 import re
 from base64 import b64encode
-from typing import Annotated, Dict, List, Optional
+from typing import Annotated, Dict, List, Literal, Optional
 
 import pandas as pd
 import structlog
@@ -11,6 +11,7 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
+from src.agent.datasets.config import DATASETS
 from src.agent.datasets.curated_only import (
     CURATED_ONLY_TOOL_INSTRUCTION,
     is_curated_only,
@@ -379,6 +380,56 @@ async def _build_curated_only_tool_message(
     return "\n".join(lines) + "\n\n" + CURATED_ONLY_TOOL_INSTRUCTION
 
 
+# The route that the orchestrator selects for a chart (curated charts first).
+ChartRoute = Literal["standard", "custom"]
+
+
+def _catalog_cautions(dataset_id: int) -> Optional[str]:
+    for entry in DATASETS:
+        if entry["dataset_id"] == dataset_id:
+            return entry.get("cautions")
+    return None
+
+
+async def _persist_curated(
+    insight: Insight,
+    statistics: dict,
+    content: str,
+    tool_call_id: Optional[str],
+) -> Command:
+    """Persist a curated insight of one pull and return the state update.
+    The update has the same fields as the code executor path."""
+    ctx = structlog.contextvars.get_contextvars()
+    insight_id = await persist_insight(
+        insight,
+        user_id=current_user_id(),
+        thread_id=ctx.get("thread_id", ""),
+        statistics_ids=_extract_statistics_ids([statistics]),
+        codeact_parts=[],
+    )
+    logger.info(f"Persisted curated insight to DB: {insight_id}")
+
+    return Command(
+        update={
+            "insight_id": insight_id,
+            "insight": insight.primary_insight,
+            "follow_up_suggestions": [],
+            "codeact_parts": [],
+            "charts_data": [
+                c.to_frontend_dict(insight_id) for c in insight.charts
+            ],
+            "messages": [
+                ToolMessage(
+                    content=content,
+                    tool_call_id=tool_call_id,
+                    status="success",
+                    response_metadata={"msg_type": "human_feedback"},
+                )
+            ],
+        }
+    )
+
+
 class Analyst:
     """Insight subagent: turns pulled data into a chart artifact.
 
@@ -506,8 +557,15 @@ class Analyst:
         dataset: Optional[dict] = None,
         tool_call_id: Optional[str] = None,
         language: str = DEFAULT_LANGUAGE,
+        chart: Optional[ChartRoute] = None,
     ) -> Command:
-        """Analyze pulled data and produce one chart insight."""
+        """Analyze pulled data and produce one chart insight.
+
+        ``chart`` is None for the profiles without curated charts first:
+        the code executor draws the chart. "standard" shows the curated
+        chart of the latest pull when the code gate passes, else the code
+        executor runs. "custom" always runs the code executor.
+        """
         logger.info("ANALYST: generating insight")
         logger.debug(f"Generating insights for query: {query}")
         dataset = dataset or {}
@@ -520,6 +578,12 @@ class Analyst:
             return await self._analyze_curated_only(
                 latest, tool_call_id, language
             )
+        if chart == "standard":
+            curated = await self._analyze_curated(
+                latest, tool_call_id, language
+            )
+            if curated is not None:
+                return curated
         # Never hand a curated-only pull to the code executor, also not as
         # context for another dataset's insight.
         statistics = [
@@ -659,46 +723,138 @@ class Analyst:
             follow_up_suggestions=[],
         ).stamp_insight()
 
-        ctx = structlog.contextvars.get_contextvars()
-        insight_id = await persist_insight(
+        return await _persist_curated(
             insight,
-            user_id=current_user_id(),
-            thread_id=ctx.get("thread_id", ""),
-            statistics_ids=_extract_statistics_ids([statistics]),
-            codeact_parts=[],
-        )
-        logger.info(f"Persisted curated-only insight to DB: {insight_id}")
-
-        return Command(
-            update={
-                "insight_id": insight_id,
-                "insight": insight.primary_insight,
-                "follow_up_suggestions": [],
-                "codeact_parts": [],
-                "charts_data": [
-                    c.to_frontend_dict(insight_id) for c in insight.charts
-                ],
-                "messages": [
-                    ToolMessage(
-                        content=await _build_curated_only_tool_message(
-                            insight, language
-                        ),
-                        tool_call_id=tool_call_id,
-                        status="success",
-                        response_metadata={"msg_type": "human_feedback"},
-                    )
-                ],
-            }
+            statistics,
+            await _build_curated_only_tool_message(insight, language),
+            tool_call_id,
         )
 
+    async def _analyze_curated(
+        self,
+        statistics: dict,
+        tool_call_id: Optional[str] = None,
+        language: str = DEFAULT_LANGUAGE,
+    ) -> Optional[Command]:
+        """The curated chart of one pull, when the code gate passes; None
+        when it fails, and the code executor must draw the chart.
 
-@tool("generate_insights")
-async def generate_insights(
+        No model runs: the insight gets a fixed caption, and the tool
+        message gives the orchestrator the rows and the facts to answer
+        from (docs/curated-charts-first-plan.md).
+        """
+        # Deferred: the chart services import `analyst.charts`, whose
+        # package init imports this module.
+        from src.api.services.charts.views import agent_views
+
+        dataset_id = statistics.get("dataset_id")
+        # No fetch for a dataset that has no curated view.
+        if dataset_id is None or not agent_views(dataset_id):
+            return None
+        # Any error before the insight is saved gives the chart of the code
+        # executor, as before this route: for example an alert tier or a
+        # driver column that a generator does not know, or a class label
+        # that the catalog does not have.
+        try:
+            built = await _build_curated_insight(statistics, language)
+        except Exception:
+            logger.exception(
+                "ANALYST: curated chart failed, using the code executor",
+                dataset_id=dataset_id,
+            )
+            return None
+        if built is None:
+            return None
+        insight, message = built
+        return await _persist_curated(
+            insight, statistics, message, tool_call_id
+        )
+
+
+async def _build_curated_insight(
+    statistics: dict, language: str
+) -> Optional[tuple[Insight, str]]:
+    """The curated insight of one pull and its tool message; None when the
+    code gate fails. Saves nothing."""
+    # Deferred: the chart services import `analyst.charts`, whose package
+    # init imports this module.
+    from src.agent.subagents.analyst.curated_first import (
+        build_curated_tool_message,
+        curated_caption,
+        fill_missing_years,
+        unshown_columns,
+        with_data_period,
+    )
+    from src.api.services.charts import column_to_rows
+    from src.api.services.charts.curated import build_curated_charts
+    from src.api.services.charts.gate import (
+        charts_with_data,
+        count_areas,
+        view_gate,
+    )
+
+    dataset_id = statistics["dataset_id"]
+    raw = await _load_statistics_data(statistics)
+    rows = column_to_rows(raw) if raw else []
+    # The larger of the two counts: an area with no rows still counts.
+    area_count = max(
+        count_areas(rows, default=0), len(statistics.get("aoi_names") or [])
+    )
+    gate = view_gate(dataset_id, area_count)
+    start, end = statistics.get("start_date"), statistics.get("end_date")
+    period = (start, end) if start and end else None
+    charts: list[InsightChart] = []
+    if rows and gate.passed:
+        charts = charts_with_data(
+            await build_curated_charts(
+                dataset_id,
+                rows,
+                language,
+                titles=gate.title_keys,
+                period=period,
+                context_layer=statistics.get("context_layer"),
+                for_agent=True,
+            )
+        )
+    if not charts:
+        logger.info(
+            "ANALYST: curated gate failed, using the code executor",
+            dataset_id=dataset_id,
+            reason=gate.reason or "no rows or no chart with data",
+        )
+        return None
+    charts = [fill_missing_years(chart, start, end) for chart in charts]
+    logger.info(
+        "ANALYST: curated chart",
+        dataset_id=dataset_id,
+        views=[chart.view_id for chart in charts],
+    )
+
+    caption = await curated_caption(
+        with_data_period(charts, statistics), language
+    )
+    insight = Insight(
+        charts=charts,
+        primary_insight=caption,
+        follow_up_suggestions=[],
+    ).stamp_insight()
+    message = build_curated_tool_message(
+        charts,
+        statistics,
+        caption,
+        cautions=_catalog_cautions(dataset_id),
+        other_columns=unshown_columns(rows, charts),
+        rows=rows,
+    )
+    return insight, message
+
+
+async def _generate(
     query: str,
-    state: Annotated[Dict, InjectedState] | None = None,
-    tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
+    state: Optional[Dict],
+    tool_call_id: Optional[str],
+    chart: Optional[ChartRoute] = None,
 ) -> Command:
-    """Analyze pulled data and produce one chart insight with follow-up suggestions."""
     if not state or "statistics" not in state:
         error_msg = "No statistics available yet. Please pull data first."
         logger.error(error_msg)
@@ -709,11 +865,60 @@ async def generate_insights(
         dataset=state.get("dataset") or {},
         tool_call_id=tool_call_id,
         language=state.get("language") or DEFAULT_LANGUAGE,
+        chart=chart,
     )
+
+
+@tool("generate_insights")
+async def generate_insights(
+    query: str,
+    state: Annotated[Dict, InjectedState] | None = None,
+    tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
+) -> Command:
+    """Analyze pulled data and produce one chart insight with follow-up suggestions."""
+    return await _generate(query, state, tool_call_id)
+
+
+@tool("generate_insights")
+async def generate_insights_curated_first(
+    query: str,
+    chart: ChartRoute = "standard",
+    state: Annotated[Dict, InjectedState] | None = None,
+    tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
+) -> Command:
+    """Analyze pulled data and produce one chart insight.
+
+    chart="standard" (the default) shows the standard chart of the dataset
+    when one fits the pull, and returns its rows and facts to answer from;
+    when none fits, it draws a custom chart. chart="custom" always draws a
+    custom chart.
+    """
+    return await _generate(query, state, tool_call_id, chart)
 
 
 SPEC = ToolSpec(
     tool=generate_insights,
     category=ToolCategory.SUBAGENT,
     prompt_fragment="- generate_insights(query): analyst subagent. Turns pulled data into one chart insight with follow-up suggestions. Requires pull_data to have run first.",
+)
+
+# The tool for the profiles with curated charts first (the
+# CURATED_CHARTS_FIRST flag in src/agent/agent_config.py). Same tool name,
+# so the skills and the prompts that name generate_insights stay valid.
+CURATED_FIRST_SPEC = ToolSpec(
+    tool=generate_insights_curated_first,
+    category=ToolCategory.SUBAGENT,
+    prompt_fragment=(
+        '- generate_insights(query, chart="standard"|"custom"): analyst '
+        "subagent. Turns pulled data into one chart insight. Requires "
+        'pull_data to have run first. chart="standard" (the default) shows '
+        "the standard chart of the dataset when one fits the pull, and "
+        "returns its figures; when none fits, it draws a custom chart. Use "
+        '"standard" for a first analysis of an area and a dataset, and when '
+        'you are not sure. Use "custom" only when the user asks for '
+        "something that the standard chart does not have: a ranking or a "
+        "comparison of areas, a different time step, a calculation across "
+        "two datasets, a derived metric, or a change that "
+        "update_insight_display cannot make."
+    ),
 )

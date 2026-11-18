@@ -125,6 +125,8 @@ def test_to_orm_kwargs_is_snake_case_and_complete():
         "color_map",
         "series_color",
         "divergent_colors",
+        "view_id",
+        "view_revision",
     }
     assert kwargs["chart_type"] == "bar"
     assert kwargs["y_axis"] == "area_ha"
@@ -200,6 +202,8 @@ def test_from_orm_row_restores_color_fields():
         color_map={"logging": "#52A44E"},
         series_color="#DC6C9A",
         divergent_colors=None,
+        view_id=None,
+        view_revision=None,
     )
     chart = InsightChart.from_orm_row(row)
     assert chart.dataset_id == 8

@@ -1,0 +1,12 @@
+{"id": "seed-01", "prompt": "How much tree cover was lost in Pará each year?", "dataset_id": 4, "areas": 1, "route": "standard", "view": "tcl.annual_loss"}
+{"id": "seed-02", "prompt": "What was the total primary forest loss in Sumatra from 2010 to 2020?", "dataset_id": 4, "areas": 1, "route": "standard", "view": "tcl.annual_loss"}
+{"id": "seed-03", "prompt": "Which year had the most tree cover loss in Gabon?", "dataset_id": 4, "areas": 1, "route": "standard", "view": "tcl.annual_loss"}
+{"id": "seed-04", "prompt": "How much carbon did tree cover loss emit in Borneo?", "dataset_id": 4, "areas": 1, "route": "standard", "view": "tcl.annual_emissions"}
+{"id": "seed-05", "prompt": "Compare tree cover loss in Peru, Bolivia and Ecuador", "dataset_id": 4, "areas": 3, "route": "custom"}
+{"id": "seed-06", "prompt": "Rank the provinces of Argentina by tree cover loss since 2015", "dataset_id": 4, "areas": 24, "route": "custom"}
+{"id": "seed-07", "prompt": "Show the cumulative tree cover loss in Mato Grosso as a running total", "dataset_id": 4, "areas": 1, "route": "custom"}
+{"id": "seed-08", "prompt": "What share of the tree cover in 2000 was lost by 2024 in Liberia?", "dataset_id": 4, "areas": 1, "route": "custom"}
+{"id": "seed-09", "prompt": "Show tree cover loss in Ghana by five-year period", "dataset_id": 4, "areas": 1, "route": "custom"}
+{"id": "seed-10", "prompt": "What caused the tree cover loss in Côte d'Ivoire?", "dataset_id": 8, "areas": 1, "route": "standard", "view": "tcl_by_driver.by_driver"}
+{"id": "seed-11", "prompt": "How much grassland does Mongolia have, and how did it change?", "dataset_id": 2, "areas": 1, "route": "standard", "view": "grasslands.by_year"}
+{"id": "seed-12", "prompt": "Show the disturbance alerts in Kalimantan by month for the last year", "dataset_id": 11, "areas": 1, "route": "custom"}
