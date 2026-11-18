@@ -41,7 +41,9 @@ def add_insight_rows(
     insight_orm = InsightOrm(
         user_id=user_id,
         thread_id=thread_id,
-        insight_text=strip_control_chars(insight.primary_insight),
+        insight_text=strip_control_chars(
+            insight.primary_insight, field="insight_text"
+        ),
         follow_up_suggestions=insight.follow_up_suggestions,
         statistics_ids=statistics_ids,
         codeact_types=[p["type"] for p in codeact_parts],
