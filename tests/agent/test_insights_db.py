@@ -7,7 +7,7 @@ replacement + provenance preservation in `update_insight`.
 """
 
 from datetime import datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import func, select
@@ -16,7 +16,10 @@ from src.agent.subagents.analyst.charts.model import Insight, InsightChart
 from src.agent.tools.search_insights import _search_insights
 from src.agent.tools.update_insight_display import _load_editable_insight
 from src.api.data_models import InsightChartOrm, InsightOrm
-from src.api.repositories.insight_writer import update_insight
+from src.api.repositories.insight_writer import (
+    persist_insight,
+    update_insight,
+)
 from src.shared.request_context import bound_user_id
 from tests.conftest import async_session_maker
 
@@ -197,3 +200,21 @@ async def test_update_insight_replaces_charts_preserves_provenance(user):
 async def test_update_insight_missing_or_malformed_id():
     assert await update_insight(str(uuid4()), _revised_insight()) is False
     assert await update_insight("not-a-uuid", _revised_insight()) is False
+
+
+async def test_persist_insight_strips_nul_from_insight_text():
+    """PZB-1243: Gemini sometimes emits a control character where an accented
+    letter belongs ("Piau\\x00" for "Piauí"). Postgres rejects NUL in text, so
+    the insert used to fail with CharacterNotInRepertoireError."""
+    insight = Insight(
+        charts=[],
+        primary_insight="Piau\x00 lost 5% of its tree cover.",
+    )
+
+    insight_id = await persist_insight(
+        insight, user_id=None, thread_id="thread-1"
+    )
+
+    async with async_session_maker() as session:
+        row = await session.get(InsightOrm, UUID(insight_id))
+    assert row.insight_text == "Piau lost 5% of its tree cover."

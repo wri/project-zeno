@@ -15,6 +15,7 @@ from src.agent.subagents.analyst.charts.model import Insight
 from src.api.data_models import InsightChartOrm, InsightOrm
 from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger
+from src.shared.text_sanitize import strip_control_chars
 
 logger = get_logger(__name__)
 
@@ -40,7 +41,7 @@ def add_insight_rows(
     insight_orm = InsightOrm(
         user_id=user_id,
         thread_id=thread_id,
-        insight_text=insight.primary_insight,
+        insight_text=strip_control_chars(insight.primary_insight),
         follow_up_suggestions=insight.follow_up_suggestions,
         statistics_ids=statistics_ids,
         codeact_types=[p["type"] for p in codeact_parts],
