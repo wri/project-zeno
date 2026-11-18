@@ -52,6 +52,22 @@ class _SharedSettings(BaseSettings):
         default=None, alias="MOSAIC_S3_REGION"
     )
 
+    # The jev decision model on OpenRouter (src/shared/decisions.py). It
+    # picks the dataset in pick_dataset and the area in pick_aoi's
+    # model-selection path. Warm calls take 0.2-0.5 s; the selection LLM is
+    # the fallback when a call fails or times out.
+    openrouter_api_key: str = Field(default="", alias="OPENROUTER_API_KEY")
+    decision_model: str = Field(
+        default="typesafe/jev-1.13", alias="DECISION_MODEL"
+    )
+    decisions_url: str = Field(
+        default="https://openrouter.ai/api/alpha/decisions",
+        alias="DECISIONS_URL",
+    )
+    decisions_timeout_seconds: float = Field(
+        default=5.0, alias="DECISIONS_TIMEOUT_SECONDS"
+    )
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",
