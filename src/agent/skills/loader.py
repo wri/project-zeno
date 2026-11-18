@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from src.agent.skills.capabilities import render_capabilities_body
 from src.agent.tool_spec import bound_availability
 
 _SKILLS_DIR = Path(__file__).resolve().parent / "skills_md"
@@ -115,15 +114,11 @@ def apply_flags(body: str, flags: frozenset[str]) -> str:
 def render_body(
     skill: SkillMeta, flags: Optional[frozenset[str]] = None
 ) -> str:
-    """A skill's body as handed to the model (capabilities is templated).
-    `flags` selects the flagged blocks; by default the flags of the
-    current request's profile."""
+    """A skill's body as handed to the model. `flags` selects the flagged
+    blocks; by default the flags of the current request's profile."""
     if flags is None:
         flags = bound_availability().flags
-    body = apply_flags(skill.body, flags)
-    if skill.name == "capabilities":
-        return render_capabilities_body(body)
-    return body
+    return apply_flags(skill.body, flags)
 
 
 def get_skill_body(name: str) -> str | None:
