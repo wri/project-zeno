@@ -446,16 +446,6 @@ class DatasetSelector:
             candidate_datasets.dataset_id == option.dataset_id
         ].iloc[0]
 
-        if not option.context_layer:
-            named = layer_named_in_query(query, selected_row.context_layers)
-            if named:
-                logger.warning(
-                    "DATASET-SELECTOR: the query names a context layer that "
-                    "the selection left out; applying it",
-                    context_layer=named,
-                )
-                option = option.model_copy(update={"context_layer": named})
-
         effective_start_date, effective_end_date, _ = await revise_date_range(
             start_date,
             end_date,
@@ -613,29 +603,6 @@ async def pick_dataset(
         tool_call_id=tool_call_id,
         language=language,
     )
-
-
-def layer_named_in_query(query: str, context_layers) -> Optional[str]:
-    """The value of the one context layer that the query names in words
-    ("intact forest" for `intact_forest`); None when it names none or more
-    than one.
-
-    The selection model sometimes leaves out a layer that the query names
-    (about 1 in 10 runs for "tree cover loss in intact forest landscapes").
-    The pull is then for all of the area. `context_layers` holds only the
-    layers that are left after the extent filter.
-    """
-    if not isinstance(context_layers, list):
-        return None
-    text = query.lower().replace("_", " ")
-    named = [
-        layer["value"]
-        for layer in context_layers
-        if isinstance(layer, dict)
-        and isinstance(layer.get("value"), str)
-        and layer["value"].replace("_", " ").lower() in text
-    ]
-    return named[0] if len(named) == 1 else None
 
 
 def get_filtered_contextual_layers(
