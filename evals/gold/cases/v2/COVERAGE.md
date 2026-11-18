@@ -6,9 +6,9 @@ is stale (`--check`). Coverage counts use **gating** checks only;
 info-only checks are listed separately (they never enter a verdict).
 Terms are defined in the [README glossary](../../README.md#glossary).
 
-`caseset_version 06f4782d811963ee` · 151 cases · done 96 · not doing 30 · ready 19 · todo 6 · **121 active** (everything but `not doing` runs by default)
+`caseset_version a893b63d60857284` · 151 cases · done 96 · not doing 30 · ready 19 · todo 6 · **121 active** (everything but `not doing` runs by default)
 
-_Last updated: 2026-11-16_
+_Last updated: 2026-11-18_
 
 ## Groups
 
