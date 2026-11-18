@@ -1,6 +1,6 @@
 # BENCHMARK 2026-draft-5: concise profile with curated charts (2026-11-17)
 
-> **Update, later on 2026-11-17.** After the changes in "Changes after the run", a full run on `0cf9eed5` gives a North Star of **78.4% (211 of 269)**, the same as prod. With the context layer rule, a full run on `3a9075df` gives **81.4% (219 of 269)** and 69.9% right every time (prod 78.4% and 65.1%). See "Full run on `0cf9eed5`" and "Full run on `3a9075df`". The sections below those are about the first run.
+> **Update, later on 2026-11-17.** After the changes in "Changes after the run", a full run on `0cf9eed5` gives a North Star of **78.4% (211 of 269)**, the same as prod. With the context layer rule, a full run on `3a9075df` gives **81.4% (219 of 269)** and 69.9% right every time (prod 78.4% and 65.1%). On 2026-11-18, a full run on `424c04e2` (the rule keeps the layer for "deforestation") gives **80.7% (217 of 269)** and 69.9% right every time. See "Full run on `0cf9eed5`", "Full run on `3a9075df`" and "Full run on `424c04e2`". The sections below those are about the first run.
 
 ## Result
 
@@ -124,13 +124,50 @@ Against prod, 23 questions gained and 15 lost (McNemar p = 0.26). Against `0cf9e
 
 **Context layer.** Tree cover loss pulls with the primary forest layer (asked and unasked) went from 77 of 159 to 33 of 159. Quantification went back from 65 to 71. Five gained questions had failed on `context_layer_match` before (`ch-quant-011`, `ch-quant-151`, `ch-quant-165`, `ch-quant-169`, `ch-quant-177`).
 
-**One side effect.** `ch-quant-009` ("How much deforestation occurred in Brazil in 2023?") was right 3 of 3 and is now wrong 3 of 3. The benchmark expects the primary or the natural forest layer for "deforestation". With the rule, the selection gives no layer. The next commit corrects this: the rule now keeps the layer of the dataset hints for "deforestation", and a plain "tree cover loss" or "forest loss" request still gets no layer. Offline, with the orchestrator's query as context (3 queries, 4 calls each), the old rule gave no layer for this question in 12 of 12 calls, and the new rule gave primary forest in 12 of 12. On the 52 tree cover loss questions of the BENCHMARK (2 calls each, user's message only), the new rule matched the expected layer in 60 of 62 checked calls, against 58 of 62 for the old rule, and added primary forest to no question that expects no layer. No benchmark run on this commit.
+**One side effect.** `ch-quant-009` ("How much deforestation occurred in Brazil in 2023?") was right 3 of 3 and is now wrong 3 of 3. The benchmark expects the primary or the natural forest layer for "deforestation". With the rule, the selection gives no layer. The next commit corrects this: the rule now keeps the layer of the dataset hints for "deforestation", and a plain "tree cover loss" or "forest loss" request still gets no layer. Offline, with the orchestrator's query as context (3 queries, 4 calls each), the old rule gave no layer for this question in 12 of 12 calls, and the new rule gave primary forest in 12 of 12. On the 52 tree cover loss questions of the BENCHMARK (2 calls each, user's message only), the new rule matched the expected layer in 60 of 62 checked calls, against 58 of 62 for the old rule, and added primary forest to no question that expects no layer. The full run on `424c04e2` is in the next section.
 
 **No reply.** 5 of the 7 attempts with no reply stop after a standard chart, with no final message. Two of them are `ch-quant-009` (about 220 s each). `0cf9eed5` had 5 such attempts too, so this is not from the rule.
 
 **Other losses against `0cf9eed5`:** figures in `ch-mon-030`, `ch-comp-150` and `ch-comp-163`; no pull in `ch-mon-056` and `ch-mon-058`; text in `ch-trend-053` and `ch-causal-026`; the area in `ch-quant-182`. Each of these was right on 1 or 2 attempts in one of the two runs. `ch-mon-035` (Wampis territory) passes now on 3 of 3.
 
 **Latency.** The median attempt took 33.4 s, against 17.8 s on `0cf9eed5`. The tool calls are the same (3.3 per attempt, the same mix of standard and CodeAct charts). The slow attempts are all in the first third of the run (median 65.8 s, against 31.1 s for the same questions on `0cf9eed5`). The last two thirds are equal to `0cf9eed5`. So the cause is not in the code; the model API was slower during that hour. Do not use this run for latency.
+
+## Full run on `424c04e2`
+
+2026-11-18. The same set, 3 attempts, local, `ff=concise`. The only change from `3a9075df` is that the layer rule keeps the layer of the dataset hints for "deforestation".
+
+| | Prod baseline | `3a9075df` | `424c04e2` |
+|---|---|---|---|
+| **North Star** | 78.4% (211) | 81.4% (219) | **80.7%** (217; Wilson 95% CI 75.5 to 84.9%) |
+| Right every time | 65.1% | 69.9% | 69.9% |
+| Right at least once | 86.2% | 87.7% | 88.1% |
+| Consistency | 175 of 211 | 188 of 219 | 188 of 217 |
+| Failure modes (scope, retrieval, analysis, explanation) | 2, 31, 7, 18 | 0, 22, 9, 19 | 0, 27, 6, 19 |
+| Attempts with no reply | 1 of 807 | 7 of 807 | 1 of 807 |
+
+| Type | Prod | `3a9075df` | `424c04e2` |
+|---|---|---|---|
+| Quantification | 70 of 84 | 71 | 73 |
+| Comparison | 46 of 57 | 50 | 49 |
+| Monitoring | 30 of 41 | 32 | 30 |
+| Causal | 20 of 31 | 18 | 19 |
+| Trend | 20 of 23 | 21 | 21 |
+| Refusal | 5 of 9 | 7 | 7 |
+| Geospatial | 8 of 9 | 8 | 7 |
+| Portfolio | 6 of 9 | 6 | 6 |
+| Dataset | 6 of 6 | 6 | 5 |
+
+Against prod, 22 questions gained and 16 lost (McNemar p = 0.42). The difference from `3a9075df` (2 questions) is in the run-to-run variance. A question-by-question comparison with `3a9075df` is not possible: a reboot deleted the files of that run.
+
+**Deforestation.** `ch-quant-009` passes again on 3 of 3 attempts. The questions that the layer rule corrected stay correct: `ch-quant-011`, `ch-quant-151`, `ch-quant-165` and `ch-quant-169` on 3 of 3, `ch-quant-177` on 2 of 3. Tree cover loss pulls with the primary forest layer: 31 of 164 (33 of 159 on `3a9075df`, 77 of 159 on `0cf9eed5`).
+
+**Lost against prod (16).** Most were right on 1 of 3 attempts:
+- No pull: `ch-quant-153` (needs two datasets), `ch-causal-017` and `ch-causal-003` (stop at the dataset choice), `ch-comp-031`.
+- Figures: `ch-mon-030`, `ch-comp-163`, `ch-causal-010`, `ch-quant-036`.
+- Text: `ch-comp-157`, `ch-causal-018`, `ch-aoi-155`, `ch-trend-087`.
+- Other: a chart in `ch-comp-158`, the period in `ch-port-018` and `ch-trend-083`, the dataset in `ch-dataset-157`.
+
+**Latency.** This run had no slow period. Median 16.6 s and 90th percentile 51.6 s (`stream_s`, as in "Latency and cost"), against 31.2 s and 53.3 s on prod. The first third of the questions has a median of 37.4 s and the other two thirds 13.8 s, the same pattern as `0cf9eed5`. The same limits apply as before: a local API, and prod on a different build. 211 of 807 attempts used the code executor, and 264 got only standard charts. Cost was not measured.
 
 ## What ran
 
