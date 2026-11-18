@@ -131,13 +131,16 @@ async def update_insight(insight_id: str, insight: Insight) -> bool:
         if insight_orm is None:
             return False
 
-        insight_orm.insight_text = insight.primary_insight
-        insight_orm.follow_up_suggestions = insight.follow_up_suggestions
+        insight_orm.insight_text = strip_control_chars(
+            insight.primary_insight, field="insight_text"
+        )
+        insight_orm.follow_up_suggestions = strip_control_chars_deep(
+            insight.follow_up_suggestions, field="follow_up_suggestions"
+        )
         # Reassigning the collection lets the delete-orphan cascade drop the old
         # chart rows and insert the revised ones in their place.
         insight_orm.charts = [
-            InsightChartOrm(**chart.to_orm_kwargs())
-            for chart in insight.charts
+            _chart_orm(c, tag="update") for c in insight.charts
         ]
 
         await session.commit()
