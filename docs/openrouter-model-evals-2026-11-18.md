@@ -9,12 +9,12 @@
 | **North Star** (right on most of 3 attempts, 269 questions) | 80.7% (217) | 80.7% (217) | 78.0% (209 of 268) |
 | Right every time | 69.9% | 69.1% | 63.8% |
 | Latency, median / 90th percentile (`stream_s`) | 16.6 s / 51.6 s | 27.0 s / 67.0 s | 20.7 s / 47.7 s |
-| Cost for each question, orchestrator and subagents | more than $0.0093 (orchestrator only) | $0.0048 | $0.0059 |
+| Cost for each question, orchestrator and subagents | about $0.017 (30-question sample, section 1.3) | $0.0048 | $0.0059 |
 
 - DeepSeek V4.1 Flash has the same accuracy as Gemini Flash. It is about 10 s slower at the median. It costs less than half.
 - Muse Ember is 2.7 points lower than Gemini Flash and DeepSeek (not significant, McNemar p = 0.27). It is faster than DeepSeek and costs about the same. Most of its extra failures are in retrieval: it stops without a data pull on multi-area comparisons and sLUC questions. In 3 attempts it called the model 468 to 617 times in a loop.
 - No model smaller than DeepSeek V4.1 Flash, other than Muse Ember, came near the reference on the screen (section 2).
-- The code executor (`generate_insights`) stays on Gemini in all runs. It is not in the cost numbers.
+- The code executor (`generate_insights`) stays on Gemini in all runs. It is not in the cost numbers above. On a 30-question sample it costs $0.006 to $0.008 for each question with every model (section 1.3), so a change of the main model alone can cut the total cost by about half at most.
 
 ## Setup
 
@@ -64,7 +64,7 @@ The first questions of a run are faster than the next ones in all runs, also wit
 | All tokens | 28,300 | 32,200 |
 | Orchestrator cost for each attempt | $0.0093 | $0.0020 (OpenRouter generation records) |
 
-DeepSeek uses about 14% more tokens. All its calls cost about half of the Gemini orchestrator calls alone. The Gemini thread states record 0 thinking tokens; if Gemini bills thinking that the state does not record, the Gemini cost is higher.
+DeepSeek uses about 14% more tokens. All its calls cost about half of the Gemini orchestrator calls alone. The Gemini orchestrator records 0 thinking tokens. Langfuse records Gemini thinking where it occurs (thread names, code executor; section 1.3), so this value is probably correct.
 
 ### 1.2 Muse Ember
 
@@ -112,7 +112,41 @@ Against `424c04e2`, Muse Ember gains 16 questions and loses 24 (McNemar p = 0.27
 | Input, cache read | 12,000 | 21,500 | 17,200 |
 | Output | 380 to 400 | 1,012 (478 thinking) | 1,797 (1,278 thinking) |
 | All tokens | 28,300 | 32,200 | 33,400 |
-| Orchestrator cost for each attempt | $0.0093 | $0.0015 to $0.0043 | $0.0017 (mean $0.0035, with the loops) |
+| Orchestrator cost for each attempt | $0.0093 | $0.0020 | $0.0017 (mean $0.0035, with the loops) |
+
+### 1.3 Cost by call site (Gemini Flash and DeepSeek)
+
+The thread state records only the orchestrator calls. To measure all calls, the 30 screen questions (section 2) ran one time with Gemini Flash and one time with DeepSeek, with local Langfuse tracing on. Both models were right on all 30. Gemini costs are at list price ($0.50/M input, $0.05/M cache read, $3.00/M output). DeepSeek costs are what OpenRouter charged (0.46 of the price of most providers).
+
+Cost for each question:
+
+| | Gemini Flash | DeepSeek V4.1 Flash |
+|---|---|---|
+| Orchestrator | $0.0083 | $0.0016 |
+| Subagents (helper calls) | $0.0088 | $0.0020 |
+| Code executor (Gemini in both) | $0.0063 | $0.0077 |
+| **All** | **$0.023** | **$0.011** |
+| Subagents as a share of orchestrator and subagents | 52% | 55% |
+
+The subagents cost about the same as the orchestrator with both models. This comes from the structure of the agent: about 4 orchestrator calls and 3 to 4 subagent calls for each question, and some subagent calls have large inputs.
+
+| Call site | Gemini: calls, input for each call (not cached / cached), output (thinking) | DeepSeek: calls, input for each call (not cached / cached), output (thinking) |
+|---|---|---|
+| Orchestrator | 120, 3,319 / 2,341, 96 (0) | 121, 1,507 / 4,472, 249 (131) |
+| `search_blogs` | 36, 5,021 / 5,270, 210 (0) | 15, 3,648 / 7,901, 399 (109) |
+| `select_dataset` (`pick_dataset`) | 25, 3,997 / 1,498, 204 (0) | 24, 4,947 / 389, 1,149 (819) |
+| `generate_thread_name` | 30, 133 / 0, 373 (361) | 30, 151 / 0, 396 (376) |
+| `extract_place_query` (`pick_aoi`) | 25, 1,845 / 0, 67 (0) | 24, 626 / 1,365, 181 (108) |
+| `generate_insight_text` | 6, 2,631 / 0, 204 (0) | 6, 2,258 / 42, 872 (584) |
+| Code executor (Gemini) | 6, 34,730 / 25,733, 4,244 (3,035) | 7, 34,780 / 26,995, 4,752 (3,370) |
+
+- **Thinking.** DeepSeek thinks on each subagent call. In `select_dataset` it writes 819 thinking tokens for each call; Gemini writes none. The OpenRouter backend does not set a reasoning level, so the DeepSeek default (thinking on) applies.
+- **Thread names.** Both models write about 370 thinking tokens for a name of about 20 tokens. A model with no thinking would do this task for less.
+- **`select_dataset` input.** About 5,000 input tokens for each call, and little of it comes from the cache. The prompt puts the candidate datasets (different for each question) after the first block of rules, and repeats the rules at the end. DeepSeek calls also go to many providers, and each provider has its own cache.
+- **`search_blogs`.** Gemini calls it more than two times as often as DeepSeek on the same questions. It is the largest Gemini subagent cost.
+- **Code executor.** Each call has about 60,000 input tokens (a little less than half from cache) and about 4,000 output tokens. Only 6 or 7 of the 30 questions used it, but it is about one third of the Gemini cost and about two thirds of the DeepSeek cost.
+
+Limits: 30 easy questions, 1 attempt. The shares show the pattern, not exact values.
 
 ## 2. Model screen
 
@@ -148,4 +182,4 @@ OpenRouter sends a request to one of several providers of a model. The prices of
 
 ## Files
 
-Local, not committed: `~/bench-runs/911/deepseek-v4.1-flash/` (DeepSeek run), `~/bench-runs/small-model-sweep/` (screen, `SCREEN.md`, `sweep.sh`, `analyze.py`, `full-muse-ember/`), `~/bench-runs/911/thread_tokens.py` (tokens from the checkpoints).
+Local, not committed: `~/bench-runs/911/deepseek-v4.1-flash/` (DeepSeek run), `~/bench-runs/small-model-sweep/` (screen, `SCREEN.md`, `sweep.sh`, `analyze.py`, `full-muse-ember/`), `~/bench-runs/911/thread_tokens.py` (tokens from the checkpoints), `~/bench-runs/911/gen_stats.py` and `step_timing.py` (OpenRouter generation records, model and tool time), `~/bench-runs/helper-cost/` (Langfuse runs and `by_site.py`).
