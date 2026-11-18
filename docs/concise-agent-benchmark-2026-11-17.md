@@ -1,6 +1,6 @@
 # BENCHMARK 2026-draft-5: concise profile with curated charts (2026-11-17)
 
-> **Update, later on 2026-11-17.** After the changes in "Changes after the run", a full run on `0cf9eed5` gives a North Star of **78.4% (211 of 269)**, the same as prod. With the context layer rule, a full run on `3a9075df` gives **81.4% (219 of 269)** and 69.9% right every time (prod 78.4% and 65.1%). On 2026-11-18, a full run on `424c04e2` (the rule keeps the layer for "deforestation") gives **80.7% (217 of 269)** and 69.9% right every time. With DeepSeek V4.1 Flash in place of Gemini Flash, the North Star is the same (80.7%), the median latency is about 10 s more (27.0 s against 16.6 s), and the estimated cost for each question without the code executor is about $0.005 against $0.026 to $0.042. See "Full run on `0cf9eed5`", "Full run on `3a9075df`", "Full run on `424c04e2`" and "DeepSeek V4.1 Flash in place of Gemini Flash". The sections below those are about the first run.
+> **Update, later on 2026-11-17.** After the changes in "Changes after the run", a full run on `0cf9eed5` gives a North Star of **78.4% (211 of 269)**, the same as prod. With the context layer rule, a full run on `3a9075df` gives **81.4% (219 of 269)** and 69.9% right every time (prod 78.4% and 65.1%). On 2026-11-18, a full run on `424c04e2` (the rule keeps the layer for "deforestation") gives **80.7% (217 of 269)** and 69.9% right every time. With DeepSeek V4.1 Flash in place of Gemini Flash, the North Star is the same (80.7%), the median latency is about 10 s more (27.0 s against 16.6 s), and the cost for each question is less than half (all DeepSeek calls $0.0048, the Gemini orchestrator calls only $0.0093; the code executor is Gemini in both). See "Full run on `0cf9eed5`", "Full run on `3a9075df`", "Full run on `424c04e2`" and "DeepSeek V4.1 Flash in place of Gemini Flash". The sections below those are about the first run.
 
 ## Result
 
@@ -180,14 +180,15 @@ Against prod, 22 questions gained and 16 lost (McNemar p = 0.42). The difference
 | North Star | 80.7% (217) | 80.7% (217) | measured |
 | Latency, median | 16.6 s | 27.0 s | measured (`stream_s`, same hour) |
 | Latency, 90th percentile | 51.6 s | 67.0 s | measured |
-| Orchestrator cost | $0.0093 | $0.0014 | measured (thread state tokens × list price) |
-| Subagent cost | $0.017 to $0.033 (estimate) | $0.0033 | DeepSeek: OpenRouter spend; Gemini: estimate, see below |
-| **Total without the code executor** | **about $0.026 to $0.042** | **about $0.0048** | |
-| For 1,000 questions | about $26 to $42 | about $4.80 | |
+| Orchestrator cost | $0.0093 | $0.0015 to $0.0043 | thread state tokens × price; DeepSeek: range of provider prices, see below |
+| Orchestrator and subagents | more than $0.0093 (subagents not measured) | **$0.0048** | DeepSeek: measured, OpenRouter key spend |
+| For 1,000 questions | more than $9.30 | about $4.80 | |
 
 The code executor (`generate_insights`) is Gemini in both runs and is not in these numbers.
 
-**How the Gemini subagent cost is estimated.** The thread state does not record the subagent (SMALL_MODEL) calls, and Langfuse tracing was off. On OpenRouter, the DeepSeek subagents cost $2.68 for the run ($3.86 key spend minus $1.18 orchestrator). The same tokens at Gemini Flash prices cost 5.3 times more (output only) to 9.8 times more (uncached input only). The estimate uses that range. To measure it, run both models with Langfuse tracing on.
+**What the cost numbers can show.** The DeepSeek cost of all the orchestrator and subagent calls ($0.0048) is about half of the Gemini cost of the orchestrator calls only ($0.0093). So DeepSeek costs less than half of Gemini for the same questions. The full ratio is not known: the thread state does not record the subagent (SMALL_MODEL) calls, and Langfuse tracing was off. To measure it, run both models with Langfuse tracing on.
+
+**DeepSeek price is not one value.** OpenRouter sends each request to one of 38 providers of `deepseek/deepseek-v4.1-flash`, at $0.051 to $0.45/M input and $0.34 to $1.80/M output, without the $3.00/$12.00 "ultrafast" provider. The run did not record which provider served each call. The key spend ($3.86) is what OpenRouter charged. The split of that spend between the orchestrator and the subagents is not known.
 
 ### Accuracy
 
@@ -235,7 +236,7 @@ DeepSeek is about 10 s slower at the median. It writes about 2.5 times more outp
 
 ### Tokens and cost (orchestrator)
 
-From the thread state of each attempt (the `usage_metadata` of each AI message), at the OpenRouter list prices: Gemini 3 Flash $0.50/M input, $0.05/M cache read, $3.00/M output; DeepSeek V4.1 Flash $0.051/M, $0.018/M, $0.567/M. Medians for each attempt:
+From the thread state of each attempt (the `usage_metadata` of each AI message), Gemini 3 Flash at $0.50/M input, $0.05/M cache read, $3.00/M output. DeepSeek V4.1 Flash at the lowest provider price ($0.051/M, $0.018/M, $0.567/M) to the price of most providers ($0.30/M, $0.03/M, $1.20/M). Medians for each attempt:
 
 | | Gemini Flash (`0cf9eed5`, `3a9075df`, `424c04e2`) | DeepSeek V4.1 Flash |
 |---|---|---|
@@ -244,10 +245,10 @@ From the thread state of each attempt (the `usage_metadata` of each AI message),
 | Input, cache read | 12,000 (45% of input) | 21,500 (74% of input) |
 | Output | 380 to 400 | 1,012 (478 of them thinking) |
 | All tokens | 28,300 | 32,200 |
-| Cost for each attempt | $0.0093 | $0.0014 |
-| Cost for the run (807 attempts) | $7.36 to $8.53 | $1.17 |
+| Cost for each attempt | $0.0093 | $0.0015 to $0.0043 |
+| Cost for the run (807 attempts) | $7.36 to $8.53 | $1.17 to $3.45 |
 
-DeepSeek uses about 14% more tokens, but the orchestrator cost is about 7 times less. Limits:
+DeepSeek uses about 14% more tokens, but the orchestrator cost is about 2 to 7 times less. Limits:
 
 - The Gemini thread states record 0 thinking tokens. If Gemini bills thinking tokens that the state does not record, the Gemini cost is higher than the table shows.
 - The OpenRouter key spend ($3.86) is the change in the key's usage during the run. Other use of the key in that hour would be in it.
