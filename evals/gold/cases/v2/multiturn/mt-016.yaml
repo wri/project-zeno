@@ -1,0 +1,31 @@
+id: mt-016
+uid: f62612849e4264b3
+status: ready
+group: multiturn
+turns:
+- query: Create a dashboard for Peru with a tree cover loss map
+  expected:
+    aoi_ids: PER
+    aoi_source: gadm
+    dashboard_created: 'TRUE'
+    dashboard_widgets: map
+- query: Add a text block to the dashboard that says the figures use a 30% canopy cover threshold
+  expected:
+    dashboard_created: 'TRUE'
+    dashboard_widgets: map;text
+    dashboard_text: 30%
+  deltas:
+    retain:
+    - dashboard_id
+- query: Change that text block to say 25% instead of 30%
+  expected:
+    dashboard_created: 'TRUE'
+    dashboard_widgets: map;text
+    dashboard_text: 25%
+  deltas:
+    retain:
+    - dashboard_id
+notes:
+  scenario: add a text block in a later turn, then edit it (dashboard edit tools)
+  dashboard_created: later turns set it because the thread keeps dashboard_id; retain checks
+    that no new dashboard was made

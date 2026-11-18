@@ -103,7 +103,7 @@
   },
   "profiles": {
     "base": {
-      "system_prompt": 6035,
+      "system_prompt": 6082,
       "tools": {
         "generate_insights": 261,
         "pick_aoi": 921,
@@ -113,7 +113,7 @@
       "tools_total": 2724
     },
     "curated-charts": {
-      "system_prompt": 8811,
+      "system_prompt": 9194,
       "tools": {
         "add_dashboard_section": 864,
         "add_map_widget": 770,
@@ -132,14 +132,15 @@
         "search_blogs": 638,
         "search_insights": 434,
         "send_nudge": 551,
+        "show_boundary_layer": 601,
         "show_imagery": 758,
         "show_planet_imagery": 878,
         "update_insight_display": 834
       },
-      "tools_total": 13564
+      "tools_total": 14165
     },
     "default": {
-      "system_prompt": 8048,
+      "system_prompt": 8431,
       "tools": {
         "add_dashboard_section": 864,
         "add_map_widget": 770,
@@ -158,14 +159,15 @@
         "search_blogs": 638,
         "search_insights": 434,
         "send_nudge": 551,
+        "show_boundary_layer": 601,
         "show_imagery": 758,
         "show_planet_imagery": 878,
         "update_insight_display": 834
       },
-      "tools_total": 13254
+      "tools_total": 13855
     },
     "experimental": {
-      "system_prompt": 8048,
+      "system_prompt": 8431,
       "tools": {
         "add_dashboard_section": 864,
         "add_map_widget": 770,
@@ -185,14 +187,15 @@
         "search_blogs": 638,
         "search_insights": 434,
         "send_nudge": 551,
+        "show_boundary_layer": 601,
         "show_imagery": 758,
         "show_planet_imagery": 878,
         "update_insight_display": 834
       },
-      "tools_total": 14588
+      "tools_total": 15189
     },
     "lgms": {
-      "system_prompt": 8048,
+      "system_prompt": 8431,
       "tools": {
         "add_dashboard_section": 864,
         "add_map_widget": 770,
@@ -211,16 +214,18 @@
         "search_blogs": 638,
         "search_insights": 434,
         "send_nudge": 551,
+        "show_boundary_layer": 601,
         "show_imagery": 758,
         "show_planet_imagery": 878,
         "update_insight_display": 834
       },
-      "tools_total": 13254
+      "tools_total": 13855
     }
   },
   "skills": {
     "analyze": 2467,
-    "capabilities": 17133,
+    "capabilities": 17293,
+    "concessions-layer": 1869,
     "dashboard": 7276,
     "explore": 1823,
     "pull-data": 1610,

@@ -37,6 +37,7 @@ extends: base
 skills:
   - analyze (requires: pick_aoi, pick_dataset, pull_data, generate_insights)
   - capabilities
+  - concessions-layer (requires: pick_aoi, show_boundary_layer)
   - dashboard (requires: create_dashboard, add_to_dashboard, add_map_widget, add_text_widget, edit_text_widget, add_dashboard_section, edit_dashboard_section, move_dashboard_widget, inspect_view_context, send_nudge, search_insights)
   - explore (requires: search_blogs)
   - pull-data (requires: pick_aoi, pick_dataset, pull_data)
@@ -54,6 +55,7 @@ tools:
   - inspect_view_context
   - show_imagery
   - show_planet_imagery
+  - show_boundary_layer
   - search_insights
   - create_dashboard
   - add_to_dashboard
@@ -70,6 +72,7 @@ profile: experimental
 skills:
   - analyze (requires: pick_aoi, pick_dataset, pull_data, generate_insights)
   - capabilities
+  - concessions-layer (requires: pick_aoi, show_boundary_layer)
   - dashboard (requires: create_dashboard, add_to_dashboard, add_map_widget, add_text_widget, edit_text_widget, add_dashboard_section, edit_dashboard_section, move_dashboard_widget, inspect_view_context, send_nudge, search_insights)
   - explore (requires: search_blogs)
   - pull-data (requires: pick_aoi, pick_dataset, pull_data)
@@ -87,6 +90,7 @@ tools:
   - inspect_view_context
   - show_imagery
   - show_planet_imagery
+  - show_boundary_layer
   - search_insights
   - create_dashboard
   - add_to_dashboard
