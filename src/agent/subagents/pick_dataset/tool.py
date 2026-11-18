@@ -368,8 +368,9 @@ def selection_query(query: str, user_message: Optional[str]) -> str:
     )
 
 
-# The jev decision model picks the dataset. The request structure was tuned
-# offline (~/bench-runs/jev-picker/eval.py; PR #841 for the earlier work):
+# The decision model (DECISION_PROVIDER: Gemini Decision 1, or jev) picks
+# the dataset. The request structure was tuned offline on jev
+# (~/bench-runs/jev-picker/eval.py; PR #841 for the earlier work):
 # - jev sees every dataset in the profile, not the RAG shortlist.
 # - Each dataset is one option: its catalog `decision_key` as the key and
 #   its short `decision_card` as the text. The long LLM text is worse.
@@ -565,7 +566,7 @@ async def _select_with_decisions(
     start_date: Optional[str],
     end_date: Optional[str],
 ) -> DatasetSelectionResponse:
-    """The dataset from one jev call, then its options from a second one.
+    """The dataset from one decision call, then its options from a second one.
 
     Raises:
         DecisionError: When a call fails or returns no dataset answer.
@@ -581,7 +582,8 @@ async def _select_with_decisions(
         _decision_key(row): row for _, row in candidate_datasets.iterrows()
     }
     logger.info(
-        "DATASET-SELECTOR: decision %s (p=%.3f), probabilities %s",
+        "DATASET-SELECTOR: decision (%s) %s (p=%.3f), probabilities %s",
+        SharedSettings.decision_provider,
         dataset.choice,
         dataset.probability,
         dataset.probabilities,
@@ -634,7 +636,7 @@ async def select_best_dataset(
     rules: str = SELECTION_RULES,
     retrieval_query: Optional[str] = None,
 ) -> DatasetSelectionResponse:
-    """Pick the dataset with the jev decision model.
+    """Pick the dataset with the decision model (DECISION_PROVIDER).
 
     `query` is the text the selection reads (`selection_query`) and
     `candidate_datasets` are all datasets of the profile. Context layers
@@ -709,7 +711,7 @@ class DatasetSelector:
 
     Used as a tool by the orchestrator via `pick_dataset`. The orchestrator
     passes the user's request; this subagent picks the dataset and its
-    context layer and parameters with the jev decision model (RAG and the
+    context layer and parameters with the decision model (RAG and the
     selection LLM, driven by DATASET_SELECTOR_PROMPT, are the fallback), and
     clamps the date range to the dataset's real coverage.
     """

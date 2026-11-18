@@ -1,16 +1,24 @@
-"""A small client for the jev decision model (Typesafe), on OpenRouter.
+"""A small client for decision models: jev and Gemini Decision 1.
 
-A decision model does not write text. It gets a situation (the "state") and
-a set of questions, each with a fixed set of options, and returns one option
-for each question with a probability for each option. The endpoint is
-OpenRouter's alpha decisions API (`/api/alpha/decisions`), not
-chat/completions. Pin the model version (`DECISION_MODEL`): the endpoint and
-the "latest" alias can change without notice.
+A decision model does not write text. It gets a situation and a set of
+questions, each with a fixed set of options, and returns one option for each
+question with a probability for each option. Two providers have the same
+question format and the same answer format:
+
+- "jev": `typesafe/jev-1.13` on OpenRouter's alpha decisions API
+  (`/api/alpha/decisions`). The situation is the `state` field.
+- "gemini": `gemini-decision-1` on the Gemini API (v1beta,
+  https://aistudio.google.com/docs/decisions-api). The situation is the
+  `input` field.
+
+`DECISION_PROVIDER` selects the provider (default "gemini");
+`decide(provider=...)` overrides it for one call. Pin the model versions: the endpoints are alpha and beta
+releases and can change without notice.
 """
 
 import asyncio
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Literal, Optional
 
 import httpx
 
@@ -19,8 +27,10 @@ from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-# Upper bound for the options of one choice question. Kept well below what
-# the API takes: more options than this means a pre-filter is missing.
+Provider = Literal["jev", "gemini"]
+
+# Upper bound for the options of one choice question (the Gemini limit is
+# 255). More options than this means a pre-filter is missing.
 MAX_OPTIONS = 255
 # Statuses that a second attempt can fix (rate limit, overload).
 _RETRY_STATUSES = {429, 500, 502, 503, 504}
@@ -46,10 +56,51 @@ class DecisionError(RuntimeError):
     """The decision model could not answer."""
 
 
-def _payload(state: str, questions: dict[str, Question]) -> dict:
+@dataclass(frozen=True)
+class _Endpoint:
+    url: str
+    model: str
+    situation_field: str  # where the situation text goes in the body
+    headers: dict[str, str]
+    timeout: float
+
+
+def _endpoint(provider: Provider) -> _Endpoint:
+    """The endpoint of `provider`, from the settings.
+
+    Raises:
+        DecisionError: When the provider's key is not set.
+    """
+    s = SharedSettings
+    if provider == "gemini":
+        if not s.google_api_key:
+            raise DecisionError("GOOGLE_API_KEY is not set")
+        return _Endpoint(
+            url=s.gemini_decisions_url,
+            model=s.gemini_decision_model,
+            situation_field="input",
+            headers={"x-goog-api-key": s.google_api_key},
+            timeout=s.gemini_decisions_timeout_seconds,
+        )
+    if provider == "jev":
+        if not s.openrouter_api_key:
+            raise DecisionError("OPENROUTER_API_KEY is not set")
+        return _Endpoint(
+            url=s.decisions_url,
+            model=s.decision_model,
+            situation_field="state",
+            headers={"Authorization": f"Bearer {s.openrouter_api_key}"},
+            timeout=s.decisions_timeout_seconds,
+        )
+    raise DecisionError(f"unknown decision provider {provider!r}")
+
+
+def _payload(
+    endpoint: _Endpoint, situation: str, questions: dict[str, Question]
+) -> dict:
     return {
-        "model": SharedSettings.decision_model,
-        "state": state,
+        "model": endpoint.model,
+        endpoint.situation_field: situation,
         "questions": {
             name: {
                 "type": "choice",
@@ -79,14 +130,16 @@ def _answers(body: dict, questions: dict[str, Question]) -> dict[str, Answer]:
 
 
 async def decide(
-    state: str,
+    situation: str,
     questions: dict[str, Question],
     client: Optional[httpx.AsyncClient] = None,
+    provider: Optional[Provider] = None,
 ) -> dict[str, Answer]:
     """Ask all `questions` in one call; return the answer per question.
 
-    A question with fewer than 2 options is not sent: the API rejects it.
-    The caller decides what a missing answer means.
+    `provider` defaults to `DECISION_PROVIDER`. A question with fewer than 2
+    options is not sent: the APIs reject it. The caller decides what a
+    missing answer means.
 
     Raises:
         DecisionError: When the key is missing or the call fails.
@@ -102,22 +155,15 @@ async def decide(
                 f"question {name!r} has {len(q.options)} options "
                 f"(at most {MAX_OPTIONS})"
             )
-    if not SharedSettings.openrouter_api_key:
-        raise DecisionError("OPENROUTER_API_KEY is not set")
-
-    headers = {"Authorization": f"Bearer {SharedSettings.openrouter_api_key}"}
-    payload = _payload(state, questions)
+    endpoint = _endpoint(provider or SharedSettings.decision_provider)
+    payload = _payload(endpoint, situation, questions)
     owned = client is None
-    client = client or httpx.AsyncClient(
-        timeout=SharedSettings.decisions_timeout_seconds
-    )
+    client = client or httpx.AsyncClient(timeout=endpoint.timeout)
     try:
         for attempt in range(1, _ATTEMPTS + 1):
             try:
                 response = await client.post(
-                    SharedSettings.decisions_url,
-                    json=payload,
-                    headers=headers,
+                    endpoint.url, json=payload, headers=endpoint.headers
                 )
             except httpx.HTTPError as exc:
                 if attempt < _ATTEMPTS:

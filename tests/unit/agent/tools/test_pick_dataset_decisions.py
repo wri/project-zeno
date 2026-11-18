@@ -1,4 +1,4 @@
-"""select_best_dataset asks the jev decision model: the dataset from all
+"""select_best_dataset asks the decision model: the dataset from all
 datasets of the profile, then the options of that dataset. RAG and the
 selection LLM are the fallback when a decision call fails."""
 

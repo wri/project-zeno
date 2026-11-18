@@ -421,7 +421,7 @@ def _aoi_option_text(row: dict) -> str:
 async def _decide_aoi(
     question: str, candidate_aois: pd.DataFrame
 ) -> Optional[AOIIndex]:
-    """The candidate the jev decision model picks.
+    """The candidate the decision model (DECISION_PROVIDER) picks.
 
     Raises:
         DecisionError: When the call fails or returns no answer.
@@ -451,7 +451,7 @@ async def select_best_aoi(
 ) -> Optional[AOIIndex]:
     """Select the best AOI based on the user query.
 
-    The jev decision model picks among the candidates. When that call
+    The decision model picks among the candidates. When that call
     fails, the selection model picks instead.
 
     Args:

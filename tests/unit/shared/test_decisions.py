@@ -1,4 +1,4 @@
-"""The jev decisions client: request shape, answer parsing, retries."""
+"""The decisions client: request shape per provider, answer parsing, retries."""
 
 import json
 
@@ -15,8 +15,26 @@ QUESTIONS = {
 
 
 @pytest.fixture(autouse=True)
-def _key(monkeypatch):
+def _keys(monkeypatch):
+    monkeypatch.setattr(SharedSettings, "decision_provider", "jev")
     monkeypatch.setattr(SharedSettings, "openrouter_api_key", "test-key")
+    monkeypatch.setattr(SharedSettings, "google_api_key", "google-key")
+
+
+def _ok(choice="fire"):
+    return httpx.Response(
+        200,
+        json={
+            "answers": {
+                "topic": {
+                    "type": "choice",
+                    "choice": choice,
+                    "probabilities": {"fire": 0.8, "loss": 0.2},
+                    "confidence": 0.8,
+                }
+            }
+        },
+    )
 
 
 def _client(*responses):
@@ -119,6 +137,55 @@ async def test_raises_without_a_key(monkeypatch):
     monkeypatch.setattr(SharedSettings, "openrouter_api_key", "")
     with pytest.raises(DecisionError, match="OPENROUTER_API_KEY"):
         await decide("q", QUESTIONS)
+
+
+def test_gemini_is_the_default_provider():
+    assert type(SharedSettings).model_fields["decision_provider"].default == (
+        "gemini"
+    )
+
+
+async def test_gemini_sends_input_with_the_google_key(monkeypatch):
+    monkeypatch.setattr(SharedSettings, "decision_provider", "gemini")
+    client, requests = _client(_ok())
+
+    answers = await decide("fires in Brazil", QUESTIONS, client=client)
+
+    assert answers["topic"].choice == "fire"
+    assert answers["topic"].probability == 0.8
+    (request,) = requests
+    assert str(request.url) == SharedSettings.gemini_decisions_url
+    assert request.headers["x-goog-api-key"] == "google-key"
+    assert "authorization" not in request.headers
+    assert json.loads(request.content) == {
+        "model": "gemini-decision-1",
+        "input": "fires in Brazil",
+        "questions": {
+            "topic": {
+                "type": "choice",
+                "instructions": "Which topic?",
+                "criteria": {"fire": "Fires", "loss": "Loss"},
+            }
+        },
+    }
+
+
+async def test_the_provider_argument_overrides_the_setting():
+    client, requests = _client(_ok(), _ok())
+
+    await decide("q", QUESTIONS, client=client, provider="gemini")
+    await decide("q", QUESTIONS, client=client, provider="jev")
+
+    assert [str(r.url) for r in requests] == [
+        SharedSettings.gemini_decisions_url,
+        SharedSettings.decisions_url,
+    ]
+
+
+async def test_gemini_raises_without_a_key(monkeypatch):
+    monkeypatch.setattr(SharedSettings, "google_api_key", "")
+    with pytest.raises(DecisionError, match="GOOGLE_API_KEY"):
+        await decide("q", QUESTIONS, provider="gemini")
 
 
 async def _no_sleep(_seconds):

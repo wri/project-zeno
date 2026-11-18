@@ -65,7 +65,7 @@ def reset_google_clients():
 
 @pytest.fixture(autouse=True)
 def decision_model_only(request):
-    """Fail when the selection LLM picks instead of the jev decision model.
+    """Fail when the selection LLM picks instead of the decision model.
 
     select_best_dataset falls back to the LLM when the decision call fails.
     These tests measure the decision model, so a silent fallback must not
