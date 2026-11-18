@@ -139,3 +139,26 @@ def test_pinning_sets_provider_routing(monkeypatch):
     assert models["or:glm-5.3"].extra_body == {
         "provider": {"require_parameters": True}
     }
+
+
+def test_effort_suffix_sets_reasoning_and_slug(monkeypatch):
+    """One model can be registered with and without thinking."""
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test")
+    monkeypatch.setattr(
+        AgentSettings,
+        "openrouter_models",
+        "deepseek/deepseek-v4.1-flash,deepseek/deepseek-v4.1-flash#none",
+    )
+    models = build_openrouter_models()
+
+    assert sorted(models) == [
+        "or:deepseek-v4.1-flash",
+        "or:deepseek-v4.1-flash#none",
+    ]
+    assert models["or:deepseek-v4.1-flash#none"].model_name == (
+        "deepseek/deepseek-v4.1-flash"
+    )
+    assert models["or:deepseek-v4.1-flash#none"].extra_body["reasoning"] == {
+        "effort": "none"
+    }
+    assert "reasoning" not in models["or:deepseek-v4.1-flash"].extra_body

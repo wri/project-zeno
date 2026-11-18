@@ -135,6 +135,11 @@ def build_openrouter_models() -> dict[str, BaseChatModel]:
     for entry in (part.strip() for part in raw.split(",")):
         if not entry:
             continue
+        # "#<effort>" sets the reasoning effort (for example "#none" turns
+        # thinking off). The slug keeps the suffix, so one model can be
+        # registered with and without thinking, for MODEL and SMALL_MODEL.
+        entry, _, effort = entry.partition("#")
+        effort = effort.strip()
         model_id, providers = parse_openrouter_entry(entry)
         if not model_id:
             continue
@@ -149,7 +154,11 @@ def build_openrouter_models() -> dict[str, BaseChatModel]:
             extra_body["provider"].update(
                 {"only": providers, "allow_fallbacks": True}
             )
-        models[openrouter_slug(model_id, providers)] = ChatOpenAI(
+        slug = openrouter_slug(model_id, providers)
+        if effort:
+            extra_body["reasoning"] = {"effort": effort}
+            slug = f"{slug}#{effort}"
+        models[slug] = ChatOpenAI(
             model=model_id,
             base_url=AgentSettings.openrouter_base_url,
             api_key=SecretStr(os.environ["OPENROUTER_API_KEY"]),
