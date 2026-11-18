@@ -47,7 +47,13 @@ Against `424c04e2`, DeepSeek gains 22 questions and loses 22 (McNemar p = 1.0). 
 
 **Latency.** Median 27.0 s, 90th percentile 67.0 s. The `424c04e2` run in the same hour, on the same local database: 16.6 s and 51.6 s.
 
-**Cost.** The OpenRouter key spent $3.86 for 807 attempts: $0.0048 for each question. Orchestrator tokens for each attempt (medians, from the thread state):
+There was no throttling. The OpenRouter generation records of all 3,441 orchestrator calls show 13 responses with status 429 (all from the provider Wafer) and 1 with 504. In each of these 14 calls, OpenRouter sent the request again to a different provider, and that provider answered. The time to the first token (median 0.6 s) and the generation time (median 1.5 to 2.1 s) did not change from the start to the end of the run.
+
+DeepSeek is slower because each model call is slower. From the checkpoint timestamps, a DeepSeek orchestrator call takes 2.2 s (median), against 1.0 s for Gemini Flash. With 5 calls for each attempt, that is about 5 s more for each question. DeepSeek writes more output for each call (about 180 tokens, half of them thinking, against about 80 for Gemini). The speed also depends on the provider: OpenRouter used 23 providers, with a median generation time from 0.7 s (Together) and 0.8 s (Crusoe) to 3.6 s (OpenInference). Pinning fast providers can make DeepSeek faster.
+
+The first questions of a run are faster than the next ones in all runs, also with Gemini. The cause is the order of the questions: from minute 5 to minute 20 the harness runs questions with slow analytics requests, and the tool time goes up. The model time does not change.
+
+**Cost.** The OpenRouter key spent $3.86 for 807 attempts: $0.0048 for each question. The generation records give the orchestrator cost: $1.63, or $0.0020 for each attempt. The subagents cost the remaining $2.23. Orchestrator tokens for each attempt (medians, from the thread state):
 
 | | Gemini Flash (3 runs) | DeepSeek V4.1 Flash |
 |---|---|---|
@@ -56,7 +62,7 @@ Against `424c04e2`, DeepSeek gains 22 questions and loses 22 (McNemar p = 1.0). 
 | Input, cache read | 12,000 (45%) | 21,500 (74%) |
 | Output | 380 to 400 | 1,012 (478 thinking) |
 | All tokens | 28,300 | 32,200 |
-| Orchestrator cost for each attempt | $0.0093 | $0.0015 to $0.0043 (see section 3) |
+| Orchestrator cost for each attempt | $0.0093 | $0.0020 (OpenRouter generation records) |
 
 DeepSeek uses about 14% more tokens. All its calls cost about half of the Gemini orchestrator calls alone. The Gemini thread states record 0 thinking tokens; if Gemini bills thinking that the state does not record, the Gemini cost is higher.
 
@@ -95,7 +101,7 @@ Against `424c04e2`, Muse Ember gains 16 questions and loses 24 (McNemar p = 0.27
 
 **Loops.** Three attempts called the model 468, 590 and 617 times: "Go to 9.5N, 79.5W", "Describe the pattern of deforestation in the Amazon" and "Were there any alerts within 10 km of this mill at -1.25, 101.45". They used 106M of the 121M cache-read tokens of the run, about $0.70. DeepSeek and Gemini have no such loops. A limit on model calls for each turn would stop this.
 
-**Latency.** Median 20.7 s, 90th percentile 47.7 s. This is faster than DeepSeek (27.0 s, 67.0 s) and between the two Gemini figures (16.6 s, 51.6 s). The Muse run was at 13:00, not in the same hour as the other runs.
+**Latency.** Median 20.7 s, 90th percentile 47.7 s. This is faster than DeepSeek (27.0 s, 67.0 s) and between the two Gemini figures (16.6 s, 51.6 s). The Muse run was at 13:00, not in the same hour as the other runs. An orchestrator call takes 1.4 s (median, checkpoint timestamps), between Gemini (1.0 s) and DeepSeek (2.2 s). A sample of 994 generation records shows no throttling (one 504, answered by the second provider).
 
 **Cost.** The OpenRouter key spent $4.75 for 807 attempts: $0.0059 for each question, about 20% more than DeepSeek ($0.0048). Muse Ember has one price, so the split is known: the orchestrator calls cost $2.11 (thread state tokens), and the subagents cost about $2.64. Without the 3 loops, the cost is about $0.0050 for each question.
 
@@ -138,7 +144,7 @@ The screen looks for a model smaller than DeepSeek V4.1 Flash that is as good. I
 
 ## 3. OpenRouter pricing
 
-OpenRouter sends a request to one of several providers of a model. The prices of the providers are different. `deepseek/deepseek-v4.1-flash` had 38 providers, at $0.051 to $0.45/M input and $0.34 to $1.80/M output. The `/models` list shows the price of one provider, and that value changed during the day. So the cost in this document is the key spend for each run, not tokens multiplied by a list price. The runs did not record which provider served each call. To know the price of each call, pin the providers (`vendor/model@provider`) or read the OpenRouter generation records.
+OpenRouter sends a request to one of several providers of a model. The prices of the providers are different. `deepseek/deepseek-v4.1-flash` had 38 providers, at $0.051 to $0.45/M input and $0.34 to $1.80/M output. The `/models` list shows the price of one provider, and that value changed during the day. So the cost in this document is the key spend for each run, not tokens multiplied by a list price. The OpenRouter generation record of each call (`/api/v1/generation?id=gen-…`; the id is in the `response_metadata` of each AI message) gives the provider, the latency and the cost that OpenRouter charged. For the DeepSeek orchestrator calls, the charged cost was $1.63.
 
 ## Files
 
