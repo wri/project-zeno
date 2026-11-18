@@ -6,9 +6,9 @@ is stale (`--check`). Coverage counts use **gating** checks only;
 info-only checks are listed separately (they never enter a verdict).
 Terms are defined in the [README glossary](../../README.md#glossary).
 
-`caseset_version 98f40d730a45a876` · 154 cases · done 96 · not doing 30 · ready 22 · todo 6 · **124 active** (everything but `not doing` runs by default)
+`caseset_version b241270d4fd97fd1` · 154 cases · done 94 · not doing 30 · ready 24 · todo 6 · **124 active** (everything but `not doing` runs by default)
 
-_Last updated: 2026-11-18_
+_Last updated: 2026-11-19_
 
 ## Groups
 
@@ -21,7 +21,7 @@ _Last updated: 2026-11-18_
 | dashboard | 7 | 7 | done 7 |
 | dataset-parameters | 1 | 1 | done 1 |
 | dataset-suggestion | 8 | 6 | done 6, not doing 2 |
-| direct | 31 | 23 | done 19, not doing 8, ready 3, todo 1 |
+| direct | 31 | 23 | done 17, not doing 8, ready 5, todo 1 |
 | imagery | 5 | 1 | done 1, not doing 4 |
 | metadata | 5 | 5 | done 5 |
 | multilingual | 5 | 5 | done 5 |
@@ -48,9 +48,9 @@ exists.
 | bucket | via dedicated check | via shared only | total | of active |
 |---|---|---|---|---|
 | retrieval | 117 | 0 | 117 | 94% |
-| analysis | 0 | 76 | 76 | 61% |
-| explanation | 32 | 65 | 97 | 78% |
-| output | 85 | 3 | 88 | 71% |
+| analysis | 0 | 74 | 74 | 60% |
+| explanation | 31 | 64 | 95 | 77% |
+| output | 83 | 3 | 86 | 69% |
 | scope | 106 | 9 | 115 | 93% |
 
 ## Expected-field census (active cases)
@@ -61,9 +61,9 @@ exists.
 | dataset_id | 104 | dataset_id_match |
 | aoi_source | 99 | no check of its own (dashboard_aoi_match also compares it) |
 | dataset_name | 95 | reference only |
-| aoi_ids | 89 | aoi_id_match |
-| answer | 76 | agent_answer, chart_produced, data_pull_exists, answered_without_data (+ charts_answer when a chart exists) |
-| text | 32 | expected_text_match |
+| aoi_ids | 91 | aoi_id_match |
+| answer | 74 | agent_answer, chart_produced, data_pull_exists, answered_without_data (+ charts_answer when a chart exists) |
+| text | 31 | expected_text_match |
 | context_layer | 19 | context_layer_match |
 | dashboard_created | 11 | dashboard_created |
 | end_date | 9 | date_extraction (with start_date) |
@@ -72,12 +72,12 @@ exists.
 | class_values | 6 | class_value_match (info-only) |
 | nudge_options | 6 | nudge_match |
 | clarification | 3 | clarification_requested |
+| ground_truth | 3 | ground_truth_match, ground_truth_answer (info-only) |
 | nudge_type | 3 | nudge_match |
 | dashboard_sections | 2 | dashboard_sections_match |
 | chart_type | 1 | chart_type_match |
 | dashboard_text | 1 | dashboard_text_match |
 | dataset_parameters | 1 | dataset_parameter_match |
-| ground_truth | 1 | ground_truth_match, ground_truth_answer (info-only) |
 | suggested_datasets | 0 ← unused | suggested_datasets_match (legacy: the agent now writes nudge; author nudge_type / nudge_options) |
 
 ## Dataset coverage (project-zeno catalog)
