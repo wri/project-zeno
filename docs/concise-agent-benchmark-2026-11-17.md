@@ -1,6 +1,6 @@
 # BENCHMARK 2026-draft-5: concise profile with curated charts (2026-11-17)
 
-> **Update, later on 2026-11-17.** After the changes in "Changes after the run", a full run on `0cf9eed5` gives a North Star of **78.4% (211 of 269)**, the same as prod. With the context layer rule, a full run on `3a9075df` gives **81.4% (219 of 269)** and 69.9% right every time (prod 78.4% and 65.1%). On 2026-11-18, a full run on `424c04e2` (the rule keeps the layer for "deforestation") gives **80.7% (217 of 269)** and 69.9% right every time. See "Full run on `0cf9eed5`", "Full run on `3a9075df`" and "Full run on `424c04e2`". The sections below those are about the first run.
+> **Update, later on 2026-11-17.** After the changes in "Changes after the run", a full run on `0cf9eed5` gives a North Star of **78.4% (211 of 269)**, the same as prod. With the context layer rule, a full run on `3a9075df` gives **81.4% (219 of 269)** and 69.9% right every time (prod 78.4% and 65.1%). On 2026-11-18, a full run on `424c04e2` (the rule keeps the layer for "deforestation") gives **80.7% (217 of 269)** and 69.9% right every time. With DeepSeek V4.1 Flash in place of Gemini Flash, the North Star is the same (80.7%), the median latency is about 10 s more (27.0 s against 16.6 s), and the estimated cost for each question without the code executor is about $0.005 against $0.026 to $0.042. See "Full run on `0cf9eed5`", "Full run on `3a9075df`", "Full run on `424c04e2`" and "DeepSeek V4.1 Flash in place of Gemini Flash". The sections below those are about the first run.
 
 ## Result
 
@@ -168,6 +168,89 @@ Against prod, 22 questions gained and 16 lost (McNemar p = 0.42). The difference
 - Other: a chart in `ch-comp-158`, the period in `ch-port-018` and `ch-trend-083`, the dataset in `ch-dataset-157`.
 
 **Latency.** This run had no slow period. Median 16.6 s and 90th percentile 51.6 s (`stream_s`, as in "Latency and cost"), against 31.2 s and 53.3 s on prod. The first third of the questions has a median of 37.4 s and the other two thirds 13.8 s, the same pattern as `0cf9eed5`. The same limits apply as before: a local API, and prod on a different build. 211 of 807 attempts used the code executor, and 264 got only standard charts. Cost was not measured.
+
+## DeepSeek V4.1 Flash in place of Gemini Flash
+
+2026-11-18. The same set, 3 attempts, local, `ff=concise`, 10 workers, on `9b36fdc8` (the code of `3a9075df`). MODEL and SMALL_MODEL are `deepseek/deepseek-v4.1-flash` through OpenRouter, with no fallback models. CODING_MODEL stays on Gemini, because only the Gemini code executor has a sandbox. The OpenRouter backend is from `feat/openrouter-models` (`cadebdb6`) and is not in this PR. The run used gnw-gold-evals `main` (`e5937ae`) with the `chart_well_formed` fix. It ran in the same hour as the `424c04e2` run, on the same local database.
+
+### Summary: cost and latency estimate for one question
+
+| | Gemini Flash (`424c04e2`) | DeepSeek V4.1 Flash | Basis |
+|---|---|---|---|
+| North Star | 80.7% (217) | 80.7% (217) | measured |
+| Latency, median | 16.6 s | 27.0 s | measured (`stream_s`, same hour) |
+| Latency, 90th percentile | 51.6 s | 67.0 s | measured |
+| Orchestrator cost | $0.0093 | $0.0014 | measured (thread state tokens × list price) |
+| Subagent cost | $0.017 to $0.033 (estimate) | $0.0033 | DeepSeek: OpenRouter spend; Gemini: estimate, see below |
+| **Total without the code executor** | **about $0.026 to $0.042** | **about $0.0048** | |
+| For 1,000 questions | about $26 to $42 | about $4.80 | |
+
+The code executor (`generate_insights`) is Gemini in both runs and is not in these numbers.
+
+**How the Gemini subagent cost is estimated.** The thread state does not record the subagent (SMALL_MODEL) calls, and Langfuse tracing was off. On OpenRouter, the DeepSeek subagents cost $2.68 for the run ($3.86 key spend minus $1.18 orchestrator). The same tokens at Gemini Flash prices cost 5.3 times more (output only) to 9.8 times more (uncached input only). The estimate uses that range. To measure it, run both models with Langfuse tracing on.
+
+### Accuracy
+
+| | `3a9075df` (Gemini) | `424c04e2` (Gemini) | `9b36fdc8` (DeepSeek) |
+|---|---|---|---|
+| **North Star** | 81.4% (219) | 80.7% (217) | **80.7%** (217) |
+| Right every time | 69.9% | 69.9% | 69.1% |
+| Right at least once | 87.7% | 88.1% | 88.5% |
+| Consistency | 188 of 219 | 188 of 217 | 186 of 217 |
+| Failure modes (scope, retrieval, analysis, explanation) | 0, 22, 9, 19 | 0, 27, 6, 19 | 1, 27, 8, 16 |
+| Attempts with no reply | 7 of 807 | 1 of 807 | 2 of 807 |
+
+| Type | Prod | `424c04e2` (Gemini) | DeepSeek |
+|---|---|---|---|
+| Quantification | 70 of 84 | 73 | 71 |
+| Comparison | 46 of 57 | 49 | 51 |
+| Monitoring | 30 of 41 | 30 | 31 |
+| Causal | 20 of 31 | 19 | 18 |
+| Trend | 20 of 23 | 21 | 20 |
+| Refusal | 5 of 9 | 7 | 7 |
+| Geospatial | 8 of 9 | 7 | 8 |
+| Portfolio | 6 of 9 | 6 | 6 |
+| Dataset | 6 of 6 | 5 | 5 |
+
+Against `424c04e2`, DeepSeek gains 22 questions and loses 22 (McNemar p = 1.0). Against prod, it gains 28 and loses 22 (p = 0.48). The accuracy of the two models is the same at this sample size.
+
+**Losses against `424c04e2` (22).** Most were right on 1 of 3 attempts. Some are not from the model:
+
+- `ch-quant-009` (deforestation layer): the DeepSeek run does not have the `424c04e2` fix.
+- Charts with mis-joined record sets (`chart_integrity`): `ch-comp-076` (3 of 3), `ch-quant-171`, `ch-trend-037`. The Gemini run does not show this failure. Examine the chart arguments that DeepSeek writes.
+- Text: the alert questions `ch-mon-040`, `ch-mon-052` and `ch-mon-063` (the reply is correct but does not name the channel or ask which item), `ch-causal-026`, `ch-quant-176`, `ch-quant-185`, `ch-quant-163`.
+- No pull or wrong area: `ch-mon-008`, `ch-quant-110`, `ch-comp-168`, `ch-comp-171`, `ch-causal-023`, `ch-trend-081` (154 protected areas in Madagascar).
+- Figures: `ch-comp-161`, `ch-comp-173`, `ch-causal-024`, `ch-trend-052`.
+- Scope: `ch-dataset-171` calls `search_blogs` on 3 of 3 attempts.
+
+### Latency
+
+| | `424c04e2` (Gemini, same hour) | DeepSeek |
+|---|---|---|
+| Median | 16.6 s | 27.0 s |
+| 90th percentile | 51.6 s | 67.0 s |
+| Mean | n/a | 36.8 s |
+
+DeepSeek is about 10 s slower at the median. It writes about 2.5 times more output tokens than Gemini, and half of them are thinking tokens. The two runs used the same local database and analytics API at the same time, so the load on these was the same for both.
+
+### Tokens and cost (orchestrator)
+
+From the thread state of each attempt (the `usage_metadata` of each AI message), at the OpenRouter list prices: Gemini 3 Flash $0.50/M input, $0.05/M cache read, $3.00/M output; DeepSeek V4.1 Flash $0.051/M, $0.018/M, $0.567/M. Medians for each attempt:
+
+| | Gemini Flash (`0cf9eed5`, `3a9075df`, `424c04e2`) | DeepSeek V4.1 Flash |
+|---|---|---|
+| Model calls | 5 | 5 |
+| Input, not cached | 14,400 | 5,500 |
+| Input, cache read | 12,000 (45% of input) | 21,500 (74% of input) |
+| Output | 380 to 400 | 1,012 (478 of them thinking) |
+| All tokens | 28,300 | 32,200 |
+| Cost for each attempt | $0.0093 | $0.0014 |
+| Cost for the run (807 attempts) | $7.36 to $8.53 | $1.17 |
+
+DeepSeek uses about 14% more tokens, but the orchestrator cost is about 7 times less. Limits:
+
+- The Gemini thread states record 0 thinking tokens. If Gemini bills thinking tokens that the state does not record, the Gemini cost is higher than the table shows.
+- The OpenRouter key spend ($3.86) is the change in the key's usage during the run. Other use of the key in that hour would be in it.
 
 ## What ran
 
