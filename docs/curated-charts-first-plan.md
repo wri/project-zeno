@@ -1,8 +1,7 @@
 # Curated charts first plan
 
-Status: proposal. No code is written for this plan. It builds on phase 1 of
-`docs/low-ai-mode-plan.md` (the view registry), which is on the branch
-`feat/curated-views` and is not committed.
+Status: implemented behind the `curated-charts` profile (PZB-1681). It
+builds on the view registry in `src/api/services/charts/views.py`.
 
 ## Goal
 
