@@ -177,3 +177,13 @@ presentation_instructions: >-
   the approximation for deforestation emissions, and removals from tree gain as the
   approximation for afforestation/reforestation. Do not present results as carbon
   credits or offsets.
+# The jev decision model reads decision_card as this dataset's option and
+# decision_key as its option key (src/agent/subagents/pick_dataset/tool.py).
+# Keep the card to one fixed template: what it measures, units, time range
+# and step, breakdowns, its own limits. Do not name other datasets.
+decision_key: lgms
+decision_card: >-
+  Land GHG Monitoring System (2016-2024). Greenhouse gas emissions and
+  removals from land use for GADM admin areas: land use, land-use change and
+  forestry (LULUCF), agriculture, cropland management and livestock. Annual
+  values in MgCO2e.

@@ -181,3 +181,15 @@ citation: 'Hansen et al., 2013. "High-Resolution Global Maps of 21st-Century For
 
   '
 series_color: "#DC6C9A"
+# The jev decision model reads decision_card as this dataset's option and
+# decision_key as its option key (src/agent/subagents/pick_dataset/tool.py).
+# Keep the card to one fixed template: what it measures, units, time range
+# and step, breakdowns, its own limits. Do not name other datasets.
+decision_key: tcl
+decision_card: >-
+  Tree cover loss (2001-2025). Annual area (ha) of tree cover loss at 30 m
+  for all vegetation over 5 m tall, and the annual greenhouse gas emissions
+  from that loss (MgCO2e). Can be limited to primary forest, intact forest
+  or natural forest to measure deforestation. Supports a canopy cover
+  threshold. Time step is one year; no monthly or seasonal values. Does not
+  give the cause of the loss.

@@ -169,3 +169,15 @@ categories:
   label_en: Other
   color: "#D3D3D3"
 legend_categories: false
+# The jev decision model reads decision_card as this dataset's option and
+# decision_key as its option key (src/agent/subagents/pick_dataset/tool.py).
+# Keep the card to one fixed template: what it measures, units, time range
+# and step, breakdowns, its own limits. Do not name other datasets.
+decision_key: natural_lands
+decision_card: >-
+  SBTN Natural Lands Map (2020). Baseline map of natural and non-natural
+  land in 2020 at 30 m. Natural classes: natural forest, mangrove, natural
+  peat forest, wetland natural forest, natural short vegetation, natural
+  water, bare, snow. Non-natural classes: crop, built-up, non-natural tree
+  cover, non-natural short vegetation. Gives the area of each class in 2020.
+  Used for no-conversion (SBTN) targets. One year only, no change over time.
