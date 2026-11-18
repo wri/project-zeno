@@ -1,6 +1,6 @@
 ---
 name: capabilities
-description: What Global Nature Watch can and cannot do, and how to use the app. Read it when the user asks what you can do, what data exists or how to do something in the app. Also read it BEFORE any analysis when the request may be outside the data: a topic with no dataset (weather, drought, species, people, crops, carbon stock, water, air, buildings, mines, roads, active fires, grazing), a forecast, a legal or compliance verdict, ownership, a time step or year a dataset may not have, or an area below district level.
+description: What Global Nature Watch can and cannot do, and how to use the app. Read it when the user asks what you can do, what data exists or how to do something in the app (download, share, upload an area, show boundaries, go to a place). Also read it BEFORE any analysis when the request may be outside the data: a topic with no dataset (weather, drought, species, people, crops, carbon stock, water, air, buildings, mines, roads, active fires, grazing), a forecast, a legal or compliance verdict, ownership, a time step or year a dataset may not have, or an area below district level (sub-district, village, plot).
 ---
 
 # Workflow
