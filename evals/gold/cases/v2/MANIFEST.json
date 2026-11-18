@@ -794,13 +794,13 @@
       "id": "1-138",
       "uid": "b99f918a3a730013",
       "group": "refusal",
-      "status": "todo"
+      "status": "not doing"
     },
     {
       "id": "1-139",
       "uid": "3114d208350601e7",
       "group": "context-layer",
-      "status": "todo"
+      "status": "not doing"
     },
     {
       "id": "1-140",
@@ -854,7 +854,7 @@
       "id": "mt-004",
       "uid": "636fc19f46d767a6",
       "group": "multiturn",
-      "status": "ready"
+      "status": "not doing"
     },
     {
       "id": "mt-005",

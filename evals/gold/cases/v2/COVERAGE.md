@@ -6,7 +6,7 @@ is stale (`--check`). Coverage counts use **gating** checks only;
 info-only checks are listed separately (they never enter a verdict).
 Terms are defined in the [README glossary](../../README.md#glossary).
 
-`caseset_version 0f2b0737a9e27427` · 154 cases · done 91 · not doing 30 · ready 28 · todo 5 · **124 active** (everything but `not doing` runs by default)
+`caseset_version 0f2b0737a9e27427` · 154 cases · done 91 · not doing 33 · ready 27 · todo 3 · **121 active** (everything but `not doing` runs by default)
 
 _Last updated: 2026-11-19_
 
@@ -17,7 +17,7 @@ _Last updated: 2026-11-19_
 | boundary-layer | 3 | 3 | ready 3 |
 | class-comparison | 9 | 6 | done 6, not doing 3 |
 | comparative | 14 | 13 | done 11, not doing 1, ready 1, todo 1 |
-| context-layer | 11 | 10 | done 7, not doing 1, ready 1, todo 2 |
+| context-layer | 11 | 9 | done 7, not doing 2, ready 1, todo 1 |
 | dashboard | 7 | 7 | done 7 |
 | dataset-parameters | 1 | 1 | done 1 |
 | dataset-suggestion | 8 | 6 | done 6, not doing 2 |
@@ -25,11 +25,11 @@ _Last updated: 2026-11-19_
 | imagery | 5 | 1 | done 1, not doing 4 |
 | metadata | 5 | 5 | done 5 |
 | multilingual | 5 | 5 | done 5 |
-| multiturn | 16 | 12 | not doing 4, ready 12 |
+| multiturn | 16 | 11 | not doing 5, ready 11 |
 | nudge | 2 | 2 | ready 2 |
 | parent-child | 14 | 12 | done 11, not doing 2, ready 1 |
 | ranking | 1 | 1 | done 1 |
-| refusal | 6 | 2 | done 1, not doing 4, todo 1 |
+| refusal | 6 | 1 | done 1, not doing 5 |
 | temporal | 16 | 15 | done 14, not doing 1, ready 1 |
 
 ## Bucket coverage (active cases)
@@ -47,24 +47,24 @@ exists.
 
 | bucket | via dedicated check | via shared only | total | of active |
 |---|---|---|---|---|
-| retrieval | 117 | 0 | 117 | 94% |
-| analysis | 0 | 74 | 74 | 60% |
-| explanation | 31 | 64 | 95 | 77% |
-| output | 83 | 3 | 86 | 69% |
-| scope | 106 | 9 | 115 | 93% |
+| retrieval | 114 | 0 | 114 | 94% |
+| analysis | 0 | 74 | 74 | 61% |
+| explanation | 29 | 64 | 93 | 77% |
+| output | 83 | 3 | 86 | 71% |
+| scope | 103 | 9 | 112 | 93% |
 
 ## Expected-field census (active cases)
 
 | field | cases | switches on |
 |---|---|---|
-| scope | 105 | scope_match |
-| dataset_id | 104 | dataset_id_match |
-| aoi_source | 99 | no check of its own (dashboard_aoi_match also compares it) |
-| dataset_name | 95 | reference only |
+| scope | 102 | scope_match |
+| dataset_id | 101 | dataset_id_match |
+| aoi_source | 97 | no check of its own (dashboard_aoi_match also compares it) |
+| dataset_name | 93 | reference only |
 | aoi_ids | 92 | aoi_id_match |
 | answer | 74 | agent_answer, chart_produced, data_pull_exists, answered_without_data (+ charts_answer when a chart exists) |
-| text | 31 | expected_text_match |
-| context_layer | 20 | context_layer_match |
+| text | 29 | expected_text_match |
+| context_layer | 19 | context_layer_match |
 | dashboard_created | 11 | dashboard_created |
 | end_date | 9 | date_extraction (with start_date) |
 | start_date | 9 | date_extraction (with end_date) |
@@ -100,8 +100,8 @@ answer-graded column) exercise the other three.
 | 1 | Global land cover | 6 | 6 | — | — |
 | 2 | Global natural/semi-natural grassland extent | 12 | 11 | — | — |
 | 3 | SBTN Natural Lands Map | 5 | 5 | — | — |
-| 4 | Tree cover loss | 51 | 36 | canopy_cover ×1 | primary_forest ×6, intact_forest ×5, natural_forest ×5 |
-| 5 | Tree cover gain | 6 | 6 | — | — |
+| 4 | Tree cover loss | 49 | 35 | canopy_cover ×1 | primary_forest ×6, intact_forest ×4, natural_forest ×5 |
+| 5 | Tree cover gain | 5 | 5 | — | — |
 | 6 | Forest greenhouse gas net flux | 3 | 3 | canopy_cover ×0 ← gap | — |
 | 7 | Tree cover | 3 | 3 | canopy_cover ×0 ← gap | primary_forest ×0 ← gap |
 | 8 | Tree cover loss by dominant driver | 5 | 5 | canopy_cover ×0 ← gap | — |
@@ -112,7 +112,7 @@ answer-graded column) exercise the other three.
 
 ## Multi-turn
 
-12 active conversations (27 turns). Delta assertions: absent ×1, changed ×9, retain ×14
+11 active conversations (25 turns). Delta assertions: absent ×1, changed ×9, retain ×12
 
 ## Parked and held cases
 
@@ -144,6 +144,9 @@ answer-graded column) exercise the other three.
 | 1-127 | not doing | refusal | 2026-09-16: not doing. The behaviour is unreleased - wri/project-zeno#827 was open at authoring time. Note ... |
 | 1-128 | not doing | direct | 2026-09-24: not doing. The behaviour is unreleased: wri/project-zeno#830 was open at authoring time. Re-adm... |
 | 1-129 | not doing | direct | 2026-09-24: not doing, same as 1-128: wri/project-zeno#830 was unreleased at authoring time. Re-admit with ... |
+| 1-138 | not doing | refusal | not doing 2026-11-18 (AJ, PZB-1714): failed on all 13 ephemeral runs from 11 to 16 November 2026. The ephem... |
+| 1-139 | not doing | context-layer | not doing 2026-11-18 (AJ, PZB-1714): failed on all 13 ephemeral runs from 11 to 16 November 2026, for the s... |
+| mt-004 | not doing | multiturn | not doing 2026-11-18 (AJ, PZB-1714): in run 20261116T154957Z_ephemeral (PR #896, GitHub Actions run 4389870... |
 | mt-007 | not doing | multiturn | 2026-09-23: parked (not doing). Two standing, reproduced issues without a clean fix: T1's primary-forest-vs... |
 | mt-010 | not doing | multiturn | 2026-09-16: not doing. The behaviour is unreleased - wri/project-zeno#827 was open at authoring time, and t... |
 | mt-011 | not doing | multiturn | 2026-09-16: not doing. The behaviour is unreleased - wri/project-zeno#827 was open at authoring time, and t... |
@@ -151,8 +154,6 @@ answer-graded column) exercise the other three.
 | 1-027 | todo | direct | CHART aggregates results, hiding requested class |
 | 1-030 | todo | comparative | Expecting SBTN analysis but using the Blog skill |
 | 1-130 | todo | context-layer | todo 2026-10-09: blocked on project-zeno applying a 10% canopy threshold with the natural_forest layer (AJ,... |
-| 1-138 | todo | refusal | todo 2026-10-15: blocked on the concession ingest on staging. #864 is deployed there (/api/metadata lists t... |
-| 1-139 | todo | context-layer | todo 2026-10-15: blocked on the concession ingest on staging, as 1-138. Smoke run 20261015T173835Z_staging ... |
 
 ## Known gaps
 
