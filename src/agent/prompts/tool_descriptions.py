@@ -6,8 +6,7 @@ docstrings for the flagged profile only, so the default profile stays the
 same during the comparison (docs/concise-agent-plan.md, iteration 2).
 
 Temporary: when the concise profile is accepted, each text becomes the
-docstring of its tool and this module is deleted. The two dashboard tools
-that replace seven have their texts in src/agent/tools/dashboard_items.py.
+docstring of its tool and this module is deleted.
 """
 
 _DEFAULT_DASHBOARD = (
@@ -106,6 +105,51 @@ CONCISE_TOOL_DESCRIPTIONS: dict[str, str] = {
     "create_dashboard": (
         "Create an empty dashboard for the AOI in state (pick_aoi first). "
         "`name` defaults to the area's name. Add widgets with "
-        "add_dashboard_item."
+        "add_to_dashboard."
+    ),
+    "add_to_dashboard": (
+        "Add an insight to a dashboard as a widget. `insight_id` defaults to "
+        "the current insight in state. `section` (a section title or id) "
+        "puts it in a section; without it the widget is ungrouped. The "
+        "insight must be one that the user can see. " + _DEFAULT_DASHBOARD
+    ),
+    "add_map_widget": (
+        'Add a map widget to a dashboard. `layer="dataset"`: the selected '
+        'dataset layer (pick_dataset first). `layer="imagery"`: the '
+        "Sentinel-2 mosaic from show_imagery. `title` overrides the header; "
+        "`section` (a section title or id) groups it. " + _DEFAULT_DASHBOARD
+    ),
+    "add_text_widget": (
+        "Add a markdown note to a dashboard. Write `text` yourself: a short "
+        "note, summary or section intro, with any heading in the markdown "
+        "(there is no title field), and no raw data. `section` (a section "
+        "title or id) groups it; `position` places it in that container "
+        "(default: last). " + _DEFAULT_DASHBOARD
+    ),
+    "edit_text_widget": (
+        "Replace all the markdown of a text widget with `text`. `widget_id` "
+        "defaults to the only text widget; when there are several, the "
+        "error lists their ids. " + _DEFAULT_DASHBOARD
+    ),
+    "add_dashboard_section": (
+        "Create a section (a titled group of widgets) on a dashboard. "
+        '`title`: short and topical, for example "Deforestation". '
+        "`description`: optional, one or two lines on its purpose. "
+        "`position`: default last. The section starts empty: pass `section` "
+        "to add_to_dashboard, add_text_widget or add_map_widget. "
+        + _DEFAULT_DASHBOARD
+    ),
+    "edit_dashboard_section": (
+        "Change the title or the description of a section, or both (each a "
+        "full replacement). `section` (a section title or id) defaults to "
+        "the only section; when there are several, the error lists them. "
+        + _DEFAULT_DASHBOARD
+    ),
+    "move_dashboard_widget": (
+        "Move a widget into a section (`section`, a section title or id) or "
+        "back to the top level (`ungroup=True`): exactly one of the two. "
+        "`position` sets the slot (default: last); to reorder only, name "
+        "the container that it is in and a position. Get `widget_id` from "
+        "inspect_view_context. Only the user's own dashboards can be edited."
     ),
 }

@@ -305,7 +305,7 @@ def test_declared_skills_always_have_their_tools_bound():
     for config in default_registry.configs():
         available = config.tool_names()
         for skill in config.skill_metas():
-            assert set(config.requires(skill)) <= available
+            assert set(skill.requires) <= available
 
 
 def test_default_config_advertises_core_skills():

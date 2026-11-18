@@ -1,6 +1,6 @@
 # Concise agent plan
 
-Status: in progress. Iterations 1, 2, 2.1, 3 and 4 and option A are on the `concise` profile (2026-11-17). Iteration 5 waits for the data owners. Iteration 6 is not started. Open: 1-082 on concise.
+Status: in progress. Iterations 1, 2, 2.1, 3 and 4 are on the `concise` profile (2026-11-17). Option A was built, then removed on 2026-11-18. Iteration 5 waits for the data owners. Iteration 6 is not started. Open: 1-082 on concise.
 
 ## Goal
 
@@ -273,6 +273,10 @@ largest edit and needs review by the data owners.
    When the user says it, always show the caution, with every context
    layer. The case does not change.
 2. **Option A (fewer dashboard tools): yes.** Built behind the flag.
+   **Removed on 2026-11-18:** the dispatch layer made the dashboard tools
+   too complex for the saving. The concise profile uses the seven dashboard
+   tools again, with their short descriptions. The widget id fix (all
+   profiles) stays.
 3. **Option B (`pick_aoi` and `pick_dataset` in one step): no.** The code
    guard against two state writers in one step is built for all profiles
    (open item 2).
@@ -466,7 +470,7 @@ cases, were run again with 3 trials on both profiles at the same time:
 | `16d826d6` | Caution when the user says "deforestation" or another word that is not tree cover loss: catalog (`tree_cover_loss.yml`) and rule 7 | catalog: all; rule 7: concise |
 | `f66d08fd` | `OneStateWriterMiddleware`: one state-writing tool call in each model step (open item 2) | all |
 | `c2d266c2` | GOLD: `dashboard_sections_match`, `dashboard_text_match`; cases mt-013 to mt-015 (dashboard edits in a later turn) | harness |
-| `6f744875` | Option A: `add_dashboard_item` and `edit_dashboard_item` in place of seven tools; shorter dashboard skill body | concise |
+| `6f744875` | Option A: `add_dashboard_item` and `edit_dashboard_item` in place of seven tools; shorter dashboard skill body. Removed on 2026-11-18 | concise |
 | `e9611c6d` | Iteration 3: the analysis workflow in the work section; `analyze` not in the skills list | concise |
 | `688a34fc` | Iteration 4: `generate_insights` without the cautions and the follow-up suggestions; `pick_dataset` without the usage notes | concise |
 | `3c83d36d` | The insight and map widget replies give the widget id | all |
@@ -482,6 +486,10 @@ cases, were run again with 3 trials on both profiles at the same time:
 
 The dashboard skill body for the concise flag is 3,277 characters (7,276
 for the default).
+
+After option A was removed (2026-11-18), the concise tool schemas are
+13,564 characters and the concise profile uses the default dashboard skill
+body. The GOLD numbers below are from the runs with option A.
 
 ### GOLD (inner-loop subset, dashboard cases, mt-001, mt-004, mt-013 to mt-015; 3 trials)
 
@@ -659,7 +667,7 @@ instead. Same build, concise profile, inner-loop subset, 1 trial each,
   (about 8,000 tokens), or an explicit cache (Gemini `cachedContents`)
   must be used. Not tried.
 
-## Options (decided 2026-11-17: A built, B not built)
+## Options (decided 2026-11-17: A built, B not built; A removed 2026-11-18)
 
 ### A. Merge the dashboard tools into fewer tools
 
