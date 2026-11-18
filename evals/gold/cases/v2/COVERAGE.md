@@ -6,7 +6,7 @@ is stale (`--check`). Coverage counts use **gating** checks only;
 info-only checks are listed separately (they never enter a verdict).
 Terms are defined in the [README glossary](../../README.md#glossary).
 
-`caseset_version 3585b4e69c512719` · 154 cases · done 92 · not doing 30 · ready 26 · todo 6 · **124 active** (everything but `not doing` runs by default)
+`caseset_version 997515f8bb662a84` · 154 cases · done 91 · not doing 30 · ready 27 · todo 6 · **124 active** (everything but `not doing` runs by default)
 
 _Last updated: 2026-11-19_
 
@@ -21,7 +21,7 @@ _Last updated: 2026-11-19_
 | dashboard | 7 | 7 | done 7 |
 | dataset-parameters | 1 | 1 | done 1 |
 | dataset-suggestion | 8 | 6 | done 6, not doing 2 |
-| direct | 31 | 23 | done 16, not doing 8, ready 6, todo 1 |
+| direct | 31 | 23 | done 15, not doing 8, ready 7, todo 1 |
 | imagery | 5 | 1 | done 1, not doing 4 |
 | metadata | 5 | 5 | done 5 |
 | multilingual | 5 | 5 | done 5 |
@@ -64,7 +64,7 @@ exists.
 | aoi_ids | 92 | aoi_id_match |
 | answer | 74 | agent_answer, chart_produced, data_pull_exists, answered_without_data (+ charts_answer when a chart exists) |
 | text | 31 | expected_text_match |
-| context_layer | 19 | context_layer_match |
+| context_layer | 20 | context_layer_match |
 | dashboard_created | 11 | dashboard_created |
 | end_date | 9 | date_extraction (with start_date) |
 | start_date | 9 | date_extraction (with end_date) |
@@ -100,7 +100,7 @@ answer-graded column) exercise the other three.
 | 1 | Global land cover | 6 | 6 | — | — |
 | 2 | Global natural/semi-natural grassland extent | 12 | 11 | — | — |
 | 3 | SBTN Natural Lands Map | 5 | 5 | — | — |
-| 4 | Tree cover loss | 51 | 36 | canopy_cover ×1 | primary_forest ×5, intact_forest ×5, natural_forest ×5 |
+| 4 | Tree cover loss | 51 | 36 | canopy_cover ×1 | primary_forest ×6, intact_forest ×5, natural_forest ×5 |
 | 5 | Tree cover gain | 6 | 6 | — | — |
 | 6 | Forest greenhouse gas net flux | 3 | 3 | canopy_cover ×0 ← gap | — |
 | 7 | Tree cover | 3 | 3 | canopy_cover ×0 ← gap | primary_forest ×0 ← gap |
