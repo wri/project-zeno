@@ -15,6 +15,8 @@ from src.agent.subagents.pick_aoi.tool import (
 from src.agent.subagents.pick_aoi.types import AreaOfInterestType
 from src.shared import geocoding_helpers
 from src.shared.aoi_search import EXACT_TIER
+from src.shared.decisions import Answer as DecisionAnswer
+from src.shared.decisions import DecisionError
 from src.shared.geocoding_helpers import fetch_aoi_bbox
 from tests.unit.agent.tools.pick_aoi.conftest import (
     _lookup,
@@ -304,35 +306,100 @@ async def test_select_best_aoi_empty_candidates_returns_none():
     assert result is None
 
 
+def _decision_fails(monkeypatch):
+    """Make the Decisions API call fail, so the selection model picks."""
+
+    async def failing_decide(*_args, **_kwargs):
+        raise DecisionError("decisions call failed (503)")
+
+    monkeypatch.setattr(tool_module, "decide", failing_decide)
+
+
+def _decision_picks(monkeypatch, option, probability=0.9):
+    """Make the decision model pick `option` ("source:src_id")."""
+    asked = []
+
+    async def fake_decide(input_text, questions, client=None):
+        asked.append((input_text, questions))
+        return {
+            "area": DecisionAnswer(
+                choice=option,
+                probability=probability,
+                probabilities={option: probability},
+            )
+        }
+
+    monkeypatch.setattr(tool_module, "decide", fake_decide)
+    return asked
+
+
+_TWO_PARAS = pd.DataFrame(
+    [
+        _row("BRA.14_1", "Para, Brazil", subtype="state-province"),
+        _row("SUR.1_1", "Para, Suriname", subtype="state-province"),
+    ]
+)
+
+
+@pytest.mark.asyncio
+async def test_select_best_aoi_uses_the_decision_model(monkeypatch):
+    """The model-selection path, still reachable via AOI_NORMALIZER_ENABLED:
+    the decision model chooses among the candidates, keyed by source and
+    src_id, and no LLM is called."""
+    _use_small_model(monkeypatch, _SmallModelStub())
+    asked = _decision_picks(monkeypatch, "gadm:SUR.1_1")
+
+    result = await tool_module.select_best_aoi("forest in Para", _TWO_PARAS)
+
+    assert result.src_id == "SUR.1_1"
+    ((input_text, questions),) = asked
+    assert "forest in Para" in input_text
+    assert questions["area"].options == {
+        "gadm:BRA.14_1": "Para, Brazil (state-province, gadm)",
+        "gadm:SUR.1_1": "Para, Suriname (state-province, gadm)",
+    }
+
+
+@pytest.mark.asyncio
+async def test_select_best_aoi_one_candidate_needs_no_call(monkeypatch):
+    """A choice question needs two options: one candidate is the answer."""
+    _use_small_model(monkeypatch, _SmallModelStub())
+    _decision_fails(monkeypatch)
+
+    result = await tool_module.select_best_aoi(
+        "some question", _TWO_PARAS.head(1)
+    )
+
+    assert result.src_id == "BRA.14_1"
+
+
 @pytest.mark.asyncio
 async def test_select_best_aoi_bad_src_id_returns_none(monkeypatch):
-    """The model-selection path, still reachable via AOI_NORMALIZER_ENABLED.
+    """The selection model is the fallback when the decision call fails.
 
     When the LLM picks a src_id that isn't among the candidates,
     select_best_aoi should return None instead of crashing on .iloc[0]."""
 
     _use_small_model(monkeypatch, _SmallModelStub("does-not-exist"))
+    _decision_fails(monkeypatch)
 
-    candidates = pd.DataFrame(
-        [_row("BRA.14_1", "Para, Brazil", subtype="state-province")]
-    )
+    candidates = _TWO_PARAS
     result = await tool_module.select_best_aoi("some question", candidates)
     assert result is None
 
 
 @pytest.mark.asyncio
 async def test_select_best_aoi_survives_a_transient_503(monkeypatch):
-    """Gemini answers 503 UNAVAILABLE under high demand. One such answer
+    """The fallback selection model: Gemini answers 503 UNAVAILABLE under high demand. One such answer
     must not fail the whole pick_aoi call: the selection is retried."""
     unavailable = ServerError(
         503, {"error": {"code": 503, "status": "UNAVAILABLE"}}
     )
     model = _SmallModelStub("BRA.14_1", failures=[unavailable])
     _use_small_model(monkeypatch, model)
+    _decision_fails(monkeypatch)
 
-    candidates = pd.DataFrame(
-        [_row("BRA.14_1", "Para, Brazil", subtype="state-province")]
-    )
+    candidates = _TWO_PARAS
     result = await tool_module.select_best_aoi("some question", candidates)
 
     assert result.src_id == "BRA.14_1"

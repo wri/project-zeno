@@ -49,6 +49,9 @@ from src.shared.aoi_search import (
 )
 from src.shared.aoi_search_sql import HIERARCHY_SCORES
 from src.shared.database import get_connection_from_pool
+from src.shared.decisions import MAX_OPTIONS as MAX_DECISION_OPTIONS
+from src.shared.decisions import DecisionError, decide
+from src.shared.decisions import Question as DecisionQuestion
 from src.shared.gadm_admin_types import GadmAdminTerm, resolve_gadm_admin_level
 from src.shared.geocoding_helpers import (
     AOI_SOURCE_ID_COLUMNS,
@@ -400,10 +403,56 @@ def score_best_aoi(
     return _aoi_from_row(best_row)
 
 
+AOI_DECISION_INSTRUCTIONS = (
+    "Which of these places does the user's request mean? When places tie, "
+    "prefer country over state, state over district, district over "
+    "municipality and municipality over locality."
+)
+
+
+def _aoi_option(row: dict) -> str:
+    return f"{row['source']}:{row['src_id']}"
+
+
+def _aoi_option_text(row: dict) -> str:
+    return f"{row['name']} ({row['subtype']}, {row['source']})"
+
+
+async def _decide_aoi(
+    question: str, candidate_aois: pd.DataFrame
+) -> Optional[AOIIndex]:
+    """The candidate the jev decision model picks.
+
+    Raises:
+        DecisionError: When the call fails or returns no answer.
+    """
+    rows = candidate_aois.head(MAX_DECISION_OPTIONS).to_dict(orient="records")
+    if len(rows) == 1:
+        return _aoi_from_row(rows[0])
+    by_option = {_aoi_option(row): row for row in rows}
+    answers = await decide(
+        f"User request: {question}",
+        {
+            "area": DecisionQuestion(
+                AOI_DECISION_INSTRUCTIONS,
+                {key: _aoi_option_text(row) for key, row in by_option.items()},
+            )
+        },
+    )
+    answer = answers.get("area")
+    if answer is None:
+        raise DecisionError("no answer for the area question")
+    logger.debug("AOI decision %s (p=%.3f)", answer.choice, answer.probability)
+    return _aoi_from_row(by_option[answer.choice])
+
+
 async def select_best_aoi(
     question: str, candidate_aois: pd.DataFrame
 ) -> Optional[AOIIndex]:
     """Select the best AOI based on the user query.
+
+    The jev decision model picks among the candidates. When that call
+    fails, the selection model picks instead.
 
     Args:
         question: User's question providing context for selecting the most relevant location
@@ -415,6 +464,13 @@ async def select_best_aoi(
     if candidate_aois.empty:
         logger.debug("No candidate AOIs to select from")
         return None
+
+    try:
+        return await _decide_aoi(question, candidate_aois)
+    except DecisionError as exc:
+        logger.warning(
+            "AOI decision call failed, using the selection model: %s", exc
+        )
 
     # Prompt template for selecting the best location match based on user query
     AOI_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
@@ -829,7 +885,8 @@ async def _resolve_place(
 
     if normalized:
         # No model chooses among candidates: identical candidates always
-        # produce the identical AOI.
+        # produce the identical AOI. With the normalizer off, the decision
+        # model chooses (select_best_aoi).
         selection = score_best_aoi(merged, terms)
     else:
         selection = await select_best_aoi(question, merged)
