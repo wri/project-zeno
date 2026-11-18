@@ -351,9 +351,9 @@ async def test_tool_message_has_header_rows_facts_instruction(run):
         content
     )
     assert "MgCO2e" in content
-    # No cautions (they are in the pick_dataset message); the instruction
-    # is last.
-    assert "Dataset cautions:" not in content
+    # The catalog cautions (the dataset can come from a UI selection, with
+    # no pick_dataset message); the instruction is last.
+    assert "Dataset cautions:" in content
     assert content.endswith(CURATED_ANSWER_INSTRUCTION)
 
 

@@ -4,6 +4,8 @@ Status: in progress. Iterations 1, 2, 2.1, 3 and 4 are on the `concise` profile 
 
 On 2026-11-18 the `concise` profile and the `concise-replies` flag were removed. Their behavior is now the behavior of every profile: the section prompt, the short tool descriptions, one `description` line for each skill (it replaces `description`, `when_to_use` and `brief`), the shorter tool messages and the dataset selection from the user's words. The measured configuration (`ff=concise`) is now `ff=curated-charts`: the default profile does not have curated charts first. The sections below record the work with the flag as it was done.
 
+After the code review (`e67403c4`, 2026-11-18), the `generate_insights` and curated chart messages have the dataset cautions again, the `pick_dataset` message has the function usage notes again, the retrieval uses the user's message and the agent's request, and a message with several datasets selects the part that the agent's request names. The BENCHMARK North Star stays at 80.7% (217 of 269); see `docs/concise-agent-benchmark-2026-11-17.md`, "Full run on `e67403c4` (review fixes)".
+
 ## Goal
 
 - The agent gives short answers by default and gives more only when the user asks.
@@ -471,7 +473,7 @@ cases, were run again with 3 trials on both profiles at the same time:
 |---|---|---|
 | `16d826d6` | Caution when the user says "deforestation" or another word that is not tree cover loss: catalog (`tree_cover_loss.yml`) and rule 7 | catalog: all; rule 7: concise |
 | `f66d08fd` | `OneStateWriterMiddleware`: one state-writing tool call in each model step (open item 2) | all |
-| `c2d266c2` | GOLD: `dashboard_sections_match`, `dashboard_text_match`; cases mt-013 to mt-015 (dashboard edits in a later turn) | harness |
+| `c2d266c2` | GOLD: `dashboard_sections_match`, `dashboard_text_match`; cases mt-014 to mt-016 (dashboard edits in a later turn) | harness |
 | `6f744875` | Option A: `add_dashboard_item` and `edit_dashboard_item` in place of seven tools; shorter dashboard skill body. Removed on 2026-11-18 | concise |
 | `e9611c6d` | Iteration 3: the analysis workflow in the work section; `analyze` not in the skills list | concise |
 | `688a34fc` | Iteration 4: `generate_insights` without the cautions and the follow-up suggestions; `pick_dataset` without the usage notes | concise |
@@ -493,7 +495,7 @@ After option A was removed (2026-11-18), the concise tool schemas are
 13,564 characters and the concise profile uses the default dashboard skill
 body. The GOLD numbers below are from the runs with option A.
 
-### GOLD (inner-loop subset, dashboard cases, mt-001, mt-004, mt-013 to mt-015; 3 trials)
+### GOLD (inner-loop subset, dashboard cases, mt-001, mt-004, mt-014 to mt-016; 3 trials)
 
 One local API process, both profiles at the same time, 38 cases.
 
@@ -517,7 +519,7 @@ Cases with a failing check: default 6, concise 3.
 - **1-033**: fails on both profiles (open item 1).
 - **1-134**: `agent_answer` and `charts_answer` fail on both profiles.
 - Only on default: 1-056, 1-060, 1-094, mt-004 (`answer_traceability`),
-  mt-013. In mt-013 the default adds an insight that the user did not ask
+  mt-016. In mt-016 the default adds an insight that the user did not ask
   for ("a tree cover loss map").
 - Dashboard cases: all pass on concise with the merged tools. mt-015 (move
   an insight into a section) failed on both profiles with the old tools as

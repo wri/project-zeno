@@ -1,31 +1,28 @@
 id: mt-013
-uid: f62612849e4264b3
+uid: 5b3d3d7c36fd0ee9
 status: ready
 group: multiturn
 turns:
-- query: Create a dashboard for Peru with a tree cover loss map
+- query: Show me logging concessions in Brazil
   expected:
-    aoi_ids: PER
-    aoi_source: gadm
-    dashboard_created: 'TRUE'
-    dashboard_widgets: map
-- query: Add a text block to the dashboard that says the figures use a 30% canopy cover threshold
+    aoi_ids: BRA
+    text: Says the logging concessions layer is on the map and tells the user to click a concession
+      to select it
+    scope: refuse
+- query: How much tree cover loss was there in Pará, Brazil in 2022?
   expected:
-    dashboard_created: 'TRUE'
-    dashboard_widgets: map;text
-    dashboard_text: 30%
+    aoi_ids: BRA.14_1
+    dataset_id: '4'
+    scope: analyse
   deltas:
-    retain:
-    - dashboard_id
-- query: Change that text block to say 25% instead of 30%
-  expected:
-    dashboard_created: 'TRUE'
-    dashboard_widgets: map;text
-    dashboard_text: 25%
-  deltas:
-    retain:
-    - dashboard_id
+    changed:
+    - aoi_ids
 notes:
-  scenario: add a text block in a later turn, then edit it (dashboard edit tools)
-  dashboard_created: later turns set it because the thread keeps dashboard_id; retain checks
-    that no new dashboard was made
+  authored: '2026-11-16: control row for wri/project-zeno#896. After the agent shows a concessions
+    layer, the next analysis request in the same thread must pick an area and a dataset as
+    usual.'
+  catches: An agent that stays in the concessions-layer flow on turn 2 (shows a layer again,
+    or tells the user to click a concession) picks no dataset and pulls nothing. An agent
+    that keeps Brazil from turn 1 fails aoi_ids and the delta.
+  design: 'Turn 2 does not depend on the wording of turn 1. Turn 2 is routing-only: the closed
+    year is in the query, but there is no answer to drift.'

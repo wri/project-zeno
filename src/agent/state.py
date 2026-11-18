@@ -115,6 +115,10 @@ class AgentState(TypedDict):
     # show-imagery tool (see ImageryState in src.agent.models for structure)
     imagery: dict
 
+    # show-boundary-layer tool: the boundary layer the frontend shows, e.g.
+    # {"source": "oil_palm", "name": "Oil palm concessions"}. Not an AOI.
+    boundary_layer: dict
+
     # search-blogs tool
     cited_articles: Annotated[list[CitedArticle], operator.add]
 

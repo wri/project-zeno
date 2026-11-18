@@ -1,0 +1,21 @@
+id: 1-142
+uid: 6fec6649a77f0af6
+status: ready
+group: boundary-layer
+query: Show me concessions in Peru
+expected:
+  aoi_ids: PER
+  aoi_source: gadm
+  nudge_type: boundary_layer_choice
+  nudge_options: Oil palm concessions;RSPO oil palm concessions;Logging concessions;Mining
+    concessions;Wood fiber concessions
+  scope: clarify
+notes:
+  authored: '2026-11-16: acceptance row for the concessions boundary layer in wri/project-zeno#896,
+    with no concession type. The agent selects Peru, then calls show_boundary_layer(layer=null),
+    which sets a boundary_layer_choice nudge with the five types.'
+  catches: An agent that guesses a type shows a layer and sets no nudge (nudge_match and scope
+    fail). An agent that sends the full request to pick_aoi selects concessions as the AOI
+    (aoi_ids fails).
+  design: The nudge options are fixed strings from BOUNDARY_LAYERS in src/agent/tools/show_boundary_layer.py,
+    so nudge_options is deterministic.
