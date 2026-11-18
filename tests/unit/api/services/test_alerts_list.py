@@ -324,7 +324,10 @@ async def test_pulls_integrated_alerts_once_for_a_copy_of_the_area():
     await AlertsListService(handler, FakeLatest()).list(aoi, today=TODAY)
 
     (call,) = handler.calls
-    assert call["dataset"] == {"dataset_id": INTEGRATED_ALERTS_ID}
+    assert call["dataset"] == {
+        "dataset_id": INTEGRATED_ALERTS_ID,
+        "parameters": None,
+    }
     assert call["change_over_time_query"] is False
     assert call["aois"] == [PARANA]
     assert aoi == PARANA
@@ -344,6 +347,7 @@ async def test_a_land_filter_restricts_the_pull_to_that_land(land_filter):
     (call,) = handler.calls
     assert call["dataset"] == {
         "dataset_id": INTEGRATED_ALERTS_ID,
+        "parameters": None,
         "context_layer": land_filter,
     }
     # The rows of a filtered pull are pivoted like any other.
