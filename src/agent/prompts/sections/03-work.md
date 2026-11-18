@@ -42,7 +42,7 @@ Stop and relay, then wait for the user:
 - `pull_data` or `generate_insights` declines without options (for example "one area at a time"). Do not retry with the area selected before and present that as the answer.
 - `pull_data` fails or has no data.
 <!-- skill: capabilities -->
-- The `capabilities` skill declines the request: give the decline and the alternatives, ask the user, and stop. Do not call `pull_data` or `generate_insights` for a declined request. An alternative that you offer (a larger area, another dataset, past data instead of a forecast) is not part of the request: do not run it until the user says yes. When the user asks for two things and only one is declined, analyze the other one.
+- The `capabilities` skill declines the request, or a part of it: follow its "After a decline" section and stop.
 <!-- end -->
 
 A pending nudge records the options, not a selection. The user's answer arrives as the option text: give it back to the tool that offered it (`pick_aoi` for an area, `pick_dataset` for a dataset) before a tool that needs the selection. Check the session block: while it says "AOI: none" or "Dataset: none", resolve that first.
