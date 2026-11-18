@@ -1,6 +1,6 @@
 # BENCHMARK 2026-draft-5: concise profile with curated charts (2026-11-17)
 
-> **Update, later on 2026-11-17.** After the changes in "Changes after the run", a full run on `0cf9eed5` gives a North Star of **78.4% (211 of 269)**, the same as prod. With the context layer rule, a full run on `3a9075df` gives **81.4% (219 of 269)** and 69.9% right every time (prod 78.4% and 65.1%). On 2026-11-18, a full run on `424c04e2` (the rule keeps the layer for "deforestation") gives **80.7% (217 of 269)** and 69.9% right every time. With DeepSeek V4.1 Flash in place of Gemini Flash, the North Star is the same (80.7%), the median latency is about 10 s more (27.0 s against 16.6 s), and the cost for each question is less than half (all DeepSeek calls $0.0048, the Gemini orchestrator calls only $0.0093; the code executor is Gemini in both). See "Full run on `0cf9eed5`", "Full run on `3a9075df`", "Full run on `424c04e2`" and "DeepSeek V4.1 Flash in place of Gemini Flash". The sections below those are about the first run.
+> **Update, later on 2026-11-17.** After the changes in "Changes after the run", a full run on `0cf9eed5` gives a North Star of **78.4% (211 of 269)**, the same as prod. With the context layer rule, a full run on `3a9075df` gives **81.4% (219 of 269)** and 69.9% right every time (prod 78.4% and 65.1%). On 2026-11-18, a full run on `424c04e2` (the rule keeps the layer for "deforestation") gives **80.7% (217 of 269)** and 69.9% right every time. With DeepSeek V4.1 Flash in place of Gemini Flash, the North Star is the same (80.7%), the median latency is about 10 s more (27.0 s against 16.6 s), and the cost for each question is less than half (all DeepSeek calls $0.0048, the Gemini orchestrator calls only $0.0093; the code executor is Gemini in both). Later on 2026-11-18, a full run on `e67403c4` (the code review fixes, with the concise behavior as the default) gives the same North Star, **80.7% (217 of 269)**, and 70.6% right every time; the median latency is 24.8 s. See "Full run on `0cf9eed5`", "Full run on `3a9075df`", "Full run on `424c04e2`", "Full run on `e67403c4` (review fixes)" and "DeepSeek V4.1 Flash in place of Gemini Flash". The sections below those are about the first run.
 
 ## Result
 
@@ -168,6 +168,51 @@ Against prod, 22 questions gained and 16 lost (McNemar p = 0.42). The difference
 - Other: a chart in `ch-comp-158`, the period in `ch-port-018` and `ch-trend-083`, the dataset in `ch-dataset-157`.
 
 **Latency.** This run had no slow period. Median 16.6 s and 90th percentile 51.6 s (`stream_s`, as in "Latency and cost"), against 31.2 s and 53.3 s on prod. The first third of the questions has a median of 37.4 s and the other two thirds 13.8 s, the same pattern as `0cf9eed5`. The same limits apply as before: a local API, and prod on a different build. 211 of 807 attempts used the code executor, and 264 got only standard charts. Cost was not measured.
+
+## Full run on `e67403c4` (review fixes)
+
+2026-11-18. The same set, 3 attempts, local, 10 workers, Gemini Flash. The concise behavior is now the default (`35b90681`), so the run uses `ff=curated-charts`. This gives the same configuration as `ff=concise` in the earlier runs. The changes from `424c04e2` are the fixes from the code review (`e67403c4`):
+
+- The `generate_insights` message and the curated chart message have the dataset cautions again. The cautions come from the dataset in state, or else from the catalog.
+- The `pick_dataset` message has the function usage notes again.
+- The dataset retrieval uses the user's message and the agent's request. It takes the best results of each in turn, at most 5 datasets.
+- When the user's message asks for more than one dataset, the selection selects the dataset for the part that the agent's request names.
+
+| | Prod baseline | `424c04e2` | `e67403c4` |
+|---|---|---|---|
+| **North Star** | 78.4% (211) | 80.7% (217) | **80.7%** (217; Wilson 95% CI 75.5 to 84.9%) |
+| Right every time | 65.1% | 69.9% | 70.6% |
+| Right at least once | 86.2% | 88.1% | 88.8% |
+| Consistency | 175 of 211 | 188 of 217 | 190 of 217 |
+| Failure modes (scope, retrieval, analysis, explanation) | 2, 31, 7, 18 | 0, 27, 6, 19 | 0, 23, 9, 20 |
+| Attempts with no reply | 1 of 807 | 1 of 807 | 1 of 807 |
+
+| Type | Prod | `424c04e2` | `e67403c4` |
+|---|---|---|---|
+| Quantification | 70 of 84 | 73 | 68 |
+| Comparison | 46 of 57 | 49 | 51 |
+| Monitoring | 30 of 41 | 30 | 31 |
+| Causal | 20 of 31 | 19 | 20 |
+| Trend | 20 of 23 | 21 | 23 |
+| Refusal | 5 of 9 | 7 | 6 |
+| Geospatial | 8 of 9 | 7 | 8 |
+| Portfolio | 6 of 9 | 6 | 6 |
+| Dataset | 6 of 6 | 5 | 4 |
+
+Against prod, 21 questions gained and 15 lost (McNemar p = 0.41). Against `424c04e2`, 12 gained and 12 lost (p = 1.0). The review fixes do not change the North Star. Retrieval failures decrease from 27 to 23. Analysis and explanation failures increase by 4 together. All differences are in the run-to-run variance.
+
+**Gained against `424c04e2` (12):** `ch-aoi-155`, `ch-causal-003`, `ch-comp-031`, `ch-comp-157`, `ch-comp-158`, `ch-comp-176`, `ch-mon-030`, `ch-mon-056`, `ch-port-018`, `ch-quant-159`, `ch-trend-083`, `ch-trend-087`. Nine of them are in the 16 questions that `424c04e2` lost against prod. `ch-comp-031` and `ch-causal-003` stopped at the dataset choice before.
+
+**Lost against `424c04e2` (12):** 9 of 12 were right on 1 of 3 attempts.
+- Retrieval: `ch-dataset-171` ("Show me deforestation", the dataset on 1 of 3), `ch-port-003` (the AOI is Brazil, not its states, on 3 of 3), `ch-mon-032` and `ch-quant-186` (the AOI), `ch-quant-182`.
+- Figures: `ch-comp-076`, `ch-quant-146`, a chart in `ch-quant-171`.
+- Text: `ch-aoi-128` and `ch-quant-163` (raw coordinates: the agent moves the map or offers datasets), `ch-comp-181` (offers a dataset choice and does not explain the difference), `ch-quant-196` (gives a meaning to a pixel value that is not documented).
+
+`ch-dataset-171` and `ch-comp-181` use `pick_dataset`, and the retrieval changed. Examine them before the release. The other losses are in tools that this change does not touch.
+
+**Caveat questions.** Of the questions that failed for a missing caveat in the first run, `ch-causal-026` and `ch-comp-173` pass (2 of 3), and `ch-causal-018` fails on 3 of 3. The cautions in the tool messages do not decrease the explanation failures (20, against 19 on `424c04e2`).
+
+**Latency.** Median 24.8 s and 90th percentile 65.8 s (`stream_s`), against 16.6 s and 51.6 s on `424c04e2`. The first third of the questions has a median of 46.2 s (38.1 s before), and the other two thirds 17.7 s and 18.0 s (13.6 s before). The API log has no rate limit errors. The cause is not known: the longer tool messages (cautions and usage notes) and the two retrievals add some time, but the analytics API and the Gemini API also change during the day. A run with Langfuse tracing is necessary to find the cause.
 
 ## DeepSeek V4.1 Flash in place of Gemini Flash
 
@@ -379,3 +424,4 @@ The run file, the page data and the agent artifacts are local and not committed 
 
 - Run: `20261117T142839Z_local_concise.json` (with `chart_well_formed` scored again; the file as the harness wrote it is kept as `.pre-rescore.json`).
 - Page data: built with `tools/benchmark_page.py` from the same run.
+- Run on `e67403c4`: `20261118T160513Z_local_curated-charts.json`, with its page data and agent artifacts, in `~/bench-runs/pr911/run-e67403c4/` on the machine that ran it.
