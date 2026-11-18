@@ -6,7 +6,7 @@ is stale (`--check`). Coverage counts use **gating** checks only;
 info-only checks are listed separately (they never enter a verdict).
 Terms are defined in the [README glossary](../../README.md#glossary).
 
-`caseset_version b241270d4fd97fd1` · 154 cases · done 94 · not doing 30 · ready 24 · todo 6 · **124 active** (everything but `not doing` runs by default)
+`caseset_version 3585b4e69c512719` · 154 cases · done 92 · not doing 30 · ready 26 · todo 6 · **124 active** (everything but `not doing` runs by default)
 
 _Last updated: 2026-11-19_
 
@@ -17,11 +17,11 @@ _Last updated: 2026-11-19_
 | boundary-layer | 3 | 3 | ready 3 |
 | class-comparison | 9 | 6 | done 6, not doing 3 |
 | comparative | 14 | 13 | done 11, not doing 1, todo 2 |
-| context-layer | 11 | 10 | done 8, not doing 1, todo 2 |
+| context-layer | 11 | 10 | done 7, not doing 1, ready 1, todo 2 |
 | dashboard | 7 | 7 | done 7 |
 | dataset-parameters | 1 | 1 | done 1 |
 | dataset-suggestion | 8 | 6 | done 6, not doing 2 |
-| direct | 31 | 23 | done 17, not doing 8, ready 5, todo 1 |
+| direct | 31 | 23 | done 16, not doing 8, ready 6, todo 1 |
 | imagery | 5 | 1 | done 1, not doing 4 |
 | metadata | 5 | 5 | done 5 |
 | multilingual | 5 | 5 | done 5 |
@@ -61,7 +61,7 @@ exists.
 | dataset_id | 104 | dataset_id_match |
 | aoi_source | 99 | no check of its own (dashboard_aoi_match also compares it) |
 | dataset_name | 95 | reference only |
-| aoi_ids | 91 | aoi_id_match |
+| aoi_ids | 92 | aoi_id_match |
 | answer | 74 | agent_answer, chart_produced, data_pull_exists, answered_without_data (+ charts_answer when a chart exists) |
 | text | 31 | expected_text_match |
 | context_layer | 19 | context_layer_match |
