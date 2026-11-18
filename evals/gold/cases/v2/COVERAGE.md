@@ -6,7 +6,7 @@ is stale (`--check`). Coverage counts use **gating** checks only;
 info-only checks are listed separately (they never enter a verdict).
 Terms are defined in the [README glossary](../../README.md#glossary).
 
-`caseset_version 997515f8bb662a84` · 154 cases · done 91 · not doing 30 · ready 27 · todo 6 · **124 active** (everything but `not doing` runs by default)
+`caseset_version 0f2b0737a9e27427` · 154 cases · done 91 · not doing 30 · ready 28 · todo 5 · **124 active** (everything but `not doing` runs by default)
 
 _Last updated: 2026-11-19_
 
@@ -16,7 +16,7 @@ _Last updated: 2026-11-19_
 |---|---|---|---|
 | boundary-layer | 3 | 3 | ready 3 |
 | class-comparison | 9 | 6 | done 6, not doing 3 |
-| comparative | 14 | 13 | done 11, not doing 1, todo 2 |
+| comparative | 14 | 13 | done 11, not doing 1, ready 1, todo 1 |
 | context-layer | 11 | 10 | done 7, not doing 1, ready 1, todo 2 |
 | dashboard | 7 | 7 | done 7 |
 | dataset-parameters | 1 | 1 | done 1 |
@@ -150,7 +150,6 @@ answer-graded column) exercise the other three.
 | mt-012 | not doing | multiturn | 2026-09-16: not doing. The behaviour is unreleased - wri/project-zeno#827 was open at authoring time, and t... |
 | 1-027 | todo | direct | CHART aggregates results, hiding requested class |
 | 1-030 | todo | comparative | Expecting SBTN analysis but using the Blog skill |
-| 1-062 | todo | comparative | 2026-09-16: reinstated aoi_ids and answer (see finding below); held at todo rather than promoted, pending a... |
 | 1-130 | todo | context-layer | todo 2026-10-09: blocked on project-zeno applying a 10% canopy threshold with the natural_forest layer (AJ,... |
 | 1-138 | todo | refusal | todo 2026-10-15: blocked on the concession ingest on staging. #864 is deployed there (/api/metadata lists t... |
 | 1-139 | todo | context-layer | todo 2026-10-15: blocked on the concession ingest on staging, as 1-138. Smoke run 20261015T173835Z_staging ... |

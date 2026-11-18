@@ -1,8 +1,9 @@
 id: 1-062
-uid: 6bc5b10a4a3f4284
-status: todo
+uid: cb7ce4b486144d34
+status: ready
 group: comparative
-query: Which US state lost more forest due to wildfires? Washington or Oregon?
+query: Based on annual data, not near-real-time alerts, which US state lost more forest due
+  to wildfires? Washington or Oregon?
 expected:
   aoi_ids: USA.48_1;USA.38_1
   aoi_source: gadm
@@ -10,11 +11,16 @@ expected:
   answer: Washington;Oregon
   scope: analyse
 notes:
-  status_reason: '2026-09-16: reinstated aoi_ids and answer (see finding below); held at todo
-    rather than promoted, pending a fresh 3-trial verification run at this uid — the finding''s
-    ~12% nudge rate means data_pull_exists/chart_produced/answered_without_data (dormant until
-    now, since they require answer to be set) will start gating on this row, and that residual
-    flakiness hasn''t been measured against the new expectations yet.'
+  status_reason: 'ready 2026-11-18: new uid (reworded query, see reword_2026_11_18). Promote
+    after a passing 3-trial run at this uid. Before: held at todo from 2026-09-16, pending
+    a 3-trial run, because of the ~12% dataset_choice nudge (see finding below).'
+  reword_2026_11_18: 'PZB-1714, AJ: the query now asks for annual data, not near-real-time
+    alerts. In 13 ephemeral runs from 11 to 16 November 2026 the nudge between "Tree cover
+    loss due to fires" (annual, dataset 10) and "Tree cover loss by dominant driver" (one
+    2001-2025 period, dataset 8) came in 10 of 39 trials, and 5 of 6 on the PR #896 runs.
+    In those nudges pick_dataset itself called dataset 10 the best match. Asking for annual
+    data names the property that separates the two datasets without naming either. dataset_id
+    still accepts 8;10.'
   aoi_type: gadm 1
   finding: '2026-09-16 (25 trials sampled across 8 runs, 2026-09-10..2026-09-16, uid fadcd8afac449e11):
     the answer is genuinely dataset/context-layer-dependent, not agent noise on a single true
