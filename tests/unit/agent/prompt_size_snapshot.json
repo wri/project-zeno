@@ -113,7 +113,7 @@
       "tools_total": 3682
     },
     "default": {
-      "system_prompt": 12015,
+      "system_prompt": 11420,
       "tools": {
         "add_dashboard_section": 864,
         "add_map_widget": 770,
@@ -140,7 +140,7 @@
       "tools_total": 14939
     },
     "experimental": {
-      "system_prompt": 12015,
+      "system_prompt": 11420,
       "tools": {
         "add_dashboard_section": 864,
         "add_map_widget": 770,
@@ -168,7 +168,7 @@
       "tools_total": 16273
     },
     "lgms": {
-      "system_prompt": 12015,
+      "system_prompt": 11420,
       "tools": {
         "add_dashboard_section": 864,
         "add_map_widget": 770,
@@ -197,7 +197,7 @@
   },
   "skills": {
     "analyze": 4069,
-    "capabilities": 25165,
+    "capabilities": 10733,
     "concessions-layer": 1869,
     "dashboard": 7276,
     "explore": 1823,
