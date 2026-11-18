@@ -96,10 +96,33 @@ def test_drops_rows_where_area_ha_is_zero():
         assert not years & zero_years
 
 
-def test_rows_have_only_the_columns_the_chart_draws():
-    for chart in TCLChartGenerator().generate(TCL_ROWS):
+@pytest.mark.asyncio
+async def test_rest_charts_keep_every_column_and_their_titles():
+    # /api/analyze and the templates: the CSV download keeps the area
+    # columns and the other measure, and the title names no layer.
+    rows = column_to_rows(TCL_DATA)
+    charts = await build_curated_charts(
+        TREE_COVER_LOSS_ID, rows, context_layer="primary_forest"
+    )
+    for chart in charts:
+        for row in chart.chart_data:
+            assert {"aoi_id", "carbon_emissions_MgCO2e", "area_ha"} <= set(row)
+        assert "(" not in chart.title
+
+
+@pytest.mark.asyncio
+async def test_agent_charts_keep_only_the_drawn_columns():
+    rows = column_to_rows(TCL_DATA)
+    charts = await build_curated_charts(
+        TREE_COVER_LOSS_ID,
+        rows,
+        context_layer="primary_forest",
+        for_agent=True,
+    )
+    for chart in charts:
         for row in chart.chart_data:
             assert set(row) == {chart.x_axis, chart.y_axis}
+        assert chart.title.endswith("(primary forest)")
 
 
 def test_sorts_rows_by_year():

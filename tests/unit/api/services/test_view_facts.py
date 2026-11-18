@@ -2,6 +2,8 @@
 that each view allows, the rows of an agent view, and a pull with a column
 of one value."""
 
+import pytest
+
 from src.agent.subagents.analyst.charts import InsightChart
 from src.agent.subagents.analyst.curated_first import chart_fact_sentences
 from src.api.services.charts import column_to_rows
@@ -9,7 +11,7 @@ from src.api.services.charts.curated import drawn_rows
 from src.api.services.charts.view_facts import (
     fires_facts,
     forest_flux_facts,
-    is_natural,
+    gain_facts,
     land_cover_facts,
     natural_lands_facts,
 )
@@ -121,9 +123,6 @@ def test_land_cover_agriculture_combines_cropland_and_cultivated_grasslands():
 
 
 def test_natural_lands_groups_fold_both_spellings():
-    assert is_natural("wet natural forests")
-    assert not is_natural("non-natural tree cover")
-    assert not is_natural("built")
     rows = [
         {"natural_lands_class": "Natural forests", "area_ha": 50.0},
         {"natural_lands_class": "Wetland natural forests", "area_ha": 10.0},
@@ -136,6 +135,64 @@ def test_natural_lands_groups_fold_both_spellings():
         "Non-natural land: 20 ha, 20% of the total.",
         "Natural forest (natural forests, mangroves, wetland natural "
         "forests, natural peat forests): 60 ha, 60% of the total.",
+    ]
+
+
+def test_unclassified_land_is_neither_natural_nor_non_natural():
+    rows = [
+        {"natural_lands_class": "Natural forests", "area_ha": 50.0},
+        {"natural_lands_class": "Cropland", "area_ha": 30.0},
+        {"natural_lands_class": "Unclassified", "area_ha": 20.0},
+    ]
+    assert natural_lands_facts(rows) == [
+        "Natural land: 50 ha, 50% of the total.",
+        "Non-natural land: 30 ha, 30% of the total.",
+        "Unclassified land (neither natural nor non-natural): 20 ha, 20% "
+        "of the total.",
+        "Natural forest (natural forests, mangroves, wetland natural "
+        "forests, natural peat forests): 50 ha, 50% of the total.",
+    ]
+
+
+def test_every_natural_lands_label_of_the_api_has_a_group():
+    # The labels of a production pull (Pará, Riau, the Netherlands).
+    labels = [
+        "Bare", "Built-up", "Cropland", "Mangroves", "Natural forests",
+        "Natural peat forests", "Natural peat short vegetation",
+        "Natural short vegetation", "Natural water", "Non-natural bare",
+        "Non-natural peat short vegetation", "Non-natural peat tree cover",
+        "Non-natural short vegetation", "Non-natural tree cover",
+        "Non-natural water", "Wetland natural forests",
+        "Wetland natural short vegetation",
+        "Wetland non-natural short vegetation",
+        "Wetland non-natural tree cover",
+    ]  # fmt: skip
+    rows = [{"natural_lands_class": label, "area_ha": 1.0} for label in labels]
+    assert natural_lands_facts(rows)[:2] == [
+        "Natural land: 9 ha, 47.37% of the total.",
+        "Non-natural land: 10 ha, 52.63% of the total.",
+    ]
+
+
+def test_an_unknown_class_label_raises():
+    rows = [{"natural_lands_class": "Moon dust", "area_ha": 1.0}]
+    with pytest.raises(ValueError, match="Moon dust"):
+        natural_lands_facts(rows)
+    rows = [{"land_cover_class": "Moon dust", "area_ha": 1.0}]
+    with pytest.raises(ValueError, match="Moon dust"):
+        land_cover_facts(rows)
+
+
+def test_land_cover_labels_of_the_api_match_the_catalog():
+    labels = [
+        "Bare and sparse vegetation", "Built-up", "Cropland",
+        "Cultivated grasslands", "Short vegetation", "Tree cover", "Water",
+        "Wetland – short vegetation",
+    ]  # fmt: skip
+    rows = [{"land_cover_class": label, "area_ha": 1.0} for label in labels]
+    assert land_cover_facts(rows) == [
+        "Agriculture (cropland and cultivated grasslands): 2 ha, 25% of the "
+        "total."
     ]
 
 
@@ -211,20 +268,20 @@ def test_alert_series_take_the_unit_of_the_y_axis():
     assert not any(s.startswith(("Change", "Smallest")) for s in sentences)
 
 
-def test_gain_periods_have_a_total_and_shares():
-    # The periods do not overlap (confirmed against production and GFW), so
-    # the total is the gain from 2000 to 2020; the model copies it.
-    chart = _chart(
-        "tree_cover_gain.by_period",
-        "tree_cover_gain_period",
-        "area_ha",
-        [
-            {"tree_cover_gain_period": "2000-2005", "area_ha": 30.0},
-            {"tree_cover_gain_period": "2005-2010", "area_ha": 10.0},
-        ],
-    )
-    assert chart_fact_sentences(chart) == [
-        "Total area_ha: 40 ha.",
-        "Rank 1 of area_ha: 2000-2005, 30 ha, 75% of the total.",
-        "Rank 2 of area_ha: 2005-2010, 10 ha, 25% of the total.",
+def test_gain_periods_have_ranks_and_a_total_with_its_period():
+    # The periods do not overlap (confirmed against production and GFW).
+    # The pull has only the requested periods, so the total names them.
+    rows = [
+        {"tree_cover_gain_period": "2010-2015", "area_ha": 30.0},
+        {"tree_cover_gain_period": "2015-2020", "area_ha": 10.0},
     ]
+    chart = _chart(
+        "tree_cover_gain.by_period", "tree_cover_gain_period", "area_ha", rows
+    )
+    assert chart_fact_sentences(chart, rows) == [
+        "Rank 1 of area_ha: 2010-2015, 30 ha, 75% of the total.",
+        "Rank 2 of area_ha: 2015-2020, 10 ha, 25% of the total.",
+        "Tree cover gain from 2010 to 2020 (the sum of the 2 pulled 5-year "
+        "periods): 40 ha.",
+    ]
+    assert gain_facts([]) == []

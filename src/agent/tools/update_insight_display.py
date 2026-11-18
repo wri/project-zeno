@@ -75,16 +75,27 @@ async def _load_editable_insight(insight_id: str) -> Optional[InsightOrm]:
 
 
 def _referenced_columns(chart: RevisedChart) -> set[str]:
-    """Every non-empty column a revised chart points at."""
+    """Every non-empty column a revised chart points at. With series
+    fields, the y axis is only the axis title (the curated alerts chart:
+    "area_ha" over one column for each confidence tier)."""
     named = {
         chart.x_axis,
-        chart.y_axis,
+        "" if chart.series_fields else chart.y_axis,
         chart.color_field,
         chart.stack_field,
         chart.group_field,
     }
     named.update(chart.series_fields)
     return {name for name in named if name}
+
+
+def _same_colour_fields(original: InsightChart, revised: InsightChart) -> bool:
+    """True when the revised chart colours the same series and classes."""
+    return (
+        original.series_fields == revised.series_fields
+        and original.color_field == revised.color_field
+        and original.x_axis == revised.x_axis
+    )
 
 
 def _apply_revision(
@@ -111,23 +122,32 @@ def _apply_revision(
                 )
             new_charts.append(original)
             continue
-        new_charts.append(
-            resolve_chart_colors(
-                InsightChart(
-                    position=original.position,
-                    title=rc.title,
-                    chart_type=rc.chart_type,
-                    x_axis=rc.x_axis,
-                    y_axis=rc.y_axis,
-                    color_field=rc.color_field,
-                    stack_field=rc.stack_field,
-                    group_field=rc.group_field,
-                    series_fields=rc.series_fields,
-                    chart_data=original.chart_data,
-                ),
-                original.dataset_id,
-            )
+        chart = InsightChart(
+            position=original.position,
+            title=rc.title,
+            chart_type=rc.chart_type,
+            x_axis=rc.x_axis,
+            y_axis=rc.y_axis,
+            color_field=rc.color_field,
+            stack_field=rc.stack_field,
+            group_field=rc.group_field,
+            series_fields=rc.series_fields,
+            chart_data=original.chart_data,
+            # A restyle keeps the data, so a curated chart keeps its view:
+            # a recall or an update still gives the view's facts.
+            view_id=original.view_id,
+            view_revision=original.view_revision,
         )
+        if original.view_id and _same_colour_fields(original, chart):
+            # The generator's colours (alert tiers, driver slices) still
+            # match the series and the classes: keep them.
+            chart.dataset_id = original.dataset_id
+            chart.color_map = dict(original.color_map)
+            chart.series_color = original.series_color
+            chart.divergent_colors = original.divergent_colors
+        else:
+            chart = resolve_chart_colors(chart, original.dataset_id)
+        new_charts.append(chart)
 
     return Insight(
         charts=new_charts,

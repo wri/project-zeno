@@ -72,6 +72,19 @@ class ChartView:
     # False when the view must not give a value as a percent of the total
     # (the tree cover rules ask for hectares only).
     fact_shares: bool = True
+    # The period of the data when the dataset does not filter by date: the
+    # API returns the same rows for each requested period. The caption and
+    # the tool message then give this period, not the requested one.
+    fixed_period: Optional[tuple[str, str]] = None
+    # True when a year with no row means a value of 0: the API sends no
+    # row for a year without loss, and the generator drops rows of 0. The
+    # agent adds those years, so that the facts and the chart cover the
+    # whole pulled period.
+    zero_fill_years: bool = False
+    # The pulled columns that the chart draws under other names (a pivot
+    # or a rename), so that the tool message does not name them as
+    # columns that no chart shows.
+    source_columns: tuple[str, ...] = ()
 
     @property
     def title_key(self) -> str:
@@ -87,6 +100,7 @@ VIEWS: tuple[ChartView, ...] = (
         "tree cover was lost, in one year or in total, and which year had "
         "the most loss.",
         agent_enabled=True,
+        zero_fill_years=True,
     ),
     ChartView(
         "tcl.annual_emissions",
@@ -94,6 +108,7 @@ VIEWS: tuple[ChartView, ...] = (
         "Greenhouse gas emissions (MgCO2e) from tree cover loss for each "
         "year, as bars. Answers how much carbon the loss emitted.",
         agent_enabled=True,
+        zero_fill_years=True,
     ),
     ChartView(
         "tcl_natural_forest.annual_split",
@@ -110,6 +125,7 @@ VIEWS: tuple[ChartView, ...] = (
         "alerts in a period and when the alerts occurred.",
         agent_enabled=True,
         fact_kinds=("total", "max"),
+        source_columns=("alert_confidence", "area_ha"),
         agent_note=(
             "Alerts are indicators of potential disturbance, not confirmed "
             "loss. Highest confidence means that two or more alert systems "
@@ -155,6 +171,7 @@ VIEWS: tuple[ChartView, ...] = (
         "Area (ha) of each land cover class in one year, as a pie. Answers "
         "what the land cover of an area is and which class is the largest.",
         agent_enabled=True,
+        fixed_period=("2024-01-01", "2024-12-31"),
         agent_note=(
             "The pie is the land cover of 2024. The dataset has only 2015 "
             "and 2024; this chart does not show change."
@@ -168,6 +185,12 @@ VIEWS: tuple[ChartView, ...] = (
         "carbon source or a carbon sink.",
         agent_enabled=True,
         fact_kinds=(),
+        fixed_period=("2001-01-01", "2025-12-31"),
+        source_columns=(
+            "carbon_gross_emissions_Mg_CO2e",
+            "carbon_gross_removals_Mg_CO2e",
+            "carbon_net_flux_Mg_CO2e",
+        ),
         agent_note=(
             "The values are totals for 2001 to 2025, not annual values. Do "
             "not divide them by the number of years, and do not give or "
@@ -181,6 +204,7 @@ VIEWS: tuple[ChartView, ...] = (
         "bars. Answers how much grassland an area has and how it changed.",
         agent_enabled=True,
         fact_kinds=("max", "min", "change"),
+        zero_fill_years=True,
         agent_note=(
             "Each bar is the grassland extent (ha) in that year. Do not add "
             "the years: their sum is not an area. A gain is not restoration "
@@ -194,6 +218,7 @@ VIEWS: tuple[ChartView, ...] = (
         "pie. Answers how much of an area is natural land and which class "
         "is the largest.",
         agent_enabled=True,
+        fixed_period=("2020-01-01", "2020-12-31"),
         agent_note=(
             "The pie is a 2020 snapshot. It cannot show change: for change, "
             "recommend the Global Land Cover dataset. It does not show "
@@ -232,6 +257,10 @@ VIEWS: tuple[ChartView, ...] = (
         "Tree cover loss area (ha) in one year, split into loss from fires "
         "and loss from other causes, as a pie.",
         agent_enabled=True,
+        source_columns=(
+            "tree_cover_loss_from_fires_area_ha",
+            "tree_cover_loss_non_fires_area_ha",
+        ),
         agent_note=(
             "The pie is the loss of the pulled period, from fires and from "
             "other causes. Never give the carbon emissions of this dataset."
@@ -244,6 +273,11 @@ VIEWS: tuple[ChartView, ...] = (
         "fires and loss from other causes, as stacked bars. Answers how "
         "much loss fires caused and in which year fires caused the most.",
         agent_enabled=True,
+        zero_fill_years=True,
+        source_columns=(
+            "tree_cover_loss_from_fires_area_ha",
+            "tree_cover_loss_non_fires_area_ha",
+        ),
         agent_note=(
             "Each bar is the loss of one year, from fires and from other "
             "causes. Never give the carbon emissions of this dataset."
@@ -256,7 +290,11 @@ VIEWS: tuple[ChartView, ...] = (
         "largest first. Answers how much tree cover an area had.",
         shape="many_areas",
         agent_enabled=True,
+        # No total: two areas of a pull can overlap (Brazil and Pará), so
+        # their sum is not an area.
+        fact_kinds=("rank",),
         fact_shares=False,
+        fixed_period=("2000-01-01", "2000-12-31"),
         agent_note=(
             "Tree cover extent in 2000 only. It cannot show change: for "
             "change, recommend the Tree cover loss and Tree cover gain "
@@ -270,10 +308,13 @@ VIEWS: tuple[ChartView, ...] = (
         "Tree cover gain area (ha) for each 5-year period from 2000 to "
         "2020, as bars. Answers how much tree cover an area gained.",
         agent_enabled=True,
+        # The total is a view fact that names its period (gain_facts).
+        fact_kinds=("rank",),
         agent_note=(
             "Each bar is the tree cover gain of one 5-year period, as "
-            "production and GFW show it. The periods do not overlap, so "
-            "their total is the gain from 2000 to 2020. Do not combine gain "
+            "production and GFW show it. The periods do not overlap. The "
+            "pull has only the periods of the requested dates: the facts "
+            "name the period that the total covers. Do not combine gain "
             "with tree cover loss for a net change: the two datasets use "
             "different methods. Say tree cover gain, not restoration."
         ),

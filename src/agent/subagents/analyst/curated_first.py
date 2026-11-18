@@ -13,6 +13,7 @@ gives the orchestrator the data and the facts to answer from
 import dataclasses
 from typing import Optional, Sequence
 
+from src.agent.datasets.curated_only import is_curated_only
 from src.agent.datasets.handlers.analytics_handler import (
     canopy_cover_threshold,
 )
@@ -30,7 +31,7 @@ from src.api.services.charts.facts import (
 )
 from src.api.services.charts.gate import measures
 from src.api.services.charts.view_facts import VIEW_FACTS
-from src.api.services.charts.views import get_view
+from src.api.services.charts.views import ChartView, get_view
 
 # A chart with more rows than this gets its facts only (for example the
 # alerts of each day of a long period).
@@ -70,6 +71,60 @@ def period_label(start: Optional[str], end: Optional[str]) -> str:
         first, last = start[:4], end[:4]
         return first if first == last else f"{first}–{last}"
     return f"{start} – {end}"
+
+
+def _views(charts: Sequence[InsightChart]) -> list[ChartView]:
+    views = (get_view(chart.view_id) for chart in charts if chart.view_id)
+    return [view for view in views if view is not None]
+
+
+def data_period(
+    charts: Sequence[InsightChart], statistics: dict
+) -> tuple[Optional[str], Optional[str]]:
+    """The period of the data of the charts: the fixed period of their
+    views when the dataset does not filter by date, else the pulled
+    period. A forest flux pull for 2015 to 2020 still has the totals of
+    2001 to 2025."""
+    fixed = {view.fixed_period for view in _views(charts)}
+    if len(fixed) == 1:
+        period = next(iter(fixed))
+        if period is not None:
+            return period
+    return statistics.get("start_date"), statistics.get("end_date")
+
+
+def with_data_period(charts: Sequence[InsightChart], statistics: dict) -> dict:
+    """`statistics` with the period of the data of the charts."""
+    start, end = data_period(charts, statistics)
+    return {**statistics, "start_date": start, "end_date": end}
+
+
+def fill_missing_years(
+    chart: InsightChart, start: Optional[str], end: Optional[str]
+) -> InsightChart:
+    """Add a row of 0 for each year of the pulled period that the chart
+    has no row for, in year order. Only for a view with
+    `zero_fill_years`: the API sends no row for a year without loss, and
+    the generator drops rows of 0. Without these rows, the smallest value
+    and the first and last year of the facts skip the years of 0."""
+    view = get_view(chart.view_id) if chart.view_id else None
+    if view is None or not view.zero_fill_years or not start or not end:
+        return chart
+    by_year: dict[int, dict] = {}
+    for row in chart.chart_data:
+        year = row.get(chart.x_axis)
+        if year is None:
+            return chart
+        by_year[int(year)] = row
+    columns = measures(chart)
+    for year in range(int(start[:4]), int(end[:4]) + 1):
+        if year not in by_year:
+            by_year[year] = {
+                chart.x_axis: year,
+                **{column: 0 for column in columns},
+            }
+    chart.chart_data = [by_year[year] for year in sorted(by_year)]
+    return chart
 
 
 async def curated_caption(statistics: dict, language: str) -> str:
@@ -171,6 +226,10 @@ def unshown_columns(
         for row in chart.chart_data
         for column in row
     }
+    # A view that pivots or renames the pulled columns draws them too.
+    shown.update(
+        column for view in _views(charts) for column in view.source_columns
+    )
     pulled = dict.fromkeys(
         column
         for row in rows
@@ -207,9 +266,18 @@ def _header(
         "",
         f"Area: {', '.join(statistics.get('aoi_names') or [])}",
         f"Dataset: {statistics.get('dataset_name', '')}",
-        f"Pulled period: {statistics.get('start_date')} to "
-        f"{statistics.get('end_date')}",
     ]
+    start, end = data_period(charts, statistics)
+    requested = (statistics.get("start_date"), statistics.get("end_date"))
+    if (start, end) == requested:
+        lines.append(f"Pulled period: {start} to {end}")
+    else:
+        lines += [
+            f"Period of the data: {start} to {end}. This dataset does not "
+            "filter by date.",
+            f"Requested period: {requested[0]} to {requested[1]}. The "
+            "figures are not for the requested period.",
+        ]
     covered = covered_x(charts)
     if covered is not None:
         lines.append(f"Years or dates with data in the rows: {covered}")
@@ -250,12 +318,20 @@ def chart_fact_sentences(
 
 
 def curated_facts_text(charts: Sequence[InsightChart]) -> str:
-    """The facts of the curated charts (the charts with a `view_id`) of a
-    saved insight; "" when it has none. A curated insight's summary is a
+    """The facts of the curated charts (the charts of a view with
+    `agent_enabled`) of a saved insight; "" when it has none. A curated insight's summary is a
     caption with no figures, so a recall or an update gives these."""
     lines: list[str] = []
     for chart in charts:
-        if not chart.view_id:
+        view = get_view(chart.view_id) if chart.view_id else None
+        # Only the released views. The LGMS views and the views of the
+        # REST path also carry a view_id, but no model may read the
+        # figures of a curated-only dataset.
+        if (
+            view is None
+            or not view.agent_enabled
+            or is_curated_only(chart.dataset_id)
+        ):
             continue
         sentences = chart_fact_sentences(chart)
         if sentences:

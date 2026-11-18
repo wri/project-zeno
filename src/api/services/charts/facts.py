@@ -186,7 +186,7 @@ class Fact:
     total: the sum of `measure`, over `x` to `x_to`. max, min: the largest
     and the smallest value, at `x`. change: the last value less the first
     one, from `x` to `x_to`, with `share` as the change in percent of the
-    first value (None when the first value is 0). rank: the value of the
+    size of the first value (None when the first value is 0). rank: the value of the
     class `x`, at position `rank` (1 is the largest), with `share` as its
     percent of the total.
     """
@@ -261,7 +261,9 @@ def _series_facts(
                     change,
                     first[0],
                     last[0],
-                    share=100 * change / first[1] if first[1] else None,
+                    # Of the size of the first value: a rise from -10 to
+                    # -5 is +50%, not -50%.
+                    share=(100 * change / abs(first[1]) if first[1] else None),
                 )
             )
         return facts

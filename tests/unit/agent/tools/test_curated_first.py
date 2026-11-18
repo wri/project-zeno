@@ -13,6 +13,7 @@ from src.agent.agent_config import (
     default_registry,
 )
 from src.agent.datasets.handlers.analytics_handler import (
+    FOREST_CARBON_FLUX_ID,
     GRASSLANDS_ID,
     SLUC_EMISSION_FACTORS_ID,
     TREE_COVER_LOSS_BY_DRIVER_ID,
@@ -532,3 +533,87 @@ async def test_drivers_get_the_curated_pie_with_its_note_and_facts(run):
         "Columns of the pulled data that no chart shows: aoi_id, aoi_type, "
         "name, carbon_emissions_MgCO2e" in content
     )
+
+
+# --- review fixes -----------------------------------------------------------
+
+
+async def test_an_error_after_the_fetch_goes_to_the_code_executor(run):
+    # An alert tier or a driver column that a generator does not know.
+    with patch(
+        "src.api.services.charts.tcl.TCLChartGenerator.generate",
+        side_effect=ValueError("Unknown alert confidence: 'medium'"),
+    ):
+        with pytest.raises(_Executor):
+            await _analyze(_statistics())
+    run.persist.assert_not_awaited()
+
+
+async def test_an_error_in_the_caption_goes_to_the_code_executor(run):
+    with patch(
+        "src.agent.subagents.analyst.curated_first.t",
+        AsyncMock(side_effect=RuntimeError("translation failed")),
+    ):
+        with pytest.raises(_Executor):
+            await _analyze(_statistics())
+    run.persist.assert_not_awaited()
+
+
+async def test_a_requested_area_with_no_rows_still_counts(run):
+    # Two areas asked for, rows for one: not a one-area chart.
+    with pytest.raises(_Executor):
+        await _analyze(_statistics(aoi_names=("Pará", "Amapá")))
+
+
+async def test_years_without_loss_are_zero_in_the_chart_and_the_facts(run):
+    run.data = {
+        "aoi_id": ["BRA.14"] * 3,
+        "tree_cover_loss_year": [2003, 2010, 2019],
+        "area_ha": [5.0, 2.0, 8.0],
+        "carbon_emissions_MgCO2e": [50.0, 20.0, 80.0],
+    }
+    statistics = _statistics()
+    statistics["start_date"], statistics["end_date"] = (
+        "2001-01-01",
+        "2024-12-31",
+    )
+
+    command = await _analyze(statistics)
+
+    insight = run.persist.await_args.args[0]
+    years = [r["tree_cover_loss_year"] for r in insight.charts[0].chart_data]
+    assert years == list(range(2001, 2025))
+    content = _content(command)
+    assert "Total area_ha from 2001 to 2024: 15 ha." in content
+    assert "Smallest area_ha: 0 ha in 2001." in content
+    assert "Years or dates with data in the rows: 2001 to 2024" in content
+
+
+def _flux_data():
+    return {
+        "aoi_id": ["BRA.14"],
+        "aoi_type": ["admin"],
+        "carbon_gross_emissions_Mg_CO2e": [311.5],
+        "carbon_gross_removals_Mg_CO2e": [1762.0],
+        "carbon_net_flux_Mg_CO2e": [-1450.5],
+    }
+
+
+async def test_a_dataset_without_dates_states_the_period_of_its_data(run):
+    run.data = _flux_data()
+    statistics = _statistics(dataset_id=FOREST_CARBON_FLUX_ID)
+    statistics["dataset_name"] = "Forest greenhouse gas net flux"
+    statistics["start_date"], statistics["end_date"] = (
+        "2015-01-01",
+        "2020-12-31",
+    )
+
+    command = await _analyze(statistics, query="is Pará a carbon sink")
+
+    assert "2001–2025" in command.update["insight"]
+    assert "2015" not in command.update["insight"]
+    content = _content(command)
+    assert "Period of the data: 2001-01-01 to 2025-12-31." in content
+    assert "Requested period: 2015-01-01 to 2020-12-31." in content
+    # The chart pivots the three flux columns: they are drawn.
+    assert "carbon_net_flux_Mg_CO2e" not in content.split("no chart shows")[-1]

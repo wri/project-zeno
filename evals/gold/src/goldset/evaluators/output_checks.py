@@ -1,7 +1,7 @@
 """Output-bucket checks, both deterministic.
 
 ``chart_well_formed`` needs no expectation: it fails a chart whose data is empty
-or whose axis fields name keys absent from the data, since that renders badly
+or whose axis or series fields name keys absent from the data, since that renders badly
 whatever the analysis computed. It overlaps ``chart_integrity`` on purpose: a
 broken *spec* is an Output failure, a mis-joined *dataset* under a plausible
 spec is an Analysis failure, and the two reasons read differently.
@@ -42,11 +42,26 @@ def evaluate_chart_well_formed(agent_state: dict[str, Any]) -> dict[str, Any]:
             problems.append(f"{label}: empty data")
             continue
         keys = {key for record in records for key in record}
-        for axis in ("xAxis", "yAxis"):
+        series = chart.get("seriesFields")
+        series = (
+            [f for f in series if isinstance(f, str) and f]
+            if isinstance(series, list)
+            else []
+        )
+        # With series fields, the series name the bars and yAxis is only the
+        # axis title (the curated alerts chart: yAxis "area_ha", one column
+        # per confidence tier). Check the series instead.
+        axes = ("xAxis",) if series else ("xAxis", "yAxis")
+        for axis in axes:
             field = chart.get(axis)
             if isinstance(field, str) and field and field not in keys:
                 problems.append(
                     f"{label}: {axis} references field {field!r} absent from data"
+                )
+        for field in series:
+            if field not in keys:
+                problems.append(
+                    f"{label}: seriesFields references field {field!r} absent from data"
                 )
         if chart.get("type") == "pie":
             max_pie_slices = max(max_pie_slices, len(records))

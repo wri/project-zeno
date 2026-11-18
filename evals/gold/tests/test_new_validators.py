@@ -175,6 +175,23 @@ def test_o2_axis_referencing_missing_field_fails():
     assert "absent from data" in result["chart_well_formed_reason"]
 
 
+def test_o2_series_chart_y_axis_is_a_title_only():
+    # The curated alerts chart: yAxis "area_ha" over one column per tier.
+    chart = {
+        "type": "stacked-bar",
+        "xAxis": "alert_date",
+        "yAxis": "area_ha",
+        "seriesFields": ["Highest", "High"],
+        "data": [{"alert_date": "2026-08-01", "Highest": 2.0, "High": 5.0}],
+    }
+    result = evaluate_chart_well_formed(state(charts=[chart]))
+    assert result["chart_well_formed_score"] == 1.0
+    broken = {**chart, "seriesFields": ["Highest", "Low"]}
+    result = evaluate_chart_well_formed(state(charts=[broken]))
+    assert result["chart_well_formed_score"] == 0.0
+    assert "'Low' absent from data" in result["chart_well_formed_reason"]
+
+
 def test_o2_empty_data_fails_and_pie_slices_are_info_only():
     empty = {"type": "bar", "xAxis": "x", "yAxis": "y", "data": []}
     assert (

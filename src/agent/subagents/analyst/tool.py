@@ -745,80 +745,108 @@ class Analyst:
         """
         # Deferred: the chart services import `analyst.charts`, whose
         # package init imports this module.
-        from src.agent.subagents.analyst.curated_first import (
-            build_curated_tool_message,
-            curated_caption,
-            unshown_columns,
-        )
-        from src.api.services.charts import column_to_rows
-        from src.api.services.charts.curated import build_curated_charts
-        from src.api.services.charts.gate import (
-            charts_with_data,
-            count_areas,
-            view_gate,
-        )
         from src.api.services.charts.views import agent_views
 
         dataset_id = statistics.get("dataset_id")
         # No fetch for a dataset that has no curated view.
         if dataset_id is None or not agent_views(dataset_id):
             return None
+        # Any error before the insight is saved gives the chart of the code
+        # executor, as before this route: for example an alert tier or a
+        # driver column that a generator does not know, or a class label
+        # that the catalog does not have.
         try:
-            raw = await _load_statistics_data(statistics)
+            built = await _build_curated_insight(statistics, language)
         except Exception:
-            logger.exception("ANALYST: curated gate could not load the rows")
-            return None
-        rows = column_to_rows(raw) if raw else []
-        gate = view_gate(
-            dataset_id,
-            count_areas(rows, default=len(statistics.get("aoi_names") or [])),
-        )
-        start, end = statistics.get("start_date"), statistics.get("end_date")
-        period = (start, end) if start and end else None
-        charts: list[InsightChart] = []
-        if rows and gate.passed:
-            charts = charts_with_data(
-                await build_curated_charts(
-                    dataset_id,
-                    rows,
-                    language,
-                    titles=gate.title_keys,
-                    period=period,
-                    context_layer=statistics.get("context_layer"),
-                )
-            )
-        if not charts:
-            logger.info(
-                "ANALYST: curated gate failed, using the code executor",
+            logger.exception(
+                "ANALYST: curated chart failed, using the code executor",
                 dataset_id=dataset_id,
-                reason=gate.reason or "no rows or no chart with data",
             )
             return None
-        logger.info(
-            "ANALYST: curated chart",
-            dataset_id=dataset_id,
-            views=[chart.view_id for chart in charts],
+        if built is None:
+            return None
+        insight, message = built
+        return await _persist_curated(
+            insight, statistics, message, tool_call_id
         )
 
-        caption = await curated_caption(statistics, language)
-        insight = Insight(
-            charts=charts,
-            primary_insight=caption,
-            follow_up_suggestions=[],
-        ).stamp_insight()
-        return await _persist_curated(
-            insight,
-            statistics,
-            build_curated_tool_message(
-                charts,
-                statistics,
-                caption,
-                cautions=_catalog_cautions(dataset_id),
-                other_columns=unshown_columns(rows, charts),
-                rows=rows,
-            ),
-            tool_call_id,
+
+async def _build_curated_insight(
+    statistics: dict, language: str
+) -> Optional[tuple[Insight, str]]:
+    """The curated insight of one pull and its tool message; None when the
+    code gate fails. Saves nothing."""
+    # Deferred: the chart services import `analyst.charts`, whose package
+    # init imports this module.
+    from src.agent.subagents.analyst.curated_first import (
+        build_curated_tool_message,
+        curated_caption,
+        fill_missing_years,
+        unshown_columns,
+        with_data_period,
+    )
+    from src.api.services.charts import column_to_rows
+    from src.api.services.charts.curated import build_curated_charts
+    from src.api.services.charts.gate import (
+        charts_with_data,
+        count_areas,
+        view_gate,
+    )
+
+    dataset_id = statistics["dataset_id"]
+    raw = await _load_statistics_data(statistics)
+    rows = column_to_rows(raw) if raw else []
+    # The larger of the two counts: an area with no rows still counts.
+    area_count = max(
+        count_areas(rows, default=0), len(statistics.get("aoi_names") or [])
+    )
+    gate = view_gate(dataset_id, area_count)
+    start, end = statistics.get("start_date"), statistics.get("end_date")
+    period = (start, end) if start and end else None
+    charts: list[InsightChart] = []
+    if rows and gate.passed:
+        charts = charts_with_data(
+            await build_curated_charts(
+                dataset_id,
+                rows,
+                language,
+                titles=gate.title_keys,
+                period=period,
+                context_layer=statistics.get("context_layer"),
+                for_agent=True,
+            )
         )
+    if not charts:
+        logger.info(
+            "ANALYST: curated gate failed, using the code executor",
+            dataset_id=dataset_id,
+            reason=gate.reason or "no rows or no chart with data",
+        )
+        return None
+    charts = [fill_missing_years(chart, start, end) for chart in charts]
+    logger.info(
+        "ANALYST: curated chart",
+        dataset_id=dataset_id,
+        views=[chart.view_id for chart in charts],
+    )
+
+    caption = await curated_caption(
+        with_data_period(charts, statistics), language
+    )
+    insight = Insight(
+        charts=charts,
+        primary_insight=caption,
+        follow_up_suggestions=[],
+    ).stamp_insight()
+    message = build_curated_tool_message(
+        charts,
+        statistics,
+        caption,
+        cautions=_catalog_cautions(dataset_id),
+        other_columns=unshown_columns(rows, charts),
+        rows=rows,
+    )
+    return insight, message
 
 
 async def _generate(

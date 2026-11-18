@@ -128,14 +128,21 @@ async def build_curated_charts(
     titles: Optional[Sequence[str]] = None,
     period: Optional[tuple[str, str]] = None,
     context_layer: Optional[str] = None,
+    for_agent: bool = False,
 ) -> list[InsightChart]:
     """Curated charts for `dataset_id` from `rows`; [] when no generator
     handles the dataset. Charts carry `dataset_id` and, for a chart in the
     view registry, `view_id` and `view_revision`. `titles` keeps only
     the charts with those title keys; None keeps them all. `period` is the
     start and end date of the pull, for a chart whose axis spans it.
-    `context_layer` is the context layer of the pull: each title then
-    names it, as in "Annual Tree Cover Loss (primary forest)"."""
+    `context_layer` is the context layer of the pull.
+
+    `for_agent` is for the curated chart of `generate_insights` only: the
+    chart of an agent view keeps only the columns that it draws, and each
+    title names the context layer, as in "Annual Tree Cover Loss (primary
+    forest)". Other callers (`/api/analyze`, the analysis templates) get
+    the rows and the titles as before, so their CSV downloads keep every
+    column."""
     for generator in generators:
         if generator.can_handle(dataset_id):
             if period is not None:
@@ -147,15 +154,19 @@ async def build_curated_charts(
                 if view is not None:
                     chart.view_id = view.id
                     chart.view_revision = view.revision
-                    if view.agent_enabled:
+                    if for_agent and view.agent_enabled:
                         chart.chart_data = drawn_rows(chart)
             if titles is not None:
                 charts = [chart for chart in charts if chart.title in titles]
                 for position, chart in enumerate(charts):
                     chart.position = position
             await _localise(charts, generator, language)
-            layer = await context_layer_label(
-                dataset_context_layer(dataset_id, context_layer), language
+            layer = (
+                await context_layer_label(
+                    dataset_context_layer(dataset_id, context_layer), language
+                )
+                if for_agent
+                else None
             )
             for chart in charts:
                 chart.dataset_id = dataset_id
