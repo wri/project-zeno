@@ -88,6 +88,22 @@ async def test_only_the_concise_profile_passes_the_user_message(
     assert resolve.await_args.kwargs["user_message"] == expected
 
 
+def test_the_user_message_rules_keep_the_layer_default_for_deforestation():
+    """A plain "tree cover loss" request gets no context layer, but
+    "deforestation" keeps the default of the dataset hints (BENCHMARK
+    2026-11-17)."""
+    from src.agent.subagents.pick_dataset.tool import (
+        SELECTION_RULES,
+        USER_MESSAGE_SELECTION_RULES,
+    )
+
+    added = USER_MESSAGE_SELECTION_RULES.split("\n")[-1]
+    assert added not in SELECTION_RULES
+    assert '"tree cover loss"' in added
+    assert "deforestation" in added
+    assert "dataset hints" in added
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("user_message", "rules_name"),

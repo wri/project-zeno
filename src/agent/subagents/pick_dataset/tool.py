@@ -209,10 +209,14 @@ USER_MESSAGE_SELECTION_RULES = SELECTION_RULES.replace(
     # forest loss" in the humid tropics. With the user's message, the
     # selection applied it to plain "tree cover loss in Antioquia in 2023"
     # (45 of 178 tree cover loss attempts, BENCHMARK 2026-11-17).
-    "\n- Select a context layer only when the request names it or asks for "
-    "a kind of forest (primary, intact, natural, plantation). A plain "
-    '"tree cover loss" request gets no context layer, also in the humid '
-    "tropics."
+    # "Deforestation" is loss of natural forest, so the hints' default stays
+    # for it: without a layer, "How much deforestation occurred in Brazil in
+    # 2023?" got all tree cover loss (BENCHMARK 2026-11-17, `3a9075df`).
+    "\n- Select a context layer only when the request names it, asks for "
+    "a kind of forest (primary, intact, natural, plantation) or asks about "
+    "deforestation. For deforestation, use the context layer that the "
+    'dataset hints give. A plain "tree cover loss" or "forest loss" '
+    "request gets no context layer, also in the humid tropics."
 )
 assert USER_MESSAGE_SELECTION_RULES != SELECTION_RULES
 
