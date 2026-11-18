@@ -63,6 +63,11 @@ Trimmed from `results/runs/20260831T163347Z_prod.json`:
         "dataset_id_match": "11"         // so reports show expected vs measured
       },
       "latency_s": 126.2,
+      "efficiency": {                    // info-only, see "Efficiency metrics"
+        "model_calls": 6, "tool_calls": 5,
+        "answer_words": 142, "answer_chars": 903,
+        "input_tokens": 51200, "output_tokens": 1900
+      },
       "trace_url": "https://langfuse.globalnaturewatch.org/project/wri_lcl/traces/...",
       "trials": [                        // trials > 1 only: each trial's own checks
         {"checks": {"aoi_id_match": 1.0, "dataset_id_match": 0.0, ...}, "latency_s": 17.0},
@@ -130,6 +135,7 @@ Optional fields, written only when they apply:
 | `info` | entry | `{"slow": true, "threshold_s": 180.0}` when the case took longer than `--slow-threshold`. Never scored. |
 | `ground_truth` | run | Present when any case carried `expected.ground_truth`: the analytics host, the number of cases fetched, the fetch time and the grading tolerance. |
 | `ground_truth` | entry | What was fetched for a ground-truth case and how (shape above). See "Ground truth is recorded, not trusted" below. |
+| `efficiency` | entry | Info-only effort measures for the case, next to `latency_s`: see "Efficiency metrics" below. Runs from before 2026-11-16 lack it. |
 | `turns_detail` | entry | Multi-turn cases only: each turn's query, reasons, latency and trace URL. Their checks sit in `checks` as `t<N>.<check>`. |
 | `stale_case`, `drift`, `joined_by` | entry | Written only by the retired gnw-evals import tool, present on a couple of the oldest committed runs; see "Stale means stale" below. |
 
@@ -175,7 +181,7 @@ Optional fields, written only when they apply:
   case. Its `checks` map holds each check's majority verdict: pass only if
   more than half of the trials that evaluated it passed (ties fail), `null`
   if no trial evaluated it. `trials` lists every trial as
-  `{"checks": {...}, "latency_s": ...}`. `error` and `judge_errors` collect
+  `{"checks": {...}, "latency_s": ..., "efficiency": {...}}` (`efficiency` only when measured). `error` and `judge_errors` collect
   the errors of every trial; `reasons`, `actuals`, `latency_s`, `trace_url`
   and `turns_detail` come from the last trial.
 - **Ground truth is recorded, not trusted.** A case carrying
@@ -193,6 +199,37 @@ Optional fields, written only when they apply:
   from real harness output, never by hand. A couple of the oldest runs here
   instead came from the retired gnw-evals harness via an import tool not
   carried into this copy; they're real too, just from a different runner.
+
+## Efficiency metrics
+
+Each entry can carry an `efficiency` object. It shows how much work the agent
+did, so that a prompt change can be compared on cost and not only on checks.
+`tools/efficiency_report.py` compares two runs on these fields.
+
+| Field | Meaning |
+|---|---|
+| `model_calls` | AI messages of the orchestrator in the turn. |
+| `tool_calls` | Tool calls that those AI messages made. |
+| `answer_words`, `answer_chars` | Length of the final answer. `null` when the turn does not end on an AI message. |
+| `input_tokens`, `output_tokens` | Sum of `usage_metadata` over the orchestrator's AI messages. `null` when any of them has no usage. |
+
+Rules:
+
+- **Info-only.** These fields never change a row verdict, a bucket, a check,
+  a uid or the `caseset_version`. No code in `buckets.py` reads them.
+- **Not measured is `null`, never `0`.** A run file from before the fields
+  existed has no `efficiency` key. It stays valid and loads as before.
+- **Orchestrator only.** The thread state holds the orchestrator's messages.
+  Model calls inside tools (the subagents and the code executor) are not in
+  it. Their tokens are in the Langfuse trace at `trace_url`, not in these
+  fields.
+- **One turn at a time.** The thread state holds every turn of a
+  conversation. The harness counts only the messages after the turn's own
+  query. A multi-turn entry sums its turns, as it does for `latency_s`, and
+  `turns_detail` lists each turn's own values.
+- **Trials.** As for `latency_s`, the entry holds the last trial's values and
+  `trials[]` lists every trial's own `efficiency`.
+- **Errors.** A trial that errored has no `efficiency`.
 
 ## Comparing two runs
 

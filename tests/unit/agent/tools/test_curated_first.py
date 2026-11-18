@@ -327,7 +327,7 @@ def test_period_label():
 # --- tool message -----------------------------------------------------------
 
 
-async def test_tool_message_has_header_rows_facts_cautions_instruction(run):
+async def test_tool_message_has_header_rows_facts_instruction(run):
     command = await _analyze(_statistics())
     content = _content(command)
 
@@ -351,9 +351,9 @@ async def test_tool_message_has_header_rows_facts_cautions_instruction(run):
         content
     )
     assert "MgCO2e" in content
-    # Cautions, then the instruction last.
+    # The catalog cautions (the dataset can come from a UI selection, with
+    # no pick_dataset message); the instruction is last.
     assert "Dataset cautions:" in content
-    assert "does not equate to deforestation" in content
     assert content.endswith(CURATED_ANSWER_INSTRUCTION)
 
 

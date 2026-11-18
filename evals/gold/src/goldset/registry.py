@@ -21,6 +21,7 @@ from goldset.evaluators import (
     evaluate_clarification,
     evaluate_dashboard_aoi,
     evaluate_dashboard_created,
+    evaluate_dashboard_layout,
     evaluate_dashboard_widgets,
     evaluate_data_pull,
     evaluate_dataset_selection,
@@ -183,6 +184,19 @@ EVALUATORS: tuple[EvaluatorSpec, ...] = (
         ),
     ),
     EvaluatorSpec(
+        name="dashboard_layout",
+        kind="deterministic",
+        score_fields=(
+            "dashboard_sections_match_score",
+            "dashboard_text_match_score",
+        ),
+        run=lambda state, expected, query, dashboard: evaluate_dashboard_layout(
+            dashboard,
+            expected.expected_dashboard_sections,
+            expected.expected_dashboard_text,
+        ),
+    ),
+    EvaluatorSpec(
         name="guards",
         kind="deterministic",
         score_fields=(
@@ -211,8 +225,8 @@ EVALUATORS: tuple[EvaluatorSpec, ...] = (
         name="traceability",
         kind="deterministic",
         score_fields=("answer_traceability_score",),
-        run=lambda state, expected, query, dashboard: (
-            evaluate_answer_traceability(state)
+        run=lambda state, expected, query, dashboard: evaluate_answer_traceability(
+            state
         ),
     ),
     EvaluatorSpec(

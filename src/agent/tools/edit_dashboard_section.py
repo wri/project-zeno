@@ -60,7 +60,7 @@ async def edit_dashboard_section(
     ] = None,
     description: Optional[str] = None,
     dashboard_id: Optional[str] = None,
-    state: Annotated[Dict, InjectedState] | None = None,
+    state: Annotated[Optional[Dict], InjectedState] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """Change a section's title and/or its description.

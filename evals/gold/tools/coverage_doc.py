@@ -63,8 +63,10 @@ FIELD_CHECKS = {
     "nudge_options": "nudge_match",
     "dashboard_created": "dashboard_created",
     "dashboard_widgets": (
-        "dashboard_widgets_match (+ dashboard_widgets_valid " "when a dashboard exists)"
+        "dashboard_widgets_match (+ dashboard_widgets_valid when a dashboard exists)"
     ),
+    "dashboard_sections": "dashboard_sections_match",
+    "dashboard_text": "dashboard_text_match",
     "class_values": "class_value_match (info-only)",
     "chart_type": "chart_type_match",
     "scope": "scope_match",
@@ -432,7 +434,7 @@ def main() -> int:
         "--catalog",
         type=Path,
         default=None,
-        help="zeno catalog snapshot " "(default: <cases-dir>/../zeno_catalog.json)",
+        help="zeno catalog snapshot (default: <cases-dir>/../zeno_catalog.json)",
     )
     parser.add_argument(
         "--check",

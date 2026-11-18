@@ -1,6 +1,7 @@
+import asyncio
 from datetime import date
 from pathlib import Path
-from typing import Annotated, Dict, Optional, Union
+from typing import Annotated, Dict, Optional, Sequence, Union
 
 import pandas as pd
 from langchain.tools import InjectedState
@@ -137,12 +138,43 @@ async def _get_retriever():
     return retriever_cache
 
 
-async def rag_candidate_datasets(query: str, k=3):
-    logger.debug(f"Retrieving candidate datasets for query: '{query}'")
+# The most candidates that a retrieval for several queries gives: the same
+# number as one retrieval, so the selection prompt does not grow.
+MAX_CANDIDATES = 5
+
+
+def _interleave(lists: Sequence[list], limit: int) -> list:
+    """The items of ``lists`` taken in turn (first of each list, then the
+    second of each, ...), without duplicates, at most ``limit``."""
+    merged: list = []
+    for rank in range(max((len(items) for items in lists), default=0)):
+        for items in lists:
+            if rank < len(items) and items[rank] not in merged:
+                merged.append(items[rank])
+    return merged[:limit]
+
+
+async def rag_candidate_datasets(query: Union[str, Sequence[str]], k=3):
+    """The catalog datasets that the index retrieves for ``query``.
+
+    With several queries (the user's message and the agent's request), each
+    query is retrieved and the results are interleaved, so each query keeps
+    its best matches: the user's words can omit a dataset of an earlier
+    turn that only the agent's request names."""
+    queries = [query] if isinstance(query, str) else list(query)
+    logger.debug(f"Retrieving candidate datasets for queries: {queries!r}")
     candidate_datasets = []
     stale_doc_ids = []
     retriever = await _get_retriever()
-    match_documents = await retriever.ainvoke(query)
+    results = await asyncio.gather(*(retriever.ainvoke(q) for q in queries))
+    if len(results) == 1:
+        match_documents = list(results[0])
+    else:
+        ranked_ids = _interleave(
+            [[doc.id for doc in docs] for docs in results], MAX_CANDIDATES
+        )
+        by_id = {doc.id: doc for docs in results for doc in docs}
+        match_documents = [by_id[doc_id] for doc_id in ranked_ids]
     catalog = _catalog_by_id()
     for doc in match_documents:
         dataset_id = _document_dataset_id(doc)
@@ -186,6 +218,35 @@ SELECTION_RULES = """- Only choose a dataset if it can usefully answer ALL parts
 - Pick the most granular dataset/context layer/parameters that matches the query.
 - Keep explanations concise. Do not reference dataset IDs."""
 
+# The rules when the selection reads the user's own message
+# (`selection_query`). A user's message often has parts that no dataset gives:
+# why something happened, what the figures are for ("for NDC tracking"), a
+# policy. With the first rule above, the selection then offered a choice of
+# datasets for "Why did Brazil lose so much primary forest in 2016?". The
+# agent explains those parts; the selection picks the data.
+USER_MESSAGE_SELECTION_RULES = SELECTION_RULES.replace(
+    "- Only choose a dataset if it can usefully answer ALL parts of the "
+    "user's question.",
+    "- Choose the dataset that gives the data the request needs. A part of "
+    "the request that no dataset gives (why something happened, what the "
+    "figures are for, a policy, a commodity) is not a reason to choose no "
+    "dataset: the agent explains that part.",
+) + (
+    # The tree cover loss hints make primary forest the default for "general
+    # forest loss" in the humid tropics. With the user's message, the
+    # selection applied it to plain "tree cover loss in Antioquia in 2023"
+    # (45 of 178 tree cover loss attempts, BENCHMARK 2026-11-17).
+    # "Deforestation" is loss of natural forest, so the hints' default stays
+    # for it: without a layer, "How much deforestation occurred in Brazil in
+    # 2023?" got all tree cover loss (BENCHMARK 2026-11-17, `3a9075df`).
+    "\n- Select a context layer only when the request names it, asks for "
+    "a kind of forest (primary, intact, natural, plantation) or asks about "
+    "deforestation. For deforestation, use the context layer that the "
+    'dataset hints give. A plain "tree cover loss" or "forest loss" '
+    "request gets no context layer, also in the humid tropics."
+)
+assert USER_MESSAGE_SELECTION_RULES != SELECTION_RULES
+
 
 def _format_selection_hints(candidate_datasets: pd.DataFrame) -> str:
     lines = []
@@ -227,6 +288,7 @@ async def select_best_dataset(
     end_date: Optional[str] = None,
     aoi_selection=None,
     language: str = DEFAULT_LANGUAGE,
+    rules: str = SELECTION_RULES,
 ) -> DatasetSelectionResponse:
     DATASET_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
         [
@@ -302,8 +364,51 @@ async def select_best_dataset(
             "removed_layers": removed_df,
             "selection_hints": selection_hints,
             "layer_options": layer_options,
-            "rules": SELECTION_RULES,
+            "rules": rules,
         }
+    )
+
+
+def latest_user_message(messages) -> Optional[str]:
+    """The text of the latest human message, or None."""
+    for message in reversed(messages or []):
+        if getattr(message, "type", None) != "human":
+            continue
+        content = message.content
+        if isinstance(content, list):
+            content = " ".join(
+                part if isinstance(part, str) else str(part.get("text", ""))
+                for part in content
+                if isinstance(part, (str, dict))
+            )
+        text = str(content or "").strip()
+        return text or None
+    return None
+
+
+def selection_query(query: str, user_message: Optional[str]) -> str:
+    """The query that the selection model reads.
+
+    The orchestrator often rewrites the request into a dataset phrase ("tree
+    cover loss by driver (fire)") and drops what the user asked for ("has
+    fire-driven loss gone down since 2019"). The selection then offers a
+    choice of datasets where the user's words fit one. So the user's message
+    comes first, and the orchestrator's query is context for what the message
+    does not say, for example a place or a dataset of an earlier turn.
+
+    A message can ask for more than one dataset ("compare tree cover loss
+    and fire alerts"); the orchestrator then calls pick_dataset one time for
+    each. The agent's request says which part to select in this call.
+    """
+    if not user_message or user_message.strip() == query.strip():
+        return query
+    return (
+        f"{user_message}\n\nThe agent's request for this selection: {query}\n"
+        "Use the message above for what the user wants. Use the agent's "
+        "request for what the message does not say, for example a place or "
+        "a dataset named in an earlier turn. When the message asks for more "
+        "than one dataset, select the one for the part that the agent's "
+        "request names."
     )
 
 
@@ -325,12 +430,23 @@ class DatasetSelector:
         end_date: Optional[str] = None,
         tool_call_id: Optional[str] = None,
         language: str = DEFAULT_LANGUAGE,
+        user_message: Optional[str] = None,
     ) -> Command:
-        """Resolve a request to the best dataset and update state."""
+        """Resolve a request to the best dataset and update state.
+
+        `user_message` is the user's latest message. When it is given, the
+        retrieval uses it and `query`, and the selection reads it before
+        `query` (`selection_query`)."""
         logger.info("DATASET-SELECTOR: resolving query")
+        selection_text = selection_query(query, user_message)
 
         # Step 1: RAG lookup of candidate datasets
-        candidate_datasets = await rag_candidate_datasets(query, k=5)
+        candidate_datasets = await rag_candidate_datasets(
+            [user_message, query]
+            if selection_text != query and user_message
+            else query,
+            k=5,
+        )
         # Drop datasets the current agent profile (feature flag) excludes, so
         # they can never be selected under a flag that hides them.
         if not candidate_datasets.empty:
@@ -360,12 +476,17 @@ class DatasetSelector:
             )
         # Step 2: LLM picks the best dataset and context layer
         selection_result = await select_best_dataset(
-            query,
+            selection_text,
             candidate_datasets,
             start_date,
             end_date,
             aoi_selection,
             language=language,
+            rules=(
+                USER_MESSAGE_SELECTION_RULES
+                if selection_text != query
+                else SELECTION_RULES
+            ),
         )
 
         if selection_result.selected_dataset is None:
@@ -528,7 +649,7 @@ class DatasetSelector:
 
     {dataset_result.description}
 
-    ## Function usage notes:
+    ## Function usage notes
 
     {dataset_result.function_usage_notes}
 
@@ -602,6 +723,8 @@ async def pick_dataset(
         end_date=end_date,
         tool_call_id=tool_call_id,
         language=language,
+        # The selection reads the user's own words (selection_query).
+        user_message=latest_user_message(state.get("messages")),
     )
 
 

@@ -128,7 +128,7 @@ async def edit_text_widget(
     text: str,
     widget_id: Optional[str] = None,
     dashboard_id: Optional[str] = None,
-    state: Annotated[Dict, InjectedState] | None = None,
+    state: Annotated[Optional[Dict], InjectedState] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """Replace the markdown body of an existing text widget.

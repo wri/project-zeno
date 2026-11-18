@@ -315,9 +315,15 @@ def _encode_parts(parts: list) -> list[dict]:
 
 
 async def _build_tool_message(
-    insight: Insight, dataset_cautions: str, language: str = DEFAULT_LANGUAGE
+    insight: Insight,
+    dataset_cautions: Optional[str] = None,
+    language: str = DEFAULT_LANGUAGE,
 ) -> str:
-    """Human-feedback message summarizing the generated charts + insight."""
+    """Human-feedback message summarizing the generated charts + insight.
+
+    It has the dataset cautions: the dataset can come from a UI selection,
+    with no pick_dataset message in the thread. It has no follow-up
+    suggestions (the insight card shows them)."""
     tool_message = (
         await t(
             "analyst.generated_charts",
@@ -343,11 +349,7 @@ async def _build_tool_message(
 
     if dataset_cautions:
         header = await t("analyst.dataset_cautions_header", language)
-        tool_message += f"\n\n{header}\n{dataset_cautions}"
-
-    tool_message += "\n\n" + await t("analyst.follow_up_header", language)
-    for i, suggestion in enumerate(insight.follow_up_suggestions, 1):
-        tool_message += f"\n{i}. {suggestion}"
+        tool_message += f"\n\n{header}\n{dataset_cautions.strip()}"
     return tool_message
 
 
@@ -384,7 +386,8 @@ async def _build_curated_only_tool_message(
 ChartRoute = Literal["standard", "custom"]
 
 
-def _catalog_cautions(dataset_id: int) -> Optional[str]:
+def _catalog_cautions(dataset_id: Optional[int]) -> Optional[str]:
+    """The catalog cautions of a dataset, or None."""
     for entry in DATASETS:
         if entry["dataset_id"] == dataset_id:
             return entry.get("cautions")
@@ -595,10 +598,6 @@ class Analyst:
                 "for the dataset first.",
                 tool_call_id,
             )
-        dataset_cautions = dataset.get(
-            "cautions", "No specific dataset cautions provided."
-        )
-
         # STAGE 1: build charts from the pulled data.
         (
             charts,
@@ -655,7 +654,10 @@ class Analyst:
             "messages": [
                 ToolMessage(
                     content=await _build_tool_message(
-                        insight, dataset_cautions, language
+                        insight,
+                        dataset.get("cautions")
+                        or _catalog_cautions(dataset.get("dataset_id")),
+                        language,
                     ),
                     tool_call_id=tool_call_id,
                     status="success",
@@ -872,7 +874,7 @@ async def _generate(
 @tool("generate_insights")
 async def generate_insights(
     query: str,
-    state: Annotated[Dict, InjectedState] | None = None,
+    state: Annotated[Optional[Dict], InjectedState] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """Analyze pulled data and produce one chart insight with follow-up suggestions."""
@@ -883,7 +885,7 @@ async def generate_insights(
 async def generate_insights_curated_first(
     query: str,
     chart: ChartRoute = "standard",
-    state: Annotated[Dict, InjectedState] | None = None,
+    state: Annotated[Optional[Dict], InjectedState] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """Analyze pulled data and produce one chart insight.

@@ -1,0 +1,235 @@
+{
+  "datasets": {
+    "Deforestation (sLUC) Emission Factors by Agricultural Crop": {
+      "cautions": 982,
+      "code_instructions": 820,
+      "function_usage_notes": 458,
+      "presentation_instructions": 406,
+      "prompt_instructions": 1913,
+      "selection_hints": 422
+    },
+    "Forest greenhouse gas net flux": {
+      "cautions": 1786,
+      "code_instructions": 668,
+      "function_usage_notes": 218,
+      "presentation_instructions": 435,
+      "prompt_instructions": 484,
+      "selection_hints": 843
+    },
+    "Global land cover": {
+      "cautions": 1293,
+      "code_instructions": 860,
+      "function_usage_notes": 1107,
+      "presentation_instructions": 386,
+      "prompt_instructions": 839,
+      "selection_hints": 656
+    },
+    "Global natural/semi-natural grassland extent": {
+      "cautions": 6411,
+      "code_instructions": 570,
+      "function_usage_notes": 1357,
+      "presentation_instructions": 537,
+      "prompt_instructions": 1292,
+      "selection_hints": 374
+    },
+    "Integrated alerts": {
+      "cautions": 946,
+      "code_instructions": 1566,
+      "context_layer_descriptions": 607,
+      "function_usage_notes": 217,
+      "presentation_instructions": 919,
+      "prompt_instructions": 1605,
+      "selection_hints": 748
+    },
+    "Land GHG Monitoring System (LGMS)": {
+      "cautions": 2060,
+      "code_instructions": 1053,
+      "function_usage_notes": 220,
+      "presentation_instructions": 663,
+      "prompt_instructions": 877,
+      "selection_hints": 837
+    },
+    "SBTN Natural Lands Map": {
+      "cautions": 1225,
+      "code_instructions": 1035,
+      "function_usage_notes": 333,
+      "presentation_instructions": 459,
+      "prompt_instructions": 1081,
+      "selection_hints": 567
+    },
+    "Tree cover": {
+      "cautions": 255,
+      "code_instructions": 900,
+      "context_layer_descriptions": 78,
+      "function_usage_notes": 31,
+      "presentation_instructions": 277,
+      "prompt_instructions": 604,
+      "selection_hints": 374
+    },
+    "Tree cover gain": {
+      "cautions": 1122,
+      "code_instructions": 975,
+      "function_usage_notes": 37,
+      "presentation_instructions": 618,
+      "prompt_instructions": 1118,
+      "selection_hints": 416
+    },
+    "Tree cover loss": {
+      "cautions": 2068,
+      "code_instructions": 1711,
+      "context_layer_descriptions": 1565,
+      "function_usage_notes": 42,
+      "presentation_instructions": 2827,
+      "prompt_instructions": 1425,
+      "selection_hints": 770
+    },
+    "Tree cover loss by dominant driver": {
+      "cautions": 1516,
+      "code_instructions": 1319,
+      "function_usage_notes": 42,
+      "presentation_instructions": 273,
+      "prompt_instructions": 2626,
+      "selection_hints": 638
+    },
+    "Tree cover loss due to fires": {
+      "cautions": 1360,
+      "code_instructions": 1907,
+      "context_layer_descriptions": 710,
+      "function_usage_notes": 55,
+      "presentation_instructions": 1456,
+      "prompt_instructions": 814,
+      "selection_hints": 602
+    }
+  },
+  "profiles": {
+    "base": {
+      "system_prompt": 6082,
+      "tools": {
+        "generate_insights": 261,
+        "pick_aoi": 921,
+        "pick_dataset": 1050,
+        "pull_data": 492
+      },
+      "tools_total": 2724
+    },
+    "curated-charts": {
+      "system_prompt": 9194,
+      "tools": {
+        "add_dashboard_section": 864,
+        "add_map_widget": 770,
+        "add_text_widget": 810,
+        "add_to_dashboard": 722,
+        "create_dashboard": 342,
+        "edit_dashboard_section": 782,
+        "edit_text_widget": 607,
+        "generate_insights": 571,
+        "inspect_view_context": 559,
+        "move_dashboard_widget": 733,
+        "pick_aoi": 921,
+        "pick_dataset": 1050,
+        "pull_data": 492,
+        "read_skill": 248,
+        "search_blogs": 638,
+        "search_insights": 434,
+        "send_nudge": 551,
+        "show_boundary_layer": 601,
+        "show_imagery": 758,
+        "show_planet_imagery": 878,
+        "update_insight_display": 834
+      },
+      "tools_total": 14165
+    },
+    "default": {
+      "system_prompt": 8431,
+      "tools": {
+        "add_dashboard_section": 864,
+        "add_map_widget": 770,
+        "add_text_widget": 810,
+        "add_to_dashboard": 722,
+        "create_dashboard": 342,
+        "edit_dashboard_section": 782,
+        "edit_text_widget": 607,
+        "generate_insights": 261,
+        "inspect_view_context": 559,
+        "move_dashboard_widget": 733,
+        "pick_aoi": 921,
+        "pick_dataset": 1050,
+        "pull_data": 492,
+        "read_skill": 248,
+        "search_blogs": 638,
+        "search_insights": 434,
+        "send_nudge": 551,
+        "show_boundary_layer": 601,
+        "show_imagery": 758,
+        "show_planet_imagery": 878,
+        "update_insight_display": 834
+      },
+      "tools_total": 13855
+    },
+    "experimental": {
+      "system_prompt": 8431,
+      "tools": {
+        "add_dashboard_section": 864,
+        "add_map_widget": 770,
+        "add_template_section": 1334,
+        "add_text_widget": 810,
+        "add_to_dashboard": 722,
+        "create_dashboard": 342,
+        "edit_dashboard_section": 782,
+        "edit_text_widget": 607,
+        "generate_insights": 261,
+        "inspect_view_context": 559,
+        "move_dashboard_widget": 733,
+        "pick_aoi": 921,
+        "pick_dataset": 1050,
+        "pull_data": 492,
+        "read_skill": 248,
+        "search_blogs": 638,
+        "search_insights": 434,
+        "send_nudge": 551,
+        "show_boundary_layer": 601,
+        "show_imagery": 758,
+        "show_planet_imagery": 878,
+        "update_insight_display": 834
+      },
+      "tools_total": 15189
+    },
+    "lgms": {
+      "system_prompt": 8431,
+      "tools": {
+        "add_dashboard_section": 864,
+        "add_map_widget": 770,
+        "add_text_widget": 810,
+        "add_to_dashboard": 722,
+        "create_dashboard": 342,
+        "edit_dashboard_section": 782,
+        "edit_text_widget": 607,
+        "generate_insights": 261,
+        "inspect_view_context": 559,
+        "move_dashboard_widget": 733,
+        "pick_aoi": 921,
+        "pick_dataset": 1050,
+        "pull_data": 492,
+        "read_skill": 248,
+        "search_blogs": 638,
+        "search_insights": 434,
+        "send_nudge": 551,
+        "show_boundary_layer": 601,
+        "show_imagery": 758,
+        "show_planet_imagery": 878,
+        "update_insight_display": 834
+      },
+      "tools_total": 13855
+    }
+  },
+  "skills": {
+    "analyze": 2467,
+    "capabilities": 17293,
+    "concessions-layer": 1869,
+    "dashboard": 7276,
+    "explore": 1823,
+    "pull-data": 1610,
+    "show-imagery": 3476,
+    "wri-insights": 3322
+  }
+}

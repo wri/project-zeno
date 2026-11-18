@@ -53,7 +53,7 @@ async def add_template_section(
     template: TemplateName,  # type: ignore[valid-type]
     template_args: Optional[Dict[str, Any]] = None,
     dashboard_id: Optional[str] = None,
-    state: Annotated[Dict, InjectedState] | None = None,
+    state: Annotated[Optional[Dict], InjectedState] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """Build a new dashboard section from an analysis template.
@@ -173,6 +173,14 @@ def _template_lines() -> str:
         for t in TEMPLATES
     )
 
+
+# The prompt has no tool list, so the schema description names the
+# templates.
+add_template_section.description = (
+    add_template_section.description.rstrip()
+    + "\n\nTemplates:\n"
+    + _template_lines()
+)
 
 SPEC = ToolSpec(
     tool=add_template_section,

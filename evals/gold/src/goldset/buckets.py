@@ -50,6 +50,8 @@ DEDICATED: dict[str, str] = {
     "dashboard_aoi_match": OUTPUT,
     "dashboard_widgets_match": OUTPUT,
     "dashboard_widgets_valid": OUTPUT,
+    "dashboard_sections_match": OUTPUT,
+    "dashboard_text_match": OUTPUT,
     "clarification_requested": SCOPE,
     "suggested_datasets_match": SCOPE,
     "nudge_match": SCOPE,
@@ -229,6 +231,10 @@ def implied_checks(expected: dict[str, str]) -> set[str]:
         implied.add("dashboard_created")
     if expected.get("dashboard_widgets"):
         implied.add("dashboard_widgets_match")
+    if expected.get("dashboard_sections"):
+        implied.add("dashboard_sections_match")
+    if expected.get("dashboard_text"):
+        implied.add("dashboard_text_match")
     if expected.get("class_values"):
         implied.add("class_value_match")
     if expected.get("chart_type"):

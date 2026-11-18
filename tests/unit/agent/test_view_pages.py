@@ -184,18 +184,18 @@ def test_get_prompt_includes_surface_section_only_for_known_pages():
     from src.agent.graph import get_prompt
 
     plain = get_prompt()
-    assert "# Current surface" not in plain
+    assert "Current surface" not in plain
 
     dashboard = get_prompt(page="dashboard")
-    assert "# Current surface" in dashboard
+    assert "Current surface" in dashboard
     assert "add_to_dashboard, which defaults to the dashboard" in dashboard
     # The rest of the prompt is unchanged.
-    assert "# Routing" in dashboard
+    assert dashboard.startswith(plain.rstrip("\n"))
     # The default profile carries the dashboard skill, so the surface
     # section points at it.
     assert "skill `dashboard`" in dashboard
 
-    assert "# Current surface" not in get_prompt(page="sandbox")
+    assert "Current surface" not in get_prompt(page="sandbox")
 
 
 def test_get_prompt_dashboard_surface_names_the_skill_when_available():

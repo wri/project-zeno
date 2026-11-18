@@ -139,7 +139,6 @@ def test_config_rejects_skill_requiring_unregistered_tool(monkeypatch):
     fake = SkillMeta(
         name="broken",
         description="",
-        when_to_use="",
         body="",
         requires=("no_such_tool",),
     )

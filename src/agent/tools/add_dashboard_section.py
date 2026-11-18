@@ -43,7 +43,7 @@ async def add_dashboard_section(
     description: Optional[str] = None,
     dashboard_id: Optional[str] = None,
     position: Optional[int] = None,
-    state: Annotated[Dict, InjectedState] | None = None,
+    state: Annotated[Optional[Dict], InjectedState] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """Create a section (a titled group of widgets) on a dashboard.

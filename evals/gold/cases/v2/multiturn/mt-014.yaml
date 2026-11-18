@@ -1,0 +1,32 @@
+id: mt-014
+uid: 3751d0d43760a24b
+status: ready
+group: multiturn
+turns:
+- query: Create a dashboard for Ghana with a tree cover loss map and a text block that explains
+    what tree cover loss measures
+  expected:
+    aoi_ids: GHA
+    aoi_source: gadm
+    dashboard_created: 'TRUE'
+    dashboard_widgets: map;text
+- query: Add a section called Background to the dashboard and move the text block into it
+  expected:
+    dashboard_created: 'TRUE'
+    dashboard_widgets: map;text
+    dashboard_sections: 'Background: text'
+  deltas:
+    retain:
+    - dashboard_id
+- query: Rename the Background section to Methods
+  expected:
+    dashboard_created: 'TRUE'
+    dashboard_widgets: map;text
+    dashboard_sections: 'Methods: text'
+  deltas:
+    retain:
+    - dashboard_id
+notes:
+  scenario: add a section, move a widget into it, rename the section (dashboard edit tools)
+  dashboard_created: later turns set it because the thread keeps dashboard_id; retain checks
+    that no new dashboard was made

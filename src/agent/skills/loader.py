@@ -12,8 +12,9 @@ _SKILLS_DIR = Path(__file__).resolve().parent / "skills_md"
 @dataclass
 class SkillMeta:
     name: str
+    # One line: what the skill does and when to use it. The system prompt
+    # lists each skill with it.
     description: str
-    when_to_use: str
     body: str
     # Tools the skill's workflow requires; the skill is only advertised in a
     # profile that binds all of them. Empty for informational skills.
@@ -42,7 +43,6 @@ def _parse(path: Path) -> SkillMeta | None:
     return SkillMeta(
         name=name,
         description=meta.get("description", ""),
-        when_to_use=meta.get("when_to_use", ""),
         body=body,
         requires=requires,
     )

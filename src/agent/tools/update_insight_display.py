@@ -160,7 +160,7 @@ def _apply_revision(
 async def update_insight_display(
     instruction: str,
     insight_id: Optional[str] = None,
-    state: Annotated[Dict, InjectedState] | None = None,
+    state: Annotated[Optional[Dict], InjectedState] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """Restyle an existing insight without pulling new data or running code.

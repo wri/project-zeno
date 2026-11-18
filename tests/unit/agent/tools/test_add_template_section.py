@@ -169,6 +169,13 @@ def test_schema_lists_the_template_names():
     ]
 
 
+def test_schema_description_lists_each_template():
+    description = SPEC.tool.description
+    for name in ("'nrt-monitoring'", "'post-2020-forest-loss'"):
+        assert name in description
+    assert "'forest-loss-drivers'" in description
+
+
 def test_prompt_fragment_lists_each_template():
     assert "'nrt-monitoring'" in SPEC.prompt_fragment
     assert "day by day. Args: none." in SPEC.prompt_fragment

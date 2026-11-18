@@ -1,7 +1,6 @@
 ---
 name: dashboard
-description: Create a dashboard for an area, group its content into sections, and fill it with insights (new or recalled), map widgets, and text notes.
-when_to_use: User asks to build/create a dashboard for a place, to add an insight/analysis to a dashboard, to add a map layer / satellite imagery to a dashboard, or to group, organize or restructure a dashboard's content. Not for one-off analysis without a dashboard — use `analyze`.
+description: Create or build a dashboard for a place; add an insight, a map layer or satellite imagery to a dashboard; group, organize or restructure its content in sections. Not for a one-off analysis with no dashboard: use `analyze`.
 requires: create_dashboard, add_to_dashboard, add_map_widget, add_text_widget, edit_text_widget, add_dashboard_section, edit_dashboard_section, move_dashboard_widget, inspect_view_context, send_nudge, search_insights
 ---
 

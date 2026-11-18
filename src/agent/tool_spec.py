@@ -14,7 +14,7 @@ from langchain_core.tools import BaseTool
 # A prompt-content gate: which skill or tool a piece of prompt text depends
 # on, or None for text every profile can serve. The Literal kind lets mypy
 # reject a misspelled namespace at the definition site.
-Gate = Optional[tuple[Literal["skill", "tool"], str]]
+Gate = Optional[tuple[Literal["skill", "tool", "flag"], str]]
 
 
 class ToolCategory(str, Enum):
@@ -55,6 +55,8 @@ class Availability:
         if gate is None:
             return True
         kind, name = gate
+        if kind == "flag":
+            return name in self.flags
         return name in (self.skills if kind == "skill" else self.tools)
 
 

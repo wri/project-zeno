@@ -1,7 +1,6 @@
 ---
 name: capabilities
-description: Answer questions about agent capabilities, datasets, and example queries.
-when_to_use: User asks what you can do, what data exists, limitations, or how to get started — not a specific analysis yet.
+description: The user asks what you can do, what data exists, the limitations or how to start, and not for a specific analysis yet.
 ---
 
 # Workflow

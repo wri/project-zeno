@@ -48,6 +48,7 @@ from typing import Optional
 
 from langchain_core.tools import BaseTool
 
+from src.agent.prompts.tool_descriptions import TOOL_DESCRIPTIONS
 from src.agent.skills import SkillMeta, all_skills, get_skill
 from src.agent.skills.tool import SPEC as read_skill_spec
 from src.agent.subagents.analyst.tool import (
@@ -95,10 +96,22 @@ from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-# Every registered tool spec, in canonical system-prompt order. Profiles
-# derive their spec tuples from this, so a tool's position here is its
-# position in every profile's prompt.
-ALL_SPECS = (
+
+def _described(spec: ToolSpec) -> ToolSpec:
+    """The spec with its schema description from TOOL_DESCRIPTIONS, when
+    that module has one for the tool."""
+    text = TOOL_DESCRIPTIONS.get(spec.tool.name)
+    if text is None:
+        return spec
+    return replace(
+        spec, tool=spec.tool.model_copy(update={"description": text})
+    )
+
+
+# Every registered tool spec, in canonical order. Profiles derive their
+# spec tuples from this, so a tool's position here is its position in
+# every profile's tool list.
+_REGISTERED_SPECS = (
     pick_aoi_spec,
     pick_dataset_spec,
     pull_data_spec,
@@ -122,6 +135,7 @@ ALL_SPECS = (
     move_dashboard_widget_spec,
     send_nudge_spec,
 )
+ALL_SPECS = tuple(_described(s) for s in _REGISTERED_SPECS)
 _SPEC_BY_NAME = {s.tool.name: s for s in ALL_SPECS}
 
 # The core toolbox every profile builds on: resolve an AOI, pick a dataset,
