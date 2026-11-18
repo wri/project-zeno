@@ -13,14 +13,12 @@ seen, not that the surface is frozen forever.
 
 from src.agent.agent_config import (
     BASE_PROFILE,
-    CONCISE_PROFILE,
     CURATED_CHARTS_PROFILE,
     DEFAULT_PROFILE,
     EXPERIMENTAL_PROFILE,
     LGMS_PROFILE,
     default_registry,
 )
-from src.agent.graph import REPLY_STYLE_DEFAULT, get_prompt
 
 BASE_MANIFEST = """\
 profile: base
@@ -146,26 +144,6 @@ def test_curated_charts_profile_manifest():
     )
 
 
-def test_concise_profile_manifest():
-    # The concise profile only sets a flag: its skills and tools must stay
-    # exactly the default surface (the flag swaps reply-style prompt text).
-    expected = DEFAULT_MANIFEST.replace(
-        "profile: default\nextends: base\n",
-        "profile: concise\nextends: default\n"
-        "flags: concise-replies, curated-charts-first\n",
-        1,
-    )
-    assert default_registry.resolve(CONCISE_PROFILE).describe() == expected
-
-
-def test_concise_flag_uses_the_prompt_sections():
-    default = get_prompt(default_registry.resolve(DEFAULT_PROFILE))
-    concise = get_prompt(default_registry.resolve(CONCISE_PROFILE))
-    assert REPLY_STYLE_DEFAULT in default
-    assert REPLY_STYLE_DEFAULT not in concise
-    assert concise.startswith("# 1. Role")
-
-
 def test_every_production_profile_has_a_manifest_snapshot():
     """A new profile registered without a snapshot here would ship with an
     unreviewed surface."""
@@ -175,7 +153,6 @@ def test_every_production_profile_has_a_manifest_snapshot():
         EXPERIMENTAL_PROFILE,
         LGMS_PROFILE,
         CURATED_CHARTS_PROFILE,
-        CONCISE_PROFILE,
     }
     registered = {config.name for config in default_registry.configs()}
     assert registered == snapshotted

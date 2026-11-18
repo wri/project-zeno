@@ -2,6 +2,8 @@
 
 Status: in progress. Iterations 1, 2, 2.1, 3 and 4 are on the `concise` profile (2026-11-17). Option A was built, then removed on 2026-11-18. Iteration 5 waits for the data owners. Iteration 6 is not started. Open: 1-082 on concise.
 
+On 2026-11-18 the `concise` profile and the `concise-replies` flag were removed. Their behavior is now the behavior of every profile: the section prompt, the short tool descriptions, one `description` line for each skill (it replaces `description`, `when_to_use` and `brief`), the shorter tool messages and the dataset selection from the user's words. The measured configuration (`ff=concise`) is now `ff=curated-charts`: the default profile does not have curated charts first. The sections below record the work with the flag as it was done.
+
 ## Goal
 
 - The agent gives short answers by default and gives more only when the user asks.

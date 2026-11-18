@@ -174,6 +174,14 @@ def _template_lines() -> str:
     )
 
 
+# The prompt has no tool list, so the schema description names the
+# templates.
+add_template_section.description = (
+    add_template_section.description.rstrip()
+    + "\n\nTemplates:\n"
+    + _template_lines()
+)
+
 SPEC = ToolSpec(
     tool=add_template_section,
     category=ToolCategory.PRIMITIVE,

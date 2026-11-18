@@ -33,12 +33,7 @@ from src.agent.subagents.pick_dataset.schema import (
     DatasetSelectionResult,
 )
 from src.agent.subagents.progress import emit_progress
-from src.agent.tool_spec import (
-    ToolCategory,
-    ToolSpec,
-    bound_availability,
-    concise_replies,
-)
+from src.agent.tool_spec import ToolCategory, ToolSpec, bound_availability
 from src.agent.tools.send_nudge import NUDGE_ALREADY_SET_NOTE
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
@@ -191,8 +186,8 @@ SELECTION_RULES = """- Only choose a dataset if it can usefully answer ALL parts
 - Pick the most granular dataset/context layer/parameters that matches the query.
 - Keep explanations concise. Do not reference dataset IDs."""
 
-# The rules when the selection reads the user's own message (concise profile,
-# `selection_query`). A user's message often has parts that no dataset gives:
+# The rules when the selection reads the user's own message
+# (`selection_query`). A user's message often has parts that no dataset gives:
 # why something happened, what the figures are for ("for NDC tracking"), a
 # policy. With the first rule above, the selection then offered a choice of
 # datasets for "Why did Brazil lose so much primary forest in 2016?". The
@@ -600,16 +595,6 @@ class DatasetSelector:
         else:
             available_layers = displayed_layer = "none"
 
-        # The concise profile leaves out the usage notes: they mostly repeat
-        # the description (iteration 4).
-        usage_notes = (
-            ""
-            if concise_replies()
-            else (
-                "    ## Function usage notes:\n\n"
-                f"    {dataset_result.function_usage_notes}\n\n"
-            )
-        )
         tool_message = f"""# About the selection
     Selected dataset name: {dataset_result.dataset_name}
     Selected context layer: {dataset_result.context_layer}
@@ -623,7 +608,7 @@ class DatasetSelector:
 
     {dataset_result.description}
 
-{usage_notes}    ## Usage cautions
+    ## Usage cautions
 
     {dataset_result.cautions}
 
@@ -693,13 +678,8 @@ async def pick_dataset(
         end_date=end_date,
         tool_call_id=tool_call_id,
         language=language,
-        # Concise profile only, while it is compared with the default
-        # (docs/concise-agent-plan.md): the selection reads the user's words.
-        user_message=(
-            latest_user_message(state.get("messages"))
-            if concise_replies()
-            else None
-        ),
+        # The selection reads the user's own words (selection_query).
+        user_message=latest_user_message(state.get("messages")),
     )
 
 

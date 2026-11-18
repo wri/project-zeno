@@ -1,12 +1,9 @@
-"""Short tool descriptions for the ``concise-replies`` flag.
+"""The schema descriptions of the tools.
 
-The concise prompt (src/agent/prompts/) has no tool list, so the schema
+The system prompt (src/agent/prompts/) has no tool list, so the schema
 description is the one description of a tool. These texts replace the
-docstrings for the flagged profile only, so the default profile stays the
-same during the comparison (docs/concise-agent-plan.md, iteration 2).
-
-Temporary: when the concise profile is accepted, each text becomes the
-docstring of its tool and this module is deleted.
+docstrings of the tools named here (agent_config.ALL_SPECS); a tool not
+named here keeps its docstring.
 """
 
 _DEFAULT_DASHBOARD = (
@@ -14,7 +11,7 @@ _DEFAULT_DASHBOARD = (
     "Only the user's own dashboards can be edited."
 )
 
-CONCISE_TOOL_DESCRIPTIONS: dict[str, str] = {
+TOOL_DESCRIPTIONS: dict[str, str] = {
     "pick_aoi": (
         "Resolve the place in the request to the area of interest (AOI) in "
         "state (geocoding subagent). Pass the user's words about the place "

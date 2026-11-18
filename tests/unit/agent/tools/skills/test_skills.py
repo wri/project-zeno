@@ -244,25 +244,26 @@ def test_get_prompt_scope_and_policy():
     from src.agent.graph import get_prompt
 
     prompt = get_prompt()
-    # per-skill routing lives in the skills block, not the Routing table
+    # per-skill routing lives in the skills list
     assert "- pull-data:" in prompt
     assert "- capabilities:" in prompt
-    assert "- analyze:" in prompt
+    # the analyze workflow is in the work section, not in the skills list
+    assert "- analyze:" not in prompt
     assert "get_capabilities" not in prompt
-    # the no-skill request shapes stay in Routing
-    assert "Dataset-only" in prompt
-    assert "AOI-only" in prompt
-    # always-on policy folded in
-    assert "# Policy" in prompt
-    assert "Reply in the language given in the session block" in prompt
-    assert "UI / map selections" in prompt
+    # the no-skill request shapes stay in the work section
+    assert "Dataset only" in prompt
+    assert "AOI only" in prompt
+    # always-on rules
+    assert "# 2. Rules" in prompt
+    assert "Reply in the language of the session block" in prompt
+    assert "# 4. Selections in the app" in prompt
     # only the three recipe skills are advertised
     assert "pick-aoi" not in prompt
     assert "pick-dataset" not in prompt
 
 
 def test_get_prompt_has_no_per_skill_routing_rows():
-    """Per-skill routing restated each skill's when_to_use; it must stay
+    """Per-skill routing restated each skill's description; it must stay
     dropped for every profile so the skills block is the single source."""
     from src.agent.agent_config import EXPERIMENTAL_PROFILE, default_registry
     from src.agent.graph import get_prompt
@@ -283,11 +284,11 @@ def test_get_prompt_routing_gates_recall_row_on_search_insights():
     from src.agent.graph import get_prompt
 
     base_prompt = get_prompt(config=default_registry.resolve(BASE_PROFILE))
-    assert "Recall a past insight" not in base_prompt
+    assert "Recall an earlier insight" not in base_prompt
     assert "search_insights" not in base_prompt
 
     default_prompt = get_prompt()
-    assert "Recall a past insight" in default_prompt
+    assert "Recall an earlier insight" in default_prompt
 
 
 # --- flagged blocks -----------------------------------------------------------
@@ -340,31 +341,3 @@ def test_read_skill_serves_the_flagged_body():
     )
 
     assert 'chart="custom"' in read_skill.invoke({"name": "analyze"})
-
-
-_PROGRESS_OLD = "Provide short progress messages between tool calls"
-_PROGRESS_NEW = "Do not write progress messages between tool calls"
-
-
-def test_analyze_progress_message_rule_follows_the_concise_flag():
-    skill = get_skill("analyze")
-    default = apply_flags(skill.body, frozenset())
-    concise = apply_flags(skill.body, frozenset({"concise-replies"}))
-    assert _PROGRESS_OLD in default and _PROGRESS_NEW not in default
-    assert _PROGRESS_NEW in concise and _PROGRESS_OLD not in concise
-    # The search_blogs summary rule stays in both bodies.
-    assert "after `search_blogs`" in default
-    assert "after `search_blogs`" in concise
-
-
-def test_read_skill_serves_the_concise_analyze_body():
-    set_bound_availability(
-        Availability(
-            skills=frozenset({"analyze"}),
-            tools=frozenset(),
-            flags=frozenset({"concise-replies"}),
-        )
-    )
-    assert _PROGRESS_NEW in read_skill.invoke({"name": "analyze"})
-    set_bound_availability(_availability("analyze"))
-    assert _PROGRESS_OLD in read_skill.invoke({"name": "analyze"})

@@ -1077,7 +1077,7 @@ async def test_ff_rejected_for_regular_user(client, auth_override):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("ff", ["experimental", "base", "concise"])
+@pytest.mark.parametrize("ff", ["experimental", "base", "curated-charts"])
 async def test_non_public_ff_rejected_for_regular_user(
     client, auth_override, ff
 ):

@@ -6,7 +6,6 @@ from langchain_core.tools import tool
 
 from src.agent.agent_config import (
     BASE_PROFILE,
-    CONCISE_PROFILE,
     DEFAULT_PROFILE,
     DEFAULT_SKILLS,
     EXPERIMENTAL_PROFILE,
@@ -140,7 +139,6 @@ def test_config_rejects_skill_requiring_unregistered_tool(monkeypatch):
     fake = SkillMeta(
         name="broken",
         description="",
-        when_to_use="",
         body="",
         requires=("no_such_tool",),
     )
@@ -274,17 +272,6 @@ def test_only_lgms_profile_is_public():
     # Anything added here is open to every user; the experimental surface
     # must stay behind the admin gate.
     assert PUBLIC_PROFILES == frozenset({LGMS_PROFILE})
-
-
-def test_concise_profile_is_not_public():
-    assert CONCISE_PROFILE not in PUBLIC_PROFILES
-
-
-def test_concise_profile_keeps_the_default_excluded_datasets():
-    default = default_registry.resolve(DEFAULT_PROFILE).availability()
-    concise = default_registry.resolve(CONCISE_PROFILE).availability()
-    assert default.excluded_datasets  # a guard: the default excludes LGMS
-    assert concise.excluded_datasets == default.excluded_datasets
 
 
 # --- Structural invariants ---------------------------------------------------

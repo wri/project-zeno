@@ -11,7 +11,6 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from src.agent.datasets.config import DATASETS
 from src.agent.datasets.curated_only import (
     CURATED_ONLY_TOOL_INSTRUCTION,
     is_curated_only,
@@ -36,7 +35,7 @@ from src.agent.subagents.analyst.code_executors.base import (
 )
 from src.agent.subagents.analyst.prompts import EXECUTOR_WORKFLOW
 from src.agent.subagents.analyst.text_generator import InsightTextGenerator
-from src.agent.tool_spec import ToolCategory, ToolSpec, concise_replies
+from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.inspect_view_context import format_chart_data
 from src.agent.tools.pull_data import fetch_statistics_from_url
 from src.api.repositories.insight_writer import persist_insight
@@ -315,9 +314,12 @@ def _encode_parts(parts: list) -> list[dict]:
 
 
 async def _build_tool_message(
-    insight: Insight, dataset_cautions: str, language: str = DEFAULT_LANGUAGE
+    insight: Insight, language: str = DEFAULT_LANGUAGE
 ) -> str:
-    """Human-feedback message summarizing the generated charts + insight."""
+    """Human-feedback message summarizing the generated charts + insight.
+
+    It has no dataset cautions (they are in the pick_dataset message) and
+    no follow-up suggestions (the insight card shows them)."""
     tool_message = (
         await t(
             "analyst.generated_charts",
@@ -341,18 +343,6 @@ async def _build_tool_message(
     for chart in insight.charts:
         tool_message += "\n" + await format_chart_data(chart, language)
 
-    if concise_replies():
-        # The cautions are in the pick_dataset message, and the insight card
-        # shows the follow-up suggestions (concise rule 6).
-        return tool_message
-
-    if dataset_cautions:
-        header = await t("analyst.dataset_cautions_header", language)
-        tool_message += f"\n\n{header}\n{dataset_cautions}"
-
-    tool_message += "\n\n" + await t("analyst.follow_up_header", language)
-    for i, suggestion in enumerate(insight.follow_up_suggestions, 1):
-        tool_message += f"\n{i}. {suggestion}"
     return tool_message
 
 
@@ -387,13 +377,6 @@ async def _build_curated_only_tool_message(
 
 # The route that the orchestrator selects for a chart (curated charts first).
 ChartRoute = Literal["standard", "custom"]
-
-
-def _catalog_cautions(dataset_id: int) -> Optional[str]:
-    for entry in DATASETS:
-        if entry["dataset_id"] == dataset_id:
-            return entry.get("cautions")
-    return None
 
 
 async def _persist_curated(
@@ -600,10 +583,6 @@ class Analyst:
                 "for the dataset first.",
                 tool_call_id,
             )
-        dataset_cautions = dataset.get(
-            "cautions", "No specific dataset cautions provided."
-        )
-
         # STAGE 1: build charts from the pulled data.
         (
             charts,
@@ -659,9 +638,7 @@ class Analyst:
             ],
             "messages": [
                 ToolMessage(
-                    content=await _build_tool_message(
-                        insight, dataset_cautions, language
-                    ),
+                    content=await _build_tool_message(insight, language),
                     tool_call_id=tool_call_id,
                     status="success",
                     response_metadata={"msg_type": "human_feedback"},
@@ -847,9 +824,8 @@ async def _build_curated_insight(
         charts,
         statistics,
         caption,
-        # With concise replies, the cautions are in the pick_dataset
-        # message (as in _build_tool_message).
-        cautions=None if concise_replies() else _catalog_cautions(dataset_id),
+        # The cautions are in the pick_dataset message (as in
+        # _build_tool_message).
         other_columns=unshown_columns(rows, charts),
         rows=rows,
     )

@@ -1,5 +1,5 @@
-"""With the concise profile, the dataset selection reads the user's latest
-message, and the orchestrator's query is context (docs/concise-agent-plan.md).
+"""The dataset selection reads the user's latest message, and the
+orchestrator's query is context.
 
 The orchestrator rewrites requests into dataset phrases ("tree cover loss by
 driver (fire)"), and the selection then offered a choice where the user's
@@ -17,11 +17,7 @@ from src.agent.subagents.pick_dataset.tool import (
     pick_dataset,
     selection_query,
 )
-from src.agent.tool_spec import (
-    CONCISE_REPLIES,
-    Availability,
-    set_bound_availability,
-)
+from src.agent.tool_spec import Availability, set_bound_availability
 
 
 def test_latest_user_message_is_the_last_human_text():
@@ -55,22 +51,7 @@ def test_selection_query_without_a_different_message_is_the_query():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("flags", "expected"),
-    [
-        (
-            frozenset({CONCISE_REPLIES}),
-            "Was 2020 loss in Indonesia from fires?",
-        ),
-        (frozenset(), None),
-    ],
-)
-async def test_only_the_concise_profile_passes_the_user_message(
-    flags, expected
-):
-    set_bound_availability(
-        Availability(skills=frozenset(), tools=frozenset(), flags=flags)
-    )
+async def test_pick_dataset_passes_the_user_message():
     state = {
         "messages": [HumanMessage("Was 2020 loss in Indonesia from fires?")],
         "language": "en",
@@ -85,7 +66,9 @@ async def test_only_the_concise_profile_passes_the_user_message(
             state=state,
             tool_call_id="call-1",
         )
-    assert resolve.await_args.kwargs["user_message"] == expected
+    assert resolve.await_args.kwargs["user_message"] == (
+        "Was 2020 loss in Indonesia from fires?"
+    )
 
 
 def test_the_user_message_rules_keep_the_layer_default_for_deforestation():

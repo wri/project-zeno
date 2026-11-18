@@ -47,7 +47,7 @@ from typing import Optional
 
 from langchain_core.tools import BaseTool
 
-from src.agent.prompts.tool_descriptions import CONCISE_TOOL_DESCRIPTIONS
+from src.agent.prompts.tool_descriptions import TOOL_DESCRIPTIONS
 from src.agent.skills import SkillMeta, all_skills, get_skill
 from src.agent.skills.tool import SPEC as read_skill_spec
 from src.agent.subagents.analyst.tool import (
@@ -57,12 +57,7 @@ from src.agent.subagents.analyst.tool import SPEC as generate_insights_spec
 from src.agent.subagents.pick_aoi.tool import SPEC as pick_aoi_spec
 from src.agent.subagents.pick_dataset.tool import SPEC as pick_dataset_spec
 from src.agent.subagents.search.blog import SPEC as search_blogs_spec
-from src.agent.tool_spec import (
-    CONCISE_REPLIES,
-    Availability,
-    ToolCategory,
-    ToolSpec,
-)
+from src.agent.tool_spec import Availability, ToolCategory, ToolSpec
 from src.agent.tools.add_dashboard_section import (
     SPEC as add_dashboard_section_spec,
 )
@@ -97,10 +92,22 @@ from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-# Every registered tool spec, in canonical system-prompt order. Profiles
-# derive their spec tuples from this, so a tool's position here is its
-# position in every profile's prompt.
-ALL_SPECS = (
+
+def _described(spec: ToolSpec) -> ToolSpec:
+    """The spec with its schema description from TOOL_DESCRIPTIONS, when
+    that module has one for the tool."""
+    text = TOOL_DESCRIPTIONS.get(spec.tool.name)
+    if text is None:
+        return spec
+    return replace(
+        spec, tool=spec.tool.model_copy(update={"description": text})
+    )
+
+
+# Every registered tool spec, in canonical order. Profiles derive their
+# spec tuples from this, so a tool's position here is its position in
+# every profile's tool list.
+_REGISTERED_SPECS = (
     pick_aoi_spec,
     pick_dataset_spec,
     pull_data_spec,
@@ -123,6 +130,7 @@ ALL_SPECS = (
     move_dashboard_widget_spec,
     send_nudge_spec,
 )
+ALL_SPECS = tuple(_described(s) for s in _REGISTERED_SPECS)
 _SPEC_BY_NAME = {s.tool.name: s for s in ALL_SPECS}
 
 # The core toolbox every profile builds on: resolve an AOI, pick a dataset,
@@ -176,29 +184,9 @@ LGMS_PROFILE = "lgms"
 CURATED_CHARTS_FIRST = "curated-charts-first"
 CURATED_CHARTS_PROFILE = "curated-charts"
 
-# Short replies (docs/concise-agent-plan.md, iteration 1). The concise
-# profile also has curated charts first (CURATED_CHARTS_FIRST). The
-# concise-replies flag swaps the reply-style rules of the system prompt
-# (src/agent/graph.py) and turns on the flagged parts of the skills. Temporary: when the result is
-# accepted, the short style becomes the default and this flag and profile
-# are deleted.
-CONCISE_PROFILE = "concise"
-
-# The concise flag also sends the prompt as markdown sections without the
-# tool list (src/agent/prompts/) and gives the tools short descriptions
-# (iteration 2).
-CONCISE_TOOL_SPECS = tuple(
-    replace(
-        _SPEC_BY_NAME[name],
-        tool=_SPEC_BY_NAME[name].tool.model_copy(update={"description": text}),
-    )
-    for name, text in CONCISE_TOOL_DESCRIPTIONS.items()
-)
-# The tool specs that a flag puts in place of the spec of the same name. A
-# flag that swaps no tool has an empty entry: the keys are the known flags.
+# The tool specs that a flag puts in place of the spec of the same name.
 FLAG_TOOL_VARIANTS: dict[str, tuple[ToolSpec, ...]] = {
     CURATED_CHARTS_FIRST: (generate_insights_curated_first_spec,),
-    CONCISE_REPLIES: CONCISE_TOOL_SPECS,
 }
 
 # Profiles any authenticated user may select with `ff`. All other flags are
@@ -485,17 +473,5 @@ default_registry.register(
         # Excludes are not inherited: keep the default's.
         excluded_datasets=DEFAULT_EXCLUDED_DATASETS,
         flags=frozenset({CURATED_CHARTS_FIRST}),
-    )
-)
-default_registry.register(
-    AgentConfig(
-        CONCISE_PROFILE,
-        extends=DEFAULT_PROFILE,
-        # Excludes are not inherited: keep the default's.
-        excluded_datasets=DEFAULT_EXCLUDED_DATASETS,
-        # Curated charts first (#910) is part of this profile, so one flag
-        # measures the two together. The work section of the concise
-        # prompt has the guidance for the chart argument.
-        flags=frozenset({CONCISE_REPLIES, CURATED_CHARTS_FIRST}),
     )
 )
