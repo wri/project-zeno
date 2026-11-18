@@ -18,6 +18,12 @@ class CitedArticle(TypedDict):
     image_alt: str
 
 
+def latest(current: Any, new: Any) -> Any:
+    """Keeps the last value written, so tools called together in one step
+    can each set it."""
+    return new
+
+
 class AOISelection(TypedDict):
     name: str
     aois: list[dict]
@@ -97,10 +103,10 @@ class AgentState(TypedDict):
     view_context: dict
 
     # pick-aoi tool
-    aoi_selection: AOISelection
+    aoi_selection: Annotated[AOISelection, latest]
 
     # pick-dataset tool
-    dataset: dict
+    dataset: Annotated[dict, latest]
 
     # send_nudge tool — generic "offer the user clickable options" signal,
     # also used by pick-dataset to offer dataset alternatives. Last-write-
@@ -108,8 +114,8 @@ class AgentState(TypedDict):
     nudge: Nudge
 
     # pull-data tool
-    start_date: str
-    end_date: str
+    start_date: Annotated[str, latest]
+    end_date: Annotated[str, latest]
     statistics: Annotated[list[Statistics], operator.add]
 
     # show-imagery tool (see ImageryState in src.agent.models for structure)

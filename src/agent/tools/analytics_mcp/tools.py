@@ -1,0 +1,261 @@
+import json
+import time
+from typing import Annotated, Any, Awaitable, Callable, Optional
+
+from langchain_core.messages import ToolMessage
+from langchain_core.tools.base import InjectedToolCallId
+from langgraph.prebuilt import InjectedState
+from langgraph.types import Command
+
+from src.agent.i18n import t
+from src.agent.language import DEFAULT_LANGUAGE
+from src.agent.tools.analytics_mcp.client import (
+    AnalyticsMcp,
+    AnalyticsMcpError,
+)
+from src.agent.tools.analytics_mcp.state_adapters.aoi_selection import (
+    UnsupportedAreaError,
+)
+from src.agent.tools.analytics_mcp.state_adapters.catalog_ids import (
+    UnknownDatasetError,
+)
+from src.agent.tools.analytics_mcp.state_adapters.state_updates import (
+    StateUpdates,
+)
+
+FINISHED_STATUSES = ("saved", "success")
+
+
+class AnalyticsMcpTools:
+    """Zeno's area, dataset and data tools, answered by the analytics MCP
+    server. Each calls the server, then records what it returned through the
+    state updates, so the rest of Zeno works unchanged."""
+
+    def __init__(
+        self,
+        mcp: AnalyticsMcp,
+        state_updates: StateUpdates,
+        sleep: Callable[[float], Awaitable[None]],
+        poll_timeout_seconds: float,
+    ):
+        self.mcp = mcp
+        self.state_updates = state_updates
+        self.sleep = sleep
+        self.poll_timeout_seconds = poll_timeout_seconds
+
+    async def pick_aoi(
+        self,
+        places: list[str],
+        state: Annotated[dict, InjectedState],
+        tool_call_id: Annotated[str, InjectedToolCallId],
+        area_types: Optional[list[str]] = None,
+    ) -> Command:
+        """Find areas by place name and select the best match for each, all
+        in one selection: pass every place the question compares in one call.
+        Give each place's full name, every word of it, with the country or
+        region it is in after a comma (as in "Springfield, Illinois") and the
+        kind of area in area_types rather than in the name.
+        area_types can narrow the search to admin, key_biodiversity_area,
+        protected_area or indigenous_land. Returns the selected areas with the
+        aois to use in pull_data payloads, and other matches per place: if a
+        best match is not the place meant, call again with a more specific
+        name."""
+        best = []
+        others = {}
+        not_found = []
+        try:
+            for place in places:
+                matches = await self.search(place, area_types)
+                if not matches:
+                    not_found.append(place)
+                    continue
+                best.append(matches[0])
+                others[place] = named_aois(matches[1:])
+            update = self.state_updates.areas_picked(best) if best else None
+        except (AnalyticsMcpError, UnsupportedAreaError) as error:
+            return reply(str(error), tool_call_id)
+        if update is None:
+            language = state.get("language") or DEFAULT_LANGUAGE
+            return feedback(
+                await t("pick_aoi.no_matching_aois", language), tool_call_id
+            )
+        result: dict[str, Any] = {
+            "selected": named_aois(best),
+            "other_matches": others,
+        }
+        if not_found:
+            result["not_found"] = not_found
+        return record(
+            update, json.dumps(result, ensure_ascii=False), tool_call_id
+        )
+
+    async def list_subregions(
+        self,
+        aoi: dict[str, Any],
+        area_type: str = "admin",
+        level: Optional[int] = None,
+        limit: int = 50,
+    ) -> str:
+        """List the areas within an area, largest first, with how many there
+        are in all, as aois for pull_data payloads. Use it for questions about
+        the regions, states, counties or protected areas of a place, then pull
+        them together in one payload. area_type is admin,
+        key_biodiversity_area, protected_area or indigenous_land; for admin,
+        level is the admin level to list (default: one below the area). The
+        admin aoi WLD lists countries. When total is larger than the areas
+        returned, ask for a higher level or a smaller area."""
+        arguments = {
+            "aoi": aoi,
+            "area_type": area_type,
+            "level": level,
+            "limit": limit,
+        }
+        try:
+            listed = await self.mcp.call("list_subregions", arguments)
+        except AnalyticsMcpError as error:
+            return str(error)
+        return json.dumps(listed, ensure_ascii=False)
+
+    async def list_datasets(self) -> str:
+        """List the datasets that can be analyzed."""
+        try:
+            datasets = await self.mcp.call("list_datasets", {})
+        except AnalyticsMcpError as error:
+            return str(error)
+        return json.dumps(datasets, ensure_ascii=False)
+
+    async def pick_dataset(
+        self,
+        dataset: str,
+        tool_call_id: Annotated[str, InjectedToolCallId],
+        intersections: Optional[list[str]] = None,
+    ) -> Command:
+        """Select a dataset by its name from list_datasets. intersections are
+        the ones the analysis will request, such as ["driver"], since some
+        intersections are datasets of their own. Returns the dataset's
+        description, cautions, citation, map layers and the payload schema
+        pull_data accepts."""
+        try:
+            detail = await self.mcp.call(
+                "describe_dataset", {"dataset": dataset}
+            )
+            dataset_id = self.state_updates.catalog_dataset_id(
+                dataset, intersections
+            )
+        except (AnalyticsMcpError, UnknownDatasetError) as error:
+            return reply(str(error), tool_call_id)
+        update = await self.state_updates.dataset_picked(dataset, dataset_id)
+        selection = update["dataset"]
+        content = json.dumps(
+            {
+                "name": detail["name"],
+                "description": detail.get("description"),
+                "request_schema": detail["request_schema"],
+                "cautions": selection.get("cautions"),
+                "citation": selection.get("citation"),
+                "map_layers": map_layers(selection),
+            },
+            ensure_ascii=False,
+        )
+        return record(update, content, tool_call_id)
+
+    async def pull_data(
+        self,
+        dataset: str,
+        payload: dict[str, Any],
+        state: Annotated[dict, InjectedState],
+        tool_call_id: Annotated[str, InjectedToolCallId],
+    ) -> Command:
+        """Run an analysis of a dataset from list_datasets, with a payload
+        matching the schema pick_dataset returned and the aoi pick_aoi
+        returned. The results are kept for generate_insights."""
+        try:
+            dataset_id = self.state_updates.catalog_dataset_id(
+                dataset, payload.get("intersections")
+            )
+            outcome = await self.finished_analysis(dataset, payload)
+        except (AnalyticsMcpError, UnknownDatasetError) as error:
+            return reply(str(error), tool_call_id)
+        if outcome["status"] not in FINISHED_STATUSES:
+            message = outcome.get("message") or outcome["status"]
+            return reply(
+                f"The analysis did not finish: {message}", tool_call_id
+            )
+        try:
+            update = await self.state_updates.analysis_finished(
+                dataset, dataset_id, payload, outcome, state
+            )
+        except UnsupportedAreaError as error:
+            return reply(str(error), tool_call_id)
+        statistics = update["statistics"][0]
+        rows = len(next(iter((outcome.get("result") or {}).values()), []))
+        content = (
+            f"Successfully pulled {statistics['dataset_name']} data for "
+            f"{', '.join(statistics['aoi_names'])}. Found {rows} data points."
+        )
+        return record(update, content, tool_call_id)
+
+    async def search(
+        self, place: str, area_types: Optional[list[str]]
+    ) -> list[dict[str, Any]]:
+        arguments: dict[str, Any] = {"name": place, "limit": 5}
+        if area_types:
+            arguments["area_types"] = area_types
+        return await self.mcp.call("search_areas", arguments)
+
+    async def finished_analysis(
+        self, dataset: str, payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Runs an analysis and checks on it until it finishes or the poll
+        timeout passes."""
+        outcome = await self.mcp.call(
+            "run_analysis", {"dataset": dataset, "payload": payload}
+        )
+        deadline = time.monotonic() + self.poll_timeout_seconds
+        while outcome["status"] == "pending" and time.monotonic() < deadline:
+            await self.sleep(outcome.get("retry_after_seconds") or 1)
+            outcome = await self.mcp.call(
+                "get_analysis", {"link": outcome["link"]}
+            )
+        return outcome
+
+
+def record(update: dict[str, Any], content: str, tool_call_id: str) -> Command:
+    """A result recorded in the agent state, with what the model is told."""
+    message = ToolMessage(content, tool_call_id=tool_call_id)
+    return Command(update={**update, "messages": [message]})
+
+
+def reply(content: str, tool_call_id: str) -> Command:
+    """A result the model can act on, such as fixing its request."""
+    return Command(
+        update={"messages": [ToolMessage(content, tool_call_id=tool_call_id)]}
+    )
+
+
+def feedback(content: str, tool_call_id: str) -> Command:
+    """A result the user sees and the turn stops on, as for Zeno's other
+    tools."""
+    message = ToolMessage(
+        content,
+        tool_call_id=tool_call_id,
+        status="success",
+        response_metadata={"msg_type": "human_feedback"},
+    )
+    return Command(update={"messages": [message]})
+
+
+def map_layers(selection: dict[str, Any]) -> list[dict[str, Any]]:
+    """The dataset's map layers, by name and tile URL."""
+    layers = []
+    for layer in selection.get("layers") or []:
+        layers.append({"name": layer["name"], "tile_url": layer["tile_url"]})
+    return layers
+
+
+def named_aois(matches: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Search matches as the names and aois shown to the model."""
+    named = []
+    for match in matches:
+        named.append({"name": match["display_name"], "aoi": match["aoi"]})
+    return named

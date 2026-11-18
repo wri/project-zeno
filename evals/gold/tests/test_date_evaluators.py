@@ -77,6 +77,31 @@ def test_extraction_passes_regardless_of_recorded_state():
     assert coverage["date_coverage_score"] == 1.0, "and 2001-2025 contains 2022"
 
 
+def _payload_state(payload):
+    """An agent_state whose pull_data call carries its period inside a payload,
+    as tools that take an analytics API payload do."""
+    call = {"name": "pull_data", "args": {"payload": payload}, "id": "call_0"}
+    return {"messages": [StubMessage([call])]}
+
+
+def test_extraction_reads_dates_from_a_payload():
+    result = evaluate_date_extraction(
+        _payload_state({"start_date": "2025-01-01", "end_date": "2025-06-30"}),
+        "2025-01-01",
+        "2025-06-30",
+    )
+    assert result["date_extraction_score"] == 1.0
+
+
+def test_extraction_reads_years_from_a_payload():
+    result = evaluate_date_extraction(
+        _payload_state({"start_year": "2015", "end_year": "2024"}),
+        "2015-01-01",
+        "2024-12-31",
+    )
+    assert result["date_extraction_score"] == 1.0
+
+
 def test_extraction_fails_on_wrong_window():
     result = evaluate_date_extraction(
         _state(("pull_data", "2021-01-01", "2021-12-31")),

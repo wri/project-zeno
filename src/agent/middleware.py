@@ -47,7 +47,8 @@ def format_session_block(state: dict) -> str:
         lines.append("AOI: none")
 
     dataset = state.get("dataset") or {}
-    ds_name = dataset.get("dataset_name")
+    # Named as the dataset tools name it, when they differ from the catalog.
+    ds_name = dataset.get("analytics_dataset") or dataset.get("dataset_name")
     if ds_name:
         ctx = dataset.get("context_layer")
         line = f"Dataset: {ds_name}" + (f" (context: {ctx})" if ctx else "")

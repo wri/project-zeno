@@ -58,6 +58,8 @@ dependencies = [
     "model2vec>=0.8.2",
     "cogeo-mosaic==8.2.0",
     "langid==1.1.6",
+    "langchain-mcp-adapters==0.3.0",
+    "mcp==1.30.0",
 ]
 
 [dependency-groups]

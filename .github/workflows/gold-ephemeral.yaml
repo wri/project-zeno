@@ -180,6 +180,7 @@ jobs:
           uv run gold run \
             --env ephemeral \
             --api-base-url "$API_BASE_URL" \
+            --ff mcp \
             --trials "$TRIALS" \
             "${id_args[@]}" \
             --workers "$WORKERS" \

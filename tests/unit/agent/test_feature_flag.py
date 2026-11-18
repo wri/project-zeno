@@ -191,6 +191,23 @@ def test_directly_bound_tools_do_not_activate_skills():
     assert not c.availability().has_skill("show-imagery")
 
 
+def test_directly_bound_tool_replaces_the_registered_tool_of_the_same_name():
+    """A profile can swap in its own implementation of a core tool, such as a
+    pick_aoi backed by a different data source, keeping the tool's name."""
+
+    @tool("pick_aoi")
+    def other_pick_aoi(place: str) -> str:
+        """Another way to pick an area."""
+        return place
+
+    replacement = ToolSpec(
+        other_pick_aoi, ToolCategory.SUBAGENT, "- pick_aoi: test only"
+    )
+    c = AgentConfig("test", tools=(replacement,))
+
+    assert c.bound_tools() == [other_pick_aoi]
+
+
 def test_config_bound_tools_returns_bound_tools():
     c = AgentConfig("test", tools=(FAKE_SPEC,))
     assert _fake_tool in c.bound_tools()

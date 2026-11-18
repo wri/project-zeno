@@ -150,7 +150,7 @@ variable "env_config" {
     GNW_STAGE                = "staging"
     AWS_DEFAULT_REGION       = "us-east-1"
     DATASET_EMBEDDINGS_DB    = "gnw-dataset-index-gemini-v8"
-    MODEL                    = "gemini-flash"
+    MODEL                    = "gemini"
     SMALL_MODEL              = "gemini-flash"
     CODING_MODEL             = "gemini-3-flash-preview"
     FALLBACK_MODELS          = "gemini,gemini-flash-lite"
