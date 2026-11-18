@@ -1,0 +1,19 @@
+id: 1-143
+uid: 49f3ed7b1f097e73
+status: ready
+group: direct
+query: Show me tree cover loss in Pará, Brazil on the map
+expected:
+  aoi_ids: BRA.14_1
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  scope: analyse
+notes:
+  authored: '2026-11-16: control row for wri/project-zeno#896. The new routing line sends
+    "show ... on the map" requests for concessions to show_boundary_layer. This row uses the
+    same wording for a dataset, and the agent must still pick the dataset and pull data.'
+  catches: An agent that over-applies the concessions-layer skill to any "show me ... on the
+    map" request picks no dataset (dataset_id fails) and pulls nothing (scope fails).
+  design: Routing-only (no answer and no dates), so the open time window does not drift. It
+    passes on main today and must keep passing with

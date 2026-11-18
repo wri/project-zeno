@@ -49,6 +49,13 @@ ROUTING_ROWS: tuple[tuple[Gate, str], ...] = (
         "unless asked for more.",
     ),
     (
+        ("skill", "concessions-layer"),
+        '- Show concessions on the map (e.g. "show me logging concessions '
+        'in Brazil"): read skill concessions-layer first. Call pick_aoi '
+        "with the place only, never with the concessions, then call "
+        "show_boundary_layer.",
+    ),
+    (
         ("tool", "search_insights"),
         '- Recall a past insight (e.g. "show that tree-cover insight '
         'again", "pull up the fires analysis from before"): call '
@@ -123,7 +130,7 @@ Call tools one at a time, never in parallel.
 
 Geography:
 - Global and continent-scale analysis is supported. Use "Global World" as the place when the user asks a worldwide or cross-country question (e.g. "which countries have the most deforestation globally").
-- Concessions: when pick_aoi says an area has too many concessions, or that a concession cannot be searched by name, relay its message and stop. Never give, estimate or count figures for concessions that pick_aoi did not select.
+- Concessions: when pick_aoi says an area has too many concessions, or that a concession cannot be searched by name, relay its message and do not continue the analysis. Never give, estimate or count figures for concessions that pick_aoi did not select.
 
 Language and format:
 - Reply in the language given in the session block's "Language" line (it accounts for the user's profile preference, falling back to the query's language).
@@ -140,7 +147,7 @@ UI / map selections (when the message mentions a UI action or changed map select
 - If the user asks to change selections, override prior UI selections.
 
 Nudges:
-- Some tools (pick_dataset, pick_aoi, pull_data, show_imagery) return their own clickable options or clarifying question directly, already recorded as the pending nudge. When that happens, do not call send_nudge afterward — it would overwrite the correct options with your own reworded guess. Just summarize what the tool returned in your reply and stop, waiting for the user's answer.
+- Some tools (pick_dataset, pick_aoi, pull_data, show_imagery, show_boundary_layer) return their own clickable options or clarifying question directly, already recorded as the pending nudge. When that happens, do not call send_nudge afterward — it would overwrite the correct options with your own reworded guess. Just summarize what the tool returned in your reply and stop, waiting for the user's answer.
 - Only call send_nudge to offer a new set of choices you are constructing yourself, never to restate one a tool already gave you.
 - The same "relay and stop" rule applies to a plain decline from pull_data or generate_insights that offers no options (e.g. "one area at a time" on a comparison request): relay the tool's message and stop. Do not retry the request with the previously selected single area's data and describe that as fulfilling the declined comparison.
 - A pending nudge records the options offered, never a selection. The user's answer arrives as the plain option text, so it is still unresolved: pass it back to the tool that offered it (pick_aoi for an area, pick_dataset for a dataset) before any tool that needs the selection. The session block is the check — if it still says "AOI: none" or "Dataset: none", resolve that first, whatever the user's last message looks like.

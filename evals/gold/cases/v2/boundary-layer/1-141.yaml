@@ -1,0 +1,18 @@
+id: 1-141
+uid: 3180be1cd23ac4c4
+status: ready
+group: boundary-layer
+query: Show me oil palm concessions on the map
+expected:
+  text: Says the oil palm concessions layer (not the RSPO-certified layer) is on the map and
+    tells the user to click a concession on the map to select it, and gives no figures for
+    concessions
+  scope: refuse
+notes:
+  authored: '2026-11-16: acceptance row for the concessions boundary layer in wri/project-zeno#896,
+    with no place. The agent calls show_boundary_layer(oil_palm) and does not call pick_aoi.'
+  catches: An agent that treats "show me" as an analysis request picks a dataset or asks for
+    an area (scope fails). An agent that picks rspo_oil_palm for plain "oil palm" fails the
+    text check.
+  design: No place, so there is no aoi_ids expectation. No check reads the boundary_layer
+    state key yet, so the text judge stands in for "the oil palm layer is on the map".

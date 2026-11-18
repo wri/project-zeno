@@ -6,7 +6,8 @@ Profiles form a chain, each one a small delta on its parent:
                    generate_insights), no skills. Ships on its own so raw
                    tool-calling can be evaluated without recipe guidance.
     default      — base + the core skills (analyze, pull-data, capabilities,
-                   show-imagery, wri-insights, dashboard, explore).
+                   show-imagery, concessions-layer, wri-insights,
+                   dashboard, explore).
     experimental — default + standalone tools not yet owned by any skill.
     lgms         — default with the LGMS dataset revealed; open to every
                    user (see PUBLIC_PROFILES).
@@ -74,6 +75,9 @@ from src.agent.tools.move_dashboard_widget import (
 from src.agent.tools.pull_data import SPEC as pull_data_spec
 from src.agent.tools.search_insights import SPEC as search_insights_spec
 from src.agent.tools.send_nudge import SPEC as send_nudge_spec
+from src.agent.tools.show_boundary_layer import (
+    SPEC as show_boundary_layer_spec,
+)
 from src.agent.tools.show_imagery import SPEC as show_imagery_spec
 from src.agent.tools.show_planet_imagery import (
     SPEC as show_planet_imagery_spec,
@@ -97,6 +101,7 @@ ALL_SPECS = (
     inspect_view_context_spec,
     show_imagery_spec,
     show_planet_imagery_spec,
+    show_boundary_layer_spec,
     search_blogs_spec,
     update_insight_display_spec,
     search_insights_spec,
@@ -130,6 +135,7 @@ DEFAULT_SKILLS = (
     "pull-data",
     "capabilities",
     "show-imagery",
+    "concessions-layer",
     "wri-insights",
     "dashboard",
     "explore",
