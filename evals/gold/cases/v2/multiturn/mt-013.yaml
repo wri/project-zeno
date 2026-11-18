@@ -1,0 +1,28 @@
+id: mt-013
+uid: 5b3d3d7c36fd0ee9
+status: ready
+group: multiturn
+turns:
+- query: Show me logging concessions in Brazil
+  expected:
+    aoi_ids: BRA
+    text: Says the logging concessions layer is on the map and tells the user to click a concession
+      to select it
+    scope: refuse
+- query: How much tree cover loss was there in Pará, Brazil in 2022?
+  expected:
+    aoi_ids: BRA.14_1
+    dataset_id: '4'
+    scope: analyse
+  deltas:
+    changed:
+    - aoi_ids
+notes:
+  authored: '2026-11-16: control row for wri/project-zeno#896. After the agent shows a concessions
+    layer, the next analysis request in the same thread must pick an area and a dataset as
+    usual.'
+  catches: An agent that stays in the concessions-layer flow on turn 2 (shows a layer again,
+    or tells the user to click a concession) picks no dataset and pulls nothing. An agent
+    that keeps Brazil from turn 1 fails aoi_ids and the delta.
+  design: 'Turn 2 does not depend on the wording of turn 1. Turn 2 is routing-only: the closed
+    year is in the query, but there is no answer to drift.'
