@@ -39,3 +39,18 @@ def strip_control_chars(text: str, *, field: str) -> str:
         snippet=_snippet(text),
     )
     return cleaned
+
+
+def strip_control_chars_deep(value, *, field: str):
+    if isinstance(value, str):
+        return strip_control_chars(value, field=field)
+    if isinstance(value, dict):
+        return {
+            strip_control_chars(k, field=field): strip_control_chars_deep(
+                v, field=field
+            )
+            for k, v in value.items()
+        }
+    if isinstance(value, list):
+        return [strip_control_chars_deep(v, field=field) for v in value]
+    return value

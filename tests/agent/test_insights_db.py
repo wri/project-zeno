@@ -218,3 +218,58 @@ async def test_persist_insight_strips_nul_from_insight_text():
     async with async_session_maker() as session:
         row = await session.get(InsightOrm, UUID(insight_id))
     assert row.insight_text == "Piau lost 5% of its tree cover."
+
+
+async def test_persist_insight_strips_nul_from_follow_up_suggestions():
+    insight = Insight(
+        charts=[],
+        primary_insight="Tree cover loss summary.",
+        follow_up_suggestions=["Compare with Paraná", "Zoom in on Piau\x00"],
+    )
+
+    insight_id = await persist_insight(
+        insight, user_id=None, thread_id="thread-1"
+    )
+
+    async with async_session_maker() as session:
+        row = await session.get(InsightOrm, UUID(insight_id))
+    assert row.follow_up_suggestions == [
+        "Compare with Paraná",
+        "Zoom in on Piau",
+    ]
+
+
+async def test_persist_insight_strips_nul_from_chart_rows():
+    insight = Insight(
+        charts=[
+            InsightChart(
+                position=0,
+                title="Loss by state",
+                chart_type="bar",
+                x_axis="state",
+                y_axis="loss",
+                chart_data=[
+                    {
+                        "state": "Piau\x00",
+                        "lo\x00ss": 5,
+                        "meta": {"região": "Nordest\x00e"},
+                    }
+                ],
+            )
+        ],
+        primary_insight="Tree cover loss by state.",
+    )
+
+    insight_id = await persist_insight(
+        insight, user_id=None, thread_id="thread-1"
+    )
+
+    async with async_session_maker() as session:
+        chart = await session.scalar(
+            select(InsightChartOrm).where(
+                InsightChartOrm.insight_id == UUID(insight_id)
+            )
+        )
+    assert chart.chart_data == [
+        {"state": "Piau", "loss": 5, "meta": {"região": "Nordeste"}}
+    ]
