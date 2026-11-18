@@ -430,9 +430,19 @@ DATASET_INSTRUCTIONS = (
 )
 NO_DATASET = "none"
 NO_DATASET_TEXT = "None of these datasets measures what the request is about"
+# The same rule as USER_MESSAGE_SELECTION_RULES gives the selection LLM. The
+# catalog hints make primary forest the default for "general forest loss". A
+# decision call that reads them applied it to plain "tree cover loss" in
+# 12 of 51 trials (BENCHMARK 2026-draft-5, PR #922); the rule fixed all of
+# them on 111 tree cover loss questions in an offline test.
 CONTEXT_INSTRUCTIONS = (
     "Which forest or land type does the user's request ask the {dataset} "
-    "data to be limited to?"
+    "data to be limited to? Limit it to a forest type only when the "
+    "request names it, asks for a kind of forest (primary, intact, natural, "
+    "plantation) or asks about deforestation. For deforestation, use the "
+    "layer that its description says is the default. A plain "
+    '"tree cover loss" or "forest loss" request has no limit, also in the '
+    "humid tropics."
 )
 NO_CONTEXT = "all"
 NO_CONTEXT_TEXT = "No limit: all of the area"
