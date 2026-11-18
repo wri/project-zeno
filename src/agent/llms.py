@@ -1,16 +1,21 @@
+import re
+from functools import partial
 from typing import Optional
 
 from dotenv import load_dotenv
 from google.genai.errors import ServerError
 from langchain_anthropic import ChatAnthropic
 from langchain_core.language_models import BaseChatModel
-from langchain_core.runnables import Runnable
+from langchain_core.runnables import Runnable, RunnableConfig, RunnableLambda
 from langchain_google_genai import ChatGoogleGenerativeAI
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from src.agent.config import AgentSettings
+from src.shared.logging_config import get_logger
 
 load_dotenv()
+
+logger = get_logger(__name__)
 
 # Anthropic
 SONNET = ChatAnthropic(
@@ -184,3 +189,187 @@ def resilient_structured_output(
         for m in models
     ]
     return primary.with_fallbacks(fallbacks) if fallbacks else primary
+
+
+class StructuredOutputFormatError(ValueError):
+    """The model's reply was not valid JSON of the requested shape."""
+
+
+_CODE_FENCE = re.compile(r"^```(?:json)?\s*|\s*```$")
+
+_JSON_TYPES = {
+    "string": ("a string", "strings"),
+    "integer": ("an integer", "integers"),
+    "number": ("a number", "numbers"),
+    "boolean": ("a boolean", "booleans"),
+}
+
+
+def _json_type_phrase(schema: type[BaseModel], name: str, spec: dict) -> str:
+    kind = spec.get("type")
+    if kind in _JSON_TYPES:
+        return _JSON_TYPES[kind][0]
+    item = spec.get("items", {}).get("type")
+    if kind == "array" and item in _JSON_TYPES:
+        return f"an array of {_JSON_TYPES[item][1]}"
+    raise TypeError(
+        f"{schema.__name__}.{name}: json_reply_instruction handles flat "
+        "schemas of strings, numbers, booleans and lists of them. Nested "
+        "or optional fields need their own prompt wording, checked against "
+        "the model first."
+    )
+
+
+def json_reply_instruction(schema: type[BaseModel]) -> str:
+    """The prompt text that asks for a JSON object shaped like ``schema``.
+
+    ``resilient_json_output`` sends no response schema (that is the point), so
+    the keys have to be spelled out in the prompt. Pass the text in as a
+    template variable (for example ``{reply_format}``) so its quotes never need
+    escaping in a ``ChatPromptTemplate``.
+    """
+    properties = schema.model_json_schema().get("properties", {})
+    if not properties:
+        raise ValueError(f"{schema.__name__} has no fields to ask for")
+    keys = [
+        f'"{name}" ({_json_type_phrase(schema, name, spec)})'
+        for name, spec in properties.items()
+    ]
+    listed = (
+        keys[0] if len(keys) == 1 else f"{', '.join(keys[:-1])} and {keys[-1]}"
+    )
+    return (
+        "Reply with a single JSON object and nothing else, with exactly "
+        f"these keys: {listed}. Do not wrap it in code fences."
+    )
+
+
+def _reply_model(message) -> Optional[str]:
+    """The model version Gemini reports on a reply, when it reports one."""
+    metadata = getattr(message, "response_metadata", None) or {}
+    return metadata.get("model_version") or metadata.get("model_name")
+
+
+def parse_json_reply(schema: type[BaseModel], message) -> BaseModel:
+    """Validate a model's reply as a ``schema`` object.
+
+    Code fences around the JSON are tolerated. On failure, logs where and how
+    the reply was wrong, never the reply itself (it can repeat user and place
+    names), and raises ``StructuredOutputFormatError``.
+    """
+    text = message if isinstance(message, str) else str(message.text)
+    try:
+        return schema.model_validate_json(_CODE_FENCE.sub("", text.strip()))
+    except ValidationError as exc:
+        errors = [
+            {
+                "loc": ".".join(str(part) for part in error["loc"])
+                or "(root)",
+                "type": error["type"],
+            }
+            for error in exc.errors()
+        ]
+        logger.warning(
+            "structured_output_format_error",
+            schema=schema.__name__,
+            model=_reply_model(message),
+            errors=errors,
+            length=len(text),
+        )
+        raise StructuredOutputFormatError(
+            f"{schema.__name__}: {len(errors)} validation error(s)"
+        ) from exc
+
+
+def _transient_retry() -> dict:
+    # Read at call time, so tests (and a deploy-time override) can change them.
+    return {
+        "retry_if_exception_type": TRANSIENT_ERRORS,
+        "exponential_jitter_params": RETRY_WAIT,
+        "stop_after_attempt": RETRY_ATTEMPTS,
+    }
+
+
+def _json_output_for(
+    model: BaseChatModel, schema: type[BaseModel]
+) -> Runnable:
+    if not isinstance(model, ChatGoogleGenerativeAI):
+        # The JSON mime type is a Gemini parameter, and the fault it works
+        # around is Gemini's. Other providers keep their own structured output.
+        return model.with_structured_output(schema).with_retry(
+            **_transient_retry()
+        )
+    reply = model.bind(response_mime_type="application/json").with_retry(
+        **_transient_retry()
+    )
+    return (
+        reply | RunnableLambda(partial(parse_json_reply, schema))
+    ).with_retry(
+        retry_if_exception_type=(StructuredOutputFormatError,),
+        stop_after_attempt=2,
+        wait_exponential_jitter=False,
+    )
+
+
+def _failure_type(exc: Exception) -> str:
+    if isinstance(exc, StructuredOutputFormatError):
+        return "format"
+    if isinstance(exc, ServerError):
+        return "server"
+    return "other"
+
+
+def _log_when_it_fails(chain: Runnable, schema: type[BaseModel]) -> Runnable:
+    """Log one ``structured_output_failed`` event when ``chain`` gives up."""
+
+    def log(exc: Exception) -> None:
+        logger.error(
+            "structured_output_failed",
+            schema=schema.__name__,
+            error_type=_failure_type(exc),
+            error=type(exc).__name__,
+        )
+
+    def invoke(value, config: RunnableConfig):
+        try:
+            return chain.invoke(value, config)
+        except Exception as exc:
+            log(exc)
+            raise
+
+    async def ainvoke(value, config: RunnableConfig):
+        try:
+            return await chain.ainvoke(value, config)
+        except Exception as exc:
+            log(exc)
+            raise
+
+    return RunnableLambda(invoke, afunc=ainvoke, name="resilient_json_output")
+
+
+def resilient_json_output(
+    schema: type[BaseModel], model: Optional[BaseChatModel] = None
+) -> Runnable:
+    """Like `resilient_structured_output`, but without a response schema.
+
+    Gemini Flash's schema-constrained decoding intermittently replaces accented
+    letters with control characters ("Piau\\u0000"; PZB-1243). This asks for
+    JSON through the JSON mime type instead, which did not show the fault, and
+    validates the reply against ``schema`` here. Put ``json_reply_instruction``
+    in the prompt so the model knows the shape.
+
+    Each model keeps the same policy as `resilient_structured_output`: retried
+    on TRANSIENT_ERRORS, and one malformed reply is retried too. When a model
+    still fails, for any reason, the next is tried. `model` defaults to
+    SMALL_MODEL followed by SMALL_FALLBACK_MODELS; a model passed in is used
+    alone. A non-Gemini model keeps `with_structured_output`.
+
+    When every model has failed, one ``structured_output_failed`` event is
+    logged and the last error is raised.
+    """
+    models = (
+        [model] if model is not None else [SMALL_MODEL, *SMALL_FALLBACK_MODELS]
+    )
+    primary, *fallbacks = [_json_output_for(m, schema) for m in models]
+    chain = primary.with_fallbacks(fallbacks) if fallbacks else primary
+    return _log_when_it_fails(chain, schema)
