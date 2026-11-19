@@ -128,6 +128,8 @@ Use subregion:
 - "Which provinces in Spain lost the most forest?" → places=["Spain"], subregion=state, admin_term=Province
   (Spain's provinces are administratively one level deeper than Canada's — the system resolves that, not you)
 - "Which districts in Odisha have tiger threats?" → places=["Odisha"], subregion=district, admin_term=District
+- "Which areas of Brazil's soy frontier lost the most forest?" → places=["Brazil"], subregion=state
+  (a zone with no defined boundary, such as a "frontier" or a "belt", is not a place; "which areas" or "which parts" of it asks for the units of the country it lies in. A total for the zone, "how much forest did Ghana's cocoa belt lose", is the country with no subregion)
 - "Which KBAs in Brazil have highest biodiversity loss?" → places=["Brazil"], subregion=kba
 - "Deforestation in oil palm concessions in Riau" → places=["Riau"], subregion=oil_palm
 - "Which logging concessions in Gabon lost the most tree cover?" → places=["Gabon"], subregion=logging
