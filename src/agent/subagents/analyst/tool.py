@@ -564,8 +564,8 @@ class Analyst:
     ) -> Command:
         """Analyze pulled data and produce one chart insight.
 
-        ``chart`` is None for the profiles without curated charts first:
-        the code executor draws the chart. "standard" shows the curated
+        ``chart`` is None only for internal callers that skip the curated
+        route: the code executor draws the chart. "standard" shows the curated
         chart of the latest pull when the code gate passes, else the code
         executor runs. "custom" always runs the code executor.
         """
@@ -874,16 +874,6 @@ async def _generate(
 @tool("generate_insights")
 async def generate_insights(
     query: str,
-    state: Annotated[Optional[Dict], InjectedState] = None,
-    tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
-) -> Command:
-    """Analyze pulled data and produce one chart insight with follow-up suggestions."""
-    return await _generate(query, state, tool_call_id)
-
-
-@tool("generate_insights")
-async def generate_insights_curated_first(
-    query: str,
     chart: ChartRoute = "standard",
     state: Annotated[Optional[Dict], InjectedState] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
@@ -898,17 +888,9 @@ async def generate_insights_curated_first(
     return await _generate(query, state, tool_call_id, chart)
 
 
+# The generate_insights tool: curated charts first (docs/curated-charts-first-plan.md).
 SPEC = ToolSpec(
     tool=generate_insights,
-    category=ToolCategory.SUBAGENT,
-    prompt_fragment="- generate_insights(query): analyst subagent. Turns pulled data into one chart insight with follow-up suggestions. Requires pull_data to have run first.",
-)
-
-# The tool for the profiles with curated charts first (the
-# CURATED_CHARTS_FIRST flag in src/agent/agent_config.py). Same tool name,
-# so the skills and the prompts that name generate_insights stay valid.
-CURATED_FIRST_SPEC = ToolSpec(
-    tool=generate_insights_curated_first,
     category=ToolCategory.SUBAGENT,
     prompt_fragment=(
         '- generate_insights(query, chart="standard"|"custom"): analyst '
