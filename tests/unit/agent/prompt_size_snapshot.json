@@ -103,7 +103,7 @@
   },
   "profiles": {
     "base": {
-      "system_prompt": 6845,
+      "system_prompt": 7607,
       "tools": {
         "generate_insights": 571,
         "pick_aoi": 921,
@@ -113,7 +113,7 @@
       "tools_total": 3034
     },
     "default": {
-      "system_prompt": 9194,
+      "system_prompt": 9956,
       "tools": {
         "add_dashboard_section": 864,
         "add_map_widget": 770,
@@ -140,7 +140,7 @@
       "tools_total": 14165
     },
     "experimental": {
-      "system_prompt": 9194,
+      "system_prompt": 9956,
       "tools": {
         "add_dashboard_section": 864,
         "add_map_widget": 770,
@@ -168,7 +168,7 @@
       "tools_total": 15499
     },
     "lgms": {
-      "system_prompt": 9194,
+      "system_prompt": 9956,
       "tools": {
         "add_dashboard_section": 864,
         "add_map_widget": 770,
