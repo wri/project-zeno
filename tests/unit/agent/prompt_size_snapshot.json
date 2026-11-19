@@ -103,7 +103,7 @@
   },
   "profiles": {
     "base": {
-      "system_prompt": 6082,
+      "system_prompt": 6844,
       "tools": {
         "generate_insights": 261,
         "pick_aoi": 921,
@@ -113,7 +113,7 @@
       "tools_total": 2724
     },
     "curated-charts": {
-      "system_prompt": 9194,
+      "system_prompt": 9956,
       "tools": {
         "add_dashboard_section": 864,
         "add_map_widget": 770,
@@ -140,7 +140,7 @@
       "tools_total": 14165
     },
     "default": {
-      "system_prompt": 8431,
+      "system_prompt": 9193,
       "tools": {
         "add_dashboard_section": 864,
         "add_map_widget": 770,
@@ -167,7 +167,7 @@
       "tools_total": 13855
     },
     "experimental": {
-      "system_prompt": 8431,
+      "system_prompt": 9193,
       "tools": {
         "add_dashboard_section": 864,
         "add_map_widget": 770,
@@ -195,7 +195,7 @@
       "tools_total": 15189
     },
     "lgms": {
-      "system_prompt": 8431,
+      "system_prompt": 9193,
       "tools": {
         "add_dashboard_section": 864,
         "add_map_widget": 770,
