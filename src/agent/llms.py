@@ -4,11 +4,12 @@ from dotenv import load_dotenv
 from google.genai.errors import ServerError
 from langchain_anthropic import ChatAnthropic
 from langchain_core.language_models import BaseChatModel
-from langchain_core.runnables import Runnable
+from langchain_core.runnables import Runnable, RunnableLambda
 from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel
 
 from src.agent.config import AgentSettings
+from src.shared.text_sanitize import strip_control_chars_deep
 
 load_dotenv()
 
@@ -183,4 +184,21 @@ def resilient_structured_output(
         )
         for m in models
     ]
-    return primary.with_fallbacks(fallbacks) if fallbacks else primary
+    chain = primary.with_fallbacks(fallbacks) if fallbacks else primary
+    return chain | _strip_control_chars_from(schema)
+
+
+def _strip_control_chars_from(schema: type[BaseModel]) -> Runnable:
+    """Strip control characters from every string in a structured reply.
+
+    Gemini Flash sometimes puts a control character where an accented letter
+    belongs (PZB-1243). Done once, after the fallbacks, so the reply is
+    cleaned whichever model produced it.
+    """
+
+    def _strip(reply: BaseModel) -> BaseModel:
+        return schema.model_validate(
+            strip_control_chars_deep(reply.model_dump(), field=schema.__name__)
+        )
+
+    return RunnableLambda(_strip)

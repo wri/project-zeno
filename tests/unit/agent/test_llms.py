@@ -136,3 +136,12 @@ def test_an_unknown_small_fallback_is_rejected(monkeypatch):
 
     with pytest.raises(ValueError, match="gemini-ultra"):
         llms.get_small_fallback_models()
+
+
+@pytest.mark.asyncio
+async def test_control_characters_are_stripped_from_the_reply(monkeypatch):
+    _use_models(monkeypatch, _ScriptedModel("Piau\x00"))
+
+    result = await llms.resilient_structured_output(_Pick).ainvoke("q")
+
+    assert result == _Pick(choice="Piau")
