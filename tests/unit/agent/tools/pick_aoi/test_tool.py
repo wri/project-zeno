@@ -874,6 +874,50 @@ async def test_a_subregion_parent_keeps_its_inferred_type(monkeypatch):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "area_type,subregion",
+    [
+        (AreaOfInterestType.LANDMARK, "landmark"),
+        (AreaOfInterestType.KBA, "kba"),
+        (AreaOfInterestType.WDPA, "wdpa"),
+    ],
+    ids=["landmark", "kba", "wdpa"],
+)
+async def test_a_parent_inferred_with_the_child_type_is_searched_untyped(
+    monkeypatch, area_type, subregion
+):
+    """ "Peru's Indigenous territories": the extraction sometimes gives Peru
+    the landmark type of its children. The parent must still resolve to the
+    country, not to a landmark whose name starts with "Peru"."""
+
+    def by_source(place_name, searched_type):
+        return [_ACHUAR_ROW] if searched_type is not None else [_ECUADOR_ROW]
+
+    searches = _patch_search(monkeypatch, by_source)
+    expansions = _patch_subregions(
+        monkeypatch,
+        [
+            {
+                "name": f"Child {i}",
+                "subtype": "kba",
+                "source": subregion,
+                "src_id": str(i),
+            }
+            for i in range(3)
+        ],
+    )
+
+    command = await _lookup(
+        [ExtractedPlace(place="Ecuador", area_type=area_type)],
+        subregion=subregion,
+    )
+
+    assert {call[1] for call in searches} == {None}
+    assert expansions == [(subregion, "gadm", "ECU")]
+    assert len(command.update["aoi_selection"]["aois"]) == 3
+
+
+@pytest.mark.asyncio
 async def test_without_a_subregion_the_callers_type_still_narrows(
     monkeypatch,
 ):

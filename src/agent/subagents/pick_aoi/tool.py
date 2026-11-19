@@ -843,6 +843,20 @@ async def _resolve_place(
     return _PlaceResolution(place, terms, merged, primary, selection, closest)
 
 
+def _without_child_type(
+    place: ExtractedPlace, subregion: str
+) -> ExtractedPlace:
+    """The place with its inferred type removed when that type is the
+    source of the subregions asked for (a landmark parent of landmarks).
+
+    A parent is never an area of the same source as its children, so that
+    type can only find a weak name match in the child source.
+    """
+    if place.area_type is None or aoi_to_table[place.area_type] != subregion:
+        return place
+    return place.model_copy(update={"area_type": None})
+
+
 _CLOSEST_NAMES = 3
 
 
@@ -1000,8 +1014,15 @@ class Geocoder:
         # type), not the kind of the parent. Narrowing the parent search to it
         # finds a weak name match in the child source (a landmark whose name
         # ends in "ECU") instead of the country, and the selection collapses
-        # to that one area. The parent keeps the type the geocoder inferred.
+        # to that one area. The parent keeps the type the geocoder inferred,
+        # unless that type is the kind of the children too: the extraction
+        # gives "Peru's Indigenous territories" the landmark type for Peru as
+        # well, and the search then selects the landmark "Peruanito".
         parent_type = None if subregion else aoi_type
+        if subregion:
+            places = [
+                _without_child_type(place, subregion) for place in places
+            ]
         resolutions = await asyncio.gather(
             *[
                 _resolve_place(place, question, parent_type, normalized)
