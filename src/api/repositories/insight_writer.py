@@ -15,8 +15,20 @@ from src.agent.subagents.analyst.charts.model import Insight
 from src.api.data_models import InsightChartOrm, InsightOrm
 from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger
+from src.shared.text_sanitize import (
+    strip_control_chars,
+    strip_control_chars_deep,
+)
 
 logger = get_logger(__name__)
+
+
+def _chart_orm(chart, *, tag: str) -> InsightChartOrm:
+    kwargs = chart.to_orm_kwargs()
+    kwargs["chart_data"] = strip_control_chars_deep(
+        kwargs["chart_data"], field=f"chart_row:{tag}"
+    )
+    return InsightChartOrm(**kwargs)
 
 
 def add_insight_rows(
@@ -40,16 +52,18 @@ def add_insight_rows(
     insight_orm = InsightOrm(
         user_id=user_id,
         thread_id=thread_id,
-        insight_text=insight.primary_insight,
-        follow_up_suggestions=insight.follow_up_suggestions,
+        insight_text=strip_control_chars(
+            insight.primary_insight, field="insight_text"
+        ),
+        follow_up_suggestions=[
+            strip_control_chars(s, field="follow_up_suggestions")
+            for s in insight.follow_up_suggestions
+        ],
         statistics_ids=statistics_ids,
         codeact_types=[p["type"] for p in codeact_parts],
         codeact_contents=[p["content"] for p in codeact_parts],
         is_public=is_public,
-        charts=[
-            InsightChartOrm(**chart.to_orm_kwargs())
-            for chart in insight.charts
-        ],
+        charts=[_chart_orm(c, tag="create") for c in insight.charts],
     )
     session.add(insight_orm)
     return insight_orm
@@ -117,13 +131,16 @@ async def update_insight(insight_id: str, insight: Insight) -> bool:
         if insight_orm is None:
             return False
 
-        insight_orm.insight_text = insight.primary_insight
-        insight_orm.follow_up_suggestions = insight.follow_up_suggestions
+        insight_orm.insight_text = strip_control_chars(
+            insight.primary_insight, field="insight_text"
+        )
+        insight_orm.follow_up_suggestions = strip_control_chars_deep(
+            insight.follow_up_suggestions, field="follow_up_suggestions"
+        )
         # Reassigning the collection lets the delete-orphan cascade drop the old
         # chart rows and insert the revised ones in their place.
         insight_orm.charts = [
-            InsightChartOrm(**chart.to_orm_kwargs())
-            for chart in insight.charts
+            _chart_orm(c, tag="update") for c in insight.charts
         ]
 
         await session.commit()

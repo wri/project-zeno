@@ -539,6 +539,8 @@ async def _stream_turn(
             continue
         for node_name, node_update in payload.items():
             printer.print_node(node_name)
+            if node_update is None:
+                continue
             for msg in _collect_messages(node_update):
                 printer.print_message(msg)
                 new_messages.append(msg)

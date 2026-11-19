@@ -1,6 +1,6 @@
 ---
 name: wri-insights
-description: The user asks about WRI research or wants citations from wri.org/insights; or, before or during a full analysis, published context (policy, drivers, methodology, regional background) makes the answer stronger.
+description: The user asks about WRI research, published context or citations from wri.org/insights; or the question is about a policy, a cause or background that no dataset measures. Not for a question that a dataset can answer ("analyse deforestation in Brazil"): use the analysis, with no blog search unless the user asks for research too.
 requires: search_blogs
 ---
 
@@ -10,7 +10,7 @@ For a **direct question about WRI research** (no analysis pipeline running), ste
 
 1. Call `search_blogs` with a short query (topic + place or dataset theme). It runs a research subagent that searches and reads the WRI Insights corpus and returns a **synthesized answer with markdown citations** to wri.org/insights — you do not need to read articles yourself.
 2. **Immediately after** the tool returns (and before any other tool call): send a **short intermediate message** to the user that condenses the subagent's answer into 1-3 sentences. **Every paragraph must keep at least one `[N](url)` citation marker** from the tool output. No other tools until this message is sent.
-3. In full analysis (`analyze` skill): call `search_blogs` **after** a successful `pull_data` and **before** `generate_insights` when WRI context would add value. In the intermediate message, connect the blog findings to the pulled data topic; then call `generate_insights`, incorporating that context in the analysis query when helpful.
+3. In full analysis (`analyze` skill): call `search_blogs` only when the user asks for WRI research, published context or citations. Call it **after** a successful `pull_data` and **before** `generate_insights`. In the intermediate message, connect the blog findings to the pulled data topic; then call `generate_insights`, incorporating that context in the analysis query when helpful.
 4. If the search returns "index not found" or no results, tell the user to run `uv run python scripts/fetch_wri_insights.py --limit 50` (and build the sgrep index with `sgrep index`) — do not guess article content.
 
 Call tools **one at a time**, never in parallel.
