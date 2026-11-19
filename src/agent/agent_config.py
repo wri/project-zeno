@@ -11,9 +11,6 @@ Profiles form a chain, each one a small delta on its parent:
     experimental — default + standalone tools not yet owned by any skill.
     lgms         — default with the LGMS dataset revealed; open to every
                    user (see PUBLIC_PROFILES).
-    curated-charts — default with curated charts first: generate_insights
-                   takes a ``chart`` argument and shows a curated chart
-                   when one fits the pull (docs/curated-charts-first-plan.md).
 
 An ``AgentConfig`` declares three things:
 
@@ -51,9 +48,6 @@ from langchain_core.tools import BaseTool
 from src.agent.prompts.tool_descriptions import TOOL_DESCRIPTIONS
 from src.agent.skills import SkillMeta, all_skills, get_skill
 from src.agent.skills.tool import SPEC as read_skill_spec
-from src.agent.subagents.analyst.tool import (
-    CURATED_FIRST_SPEC as generate_insights_curated_first_spec,
-)
 from src.agent.subagents.analyst.tool import SPEC as generate_insights_spec
 from src.agent.subagents.pick_aoi.tool import SPEC as pick_aoi_spec
 from src.agent.subagents.pick_dataset.tool import SPEC as pick_dataset_spec
@@ -183,17 +177,9 @@ EXPERIMENTAL_TOOLS = (add_template_section_spec,)
 # users who opt into LGMS (`?ff=net-flux`) but cannot use `experimental`.
 LGMS_PROFILE = "lgms"
 
-# Curated charts first (docs/curated-charts-first-plan.md, phase 1a): the
-# flag swaps generate_insights for the variant with a ``chart`` argument and
-# turns on the flagged parts of the skills (src/agent/skills/loader.py).
-# Admin, superuser and machine users only until gold passes on it.
-CURATED_CHARTS_FIRST = "curated-charts-first"
-CURATED_CHARTS_PROFILE = "curated-charts"
-
 # The tool specs that a flag puts in place of the spec of the same name.
-FLAG_TOOL_VARIANTS: dict[str, tuple[ToolSpec, ...]] = {
-    CURATED_CHARTS_FIRST: (generate_insights_curated_first_spec,),
-}
+# No flag swaps a tool at the moment.
+FLAG_TOOL_VARIANTS: dict[str, tuple[ToolSpec, ...]] = {}
 
 # Profiles any authenticated user may select with `ff`. All other flags are
 # for admin, superuser and machine users only (see src/api/routers/chat.py).
@@ -470,14 +456,5 @@ default_registry.register(
         extends=DEFAULT_PROFILE,
         # Excludes are not inherited, so an empty set reveals LGMS.
         excluded_datasets=frozenset(),
-    )
-)
-default_registry.register(
-    AgentConfig(
-        CURATED_CHARTS_PROFILE,
-        extends=DEFAULT_PROFILE,
-        # Excludes are not inherited: keep the default's.
-        excluded_datasets=DEFAULT_EXCLUDED_DATASETS,
-        flags=frozenset({CURATED_CHARTS_FIRST}),
     )
 )

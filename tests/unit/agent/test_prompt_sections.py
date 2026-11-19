@@ -6,7 +6,6 @@ import pytest
 
 from src.agent.agent_config import (
     BASE_PROFILE,
-    CURATED_CHARTS_PROFILE,
     DEFAULT_PROFILE,
     default_registry,
 )
@@ -48,17 +47,11 @@ def test_a_flag_gate_keeps_its_block_only_for_the_flag():
     assert apply_gates(text, flagged) == "a\nflag line\nb\n"
 
 
-def test_only_curated_charts_first_has_the_chart_argument_guidance():
+def test_the_work_section_has_the_chart_argument_guidance():
     """The prompt has no tool list and no analyze skill, so the work
-    section gives the guidance for the chart argument, only to a profile
-    with curated charts first."""
+    section gives the guidance for the chart argument."""
     guidance = "`generate_insights` `chart`"
-    assert guidance in get_prompt(
-        default_registry.resolve(CURATED_CHARTS_PROFILE)
-    )
-    assert guidance not in get_prompt(
-        default_registry.resolve(DEFAULT_PROFILE)
-    )
+    assert guidance in get_prompt(default_registry.resolve(DEFAULT_PROFILE))
 
 
 @pytest.mark.parametrize(

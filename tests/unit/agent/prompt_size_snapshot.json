@@ -103,16 +103,16 @@
   },
   "profiles": {
     "base": {
-      "system_prompt": 6082,
+      "system_prompt": 6845,
       "tools": {
-        "generate_insights": 261,
+        "generate_insights": 571,
         "pick_aoi": 921,
         "pick_dataset": 1050,
         "pull_data": 492
       },
-      "tools_total": 2724
+      "tools_total": 3034
     },
-    "curated-charts": {
+    "default": {
       "system_prompt": 9194,
       "tools": {
         "add_dashboard_section": 864,
@@ -139,35 +139,8 @@
       },
       "tools_total": 14165
     },
-    "default": {
-      "system_prompt": 8431,
-      "tools": {
-        "add_dashboard_section": 864,
-        "add_map_widget": 770,
-        "add_text_widget": 810,
-        "add_to_dashboard": 722,
-        "create_dashboard": 342,
-        "edit_dashboard_section": 782,
-        "edit_text_widget": 607,
-        "generate_insights": 261,
-        "inspect_view_context": 559,
-        "move_dashboard_widget": 733,
-        "pick_aoi": 921,
-        "pick_dataset": 1050,
-        "pull_data": 492,
-        "read_skill": 248,
-        "search_blogs": 638,
-        "search_insights": 434,
-        "send_nudge": 551,
-        "show_boundary_layer": 601,
-        "show_imagery": 758,
-        "show_planet_imagery": 878,
-        "update_insight_display": 834
-      },
-      "tools_total": 13855
-    },
     "experimental": {
-      "system_prompt": 8431,
+      "system_prompt": 9194,
       "tools": {
         "add_dashboard_section": 864,
         "add_map_widget": 770,
@@ -177,7 +150,7 @@
         "create_dashboard": 342,
         "edit_dashboard_section": 782,
         "edit_text_widget": 607,
-        "generate_insights": 261,
+        "generate_insights": 571,
         "inspect_view_context": 559,
         "move_dashboard_widget": 733,
         "pick_aoi": 921,
@@ -192,10 +165,10 @@
         "show_planet_imagery": 878,
         "update_insight_display": 834
       },
-      "tools_total": 15189
+      "tools_total": 15499
     },
     "lgms": {
-      "system_prompt": 8431,
+      "system_prompt": 9194,
       "tools": {
         "add_dashboard_section": 864,
         "add_map_widget": 770,
@@ -204,7 +177,7 @@
         "create_dashboard": 342,
         "edit_dashboard_section": 782,
         "edit_text_widget": 607,
-        "generate_insights": 261,
+        "generate_insights": 571,
         "inspect_view_context": 559,
         "move_dashboard_widget": 733,
         "pick_aoi": 921,
@@ -219,11 +192,11 @@
         "show_planet_imagery": 878,
         "update_insight_display": 834
       },
-      "tools_total": 13855
+      "tools_total": 14165
     }
   },
   "skills": {
-    "analyze": 2467,
+    "analyze": 4007,
     "capabilities": 17293,
     "concessions-layer": 1869,
     "dashboard": 7276,
