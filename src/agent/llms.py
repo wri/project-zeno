@@ -1,3 +1,5 @@
+import types
+import typing
 from typing import Optional
 
 from dotenv import load_dotenv
@@ -202,3 +204,73 @@ def _strip_control_chars_from(schema: type[BaseModel]) -> Runnable:
         )
 
     return RunnableLambda(_strip)
+
+
+_JSON_KINDS = {
+    str: "a string",
+    int: "an integer",
+    float: "a number",
+    bool: "a boolean",
+}
+_JSON_ARRAY_ITEMS = {
+    str: "strings",
+    int: "integers",
+    float: "numbers",
+    bool: "booleans",
+}
+
+
+_UNIONS = (typing.Union, types.UnionType)
+
+
+def json_reply_instruction(schema: type[BaseModel]) -> str:
+    """The prompt line asking for a JSON reply with `schema`'s keys.
+
+    Only flat schemas are supported: str, int, float and bool fields, and
+    lists of them. Anything else raises TypeError, naming the field.
+    """
+    keys = [
+        f'"{name}" ({_describe(name, field.annotation)})'
+        for name, field in schema.model_fields.items()
+    ]
+    if len(keys) == 1:
+        listed = f"this key: {keys[0]}"
+    else:
+        listed = f"these keys: {', '.join(keys[:-1])} and {keys[-1]}"
+    return (
+        "Reply with a single JSON object and nothing else, with exactly "
+        f"{listed}. Do not wrap it in code fences."
+    )
+
+
+def _describe(name: str, annotation) -> str:
+    """How the instruction describes one field's type."""
+    if annotation in _JSON_KINDS:
+        return _JSON_KINDS[annotation]
+    if typing.get_origin(annotation) is list:
+        (item,) = typing.get_args(annotation) or (None,)
+        if item in _JSON_ARRAY_ITEMS:
+            return f"an array of {_JSON_ARRAY_ITEMS[item]}"
+    raise TypeError(
+        f'Field "{name}" has type {_type_name(annotation)}, which '
+        "json_reply_instruction cannot describe. Supported types are "
+        f"{', '.join(_type_name(k) for k in _JSON_KINDS)}, and lists of them."
+    )
+
+
+def _type_name(annotation) -> str:
+    """A short, readable name for a type: `_Place`, `list[_Place]`.
+
+    Unions (note Optionals are Union[<type>, NoneType]) are written out as
+    `<type> | <type>`, because Python names them differently depending
+    on the version and on how they were written.
+    """
+    if annotation is type(None):
+        return "None"
+    origin = typing.get_origin(annotation)
+    if origin is None:
+        return getattr(annotation, "__qualname__", repr(annotation))
+    args = [_type_name(a) for a in typing.get_args(annotation)]
+    if origin in _UNIONS:
+        return " | ".join(args)
+    return f"{_type_name(origin)}[{', '.join(args)}]"
