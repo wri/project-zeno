@@ -332,12 +332,11 @@ def test_skills_name_only_known_flags_and_render_with_each():
             assert "<!--" not in apply_flags(skill.body, flags)
 
 
-def test_read_skill_serves_the_flagged_body():
+def test_read_skill_serves_the_curated_charts_guidance():
     set_bound_availability(
         Availability(
             skills=frozenset({"analyze"}),
             tools=frozenset(),
-            flags=frozenset({"curated-charts-first"}),
         )
     )
 
