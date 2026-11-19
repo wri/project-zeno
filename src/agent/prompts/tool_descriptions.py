@@ -68,8 +68,10 @@ TOOL_DESCRIPTIONS: dict[str, str] = {
     "search_blogs": (
         "Research subagent: searches the WRI and LCL Insights articles and "
         "returns a short answer with inline [N](url) citation markers. Use "
-        "it to ground an answer in published research or to explore a topic "
-        "before analysis. When your reply uses the findings, keep the "
+        "it only when no dataset can answer the question, when the user "
+        "asks for WRI research or citations, or for an open interest with "
+        "no place and no dataset topic. Never for a question that "
+        "pick_dataset can answer. When your reply uses the findings, keep the "
         "markers on the statements you use, numbered by first appearance "
         "(the app shows each as a citation icon). Never remove markers or "
         "invent URLs. `query`: the topic or question; a place or a theme "

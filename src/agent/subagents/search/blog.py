@@ -498,8 +498,10 @@ async def search_blogs(
     Runs a dedicated research agent that semantically and keyword-searches the
     local WRI + LCL corpus, reads the most relevant articles, and writes a
     concise answer with inline [N](url) citation markers after the statements
-    they support. Use to ground a response in published research or to
-    explore a topic before analysis.
+    they support. Use only when no dataset can answer the question, when the
+    user asks for WRI research or citations, or for an open interest with no
+    place and no dataset topic. Never for a question that pick_dataset can
+    answer.
 
     When your reply uses these findings, keep the [N](url) markers on the
     statements you reuse, renumbered by first appearance in your reply — the
