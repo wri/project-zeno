@@ -1,6 +1,6 @@
 id: 1-138
 uid: b99f918a3a730013
-status: todo
+status: not doing
 group: refusal
 query: How much tree cover gain was there between 2000 and 2020 in the oil palm concessions
   in Kuantan Singingi, Riau, Indonesia?
@@ -29,7 +29,7 @@ notes:
   retire_when: 'The guard is a stopgap for contract 7. When project-zeno-data-infra accepts
     a feature collection on the tree cover gain endpoint, the guard comes out: flip this row
     to scope analyse with a verified answer, or park it.'
-  status_reason: 'todo 2026-10-15: blocked on the concession ingest on staging. #864 is deployed
+  todo_reason_2026_10_15: 'todo 2026-10-15: blocked on the concession ingest on staging. #864 is deployed
     there (/api/metadata lists the five concession sources), but GET /api/aois?source=oil_palm
     returns no rows, and prod does not have #864 yet. Smoke run 20261015T173835Z_staging (1
     trial, default profile, not committed): pick_aoi found no concessions, the agent fell back
@@ -38,3 +38,10 @@ notes:
     scope passed and dataset_id_match failed (a nudge leaves no dataset on state), so the guard
     never ran. Rerun once ingest_concessions.py and build-aois have run on staging; pin aoi_ids
     to the concession ids that run resolves if they are stable over 3 trials.'
+  status_reason: 'not doing 2026-11-18 (AJ, PZB-1714): failed on all 13 ephemeral runs from
+    11 to 16 November 2026. The ephemeral environment that CI deploys has no concession areas,
+    so pick_aoi resolved only the Kuantan Singingi district (IDN.24.7_1) and the guard never
+    ran. No prompt edit can fix that. PR #896 also changes the right answer: the agent may
+    now show the oil palm concessions layer and ask the user to click one (3 of 3 trials on
+    its first run, 1 of 3 on its second). Unpark when PZB-1717 adds concession data to the
+    ephemeral environment, and re-author the row for the concessions-layer flow then.'

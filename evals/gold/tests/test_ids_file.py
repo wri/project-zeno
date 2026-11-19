@@ -43,8 +43,9 @@ def test_select_cases_rejects_an_unknown_id():
 
 def test_subset_file_selects_exactly_its_cases():
     ids = cli.read_ids_file(SUBSET)
-    assert len(ids) == 30
-    assert len(set(ids)) == 30
+    assert len(ids) == 28
+    assert len(set(ids)) == 28
+    assert "1-033" not in ids
     assert "1-046" not in ids
     selected = cli.select_cases(_args(cli.merge_ids(None, SUBSET)))
     assert sorted(c.id for c in selected) == sorted(ids)
