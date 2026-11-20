@@ -78,7 +78,7 @@ def test_cached_tokens_are_reported_separately_from_input():
 
 def test_thinking_tokens_are_reported_as_output_reasoning():
     """Same convention as the LangChain handler: ``output`` net of thoughts,
-    with the thoughts beside it under the key Langfuse prices for Gemini."""
+    with the thoughts beside it under ``output_reasoning``."""
     details = gemini_usage_details(_Response())
     assert details["output"] == 400
     assert details["output_reasoning"] == 150
@@ -107,6 +107,29 @@ def test_tool_use_prompt_tokens_are_billed_as_input():
     }
     # The parser's per-side sums must reconstruct Gemini's own total.
     assert sum(v for k, v in details.items() if k != "total") == 1_970
+
+
+def test_cache_hits_on_tool_use_tokens_are_not_billed_as_input():
+    """During code execution the cached count covers tool-use tokens too, so
+    it can exceed the prompt count. Numbers from staging trace
+    d5056c68c8134c5f0aeba737cb01ad4d, where subtracting the cache from the
+    prompt alone (clamped at zero) overstated input by 130k tokens."""
+
+    class U:
+        prompt_token_count = 140_294
+        tool_use_prompt_token_count = 282_354
+        cached_content_token_count = 270_522
+        candidates_token_count = 913
+        thoughts_token_count = 1_182
+        total_token_count = 424_743
+
+    class R:
+        usage_metadata = U()
+
+    details = gemini_usage_details(R())
+    assert details["input"] == 152_126  # 140_294 + 282_354 - 270_522
+    assert details["input_cache_read"] == 270_522
+    assert sum(v for k, v in details.items() if k != "total") == 424_743
 
 
 def test_total_is_taken_from_the_response():
