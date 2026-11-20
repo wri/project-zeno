@@ -751,7 +751,8 @@ class AnalyzeRequest(BaseModel):
         default=None,
         description=(
             "Minimum canopy cover in percent, for the datasets with a "
-            "`canopy_cover` parameter. The default is 30."
+            "`canopy_cover` parameter. The default is 30, or 10 with the "
+            "`natural_forest` context layer."
         ),
     )
     thread_id: Optional[str] = Field(
