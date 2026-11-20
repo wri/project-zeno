@@ -164,30 +164,10 @@ RETRY_WAIT = {"initial": 1.0, "max": 4.0, "exp_base": 2.0}
 def resilient_structured_output(
     schema: type[BaseModel], model: Optional[BaseChatModel] = None
 ) -> Runnable:
-    """`model.with_structured_output(schema)`, retried and with fallbacks.
-
-    For model calls made from tools and API routes. ModelRetryMiddleware and
-    ModelFallbackMiddleware (graph._build_middleware) cover only the agent's
-    own calls, and the clients are built with LLM_MAX_RETRIES=0, so a model
-    called directly from a tool gets its retries and fallbacks here.
-
-    Each model is retried on TRANSIENT_ERRORS; when one still fails, for any
-    reason, the next is tried. `model` defaults to SMALL_MODEL followed by
-    SMALL_FALLBACK_MODELS; a model passed in is used alone.
-    """
-    models = (
-        [model] if model is not None else [SMALL_MODEL, *SMALL_FALLBACK_MODELS]
+    """`model.with_structured_output(schema)`, retried and with fallbacks."""
+    return _resilient_output(
+        schema, model, lambda m: m.with_structured_output(schema)
     )
-    primary, *fallbacks = [
-        m.with_structured_output(schema).with_retry(
-            retry_if_exception_type=TRANSIENT_ERRORS,
-            exponential_jitter_params=RETRY_WAIT,
-            stop_after_attempt=RETRY_ATTEMPTS,
-        )
-        for m in models
-    ]
-    chain = primary.with_fallbacks(fallbacks) if fallbacks else primary
-    return chain | _strip_control_chars_from(schema)
 
 
 def _strip_control_chars_from(schema: type[BaseModel]) -> Runnable:
@@ -274,3 +254,51 @@ def _type_name(annotation) -> str:
     if origin in _UNIONS:
         return " | ".join(args)
     return f"{_type_name(origin)}[{', '.join(args)}]"
+
+
+def _resilient_output(
+    schema: type[BaseModel],
+    model: Optional[BaseChatModel],
+    build: typing.Callable[[BaseChatModel], Runnable],
+) -> Runnable:
+    """Retries, fallbacks and control-character stripping around `build`.
+
+    `build(m)` turns one model into a pipeline that returns a `schema`
+    instance. Each is retried on TRANSIENT_ERRORS, the next model is tried
+    when one still fails, and the reply is cleaned once at the end.
+    """
+    models = (
+        [model] if model is not None else [SMALL_MODEL, *SMALL_FALLBACK_MODELS]
+    )
+    primary, *fallbacks = [
+        build(m).with_retry(
+            retry_if_exception_type=TRANSIENT_ERRORS,
+            exponential_jitter_params=RETRY_WAIT,
+            stop_after_attempt=RETRY_ATTEMPTS,
+        )
+        for m in models
+    ]
+    chain = primary.with_fallbacks(fallbacks) if fallbacks else primary
+    return chain | _strip_control_chars_from(schema)
+
+
+def resilient_json_output(
+    schema: type[BaseModel], model: Optional[BaseChatModel] = None
+) -> Runnable:
+    """Like `resilient_structured_output`, but Gemini is asked for JSON by
+    mime type only, with no response schema, and the reply is parsed here.
+
+    Schema-constrained decoding makes Gemini put control characters where
+    accented letters belong (PZB-1243). The caller's prompt must spell out
+    the keys: see `json_reply_instruction`. Other models keep
+    `with_structured_output`.
+    """
+
+    def build(m: BaseChatModel) -> Runnable:
+        if not isinstance(m, ChatGoogleGenerativeAI):
+            return m.with_structured_output(schema)
+        return m.bind(response_mime_type="application/json") | RunnableLambda(
+            lambda reply: schema.model_validate_json(reply.text)
+        )
+
+    return _resilient_output(schema, model, build)
