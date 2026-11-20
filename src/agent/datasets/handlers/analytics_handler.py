@@ -220,6 +220,27 @@ def canopy_cover_threshold(
     return canopy_cover
 
 
+def with_catalog_record(dataset: dict) -> dict:
+    """The dataset as a pull uses it: the selection over its catalog record.
+
+    A key the selection does not set comes from the catalog record. So a
+    selection with no ``parameters`` key gets the catalog's parameter list,
+    with every allowed value, and ``canopy_cover_threshold`` then reads the
+    highest one.
+    """
+    record = next(
+        (
+            ds
+            for ds in DATASETS
+            if ds["dataset_id"] == dataset.get("dataset_id")
+        ),
+        None,
+    )
+    if record is None:
+        raise ValueError(f"Dataset not found: {dataset.get('dataset_id')}")
+    return record | dataset
+
+
 def _first_list_len(section: Any) -> int:
     if isinstance(section, dict):
         for value in section.values():
@@ -784,12 +805,7 @@ class AnalyticsHandler(DataSourceHandler):
             )
         try:
             # Hydrate selected dataset with full metadata
-            dataset_full = [
-                ds
-                for ds in DATASETS
-                if ds["dataset_id"] == dataset.get("dataset_id")
-            ]
-            dataset = dataset_full[0] | dataset
+            dataset = with_catalog_record(dataset)
 
             # Get the appropriate endpoint URL
             if (
