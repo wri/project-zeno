@@ -224,7 +224,7 @@ def test_pick_aoi_is_a_thin_subagent_tool():
     # The orchestrator-facing description tells it to forward the request,
     # not to translate or classify the place itself.
     doc = pick_aoi.description
-    assert "verbatim" in doc
+    assert "full request" in doc
     assert "geocoding subagent" in doc
 
     # The extraction rules live inside the subagent's own system prompt.

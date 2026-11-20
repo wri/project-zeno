@@ -128,11 +128,11 @@ def test_a_deterministic_pass_is_never_revisited_by_the_judge():
     assert "looked wrong to me" not in verdict["reason"]
 
 
-def test_french_decimal_comma_is_rescued_by_the_judge():
+def test_french_decimal_comma_passes_the_deterministic_check():
     """1-091: the agent correctly answered "289,11 hectares" (French decimal
-    comma). The parser reads the comma as a thousands separator and gets
-    28,911 (a false ~99x miss), but the judge, reading the actual French
-    sentence, correctly recognises it as a match."""
+    comma). One comma with one or two digits after it is a decimal mark, so
+    the parser reads 289.11 and the deterministic check passes on its own,
+    without the judge."""
     verdict = resolve_answer_verdict(
         answer_eval_type="numeric",
         expected_answer="289 hectares",
@@ -141,7 +141,7 @@ def test_french_decimal_comma_is_rescued_by_the_judge():
         judge_reason='"289,11" is French notation for 289.11, matching the expected 289',
     )
     assert verdict["score"] == 1
-    assert "overriding the deterministic check" in verdict["reason"]
+    assert "within the 2% tolerance" in verdict["reason"]
 
 
 def test_chinese_scale_word_is_rescued_by_the_judge():

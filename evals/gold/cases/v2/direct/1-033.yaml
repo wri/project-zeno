@@ -1,17 +1,25 @@
 id: 1-033
-uid: 703163c80e077978
-status: done
+uid: 3361da8415f4c669
+status: ready
 group: direct
 query: How much tree cover loss was there in the Corona Forestal protected area in Tenerife
   in 2023?
 expected:
+  aoi_ids: '555524151'
   aoi_source: wdpa
   dataset_id: '4'
   dataset_name: Tree cover loss
-  answer: 79.25 hectares
+  ground_truth: sum(area_ha) WHERE tree_cover_loss_year=2023
   scope: analyse
 notes:
   aoi_type: wdpa
-  value_1: 79.25 hectares
-  verified: '2026-08-04 (run 20260803T220705Z): 79.25 ha on 3/3 trials, single WDPA 555524151,
-    no nudge. The parked 1,436.02 ha was wrong.'
+  ground_truth: '2026-11-18 (PZB-1714): the pinned 79.25 ha no longer matched the analytics
+    API. For WDPA 555524151 the API returns 1,435.95 ha for 2023 (the August 2023 Tenerife
+    wildfire burned through Corona Forestal), against 37.90 ha in 2022 and 101.92 ha in 2024.
+    The agent resolved this WDPA id and reported about 1,436 ha on all 39 trials in 13 ephemeral
+    runs from 11 to 16 November 2026. The figure now comes from the API at run time, so the
+    case no longer needs a re-pin after a data release.'
+  status_reason: 'ready 2026-11-18: new uid (ground_truth and aoi_ids replace answer). Promote
+    after a passing 3-trial run at this uid.'
+  verified_history: '2026-08-04 (run 20260803T220705Z): 79.25 ha on 3/3 trials, single WDPA
+    555524151, no nudge. Superseded on 2026-11-18, see ground_truth.'

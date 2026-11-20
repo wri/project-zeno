@@ -900,6 +900,39 @@ async def _resolve_place(
     return _PlaceResolution(place, terms, merged, primary, selection, closest)
 
 
+async def _without_child_type(
+    place: ExtractedPlace, subregion: str
+) -> ExtractedPlace:
+    """The place with its inferred type removed when that type is the
+    source of the subregions asked for, unless an area of that source has
+    the place's own name.
+
+    The extraction can give the parent the type of its children ("Peru's
+    Indigenous territories" types Peru as a landmark), and the narrowed
+    search then finds a weak match ("Peruanito"). But WDPA and LandMark
+    areas can contain areas of the same source (a biosphere reserve holds
+    national parks), so a parent whose name is a stored leaf of that
+    source keeps its type.
+    """
+    if place.area_type is None or aoi_to_table[place.area_type] != subregion:
+        return place
+    terms = list(
+        dict.fromkeys(
+            _plain_place(name)
+            for name in (place.place, place.canonical)
+            if name
+        )
+    )
+    typed, _ = await query_aoi_database_multiterm(terms, place.area_type)
+    own_leaves = {leaf_key(term.split(",")[0]) for term in terms}
+    if "leaf" in typed.columns and any(
+        isinstance(leaf, str) and leaf_key(leaf) in own_leaves
+        for leaf in typed["leaf"]
+    ):
+        return place
+    return place.model_copy(update={"area_type": None})
+
+
 _CLOSEST_NAMES = 3
 
 
@@ -1057,8 +1090,15 @@ class Geocoder:
         # type), not the kind of the parent. Narrowing the parent search to it
         # finds a weak name match in the child source (a landmark whose name
         # ends in "ECU") instead of the country, and the selection collapses
-        # to that one area. The parent keeps the type the geocoder inferred.
+        # to that one area. The parent keeps the type the geocoder inferred,
+        # unless that type is the kind of the children too: the extraction
+        # gives "Peru's Indigenous territories" the landmark type for Peru as
+        # well, and the search then selects the landmark "Peruanito".
         parent_type = None if subregion else aoi_type
+        if subregion:
+            places = await asyncio.gather(
+                *[_without_child_type(place, subregion) for place in places]
+            )
         resolutions = await asyncio.gather(
             *[
                 _resolve_place(place, question, parent_type, normalized)
@@ -1278,9 +1318,10 @@ async def pick_aoi(
 ) -> Command:
     """Resolve the place(s) in the user's request to map geometry (the AOI).
 
-    Pass the user's request describing WHERE to analyze, verbatim — e.g.
-    "tree cover loss in Para, Brazil", "compare deforestation across the
-    districts of Odisha", "protected areas in Peru", "forest loss worldwide".
+    Pass the user's full request about the area to analyze, not only the
+    place name, e.g. "tree cover loss in Para, Brazil", "compare
+    deforestation across the districts of Odisha", "protected areas in
+    Peru", "forest loss worldwide".
 
     This geocoding subagent does its own reasoning: it extracts place name(s),
     translates them to English, decides whether the user wants a single area
@@ -1300,5 +1341,5 @@ async def pick_aoi(
 SPEC = ToolSpec(
     tool=pick_aoi,
     category=ToolCategory.SUBAGENT,
-    prompt_fragment='- pick_aoi(question): natural-language geocoder. Pass the place request verbatim ("tree cover loss in Pará, Brazil", "the districts of Odisha", "forest loss worldwide"). If there is an obvious type of area of interest, then specify as that well. It extracts, translates and resolves the place — and any subregions — itself. Updates the AOI in state, or returns a clarifying question.',
+    prompt_fragment='- pick_aoi(question): natural-language geocoder. Pass the full request about the area, not only the place name ("tree cover loss in Pará, Brazil", "which province of the DRC had the most alerts", "forest loss worldwide"). If there is an obvious type of area of interest, then specify as that well. It extracts, translates and resolves the place — and any subregions — itself. Updates the AOI in state, or returns a clarifying question.',
 )

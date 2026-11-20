@@ -32,7 +32,7 @@ notes:
     665,355.90 ha (2021 157,119.05; 2022 140,395.94; 2023 196,248.02; 2024 171,592.89). Unthresholded
     665,692.91 ha, only 0.05% apart, so this row passes before and after the threshold fix;
     1-130 carries the threshold.'
-  status_reason: 'verified 2026-10-09 after the reword: run 20261009T104826Z_staging_experimental
-    (3 trials, ff=experimental) passed every check on 3/3 at this uid, natural_forest every
-    trial. The agent''s 665,693 ha is the unthresholded figure, 0.05% from the expected 10%
-    figure.'
+  status_reason: 're-verified 2026-11-18: run 20261118T134250Z_staging (3 trials, default
+    profile) passed every check on 3/3 at this uid, natural_forest every trial. The agent
+    reported 665,356 ha, the 10% figure, on 3/3. Before: run 20261009T104826Z_staging_experimental
+    passed on 3/3 after the reword, with the unthresholded 665,693 ha.'
