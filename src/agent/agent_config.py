@@ -6,13 +6,11 @@ Profiles form a chain, each one a small delta on its parent:
                    generate_insights), no skills. Ships on its own so raw
                    tool-calling can be evaluated without recipe guidance.
     default      — base + the core skills (analyze, pull-data, capabilities,
-                   show-imagery, wri-insights, dashboard, explore).
+                   show-imagery, concessions-layer, wri-insights,
+                   dashboard, explore).
     experimental — default + standalone tools not yet owned by any skill.
     lgms         — default with the LGMS dataset revealed; open to every
                    user (see PUBLIC_PROFILES).
-    curated-charts — default with curated charts first: generate_insights
-                   takes a ``chart`` argument and shows a curated chart
-                   when one fits the pull (docs/curated-charts-first-plan.md).
 
 An ``AgentConfig`` declares three things:
 
@@ -47,22 +45,14 @@ from typing import Optional
 
 from langchain_core.tools import BaseTool
 
-from src.agent.prompts.tool_descriptions import CONCISE_TOOL_DESCRIPTIONS
+from src.agent.prompts.tool_descriptions import TOOL_DESCRIPTIONS
 from src.agent.skills import SkillMeta, all_skills, get_skill
 from src.agent.skills.tool import SPEC as read_skill_spec
-from src.agent.subagents.analyst.tool import (
-    CURATED_FIRST_SPEC as generate_insights_curated_first_spec,
-)
 from src.agent.subagents.analyst.tool import SPEC as generate_insights_spec
 from src.agent.subagents.pick_aoi.tool import SPEC as pick_aoi_spec
 from src.agent.subagents.pick_dataset.tool import SPEC as pick_dataset_spec
 from src.agent.subagents.search.blog import SPEC as search_blogs_spec
-from src.agent.tool_spec import (
-    CONCISE_REPLIES,
-    Availability,
-    ToolCategory,
-    ToolSpec,
-)
+from src.agent.tool_spec import Availability, ToolCategory, ToolSpec
 from src.agent.tools.add_dashboard_section import (
     SPEC as add_dashboard_section_spec,
 )
@@ -73,14 +63,6 @@ from src.agent.tools.add_template_section import (
 from src.agent.tools.add_text_widget import SPEC as add_text_widget_spec
 from src.agent.tools.add_to_dashboard import SPEC as add_to_dashboard_spec
 from src.agent.tools.create_dashboard import SPEC as create_dashboard_spec
-from src.agent.tools.dashboard_items import ADD_SPEC as add_dashboard_item_spec
-from src.agent.tools.dashboard_items import (
-    EDIT_SPEC as edit_dashboard_item_spec,
-)
-from src.agent.tools.dashboard_items import (
-    REPLACED_TOOLS as DASHBOARD_ITEM_REPLACED_TOOLS,
-)
-from src.agent.tools.dashboard_items import create_dashboard_concise
 from src.agent.tools.edit_dashboard_section import (
     SPEC as edit_dashboard_section_spec,
 )
@@ -94,6 +76,9 @@ from src.agent.tools.move_dashboard_widget import (
 from src.agent.tools.pull_data import SPEC as pull_data_spec
 from src.agent.tools.search_insights import SPEC as search_insights_spec
 from src.agent.tools.send_nudge import SPEC as send_nudge_spec
+from src.agent.tools.show_boundary_layer import (
+    SPEC as show_boundary_layer_spec,
+)
 from src.agent.tools.show_imagery import SPEC as show_imagery_spec
 from src.agent.tools.show_planet_imagery import (
     SPEC as show_planet_imagery_spec,
@@ -105,10 +90,22 @@ from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-# Every registered tool spec, in canonical system-prompt order. Profiles
-# derive their spec tuples from this, so a tool's position here is its
-# position in every profile's prompt.
-ALL_SPECS = (
+
+def _described(spec: ToolSpec) -> ToolSpec:
+    """The spec with its schema description from TOOL_DESCRIPTIONS, when
+    that module has one for the tool."""
+    text = TOOL_DESCRIPTIONS.get(spec.tool.name)
+    if text is None:
+        return spec
+    return replace(
+        spec, tool=spec.tool.model_copy(update={"description": text})
+    )
+
+
+# Every registered tool spec, in canonical order. Profiles derive their
+# spec tuples from this, so a tool's position here is its position in
+# every profile's tool list.
+_REGISTERED_SPECS = (
     pick_aoi_spec,
     pick_dataset_spec,
     pull_data_spec,
@@ -117,6 +114,7 @@ ALL_SPECS = (
     inspect_view_context_spec,
     show_imagery_spec,
     show_planet_imagery_spec,
+    show_boundary_layer_spec,
     search_blogs_spec,
     update_insight_display_spec,
     search_insights_spec,
@@ -131,6 +129,7 @@ ALL_SPECS = (
     move_dashboard_widget_spec,
     send_nudge_spec,
 )
+ALL_SPECS = tuple(_described(s) for s in _REGISTERED_SPECS)
 _SPEC_BY_NAME = {s.tool.name: s for s in ALL_SPECS}
 
 # The core toolbox every profile builds on: resolve an AOI, pick a dataset,
@@ -150,6 +149,7 @@ DEFAULT_SKILLS = (
     "pull-data",
     "capabilities",
     "show-imagery",
+    "concessions-layer",
     "wri-insights",
     "dashboard",
     "explore",
@@ -177,55 +177,9 @@ EXPERIMENTAL_TOOLS = (add_template_section_spec,)
 # users who opt into LGMS (`?ff=net-flux`) but cannot use `experimental`.
 LGMS_PROFILE = "lgms"
 
-# Curated charts first (docs/curated-charts-first-plan.md, phase 1a): the
-# flag swaps generate_insights for the variant with a ``chart`` argument and
-# turns on the flagged parts of the skills (src/agent/skills/loader.py).
-# Admin, superuser and machine users only until gold passes on it.
-CURATED_CHARTS_FIRST = "curated-charts-first"
-CURATED_CHARTS_PROFILE = "curated-charts"
-
-# Short replies (docs/concise-agent-plan.md, iteration 1). The concise
-# profile also has curated charts first (CURATED_CHARTS_FIRST). The
-# concise-replies flag swaps the reply-style rules of the system prompt
-# (src/agent/graph.py) and turns on the flagged parts of the skills. Temporary: when the result is
-# accepted, the short style becomes the default and this flag and profile
-# are deleted.
-CONCISE_PROFILE = "concise"
-
-# The concise flag also sends the prompt as markdown sections without the
-# tool list (src/agent/prompts/) and gives the tools short descriptions
-# (iteration 2).
-# The concise create_dashboard names the new dashboard tools in its reply.
-_CONCISE_TOOLS = {"create_dashboard": create_dashboard_concise}
-CONCISE_TOOL_SPECS = tuple(
-    replace(
-        _SPEC_BY_NAME[name],
-        tool=_CONCISE_TOOLS.get(name, _SPEC_BY_NAME[name].tool).model_copy(
-            update={"description": text}
-        ),
-    )
-    for name, text in CONCISE_TOOL_DESCRIPTIONS.items()
-)
-# The tool specs that a flag puts in place of the spec of the same name. A
-# flag that swaps no tool has an empty entry: the keys are the known flags.
-FLAG_TOOL_VARIANTS: dict[str, tuple[ToolSpec, ...]] = {
-    CURATED_CHARTS_FIRST: (generate_insights_curated_first_spec,),
-    CONCISE_REPLIES: CONCISE_TOOL_SPECS,
-}
-
-# The tools that a flag puts in place of a group of tools: (the names it
-# removes, the specs it adds at the position of the first removed tool).
-# Applied only when the profile binds one of the removed tools.
-FLAG_TOOL_MERGES: dict[
-    str, tuple[tuple[frozenset[str], tuple[ToolSpec, ...]], ...]
-] = {
-    CONCISE_REPLIES: (
-        (
-            frozenset(DASHBOARD_ITEM_REPLACED_TOOLS),
-            (add_dashboard_item_spec, edit_dashboard_item_spec),
-        ),
-    ),
-}
+# The tool specs that a flag puts in place of the spec of the same name.
+# No flag swaps a tool at the moment.
+FLAG_TOOL_VARIANTS: dict[str, tuple[ToolSpec, ...]] = {}
 
 # Profiles any authenticated user may select with `ff`. All other flags are
 # for admin, superuser and machine users only (see src/api/routers/chat.py).
@@ -314,34 +268,9 @@ class AgentConfig:
             for flag in sorted(self.flags)
             for spec in FLAG_TOOL_VARIANTS[flag]
         }
-        specs = [variants.get(s.tool.name, s) for s in derived + unregistered]
-        for flag in sorted(self.flags):
-            for removed, added in FLAG_TOOL_MERGES.get(flag, ()):
-                hits = [
-                    i for i, s in enumerate(specs) if s.tool.name in removed
-                ]
-                if not hits:
-                    continue
-                kept = [s for s in specs if s.tool.name not in removed]
-                at = sum(
-                    1 for s in specs[: hits[0]] if s.tool.name not in removed
-                )
-                specs = kept[:at] + list(added) + kept[at:]
-        return tuple(specs)
-
-    def requires(self, skill: SkillMeta) -> tuple[str, ...]:
-        """The tools that ``skill`` uses in this profile: its ``requires``,
-        with the tools that a flag merges (FLAG_TOOL_MERGES) replaced by the
-        tools that take their place."""
-        names: list[str] = []
-        for tool_name in skill.requires:
-            replacement = (tool_name,)
-            for flag in sorted(self.flags):
-                for removed, added in FLAG_TOOL_MERGES.get(flag, ()):
-                    if tool_name in removed:
-                        replacement = tuple(s.tool.name for s in added)
-            names.extend(n for n in replacement if n not in names)
-        return tuple(names)
+        return tuple(
+            variants.get(s.tool.name, s) for s in derived + unregistered
+        )
 
     def bound_tools(self) -> list[BaseTool]:
         return [s.tool for s in self.specs]
@@ -401,7 +330,7 @@ class AgentConfig:
         for skill in self.skill_metas():
             if skill.requires:
                 skill_entries.append(
-                    f"{skill.name} (requires: {', '.join(self.requires(skill))})"
+                    f"{skill.name} (requires: {', '.join(skill.requires)})"
                 )
             else:
                 skill_entries.append(skill.name)
@@ -527,26 +456,5 @@ default_registry.register(
         extends=DEFAULT_PROFILE,
         # Excludes are not inherited, so an empty set reveals LGMS.
         excluded_datasets=frozenset(),
-    )
-)
-default_registry.register(
-    AgentConfig(
-        CURATED_CHARTS_PROFILE,
-        extends=DEFAULT_PROFILE,
-        # Excludes are not inherited: keep the default's.
-        excluded_datasets=DEFAULT_EXCLUDED_DATASETS,
-        flags=frozenset({CURATED_CHARTS_FIRST}),
-    )
-)
-default_registry.register(
-    AgentConfig(
-        CONCISE_PROFILE,
-        extends=DEFAULT_PROFILE,
-        # Excludes are not inherited: keep the default's.
-        excluded_datasets=DEFAULT_EXCLUDED_DATASETS,
-        # Curated charts first (#910) is part of this profile, so one flag
-        # measures the two together. The work section of the concise
-        # prompt has the guidance for the chart argument.
-        flags=frozenset({CONCISE_REPLIES, CURATED_CHARTS_FIRST}),
     )
 )

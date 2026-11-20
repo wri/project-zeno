@@ -1,19 +1,18 @@
 """Guardrails for the skill/tool availability gating.
 
-Prompt content (routing rows, surface sections) is gated on skill and tool
+Prompt content (section blocks, surface sections) is gated on skill and tool
 names, so a rename or frontmatter typo would silently drop rows or hide
 skills from every profile. These tests turn each of those silent failure
 modes into a test failure:
 
 - skill and tool names must never collide (a flat name check would conflate
   them — the bug the Availability split exists to prevent),
-- every ROUTING_ROWS gate must resolve to a real skill/tool,
+- every section gate must resolve to a real skill/tool (test_prompt_sections),
 - every ViewPage skill_pointer must name a real skill,
 - every skill's ``requires:`` entry must name a spec in ALL_SPECS.
 """
 
 from src.agent.agent_config import ALL_SPECS, default_registry
-from src.agent.graph import ROUTING_ROWS
 from src.agent.skills import all_skills
 from src.agent.view_pages import PAGES
 
@@ -32,21 +31,6 @@ def test_skill_names_never_collide_with_tool_names():
     assert (
         not collisions
     ), f"skill names shadow tool names: {sorted(collisions)}"
-
-
-def test_routing_gates_resolve_to_real_skills_and_tools():
-    """A renamed skill/tool must fail here, not silently drop its routing
-    row from every prompt."""
-    skill_names = {s.name for s in all_skills()}
-    tool_names = _all_registered_tool_names()
-    for gate, line in ROUTING_ROWS:
-        if gate is None:
-            continue
-        kind, name = gate  # kind is checked by mypy via the Gate Literal
-        universe = skill_names if kind == "skill" else tool_names
-        assert (
-            name in universe
-        ), f"routing row gated on unknown {kind} {name!r}: {line!r}"
 
 
 def test_page_skill_pointers_name_real_skills():

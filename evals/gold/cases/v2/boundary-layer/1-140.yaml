@@ -1,0 +1,20 @@
+id: 1-140
+uid: a40e459b9ce28e4c
+status: ready
+group: boundary-layer
+query: Show me logging concessions in Brazil
+expected:
+  aoi_ids: BRA
+  aoi_source: gadm
+  text: Says the logging concessions layer is on the map and tells the user to click a concession
+    on the map to select it, and gives no figures for concessions
+  scope: refuse
+notes:
+  authored: '2026-11-16: acceptance row for the concessions boundary layer in wri/project-zeno#896.
+    The agent calls pick_aoi with the place only (Brazil), then show_boundary_layer(logging).
+    It pulls no data and sets no nudge, so the scope class is none (refuse).'
+  catches: 'Before the #896 routing line, the agent sent the whole request to pick_aoi and
+    selected the logging concessions as subregions, so aoi_ids fails. An agent that goes on
+    to pick a dataset and pull data fails scope.'
+  design: No check reads the boundary_layer state key yet, so the text judge stands in for
+    "the layer is on the map". aoi_ids and scope are the deterministic checks.

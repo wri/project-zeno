@@ -80,14 +80,3 @@ def bound_availability() -> Availability:
     """The availability bound by ``set_bound_availability``; empty when
     unset."""
     return _bound_availability.get()
-
-
-# The concise-replies flag (docs/concise-agent-plan.md). It is here, not in
-# agent_config.py, so that tools can read it without a circular import.
-CONCISE_REPLIES = "concise-replies"
-
-
-def concise_replies() -> bool:
-    """Whether the bound profile has the concise-replies flag. Tools use it
-    to send shorter messages (iteration 4)."""
-    return CONCISE_REPLIES in bound_availability().flags

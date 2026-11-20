@@ -1,0 +1,29 @@
+id: 1-143
+uid: 9d336946fdf0c46d
+status: ready
+group: direct
+query: Show me tree cover loss in Pará, Brazil on the map
+expected:
+  aoi_ids: BRA.14_1
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  scope: analyse;refuse
+notes:
+  authored: '2026-11-16: control row for wri/project-zeno#896. The new routing line sends
+    "show ... on the map" requests for concessions to show_boundary_layer. This row uses the
+    same wording for a dataset, and the agent must still pick the dataset.'
+  catches: An agent that over-applies the concessions-layer skill to any "show me ... on the
+    map" request picks no dataset, so dataset_id fails.
+  design: Routing-only (no answer and no dates), so the open time window does not drift.
+  scope_widened: '2026-11-18 (AJ, PZB-1714): scope was analyse alone. On the #896 run 20261116T154957Z_ephemeral
+    the agent picked Pará (BRA.14_1) and Tree cover loss on 3 of 3 trials, never read concessions-layer
+    and never called show_boundary_layer, but it did not pull data: the "Dataset-only" and
+    "AOI-only" routing rows on main tell it not to escalate a request to show a dataset into
+    an analysis. scope_match then failed with actual scope none. refuse is the scope class
+    for "no pull and no nudge" (mt-013 turn 1 uses it for the layer-only reply), so analyse;refuse
+    accepts a pull or a map-only reply and still fails a nudge or a clarifying question. It
+    also keeps the row at checks in two buckets, which the depth audit requires. aoi_ids and
+    dataset_id catch an agent that shows a concessions layer in place of the dataset.'
+  status_reason: 'ready 2026-11-18: new uid (scope widened). Promote after a passing 3-trial
+    run at this uid.'

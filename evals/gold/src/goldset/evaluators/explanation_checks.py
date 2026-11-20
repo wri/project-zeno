@@ -9,7 +9,8 @@ that appears nowhere in its own chart and still pass ``agent_answer``.
 Currently info-only (``buckets.INFO_ONLY``).
 
 Precision over recall: only **bolded** segments are considered claims (the
-answer template bolds key findings), and the number parser inherits
+answer template bolds key findings), a bolded setting such as a canopy cover
+threshold or a confidence level is not a claim, and the number parser inherits
 chart_numeric's abstention rules (years skipped, ambiguous locale decimals
 abstain): a multilingual row that can't be parsed safely is a ``None``,
 never a guess.
@@ -30,14 +31,27 @@ from goldset.evaluators.chart_numeric import (
 )
 from goldset.evaluators.llm_judges import NUMERIC_TOLERANCE
 
-_BOLD_RE = re.compile(r"\*\*(.+?)\*\*", re.DOTALL)
+# One bold span: no line break and no asterisk inside, and no asterisk on the
+# outside of either marker. Bold never spans list items, and a `***` or an
+# unpaired `**` must not pair the closing marker of one span with the opening
+# marker of the next, which reads the plain text between them as a claim.
+_BOLD_RE = re.compile(r"(?<!\*)\*\*(?!\*)([^*\n]+?)(?<!\*)\*\*(?!\*)")
+
+# A bold segment about a setting or a confidence, not a finding: "**30% canopy
+# cover**", "**≥ 30%**", "**75% confidence**". Its percent is a parameter of
+# the data, so it is not a claim to trace.
+_SETTING_RE = re.compile(
+    r"[≥≤><]|canopy|threshold|densit|confiden|copa|dosel|couvert|kanopi"
+    r"|郁闭度|阈值|置信",
+    re.IGNORECASE,
+)
 
 # A measure carries a unit, scale word, or percent. Bare numbers in bold are
 # usually counts or ranks ("**2** datasets", "top **5**"), the main source of
 # false positives.
 _MEASURE_RE = re.compile(
     r"\d[\d,.]*\s*(?:%|(?:percent|mha|kha|ha|hectares?|hektare?|hektar|km²|km2"
-    r"|tonnes?|mgco2e|tco2e|thousand|million|billion)\b)",
+    r"|tonnes?|mgco[2₂]e|tco[2₂]e|thousand|million|billion)\b)",
     re.IGNORECASE,
 )
 
@@ -45,6 +59,8 @@ _MEASURE_RE = re.compile(
 def first_bold_claim(prose: str) -> str | None:
     """The first bolded segment carrying a parseable number WITH a unit."""
     for segment in _BOLD_RE.findall(prose):
+        if _SETTING_RE.search(segment):
+            continue
         if _MEASURE_RE.search(segment) and parse_expected_number(segment) is not None:
             return segment.strip()
     return None

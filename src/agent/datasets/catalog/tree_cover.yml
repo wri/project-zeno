@@ -86,3 +86,13 @@ citation: 'Use the following credit when these data are displayed: Source: Hanse
 
   '
 series_color: "#97BD3D"
+# The jev decision model reads decision_card as this dataset's option and
+# decision_key as its option key (src/agent/subagents/pick_dataset/tool.py).
+# Keep the card to one fixed template: what it measures, units, time range
+# and step, breakdowns, its own limits. Do not name other datasets.
+decision_key: tree_cover
+decision_card: >-
+  Tree cover (2000). Tree canopy cover density (percent) in the year 2000 at
+  30 m for vegetation over 5 m tall. Gives tree cover area and density for
+  2000, with a selectable canopy cover threshold; can be limited to primary
+  forest. One year only, no change over time.

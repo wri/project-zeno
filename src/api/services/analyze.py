@@ -53,7 +53,11 @@ class AnalyzeService:
     ) -> AnalyzeResult:
         # The same dataset fields the agent's pick_dataset sets: the handler
         # reads the forest filter and the canopy cover threshold from them.
-        dataset: dict = {"dataset_id": dataset_id}
+        # `parameters` is always set. The handler merges the catalog entry
+        # under these fields, and the catalog lists every allowed threshold
+        # (10 to 75): without the key, the pull takes the largest one, 75,
+        # in place of the default of 30.
+        dataset: dict = {"dataset_id": dataset_id, "parameters": None}
         if context_layer:
             dataset["context_layer"] = context_layer
         if canopy_cover is not None:

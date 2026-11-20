@@ -107,3 +107,13 @@ citation: 'Fitts, L.A., O. James, D. Gibbs, E. Goldman, N. Harris, M. Ramlow, L.
   for 42 agricultural crop categories. WRI Technical Note. [url pending]
 
   '
+# The jev decision model reads decision_card as this dataset's option and
+# decision_key as its option key (src/agent/subagents/pick_dataset/tool.py).
+# Keep the card to one fixed template: what it measures, units, time range
+# and step, breakdowns, its own limits. Do not name other datasets.
+decision_key: sluc_ef
+decision_card: >-
+  Deforestation (sLUC) emission factors by agricultural crop (2020-2024).
+  Greenhouse gas emissions from deforestation linked to agricultural
+  expansion, per tonne of crop product (tCO2e/t), for 42 crops, by country,
+  state and district. Table data only, no map.

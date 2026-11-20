@@ -36,7 +36,7 @@ from src.agent.subagents.analyst.code_executors.base import (
 )
 from src.agent.subagents.analyst.prompts import EXECUTOR_WORKFLOW
 from src.agent.subagents.analyst.text_generator import InsightTextGenerator
-from src.agent.tool_spec import ToolCategory, ToolSpec, concise_replies
+from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.inspect_view_context import format_chart_data
 from src.agent.tools.pull_data import fetch_statistics_from_url
 from src.api.repositories.insight_writer import persist_insight
@@ -315,9 +315,15 @@ def _encode_parts(parts: list) -> list[dict]:
 
 
 async def _build_tool_message(
-    insight: Insight, dataset_cautions: str, language: str = DEFAULT_LANGUAGE
+    insight: Insight,
+    dataset_cautions: Optional[str] = None,
+    language: str = DEFAULT_LANGUAGE,
 ) -> str:
-    """Human-feedback message summarizing the generated charts + insight."""
+    """Human-feedback message summarizing the generated charts + insight.
+
+    It has the dataset cautions: the dataset can come from a UI selection,
+    with no pick_dataset message in the thread. It has no follow-up
+    suggestions (the insight card shows them)."""
     tool_message = (
         await t(
             "analyst.generated_charts",
@@ -341,18 +347,9 @@ async def _build_tool_message(
     for chart in insight.charts:
         tool_message += "\n" + await format_chart_data(chart, language)
 
-    if concise_replies():
-        # The cautions are in the pick_dataset message, and the insight card
-        # shows the follow-up suggestions (concise rule 6).
-        return tool_message
-
     if dataset_cautions:
         header = await t("analyst.dataset_cautions_header", language)
-        tool_message += f"\n\n{header}\n{dataset_cautions}"
-
-    tool_message += "\n\n" + await t("analyst.follow_up_header", language)
-    for i, suggestion in enumerate(insight.follow_up_suggestions, 1):
-        tool_message += f"\n{i}. {suggestion}"
+        tool_message += f"\n\n{header}\n{dataset_cautions.strip()}"
     return tool_message
 
 
@@ -389,7 +386,8 @@ async def _build_curated_only_tool_message(
 ChartRoute = Literal["standard", "custom"]
 
 
-def _catalog_cautions(dataset_id: int) -> Optional[str]:
+def _catalog_cautions(dataset_id: Optional[int]) -> Optional[str]:
+    """The catalog cautions of a dataset, or None."""
     for entry in DATASETS:
         if entry["dataset_id"] == dataset_id:
             return entry.get("cautions")
@@ -566,8 +564,8 @@ class Analyst:
     ) -> Command:
         """Analyze pulled data and produce one chart insight.
 
-        ``chart`` is None for the profiles without curated charts first:
-        the code executor draws the chart. "standard" shows the curated
+        ``chart`` is None only for internal callers that skip the curated
+        route: the code executor draws the chart. "standard" shows the curated
         chart of the latest pull when the code gate passes, else the code
         executor runs. "custom" always runs the code executor.
         """
@@ -600,10 +598,6 @@ class Analyst:
                 "for the dataset first.",
                 tool_call_id,
             )
-        dataset_cautions = dataset.get(
-            "cautions", "No specific dataset cautions provided."
-        )
-
         # STAGE 1: build charts from the pulled data.
         (
             charts,
@@ -660,7 +654,10 @@ class Analyst:
             "messages": [
                 ToolMessage(
                     content=await _build_tool_message(
-                        insight, dataset_cautions, language
+                        insight,
+                        dataset.get("cautions")
+                        or _catalog_cautions(dataset.get("dataset_id")),
+                        language,
                     ),
                     tool_call_id=tool_call_id,
                     status="success",
@@ -847,9 +844,7 @@ async def _build_curated_insight(
         charts,
         statistics,
         caption,
-        # With concise replies, the cautions are in the pick_dataset
-        # message (as in _build_tool_message).
-        cautions=None if concise_replies() else _catalog_cautions(dataset_id),
+        cautions=_catalog_cautions(dataset_id),
         other_columns=unshown_columns(rows, charts),
         rows=rows,
     )
@@ -879,16 +874,6 @@ async def _generate(
 @tool("generate_insights")
 async def generate_insights(
     query: str,
-    state: Annotated[Optional[Dict], InjectedState] = None,
-    tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
-) -> Command:
-    """Analyze pulled data and produce one chart insight with follow-up suggestions."""
-    return await _generate(query, state, tool_call_id)
-
-
-@tool("generate_insights")
-async def generate_insights_curated_first(
-    query: str,
     chart: ChartRoute = "standard",
     state: Annotated[Optional[Dict], InjectedState] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
@@ -903,17 +888,9 @@ async def generate_insights_curated_first(
     return await _generate(query, state, tool_call_id, chart)
 
 
+# The generate_insights tool: curated charts first (docs/curated-charts-first-plan.md).
 SPEC = ToolSpec(
     tool=generate_insights,
-    category=ToolCategory.SUBAGENT,
-    prompt_fragment="- generate_insights(query): analyst subagent. Turns pulled data into one chart insight with follow-up suggestions. Requires pull_data to have run first.",
-)
-
-# The tool for the profiles with curated charts first (the
-# CURATED_CHARTS_FIRST flag in src/agent/agent_config.py). Same tool name,
-# so the skills and the prompts that name generate_insights stay valid.
-CURATED_FIRST_SPEC = ToolSpec(
-    tool=generate_insights_curated_first,
     category=ToolCategory.SUBAGENT,
     prompt_fragment=(
         '- generate_insights(query, chart="standard"|"custom"): analyst '

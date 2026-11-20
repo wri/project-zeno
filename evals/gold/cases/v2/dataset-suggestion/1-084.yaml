@@ -14,8 +14,10 @@ expected:
   scope: analyse
 notes:
   aoi_type: gadm 0
-  value_2: 70,485,772.62 MgCO2e (emissions the agent reports alongside the area figure; not
-    asserted in expected since the query only asks about loss, not emissions)
+  value_2: 'unthresholded, the agent reported 70,485,772.62 MgCO2e alongside the area figure.
+    At the 10% threshold the API returns no carbon: on run 20261118T134250Z_staging the agent
+    reported no emissions figure on 3/3, and on 2/3 said emissions need a threshold of 30%
+    or more. Not asserted in expected, as the query only asks about loss.'
   rewrite: '2026-10-08: project-zeno#853 (2026-10-06) added a natural_forest context layer
     to the Tree cover loss dataset (SBTN Natural Lands Map-based, loss from 2021 onward only),
     created specifically to give "natural forest" queries an unambiguous, non-nudging target.
@@ -37,11 +39,10 @@ notes:
     figure at the expected 10% canopy threshold (analytics API, staging: natural_forest_only
     + canopy_cover=10; 2021 16,523.87; 2022 25,826.66; 2023 17,453.48; 2024 25,637.53; 2025
     19,347.60). The old figure matched natural_forest_only with no canopy_cover to the hectare,
-    i.e. the agent currently runs natural forest loss unthresholded, which AJ confirmed is
-    wrong. The two are 0.05% apart, so this row passes before and after that fix; 1-130 is
-    the row that detects it. value_2 (emissions) goes away with the fix: the API returns no
-    carbon below 30% canopy.'
-  status_reason: 're-verified 2026-10-09 at the new uid after the answer moved to the 10%
-    figure: run 20261009T101010Z_staging_experimental (3 trials, ff=experimental) passed every
-    check on 3/3. The agent''s 104,842 ha is still the unthresholded figure, 0.05% from the
-    expected 104,789.14.'
+    i.e. the agent then ran natural forest loss unthresholded, which AJ confirmed is wrong
+    (fixed in project-zeno #860, 2026-10-14). The two are 0.05% apart, so this row passes
+    before and after that fix; 1-130 is the row that detects it.'
+  status_reason: 're-verified 2026-11-18: run 20261118T134250Z_staging (3 trials, default
+    profile) passed every check on 3/3 at this uid. The agent reported 104,789 ha, the 10%
+    figure, on 3/3. Before: run 20261009T101010Z_staging_experimental passed on 3/3 with the
+    unthresholded 104,842 ha.'

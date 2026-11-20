@@ -1,8 +1,6 @@
 ---
 name: pull-data
-description: Fetch data for a place and dataset — no chart or insight unless the user asks.
-when_to_use: User asks to pull, fetch, or get data (with place and/or topic). Not for full analysis, charts, or "analyze" requests — use skill `analyze` only when they want a chart/insight.
-brief: Pull, fetch or get data for a place or a topic, with no chart or insight unless the user asks. Not for a full analysis, a chart or "analyze": use `analyze`.
+description: Pull, fetch or get data for a place or a topic, with no chart or insight unless the user asks. Not for a full analysis, a chart or "analyze": use `analyze`.
 requires: pick_aoi, pick_dataset, pull_data
 ---
 

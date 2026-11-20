@@ -1,13 +1,9 @@
-"""Short tool descriptions for the ``concise-replies`` flag.
+"""The schema descriptions of the tools.
 
-The concise prompt (src/agent/prompts/) has no tool list, so the schema
+The system prompt (src/agent/prompts/) has no tool list, so the schema
 description is the one description of a tool. These texts replace the
-docstrings for the flagged profile only, so the default profile stays the
-same during the comparison (docs/concise-agent-plan.md, iteration 2).
-
-Temporary: when the concise profile is accepted, each text becomes the
-docstring of its tool and this module is deleted. The two dashboard tools
-that replace seven have their texts in src/agent/tools/dashboard_items.py.
+docstrings of the tools named here (agent_config.ALL_SPECS); a tool not
+named here keeps its docstring.
 """
 
 _DEFAULT_DASHBOARD = (
@@ -15,15 +11,25 @@ _DEFAULT_DASHBOARD = (
     "Only the user's own dashboards can be edited."
 )
 
-CONCISE_TOOL_DESCRIPTIONS: dict[str, str] = {
+TOOL_DESCRIPTIONS: dict[str, str] = {
     "pick_aoi": (
         "Resolve the place in the request to the area of interest (AOI) in "
-        "state (geocoding subagent). Pass the user's words about the place "
-        'verbatim, for example "tree cover loss in Pará, Brazil", "the '
-        'districts of Odisha", "forest loss worldwide". It extracts, '
+        "state (geocoding subagent). Pass the user's full request about the "
+        'area to analyze, not only the place name, for example "tree cover '
+        'loss in Pará, Brazil", "which province of the DRC had the most '
+        'alerts", "forest loss worldwide". The words around the place ("each '
+        'state", "the provinces of", "Indigenous territories in") tell it to '
+        'select the subregions: with only "DRC" it selects the country. When '
+        "the message does not name the place, add it from the earlier turns "
+        '("which states lost the most?" after a question about Brazil becomes '
+        '"which states of Brazil lost the most?"). Leave out places that are '
+        "not part of the area to analyze. It extracts, "
         "translates and resolves the place and any subregions itself. Set "
         "`area_of_interest` when the type of area is obvious. Returns a "
-        "clarifying question when the place is ambiguous or missing."
+        "clarifying question when the place is ambiguous or missing. A zone "
+        'with no boundary (a "belt", a "frontier") resolves to its country '
+        "or to the country's units: say in the answer that the figures are "
+        "for the country, not the zone."
     ),
     "pick_dataset": (
         "Select the dataset, context layer and date range that best answer "
@@ -72,8 +78,10 @@ CONCISE_TOOL_DESCRIPTIONS: dict[str, str] = {
     "search_blogs": (
         "Research subagent: searches the WRI and LCL Insights articles and "
         "returns a short answer with inline [N](url) citation markers. Use "
-        "it to ground an answer in published research or to explore a topic "
-        "before analysis. When your reply uses the findings, keep the "
+        "it only when no dataset can answer the question, when the user "
+        "asks for WRI research or citations, or for an open interest with "
+        "no place and no dataset topic. Never for a question that "
+        "pick_dataset can answer. When your reply uses the findings, keep the "
         "markers on the statements you use, numbered by first appearance "
         "(the app shows each as a citation icon). Never remove markers or "
         "invent URLs. `query`: the topic or question; a place or a theme "
@@ -106,6 +114,51 @@ CONCISE_TOOL_DESCRIPTIONS: dict[str, str] = {
     "create_dashboard": (
         "Create an empty dashboard for the AOI in state (pick_aoi first). "
         "`name` defaults to the area's name. Add widgets with "
-        "add_dashboard_item."
+        "add_to_dashboard."
+    ),
+    "add_to_dashboard": (
+        "Add an insight to a dashboard as a widget. `insight_id` defaults to "
+        "the current insight in state. `section` (a section title or id) "
+        "puts it in a section; without it the widget is ungrouped. The "
+        "insight must be one that the user can see. " + _DEFAULT_DASHBOARD
+    ),
+    "add_map_widget": (
+        'Add a map widget to a dashboard. `layer="dataset"`: the selected '
+        'dataset layer (pick_dataset first). `layer="imagery"`: the '
+        "Sentinel-2 mosaic from show_imagery. `title` overrides the header; "
+        "`section` (a section title or id) groups it. " + _DEFAULT_DASHBOARD
+    ),
+    "add_text_widget": (
+        "Add a markdown note to a dashboard. Write `text` yourself: a short "
+        "note, summary or section intro, with any heading in the markdown "
+        "(there is no title field), and no raw data. `section` (a section "
+        "title or id) groups it; `position` places it in that container "
+        "(default: last). " + _DEFAULT_DASHBOARD
+    ),
+    "edit_text_widget": (
+        "Replace all the markdown of a text widget with `text`. `widget_id` "
+        "defaults to the only text widget; when there are several, the "
+        "error lists their ids. " + _DEFAULT_DASHBOARD
+    ),
+    "add_dashboard_section": (
+        "Create a section (a titled group of widgets) on a dashboard. "
+        '`title`: short and topical, for example "Deforestation". '
+        "`description`: optional, one or two lines on its purpose. "
+        "`position`: default last. The section starts empty: pass `section` "
+        "to add_to_dashboard, add_text_widget or add_map_widget. "
+        + _DEFAULT_DASHBOARD
+    ),
+    "edit_dashboard_section": (
+        "Change the title or the description of a section, or both (each a "
+        "full replacement). `section` (a section title or id) defaults to "
+        "the only section; when there are several, the error lists them. "
+        + _DEFAULT_DASHBOARD
+    ),
+    "move_dashboard_widget": (
+        "Move a widget into a section (`section`, a section title or id) or "
+        "back to the top level (`ungroup=True`): exactly one of the two. "
+        "`position` sets the slot (default: last); to reorder only, name "
+        "the container that it is in and a position. Get `widget_id` from "
+        "inspect_view_context. Only the user's own dashboards can be edited."
     ),
 }
