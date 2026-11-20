@@ -1,7 +1,9 @@
-"""Integrated alerts area in each dashboard's AOI over a period, by default
-the week ending on the latest alert date. If that date is unavailable, the
-default is the latest full Sunday-to-Saturday week."""
+"""High and highest confidence integrated alerts area in each dashboard's
+AOI over a period, by default the week ending on the latest alert date. If
+that date is unavailable, the default is the latest full Sunday-to-Saturday
+week."""
 
+import math
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date, timedelta
@@ -50,6 +52,8 @@ class InvalidPeriodError(ValueError):
 # confidence alerts are left out: they are single detections by one system.
 LISTED_CONFIDENCES = ("high", "highest")
 EXCLUDED_CONFIDENCES = ("low",)
+# The columns the summary reads from the analytics result.
+SUMMARY_COLUMNS = ("aoi_id", "alert_confidence", "area_ha")
 
 
 def alert_columns(data: Optional[dict], names: tuple[str, ...]) -> list[list]:
@@ -164,8 +168,9 @@ class DashboardAlertsService:
         start: Optional[date] = None,
         end: Optional[date] = None,
     ) -> AlertsReport:
-        """Alerts between start and end, which default together to the week
-        ending on the latest alert date."""
+        """High and highest confidence alerts between start and end, which
+        default together to the week ending on the latest alert date. A
+        dashboard whose alerts cannot be fetched or read is unavailable."""
         if (start is None) != (end is None):
             raise InvalidPeriodError(
                 "Send both start_date and end_date, or neither."
@@ -218,13 +223,15 @@ class DashboardAlertsService:
         }
 
 
-def total_area_ha_by_aoi_id(data: dict) -> dict[str, float]:
-    totals: dict[str, float] = defaultdict(float)
-    for aoi_id, area_ha in zip(
-        data.get("aoi_id", []), data.get("area_ha", [])
-    ):
-        totals[aoi_id] += area_ha
-    return dict(totals)
+def total_area_ha_by_aoi_id(data: Optional[dict]) -> dict[str, float]:
+    """High and highest confidence alert area of each AOI that has such
+    alerts, by the alerts list's rules. Raises ``UnexpectedAlertsDataError``
+    for a result it cannot read."""
+    areas: dict[str, list[float]] = defaultdict(list)
+    for aoi_id, confidence, area in zip(*alert_columns(data, SUMMARY_COLUMNS)):
+        if is_listed_confidence(confidence):
+            areas[aoi_id].append(alert_area(area))
+    return {aoi_id: math.fsum(values) for aoi_id, values in areas.items()}
 
 
 class AnalyticsAlertsSource:
