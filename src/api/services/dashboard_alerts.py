@@ -5,7 +5,7 @@ default is the latest full Sunday-to-Saturday week."""
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date, timedelta
-from typing import Callable, Iterable, Optional, Protocol
+from typing import Any, Callable, Iterable, Optional, Protocol
 from uuid import UUID
 
 import cachetools
@@ -38,8 +38,62 @@ class AlertsUnavailableError(Exception):
     pass
 
 
+class UnexpectedAlertsDataError(AlertsUnavailableError):
+    """The analytics API answered with rows this module cannot read."""
+
+
 class InvalidPeriodError(ValueError):
     pass
+
+
+# The confidence tiers counted, each as a column in the alerts list. Low
+# confidence alerts are left out: they are single detections by one system.
+LISTED_CONFIDENCES = ("high", "highest")
+EXCLUDED_CONFIDENCES = ("low",)
+
+
+def alert_columns(data: Optional[dict], names: tuple[str, ...]) -> list[list]:
+    """The named columns of a column-oriented analytics result, or empty
+    lists for an empty result. Raises ``UnexpectedAlertsDataError`` for a
+    missing column or columns of different lengths."""
+    if not data or not any(data.values()):
+        return [[] for _ in names]
+    missing = [name for name in names if name not in data]
+    if missing:
+        raise UnexpectedAlertsDataError(
+            f"The integrated alerts result has no {', '.join(missing)} column."
+        )
+    columns = [list(data[name]) for name in names]
+    if len({len(column) for column in columns}) > 1:
+        raise UnexpectedAlertsDataError(
+            "The integrated alerts result has columns of different lengths."
+        )
+    return columns
+
+
+def alert_area(value: Any) -> float:
+    """Hectares; a missing area counts as 0, as on the alerts chart."""
+    if value is None:
+        return 0.0
+    try:
+        return float(value)
+    except (TypeError, ValueError) as error:
+        raise UnexpectedAlertsDataError(
+            f"Unexpected alert area: {value!r}"
+        ) from error
+
+
+def is_listed_confidence(confidence: Any) -> bool:
+    """Whether alerts of this tier are counted: True for high and highest,
+    False for low. Raises ``UnexpectedAlertsDataError`` for any other tier,
+    so that a new tier is never counted or dropped unseen."""
+    if confidence in EXCLUDED_CONFIDENCES:
+        return False
+    if confidence not in LISTED_CONFIDENCES:
+        raise UnexpectedAlertsDataError(
+            f"Unknown alert confidence: {confidence!r}"
+        )
+    return True
 
 
 @dataclass(frozen=True)
