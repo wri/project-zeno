@@ -17,7 +17,7 @@ from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field
 
 from src.agent.language import DEFAULT_LANGUAGE, language_name
-from src.agent.llms import resilient_structured_output
+from src.agent.llms import json_reply_instruction, resilient_json_output
 from src.agent.subagents.analyst.charts.model import InsightChart
 from src.agent.subagents.analyst.prompts import WORDING_GUIDE
 from src.shared.logging_config import get_logger
@@ -48,6 +48,8 @@ already present in the pre-computed findings.
 Write a 2-3 sentence `primary_insight` grounded in the numbers, and 1-2 \
 `follow_up_suggestions`.
 
+{json_instruction}
+
 Write both in {language} — regardless of what language the query, dataset \
 cautions, or presentation instructions below are written in.
 
@@ -70,7 +72,7 @@ _USER = """## User query
 
 _PROMPT = ChatPromptTemplate.from_messages(
     [("system", _SYSTEM), ("user", _USER)]
-)
+).partial(json_instruction=json_reply_instruction(InsightText))
 
 
 class InsightTextGenerator:
@@ -78,7 +80,7 @@ class InsightTextGenerator:
 
     def __init__(self, model=None):
         self._chain = (
-            _PROMPT | resilient_structured_output(InsightText, model)
+            _PROMPT | resilient_json_output(InsightText, model)
         ).with_config(run_name="generate_insight_text")
 
     async def generate(
