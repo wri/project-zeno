@@ -108,3 +108,13 @@ providers: 'Tyukavina, A., P. Potapov, M.C. Hansen, A.H. Pickens, S.V. Stehman, 
 citation: 'Tyukavina, A., P. Potapov, M.C. Hansen, A.H. Pickens, S.V. Stehman, S. Turubanova, D. Parker, et al. 2022. “Global Trends of Forest Loss Due to Fire From 2001 to 2019.” Frontiers in Remote Sensing 3. [https://www.frontiersin.org/article/10.3389/frsen.2022.825190](https://www.frontiersin.org/journals/remote-sensing/articles/10.3389/frsen.2022.825190/).
   Data available at [https://glad.umd.edu/dataset/Fire_GFL/](https://glad.umd.edu/dataset/Fire_GFL/)
   '
+# The jev decision model reads decision_card as this dataset's option and
+# decision_key as its option key (src/agent/subagents/pick_dataset/tool.py).
+# Keep the card to one fixed template: what it measures, units, time range
+# and step, breakdowns, its own limits. Do not name other datasets.
+decision_key: tcl_fires
+decision_card: >-
+  Tree cover loss due to fires (2001-2025). Annual tree cover loss at 30 m
+  split into loss caused by fire and loss from all other causes. Can be
+  limited to primary or intact forest. Time step is one year. No emissions
+  data.
