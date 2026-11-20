@@ -1,6 +1,6 @@
 id: 1-139
 uid: 3114d208350601e7
-status: todo
+status: not doing
 group: context-layer
 query: How much tree cover loss was there in intact forest landscapes inside the oil palm
   concessions in Kuantan Singingi, Riau, Indonesia, between 2015 and 2020?
@@ -26,7 +26,7 @@ notes:
   retire_when: 'The guard is a stopgap for contract 7. When the intact_forest analysis works
     with a feature collection, the guard comes out: flip this row to scope analyse with a
     verified answer, or park it.'
-  status_reason: 'todo 2026-10-15: blocked on the concession ingest on staging, as 1-138.
+  todo_reason_2026_10_15: 'todo 2026-10-15: blocked on the concession ingest on staging, as 1-138.
     Smoke run 20261015T173835Z_staging (1 trial, default profile, not committed): pick_aoi
     found no concessions and the agent fell back to the Kuantan Singingi district (IDN.24.7_1).
     pick_dataset chose Tree cover loss with context layer None, although its reasoning said
@@ -36,3 +36,9 @@ notes:
     dataset_id_match passed; context_layer_match, text and scope failed. That failure is real
     and does not depend on #864, so this row should keep failing until it is fixed. Rerun once
     the concessions are ingested on staging.'
+  status_reason: 'not doing 2026-11-18 (AJ, PZB-1714): failed on all 13 ephemeral runs from
+    11 to 16 November 2026, for the same reason as 1-138: the ephemeral environment has no
+    concession areas, so pick_aoi resolved only the Kuantan Singingi district (IDN.24.7_1).
+    No prompt edit can fix that. PR #896 may also route this question to the concessions
+    layer (1 of 3 trials on its first run). Unpark when PZB-1717 adds concession data to
+    the ephemeral environment, and re-author the row for the concessions-layer flow then.'

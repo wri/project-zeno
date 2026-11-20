@@ -36,8 +36,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 # Catalog fields that a model reads. The context layer descriptions are
-# summed under one key. `function_usage_notes` is also sent to the
-# orchestrator by pick_dataset, so it is counted with the others.
+# summed under one key.
 DATASET_TEXT_FIELDS = (
     "prompt_instructions",
     "code_instructions",

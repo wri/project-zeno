@@ -85,6 +85,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "fr": "Graphiques standard de {dataset_name} pour {area}, {period}.",
         "pt": "Gráficos padrão de {dataset_name} para {area}, {period}.",
         "id": "Bagan standar {dataset_name} untuk {area}, {period}.",
+        "zh": "{area} {period} 的 {dataset_name} 标准图表。",
     },
     # The fixed caption of a curated chart in the agent: no figures. The
     # filters are the context layer and the canopy cover threshold of the
@@ -147,23 +148,6 @@ MESSAGES: dict[str, dict[str, str]] = {
         "vi": "Lưu ý về bộ dữ liệu:",
         "sw": "Tahadhari za dataset:",
         "tr": "Veri kümesi uyarıları:",
-    },
-    "analyst.follow_up_header": {
-        "en": "Follow-up suggestions:",
-        "es": "Sugerencias de seguimiento:",
-        "fr": "Suggestions de suivi :",
-        "pt": "Sugestões de acompanhamento:",
-        "id": "Saran lanjutan:",
-        "de": "Weiterführende Vorschläge:",
-        "it": "Suggerimenti di approfondimento:",
-        "nl": "Vervolgsuggesties:",
-        "ru": "Дополнительные предложения:",
-        "zh": "后续建议：",
-        "ar": "مقترحات المتابعة:",
-        "hi": "अनुवर्ती सुझाव:",
-        "vi": "Gợi ý tiếp theo:",
-        "sw": "Mapendekezo ya ufuatiliaji:",
-        "tr": "Takip önerileri:",
     },
     "analyst.chart_data_none": {
         "en": "(no data)",
@@ -395,6 +379,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "fr": "Horizon affiche {dataset_name} pour une seule zone à la fois. La comparaison ou le classement des zones n'est pas encore pris en charge. Veuillez choisir une zone.",
         "pt": "O Horizon mostra {dataset_name} para uma área de cada vez. Ainda não é possível comparar ou classificar áreas. Escolha uma área.",
         "id": "Horizon menampilkan {dataset_name} untuk satu area dalam satu waktu. Perbandingan atau peringkat antar area belum didukung. Silakan pilih satu area.",
+        "zh": "Horizon 每次只能显示一个区域的 {dataset_name}，暂不支持区域比较或排名。请选择一个区域。",
     },
     "pull_data.no_aoi": {
         "en": "No area of interest selected. Run pick_aoi before pulling data.",

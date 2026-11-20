@@ -12,12 +12,15 @@ from src.api.repositories.subscription_repository import (
 )
 from src.api.routers.dashboards import _expanded_response, _refetch_dashboard
 from src.api.schemas import (
+    BulkSubscriptionsRequest,
+    BulkSubscriptionsResponse,
     DashboardResponse,
     DashboardSubscriptionsRequest,
     UserModel,
 )
 from src.api.services.subscription import (
     NotEligibleForSubscriptionError,
+    SubscriptionChannel,
     SubscriptionService,
     SubscriptionTarget,
 )
@@ -72,4 +75,33 @@ async def set_dashboard_subscriptions(
         )
     return await _expanded_response(
         await _refetch_dashboard(dashboard_id), user, session
+    )
+
+
+@router.delete("/api/subscriptions", response_model=BulkSubscriptionsResponse)
+async def turn_off_all_subscriptions(
+    channel: SubscriptionChannel,
+    user: UserModel = Depends(require_auth),
+    service: SubscriptionService = Depends(get_subscription_service),
+):
+    """Turns the channel off for every dashboard the user subscribed, in one
+    transaction, and lists the dashboards that changed."""
+    changed = await service.remove_for_user(user.id, channel)
+    return BulkSubscriptionsResponse(dashboard_ids=changed)
+
+
+@router.put("/api/subscriptions", response_model=BulkSubscriptionsResponse)
+async def turn_on_subscriptions(
+    body: BulkSubscriptionsRequest,
+    user: UserModel = Depends(require_auth),
+    service: SubscriptionService = Depends(get_subscription_service),
+):
+    """Turns the channel on for the user's own dashboards in the list, for
+    example to undo turning them all off. Dashboards that are not eligible, or
+    not the user's, are skipped and listed."""
+    result = await service.add_for_user(
+        user.id, body.channel, body.dashboard_ids
+    )
+    return BulkSubscriptionsResponse(
+        dashboard_ids=result.subscribed, skipped=result.skipped
     )

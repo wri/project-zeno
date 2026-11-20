@@ -45,7 +45,7 @@ uv run gold run --dry-run                                    # list the selected
 uv run gold run --help                                       # every flag
 ```
 
-`--ids-file PATH` runs only the case ids in a file. The file has one id on each line; `#` starts a comment. You can use `--ids-file` and `--id` together: the run gets the ids of both. An id that no case has stops the run before any API call. `cases/subsets/inner-loop.txt` is a set of 30 cases for local runs while an agent change is in progress. It does not include case 1-046, because that case needs ground truth from the production analytics API. Compare a run of the subset only with another run of the same subset.
+`--ids-file PATH` runs only the case ids in a file. The file has one id on each line; `#` starts a comment. You can use `--ids-file` and `--id` together: the run gets the ids of both. An id that no case has stops the run before any API call. `cases/subsets/inner-loop.txt` is a set of 28 cases for local runs while an agent change is in progress. It does not include cases 1-033 and 1-046, because they need ground truth from the production analytics API, or parked cases. Compare a run of the subset only with another run of the same subset.
 
 ## Glossary
 

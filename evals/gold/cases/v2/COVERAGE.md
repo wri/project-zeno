@@ -6,29 +6,30 @@ is stale (`--check`). Coverage counts use **gating** checks only;
 info-only checks are listed separately (they never enter a verdict).
 Terms are defined in the [README glossary](../../README.md#glossary).
 
-`caseset_version 75560941d0e47f72` · 148 cases · done 96 · not doing 30 · ready 16 · todo 6 · **118 active** (everything but `not doing` runs by default)
+`caseset_version 0f2b0737a9e27427` · 154 cases · done 92 · not doing 33 · ready 27 · todo 2 · **121 active** (everything but `not doing` runs by default)
 
-_Last updated: 2026-11-17_
+_Last updated: 2026-11-19_
 
 ## Groups
 
 | group | cases | active | statuses |
 |---|---|---|---|
+| boundary-layer | 3 | 3 | ready 3 |
 | class-comparison | 9 | 6 | done 6, not doing 3 |
-| comparative | 14 | 13 | done 11, not doing 1, todo 2 |
-| context-layer | 11 | 10 | done 8, not doing 1, todo 2 |
+| comparative | 14 | 13 | done 11, not doing 1, ready 1, todo 1 |
+| context-layer | 11 | 9 | done 8, not doing 2, ready 1 |
 | dashboard | 7 | 7 | done 7 |
 | dataset-parameters | 1 | 1 | done 1 |
 | dataset-suggestion | 8 | 6 | done 6, not doing 2 |
-| direct | 29 | 21 | done 19, not doing 8, ready 1, todo 1 |
+| direct | 31 | 23 | done 15, not doing 8, ready 7, todo 1 |
 | imagery | 5 | 1 | done 1, not doing 4 |
 | metadata | 5 | 5 | done 5 |
 | multilingual | 5 | 5 | done 5 |
-| multiturn | 15 | 11 | not doing 4, ready 11 |
+| multiturn | 16 | 11 | not doing 5, ready 11 |
 | nudge | 2 | 2 | ready 2 |
 | parent-child | 14 | 12 | done 11, not doing 2, ready 1 |
 | ranking | 1 | 1 | done 1 |
-| refusal | 6 | 2 | done 1, not doing 4, todo 1 |
+| refusal | 6 | 1 | done 1, not doing 5 |
 | temporal | 16 | 15 | done 14, not doing 1, ready 1 |
 
 ## Bucket coverage (active cases)
@@ -46,37 +47,37 @@ exists.
 
 | bucket | via dedicated check | via shared only | total | of active |
 |---|---|---|---|---|
-| retrieval | 112 | 0 | 112 | 95% |
-| analysis | 0 | 76 | 76 | 64% |
-| explanation | 29 | 65 | 94 | 80% |
-| output | 85 | 3 | 88 | 75% |
-| scope | 100 | 9 | 109 | 92% |
+| retrieval | 114 | 0 | 114 | 94% |
+| analysis | 0 | 74 | 74 | 61% |
+| explanation | 29 | 64 | 93 | 77% |
+| output | 83 | 3 | 86 | 71% |
+| scope | 103 | 9 | 112 | 93% |
 
 ## Expected-field census (active cases)
 
 | field | cases | switches on |
 |---|---|---|
+| scope | 102 | scope_match |
 | dataset_id | 101 | dataset_id_match |
-| scope | 99 | scope_match |
-| aoi_source | 95 | no check of its own (dashboard_aoi_match also compares it) |
+| aoi_source | 97 | no check of its own (dashboard_aoi_match also compares it) |
 | dataset_name | 93 | reference only |
-| aoi_ids | 84 | aoi_id_match |
-| answer | 76 | agent_answer, chart_produced, data_pull_exists, answered_without_data (+ charts_answer when a chart exists) |
+| aoi_ids | 92 | aoi_id_match |
+| answer | 74 | agent_answer, chart_produced, data_pull_exists, answered_without_data (+ charts_answer when a chart exists) |
 | text | 29 | expected_text_match |
 | context_layer | 19 | context_layer_match |
 | dashboard_created | 11 | dashboard_created |
+| end_date | 9 | date_extraction (with start_date) |
+| start_date | 9 | date_extraction (with end_date) |
 | dashboard_widgets | 8 | dashboard_widgets_match (+ dashboard_widgets_valid when a dashboard exists) |
-| end_date | 8 | date_extraction (with start_date) |
-| start_date | 8 | date_extraction (with end_date) |
 | class_values | 6 | class_value_match (info-only) |
-| nudge_options | 5 | nudge_match |
+| nudge_options | 6 | nudge_match |
 | clarification | 3 | clarification_requested |
+| ground_truth | 3 | ground_truth_match, ground_truth_answer (info-only) |
+| nudge_type | 3 | nudge_match |
 | dashboard_sections | 2 | dashboard_sections_match |
-| nudge_type | 2 | nudge_match |
 | chart_type | 1 | chart_type_match |
 | dashboard_text | 1 | dashboard_text_match |
 | dataset_parameters | 1 | dataset_parameter_match |
-| ground_truth | 1 | ground_truth_match, ground_truth_answer (info-only) |
 | suggested_datasets | 0 ← unused | suggested_datasets_match (legacy: the agent now writes nudge; author nudge_type / nudge_options) |
 
 ## Dataset coverage (project-zeno catalog)
@@ -99,19 +100,19 @@ answer-graded column) exercise the other three.
 | 1 | Global land cover | 6 | 6 | — | — |
 | 2 | Global natural/semi-natural grassland extent | 12 | 11 | — | — |
 | 3 | SBTN Natural Lands Map | 5 | 5 | — | — |
-| 4 | Tree cover loss | 49 | 36 | canopy_cover ×1 | primary_forest ×5, intact_forest ×5, natural_forest ×5 |
-| 5 | Tree cover gain | 6 | 6 | — | — |
+| 4 | Tree cover loss | 49 | 35 | canopy_cover ×1 | primary_forest ×6, intact_forest ×4, natural_forest ×5 |
+| 5 | Tree cover gain | 5 | 5 | — | — |
 | 6 | Forest greenhouse gas net flux | 3 | 3 | canopy_cover ×0 ← gap | — |
 | 7 | Tree cover | 3 | 3 | canopy_cover ×0 ← gap | primary_forest ×0 ← gap |
 | 8 | Tree cover loss by dominant driver | 5 | 5 | canopy_cover ×0 ← gap | — |
 | 9 | Deforestation (sLUC) Emission Factors by Agricultural Crop | 1 | 1 | — | — |
 | 10 | Tree cover loss due to fires | 2 | 1 | canopy_cover ×0 ← gap | primary_forest ×0 ← gap, intact_forest ×0 ← gap |
-| 11 | Integrated alerts | 11 | 9 | — | natural_lands ×4 |
+| 11 | Integrated alerts | 12 | 9 | — | natural_lands ×4 |
 | 12 | Land GHG Monitoring System (LGMS) | 0 ← gap | 0 | — | — |
 
 ## Multi-turn
 
-11 active conversations (25 turns). Delta assertions: absent ×1, changed ×8, retain ×14
+11 active conversations (25 turns). Delta assertions: absent ×1, changed ×9, retain ×12
 
 ## Parked and held cases
 
@@ -143,16 +144,15 @@ answer-graded column) exercise the other three.
 | 1-127 | not doing | refusal | 2026-09-16: not doing. The behaviour is unreleased - wri/project-zeno#827 was open at authoring time. Note ... |
 | 1-128 | not doing | direct | 2026-09-24: not doing. The behaviour is unreleased: wri/project-zeno#830 was open at authoring time. Re-adm... |
 | 1-129 | not doing | direct | 2026-09-24: not doing, same as 1-128: wri/project-zeno#830 was unreleased at authoring time. Re-admit with ... |
+| 1-138 | not doing | refusal | not doing 2026-11-18 (AJ, PZB-1714): failed on all 13 ephemeral runs from 11 to 16 November 2026. The ephem... |
+| 1-139 | not doing | context-layer | not doing 2026-11-18 (AJ, PZB-1714): failed on all 13 ephemeral runs from 11 to 16 November 2026, for the s... |
+| mt-004 | not doing | multiturn | not doing 2026-11-18 (AJ, PZB-1714): in run 20261116T154957Z_ephemeral (PR #896, GitHub Actions run 4389870... |
 | mt-007 | not doing | multiturn | 2026-09-23: parked (not doing). Two standing, reproduced issues without a clean fix: T1's primary-forest-vs... |
 | mt-010 | not doing | multiturn | 2026-09-16: not doing. The behaviour is unreleased - wri/project-zeno#827 was open at authoring time, and t... |
 | mt-011 | not doing | multiturn | 2026-09-16: not doing. The behaviour is unreleased - wri/project-zeno#827 was open at authoring time, and t... |
 | mt-012 | not doing | multiturn | 2026-09-16: not doing. The behaviour is unreleased - wri/project-zeno#827 was open at authoring time, and t... |
 | 1-027 | todo | direct | CHART aggregates results, hiding requested class |
 | 1-030 | todo | comparative | Expecting SBTN analysis but using the Blog skill |
-| 1-062 | todo | comparative | 2026-09-16: reinstated aoi_ids and answer (see finding below); held at todo rather than promoted, pending a... |
-| 1-130 | todo | context-layer | todo 2026-10-09: blocked on project-zeno applying a 10% canopy threshold with the natural_forest layer (AJ,... |
-| 1-138 | todo | refusal | todo 2026-10-15: blocked on the concession ingest on staging. #864 is deployed there (/api/metadata lists t... |
-| 1-139 | todo | context-layer | todo 2026-10-15: blocked on the concession ingest on staging, as 1-138. Smoke run 20261015T173835Z_staging ... |
 
 ## Known gaps
 

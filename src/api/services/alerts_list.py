@@ -279,7 +279,10 @@ class AlertsListService:
         start, end = await self.window(start, end, today, latest)
         # Without a land filter the dataset is exactly what AnalyzeService
         # sends, so a template build makes one pull for its chart and list.
-        dataset: dict[str, Any] = {"dataset_id": INTEGRATED_ALERTS_ID}
+        dataset: dict[str, Any] = {
+            "dataset_id": INTEGRATED_ALERTS_ID,
+            "parameters": None,
+        }
         if land_filter is not None:
             dataset["context_layer"] = land_filter
         # A copy: the handler strips the GADM suffix of its input in place.

@@ -1,6 +1,6 @@
 {
-  "caseset_version": "75560941d0e47f72",
-  "case_count": 148,
+  "caseset_version": "0f2b0737a9e27427",
+  "case_count": 154,
   "source": "gold-live.csv",
   "uid_includes_deltas": true,
   "cases": [
@@ -198,15 +198,15 @@
     },
     {
       "id": "1-033",
-      "uid": "703163c80e077978",
+      "uid": "3361da8415f4c669",
       "group": "direct",
-      "status": "done"
+      "status": "ready"
     },
     {
       "id": "1-034",
-      "uid": "e52c28e867147021",
+      "uid": "72fa51fc653f45f6",
       "group": "direct",
-      "status": "done"
+      "status": "ready"
     },
     {
       "id": "1-035",
@@ -282,9 +282,9 @@
     },
     {
       "id": "1-047",
-      "uid": "77093531222f6f06",
+      "uid": "5d2659c0d1e8fbd3",
       "group": "direct",
-      "status": "done"
+      "status": "ready"
     },
     {
       "id": "1-048",
@@ -372,9 +372,9 @@
     },
     {
       "id": "1-062",
-      "uid": "6bc5b10a4a3f4284",
+      "uid": "cb7ce4b486144d34",
       "group": "comparative",
-      "status": "todo"
+      "status": "ready"
     },
     {
       "id": "1-063",
@@ -420,9 +420,9 @@
     },
     {
       "id": "1-070",
-      "uid": "b00b22aa8fe7903b",
+      "uid": "1c414f5bf31ce3a0",
       "group": "direct",
-      "status": "done"
+      "status": "ready"
     },
     {
       "id": "1-071",
@@ -746,7 +746,7 @@
       "id": "1-130",
       "uid": "3c9c0d75e289d3e6",
       "group": "context-layer",
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "1-131",
@@ -768,9 +768,9 @@
     },
     {
       "id": "1-134",
-      "uid": "0ef69c6073c2f303",
+      "uid": "eaa748cc19f9cbf2",
       "group": "context-layer",
-      "status": "done"
+      "status": "ready"
     },
     {
       "id": "1-135",
@@ -794,13 +794,43 @@
       "id": "1-138",
       "uid": "b99f918a3a730013",
       "group": "refusal",
-      "status": "todo"
+      "status": "not doing"
     },
     {
       "id": "1-139",
       "uid": "3114d208350601e7",
       "group": "context-layer",
-      "status": "todo"
+      "status": "not doing"
+    },
+    {
+      "id": "1-140",
+      "uid": "a40e459b9ce28e4c",
+      "group": "boundary-layer",
+      "status": "ready"
+    },
+    {
+      "id": "1-141",
+      "uid": "3180be1cd23ac4c4",
+      "group": "boundary-layer",
+      "status": "ready"
+    },
+    {
+      "id": "1-142",
+      "uid": "6fec6649a77f0af6",
+      "group": "boundary-layer",
+      "status": "ready"
+    },
+    {
+      "id": "1-143",
+      "uid": "9d336946fdf0c46d",
+      "group": "direct",
+      "status": "ready"
+    },
+    {
+      "id": "1-144",
+      "uid": "90ae9ff34402a586",
+      "group": "direct",
+      "status": "ready"
     },
     {
       "id": "mt-001",
@@ -824,7 +854,7 @@
       "id": "mt-004",
       "uid": "636fc19f46d767a6",
       "group": "multiturn",
-      "status": "ready"
+      "status": "not doing"
     },
     {
       "id": "mt-005",
@@ -876,7 +906,7 @@
     },
     {
       "id": "mt-013",
-      "uid": "f62612849e4264b3",
+      "uid": "5b3d3d7c36fd0ee9",
       "group": "multiturn",
       "status": "ready"
     },
@@ -889,6 +919,12 @@
     {
       "id": "mt-015",
       "uid": "f950e67f2aaf8e46",
+      "group": "multiturn",
+      "status": "ready"
+    },
+    {
+      "id": "mt-016",
+      "uid": "f62612849e4264b3",
       "group": "multiturn",
       "status": "ready"
     }

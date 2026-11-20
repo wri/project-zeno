@@ -1,8 +1,6 @@
 """The orchestrator system prompt as numbered markdown sections.
 
-Used by the profiles with the ``concise-replies`` flag
-(docs/concise-agent-plan.md, iteration 2). Each file in ``sections/`` is one
-section; ``build_prompt`` joins them in file-name order and adds the parts
+Each file in ``sections/`` is one section; ``build_prompt`` joins them in file-name order and adds the parts
 that depend on the profile: the skills list and the current surface.
 
 A block of a section that names a skill or a tool is kept only when the
@@ -27,8 +25,8 @@ from src.agent.tool_spec import Availability
 SECTIONS_DIR = Path(__file__).resolve().parent / "sections"
 
 # Skills whose workflow is written in the sections, so the skills list
-# leaves them out and the model does not spend a model call to read them
-# (docs/concise-agent-plan.md, iteration 3). read_skill still serves them.
+# leaves them out and the model does not spend a model call to read them.
+# read_skill still serves them.
 INLINE_SKILLS = frozenset({"analyze"})
 
 _GATE_START = re.compile(r"^<!-- (tool|skill|flag): ([a-z0-9_-]+) -->$")

@@ -1,14 +1,22 @@
 id: 1-047
-uid: 77093531222f6f06
-status: done
+uid: 5d2659c0d1e8fbd3
+status: ready
 group: direct
 query: How much tree cover was gained between 2000 and 2020 in the Rio Capim KBA?
 expected:
+  aoi_ids: '22245'
   aoi_source: kba
   dataset_id: '5'
   dataset_name: tree cover gain
-  answer: 270.95 hectares
-  text: 270.95 hectares
+  ground_truth: sum(area_ha)
   scope: analyse
 notes:
   aoi_type: kba
+  ground_truth: '2026-11-18 (PZB-1714): the pinned 270.95 ha was wrong. For KBA 22245 the
+    analytics API returns four separate 5-year periods (2000-2005 4,768.14 ha, 2005-2010 6,614.52
+    ha, 2010-2015 6,325.54 ha, 2015-2020 8,665.08 ha), which add up to 26,373.28 ha for 2000-2020.
+    The agent resolved this KBA id and reported 26,373 ha on all 39 trials in 13 ephemeral
+    runs from 11 to 16 November 2026. sum(area_ha) takes the total over the periods, and the
+    figure now comes from the API at run time. text was dropped: it only repeated the answer.'
+  status_reason: 'ready 2026-11-18: new uid (ground_truth and aoi_ids replace answer and text).
+    Promote after a passing 3-trial run at this uid.'

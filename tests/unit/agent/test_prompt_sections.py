@@ -1,5 +1,4 @@
-"""The concise profile's prompt sections (src/agent/prompts/),
-docs/concise-agent-plan.md, iteration 2."""
+"""The system prompt sections (src/agent/prompts/)."""
 
 import re
 
@@ -7,11 +6,7 @@ import pytest
 
 from src.agent.agent_config import (
     BASE_PROFILE,
-    CONCISE_PROFILE,
-    CONCISE_REPLIES,
     DEFAULT_PROFILE,
-    AgentConfig,
-    AgentConfigRegistry,
     default_registry,
 )
 from src.agent.graph import get_prompt
@@ -21,7 +16,7 @@ from src.agent.prompts import (
     gates,
     section_texts,
 )
-from src.agent.prompts.tool_descriptions import CONCISE_TOOL_DESCRIPTIONS
+from src.agent.prompts.tool_descriptions import TOOL_DESCRIPTIONS
 from src.agent.skills import get_skill
 from src.agent.tool_spec import Availability
 
@@ -52,19 +47,11 @@ def test_a_flag_gate_keeps_its_block_only_for_the_flag():
     assert apply_gates(text, flagged) == "a\nflag line\nb\n"
 
 
-def test_concise_prompt_has_the_chart_argument_guidance():
-    """The concise profile has curated charts first. Its prompt has no tool
-    list and no analyze skill, so the work section gives the guidance for
-    the chart argument, only to a profile with that flag."""
+def test_the_work_section_has_the_chart_argument_guidance():
+    """The prompt has no tool list and no analyze skill, so the work
+    section gives the guidance for the chart argument."""
     guidance = "`generate_insights` `chart`"
-    assert guidance in get_prompt(default_registry.resolve(CONCISE_PROFILE))
-    work = dict(section_texts())["03-work.md"]
-    concise_only = Availability(
-        skills=frozenset(),
-        tools=frozenset({"generate_insights"}),
-        flags=frozenset({CONCISE_REPLIES}),
-    )
-    assert guidance not in apply_gates(work, concise_only)
+    assert guidance in get_prompt(default_registry.resolve(DEFAULT_PROFILE))
 
 
 @pytest.mark.parametrize(
@@ -94,8 +81,8 @@ def test_every_gate_names_a_real_skill_tool_or_flag():
                 assert get_skill(gate) is not None, (name, gate)
 
 
-def test_concise_prompt_has_no_tool_list_and_numbered_sections():
-    prompt = get_prompt(default_registry.resolve(CONCISE_PROFILE))
+def test_prompt_has_no_tool_list_and_numbered_sections():
+    prompt = get_prompt(default_registry.resolve(DEFAULT_PROFILE))
     assert "<!--" not in prompt
     assert "# Tools" not in prompt
     assert "# Subagents" not in prompt
@@ -105,16 +92,8 @@ def test_concise_prompt_has_no_tool_list_and_numbered_sections():
     assert "search_insights" in prompt
 
 
-def test_concise_prompt_without_skills_drops_skill_and_tool_blocks():
-    registry = AgentConfigRegistry()
-    registry.register(
-        AgentConfig(
-            "lean",
-            tools=default_registry.resolve(BASE_PROFILE).tools,
-            flags=frozenset({CONCISE_REPLIES}),
-        )
-    )
-    prompt = get_prompt(registry.resolve("lean"))
+def test_prompt_without_skills_drops_skill_and_tool_blocks():
+    prompt = get_prompt(default_registry.resolve(BASE_PROFILE))
     assert "Skills" not in prompt
     assert "read_skill" not in prompt
     assert "search_insights" not in prompt
@@ -122,51 +101,45 @@ def test_concise_prompt_without_skills_drops_skill_and_tool_blocks():
     assert "dashboard" not in prompt
 
 
-def test_concise_prompt_surface_section_is_numbered_last():
+def test_prompt_surface_section_is_numbered_last():
     prompt = get_prompt(
-        default_registry.resolve(CONCISE_PROFILE), page="dashboard"
+        default_registry.resolve(DEFAULT_PROFILE), page="dashboard"
     )
     assert re.search(r"^# 6\. Current surface$", prompt, flags=re.MULTILINE)
 
 
-def test_concise_profile_binds_the_short_descriptions():
-    concise = {
-        t.name: t
-        for t in default_registry.resolve(CONCISE_PROFILE).bound_tools()
-    }
-    default = {
-        t.name: t
-        for t in default_registry.resolve(DEFAULT_PROFILE).bound_tools()
-    }
-    for name, text in CONCISE_TOOL_DESCRIPTIONS.items():
-        assert concise[name].description == text
-        assert default[name].description != text
-        # The copy keeps the schema and the function of the tool.
-        assert concise[name].args == default[name].args
+def test_every_profile_binds_the_tool_descriptions():
+    for cfg in default_registry.configs():
+        tools = {t.name: t for t in cfg.bound_tools()}
+        for name, text in TOOL_DESCRIPTIONS.items():
+            if name in tools:
+                assert tools[name].description == text, (cfg.name, name)
 
 
-def test_every_skill_has_a_brief_with_its_routing_pointers():
-    """The concise skills list shows only `brief`, so it must keep each
-    "use `other-skill`" pointer of `when_to_use`."""
+def test_every_skill_has_a_description():
     from src.agent.skills.loader import all_skills
 
     for skill in all_skills():
-        assert skill.brief, skill.name
-        pointers = set(re.findall(r"`([a-z-]+)`", skill.when_to_use))
-        assert pointers <= set(
-            re.findall(r"`([a-z-]+)`", skill.brief)
-        ), skill.name
+        assert skill.description, skill.name
 
 
-def test_concise_skills_list_is_one_brief_line_per_skill():
-    cfg = default_registry.resolve(CONCISE_PROFILE)
+def test_skills_list_is_one_description_line_per_skill():
+    cfg = default_registry.resolve(DEFAULT_PROFILE)
     prompt = get_prompt(cfg)
     for skill in cfg.skill_metas():
-        line = f"- {skill.name}: {skill.brief}\n"
+        line = f"- {skill.name}: {skill.description}\n"
         if skill.name in INLINE_SKILLS:
             assert line not in prompt + "\n"
         else:
             assert line in prompt + "\n"
-    assert "(use when:" not in prompt
-    default = get_prompt(default_registry.resolve(DEFAULT_PROFILE))
-    assert "(use when:" in default
+
+
+def test_the_pick_aoi_description_asks_for_the_full_request():
+    """The geocoder decides between one area and its subregions from the
+    words around the place. With "Pass the user's words about the place",
+    the orchestrator sent "Democratic Republic of the Congo" for "Which
+    province of the DRC…" and got the country (a GOLD regression after
+    #911). The description must ask for the whole request."""
+    description = TOOL_DESCRIPTIONS["pick_aoi"]
+    assert "full request" in description
+    assert "not only the place name" in description

@@ -59,6 +59,7 @@ EXPECTED_STATE_KEYS = frozenset(
         "end_date",
         "statistics",
         "imagery",
+        "boundary_layer",
         "cited_articles",
         "dashboard_id",
         "insight",

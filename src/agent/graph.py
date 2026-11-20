@@ -1,5 +1,4 @@
 import os
-from datetime import datetime
 from typing import Any, Optional
 
 from dotenv import load_dotenv
@@ -16,7 +15,6 @@ from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
 from src.agent.agent_config import (
-    CONCISE_REPLIES,
     AgentConfig,
     AgentConfigRegistry,
     default_registry,
@@ -28,53 +26,12 @@ from src.agent.middleware import (
 )
 from src.agent.prompts import INLINE_SKILLS, build_prompt
 from src.agent.state import AgentState
-from src.agent.tool_spec import Gate, set_bound_availability
+from src.agent.tool_spec import set_bound_availability
 from src.agent.view_pages import prompt_section
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
-
-# The "# Routing" table — only the request shapes the skills block can't
-# carry: the no-skill shapes (dataset-only, AOI-only) and the recall stop
-# semantics. Per-skill routing lives in each skill's ``when_to_use`` and
-# body, not here. The gate says which namespace a row depends on —
-# ("skill", name) or ("tool", name) — or None for rows served by the core
-# tools every profile binds. Kept module-level so tests can verify every
-# gate resolves to a real skill/tool.
-ROUTING_ROWS: tuple[tuple[Gate, str], ...] = (
-    (
-        None,
-        '- Dataset-only (e.g. "pick tcl by driver"): call pick_dataset, '
-        "then stop. No AOI, pull or insights unless asked.",
-    ),
-    (
-        None,
-        '- AOI-only (e.g. "zoom to Pará"): call pick_aoi, then stop '
-        "unless asked for more.",
-    ),
-    (
-        ("tool", "search_insights"),
-        '- Recall a past insight (e.g. "show that tree-cover insight '
-        'again", "pull up the fires analysis from before"): call '
-        "search_insights and then STOP. search_insights is terminal — "
-        "the insight already exists and is put on screen, so it is "
-        "NEVER followed by pick_aoi, pick_dataset, pull_data or "
-        'generate_insights. "Show/recall/pull up an earlier insight" '
-        "is a recall request, never a request for new analysis. After "
-        "it returns, reply with a one-line summary only.",
-    ),
-)
-
-
-# The reply-style rules of the "Language and format" policy. The
-# concise-replies flag uses the prompt sections in src/agent/prompts/
-# instead (docs/concise-agent-plan.md).
-REPLY_STYLE_DEFAULT = """\
-- Use markdown with blank lines between sections for readability.
-- Never include raw JSON or code blocks in replies (charts render from state).
-- If insights include follow-up suggestions, surface them in your reply.
-- After `generate_insights`, give a short summary of the chart, and surface the relevant dataset cautions / methodology notes from the analyst's tool message"""
 
 
 def get_prompt(
@@ -82,98 +39,27 @@ def get_prompt(
 ) -> str:
     """Generate the system prompt from the config's tools and skills.
 
-    ``page`` is the frontend surface the user is on (from
-    ``view_context["page"]``, known at request time); registered pages
-    (src/agent/view_pages.py) contribute a "# Current surface" section with
-    their scope and routing hints. Unknown/absent pages add nothing.
+    The prompt is the numbered markdown sections in src/agent/prompts/,
+    then the skills list and the current surface. ``page`` is the frontend
+    surface the user is on (from ``view_context["page"]``, known at request
+    time); registered pages (src/agent/view_pages.py) contribute a "Current
+    surface" section with their scope and routing hints. Unknown/absent
+    pages add nothing. The tool list is not in the prompt: each tool's
+    schema description is its one description. The skills in
+    INLINE_SKILLS are not listed: their workflow is in the sections.
     """
     if config is None:
         config = default_registry.resolve()
-    skill_lines = [
-        f"- {s.name}: {s.description} (use when: {s.when_to_use})"
-        for s in config.skill_metas()
-    ]
-    if CONCISE_REPLIES in config.flags:
-        # Numbered markdown sections (src/agent/prompts/); the tool list is
-        # not in the prompt: each tool's schema description is its single
-        # description (docs/concise-agent-plan.md, iteration 2). Each skill
-        # is one line, its `brief`. The skills in INLINE_SKILLS are not
-        # listed: their workflow is in the sections (iteration 3).
-        available = config.availability()
-        return build_prompt(
-            available,
-            [
-                f"- {s.name}: {s.brief}"
-                for s in config.skill_metas()
-                if s.name not in INLINE_SKILLS
-            ],
-            prompt_section(page, available),
-        )
-    # A profile without skills (base) binds no read_skill, so the whole
-    # skills section — including the read_skill instruction — is omitted.
-    if skill_lines:
-        skills_section = (
-            "# Skills (multi-step recipes)\n"
-            "\n"
-            'Call read_skill(name) only when a skill\'s "use when" clause '
-            "matches the request — usually one skill, not the whole list.\n"
-            "\n" + "\n".join(skill_lines) + "\n"
-            "\n"
-        )
-        routing_intro = (
-            "Match the request to exactly one skill (above) or one row (below)"
-        )
-    else:
-        skills_section = ""
-        routing_intro = "Match the request to exactly one row below"
-    tool_descriptions = config.tool_descriptions()
-    reply_style = REPLY_STYLE_DEFAULT
     available = config.availability()
-    surface = prompt_section(page, available)
-    surface_block = f"\n# Current surface\n\n{surface}\n" if surface else ""
-    routing_block = "\n".join(
-        line for gate, line in ROUTING_ROWS if available.allows(gate)
+    return build_prompt(
+        available,
+        [
+            f"- {s.name}: {s.description}"
+            for s in config.skill_metas()
+            if s.name not in INLINE_SKILLS
+        ],
+        prompt_section(page, available),
     )
-    today = datetime.now().strftime("%Y-%m-%d")
-    return f"""You are Global Nature Watch's Geospatial Agent. You answer user questions by calling tools and subagents - never by inventing data.
-
-Today: {today}
-
-A [Session — date] system message is prepended to every model call with the live AOI, dataset, date range, pulled data and active insight. Trust it: if it shows the AOI or dataset is already set, do not re-resolve unless the user changes it.
-{surface_block}
-Call tools one at a time, never in parallel.
-
-{tool_descriptions}
-
-{skills_section}# Routing
-
-{routing_intro}; do not escalate a dataset / AOI / pull request into a full analysis.
-
-{routing_block}
-
-# Policy
-
-Geography:
-- Global and continent-scale analysis is supported. Use "Global World" as the place when the user asks a worldwide or cross-country question (e.g. "which countries have the most deforestation globally").
-- Concessions: when pick_aoi says an area has too many concessions, or that a concession cannot be searched by name, relay its message and stop. Never give, estimate or count figures for concessions that pick_aoi did not select.
-
-Language and format:
-- Reply in the language given in the session block's "Language" line (it accounts for the user's profile preference, falling back to the query's language).
-{reply_style}
-- Chart data in tool messages (from `generate_insights` or `inspect_view_context`) is either the full rows (small series) or per-column stats only — min/max/mean, or distinct-value counts and samples (large series). When only stats are shown, cite only those aggregates; never state a specific individual data point, exact total, or trend that isn't present in what was returned.
-- Never say or imply that a chart, graph, or analysis was produced, shown, or updated unless `generate_insights` (or `update_insight_display`) actually returned one this turn. If a tool declines part of the request (e.g. a comparison it can't render, an extra area, an unavailable dataset), state only that decline for that part — do not describe any output for it, and do not reuse an earlier chart's description as if it answered the declined part.
-
-UI / map selections (when the message mentions a UI action or changed map selection):
-- Acknowledge: "I see you've selected [item name]".
-- Confirm you have AOI + dataset + date range before analysis; use tools only for missing components.
-- If the user asks to change selections, override prior UI selections.
-
-Nudges:
-- Some tools (pick_dataset, pick_aoi, pull_data, show_imagery) return their own clickable options or clarifying question directly, already recorded as the pending nudge. When that happens, do not call send_nudge afterward — it would overwrite the correct options with your own reworded guess. Just summarize what the tool returned in your reply and stop, waiting for the user's answer.
-- Only call send_nudge to offer a new set of choices you are constructing yourself, never to restate one a tool already gave you.
-- The same "relay and stop" rule applies to a plain decline from pull_data or generate_insights that offers no options (e.g. "one area at a time" on a comparison request): relay the tool's message and stop. Do not retry the request with the previously selected single area's data and describe that as fulfilling the declined comparison.
-- A pending nudge records the options offered, never a selection. The user's answer arrives as the plain option text, so it is still unresolved: pass it back to the tool that offered it (pick_aoi for an area, pick_dataset for a dataset) before any tool that needs the selection. The session block is the check — if it still says "AOI: none" or "Dataset: none", resolve that first, whatever the user's last message looks like.
-"""
 
 
 load_dotenv()

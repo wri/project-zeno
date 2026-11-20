@@ -7,8 +7,6 @@ from uuid import uuid4
 import pytest
 
 from src.agent.agent_config import (
-    CURATED_CHARTS_FIRST,
-    CURATED_CHARTS_PROFILE,
     DEFAULT_PROFILE,
     default_registry,
 )
@@ -31,7 +29,6 @@ from src.agent.subagents.analyst.curated_first import (
     period_label,
 )
 from src.agent.subagents.analyst.tool import (
-    CURATED_FIRST_SPEC,
     SPEC,
     Analyst,
 )
@@ -327,7 +324,7 @@ def test_period_label():
 # --- tool message -----------------------------------------------------------
 
 
-async def test_tool_message_has_header_rows_facts_cautions_instruction(run):
+async def test_tool_message_has_header_rows_facts_instruction(run):
     command = await _analyze(_statistics())
     content = _content(command)
 
@@ -351,9 +348,9 @@ async def test_tool_message_has_header_rows_facts_cautions_instruction(run):
         content
     )
     assert "MgCO2e" in content
-    # Cautions, then the instruction last.
+    # The catalog cautions (the dataset can come from a UI selection, with
+    # no pick_dataset message); the instruction is last.
     assert "Dataset cautions:" in content
-    assert "does not equate to deforestation" in content
     assert content.endswith(CURATED_ANSWER_INSTRUCTION)
 
 
@@ -392,84 +389,41 @@ def test_a_large_chart_lists_no_rows():
     )
 
 
-# --- profile flag -----------------------------------------------------------
+# --- the generate_insights tool ---------------------------------------------
 
 
-def _generate_insights_spec(profile):
-    config = default_registry.resolve(profile)
-    return next(s for s in config.specs if s.tool.name == "generate_insights")
+def test_generate_insights_has_the_chart_argument():
+    schema = SPEC.tool.tool_call_schema.model_json_schema()
 
-
-def test_default_profile_keeps_the_generate_insights_tool():
-    spec = _generate_insights_spec(DEFAULT_PROFILE)
-
-    assert spec is SPEC
-    schema = spec.tool.tool_call_schema.model_json_schema()
-    assert "chart" not in schema["properties"]
-    assert default_registry.resolve(DEFAULT_PROFILE).flags == frozenset()
-    assert (
-        'chart="standard"'
-        not in default_registry.resolve(DEFAULT_PROFILE).tool_descriptions()
-    )
-
-
-def test_curated_profile_has_the_chart_argument():
-    spec = _generate_insights_spec(CURATED_CHARTS_PROFILE)
-
-    assert spec is CURATED_FIRST_SPEC
-    schema = spec.tool.tool_call_schema.model_json_schema()
     assert schema["properties"]["chart"]["enum"] == ["standard", "custom"]
     assert schema["properties"]["chart"]["default"] == "standard"
-    config = default_registry.resolve(CURATED_CHARTS_PROFILE)
-    assert config.availability().flags == {CURATED_CHARTS_FIRST}
-    assert 'chart="standard"' in config.tool_descriptions()
+    for profile in (DEFAULT_PROFILE, "base", "experimental", "lgms"):
+        config = default_registry.resolve(profile)
+        spec = next(
+            s for s in config.specs if s.tool.name == "generate_insights"
+        )
+        assert spec is SPEC
+        assert 'chart="standard"' in config.tool_descriptions()
 
 
-def test_curated_profile_keeps_the_default_surface():
-    default = default_registry.resolve(DEFAULT_PROFILE)
-    curated = default_registry.resolve(CURATED_CHARTS_PROFILE)
+def test_analyze_skill_has_the_chart_guidance():
+    body = render_body(get_skill("analyze"), frozenset())
 
-    assert curated.skills == default.skills
-    assert curated.tool_names() == default.tool_names()
-    assert curated.excluded_datasets == default.excluded_datasets
-
-
-def test_analyze_skill_by_flag():
-    skill = get_skill("analyze")
-    default = render_body(skill, frozenset())
-    flagged = render_body(skill, frozenset({CURATED_CHARTS_FIRST}))
-
-    for body in (default, flagged):
-        assert "<!--" not in body
-    assert "chart=" not in default
-    assert (
-        "after a successful pull, always run this to produce one chart insight.\n"
-        in default
-    )
-    assert 'chart="custom"' in flagged
-    assert "send that period to `pull_data`" in flagged
-    assert "send that period" not in default
+    assert "<!--" not in body
+    assert 'chart="custom"' in body
+    assert "send that period to `pull_data`" in body
 
 
-async def test_tool_variant_passes_the_chart_argument():
+async def test_tool_passes_the_chart_argument():
     with patch.object(
         Analyst, "analyze", AsyncMock(return_value="done")
     ) as analyze:
-        result = await CURATED_FIRST_SPEC.tool.coroutine(
+        result = await SPEC.tool.coroutine(
             "query", chart="custom", state={"statistics": []}
         )
 
     assert result == "done"
     assert analyze.await_args.kwargs["chart"] == "custom"
-
-
-async def test_default_tool_passes_no_chart_argument():
-    with patch.object(
-        Analyst, "analyze", AsyncMock(return_value="done")
-    ) as analyze:
-        await SPEC.tool.coroutine("query", state={"statistics": []})
-
-    assert analyze.await_args.kwargs["chart"] is None
 
 
 # --- tree cover loss by driver (phase 1b) ----------------------------------

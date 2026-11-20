@@ -6,7 +6,6 @@ from langchain_core.tools import tool
 
 from src.agent.agent_config import (
     BASE_PROFILE,
-    CONCISE_PROFILE,
     DEFAULT_PROFILE,
     DEFAULT_SKILLS,
     EXPERIMENTAL_PROFILE,
@@ -140,7 +139,6 @@ def test_config_rejects_skill_requiring_unregistered_tool(monkeypatch):
     fake = SkillMeta(
         name="broken",
         description="",
-        when_to_use="",
         body="",
         requires=("no_such_tool",),
     )
@@ -276,17 +274,6 @@ def test_only_lgms_profile_is_public():
     assert PUBLIC_PROFILES == frozenset({LGMS_PROFILE})
 
 
-def test_concise_profile_is_not_public():
-    assert CONCISE_PROFILE not in PUBLIC_PROFILES
-
-
-def test_concise_profile_keeps_the_default_excluded_datasets():
-    default = default_registry.resolve(DEFAULT_PROFILE).availability()
-    concise = default_registry.resolve(CONCISE_PROFILE).availability()
-    assert default.excluded_datasets  # a guard: the default excludes LGMS
-    assert concise.excluded_datasets == default.excluded_datasets
-
-
 # --- Structural invariants ---------------------------------------------------
 
 
@@ -305,7 +292,7 @@ def test_declared_skills_always_have_their_tools_bound():
     for config in default_registry.configs():
         available = config.tool_names()
         for skill in config.skill_metas():
-            assert set(config.requires(skill)) <= available
+            assert set(skill.requires) <= available
 
 
 def test_default_config_advertises_core_skills():
@@ -343,6 +330,7 @@ def test_default_profile_derives_exactly_the_core_tools():
             "search_blogs",
             "show_imagery",
             "show_planet_imagery",
+            "show_boundary_layer",
             "update_insight_display",
             "search_insights",
             "create_dashboard",
@@ -370,6 +358,7 @@ def test_experimental_profile_derives_exactly_the_experimental_tools():
             "inspect_view_context",
             "show_imagery",
             "show_planet_imagery",
+            "show_boundary_layer",
             "search_blogs",
             "update_insight_display",
             "search_insights",
