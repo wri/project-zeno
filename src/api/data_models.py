@@ -502,7 +502,7 @@ class InsightOrm(Base):
     follow_up_suggestions = Column(JSONB, nullable=False, server_default="[]")
     statistics_ids = Column(JSONB, nullable=False, server_default="[]")
     # Snapshot of the pulls the insight was computed from, written at save
-    # time (see AnalysisInput in src/api/schemas.py). NULL: not recorded.
+    # time, shaped like the API's AnalysisInput. NULL: not recorded.
     # none_as_null stores Python None as SQL NULL rather than JSON null, so
     # rows saved before the column and "not recorded" rows look the same.
     analysis_inputs = Column(JSONB(none_as_null=True), nullable=True)
