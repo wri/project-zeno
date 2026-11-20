@@ -797,7 +797,11 @@ class AnalyticsHandler(DataSourceHandler):
                 for ds in DATASETS
                 if ds["dataset_id"] == dataset.get("dataset_id")
             ]
-            dataset = dataset_full[0] | dataset
+            # The catalog's `parameters` lists every value a parameter
+            # allows, not a choice. Only the selection may set them, so a
+            # selection without them gets the default canopy cover, not the
+            # highest allowed value.
+            dataset = {**dataset_full[0], "parameters": None} | dataset
 
             # Get the appropriate endpoint URL
             if (
