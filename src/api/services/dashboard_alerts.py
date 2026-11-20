@@ -3,6 +3,7 @@ AOI over a period, by default the week ending on the latest alert date. If
 that date is unavailable, the default is the latest full Sunday-to-Saturday
 week."""
 
+import asyncio
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Callable, Iterable, Optional, Protocol
@@ -28,6 +29,9 @@ SATURDAY = 5
 DEFAULT_PERIOD_DAYS = 7
 LATEST_ALERT_DATE_PATH = "/v0/land_change/integrated_alerts/latest"
 LATEST_ALERT_DATE_TIMEOUT_SECONDS = 10.0
+# At most this many custom area pulls at once, so one dashboards page
+# cannot flood the analytics API with saved-area checks.
+CUSTOM_AREAS_CONCURRENCY = 8
 
 # The latest alert date changes at most daily, so keep it for an hour.
 _latest_alert_date_cache: cachetools.TTLCache = cachetools.TTLCache(
@@ -122,8 +126,12 @@ def period_ending(end: date) -> tuple[date, date]:
     return end - timedelta(days=DEFAULT_PERIOD_DAYS - 1), end
 
 
+def is_custom_area(aoi: dict) -> bool:
+    return aoi["subtype"] == "custom-area"
+
+
 def supports_alerts(aoi: dict) -> bool:
-    return (
+    return is_custom_area(aoi) or (
         aoi["source"] == "gadm" and aoi["subtype"] in ANALYTICS_ADMIN_SUBTYPES
     )
 
@@ -194,6 +202,39 @@ class DashboardAlertsService:
     async def _alerts_by_src_id(
         self, aois: list[dict], start: date, end: date
     ) -> dict[str, DashboardAlerts]:
+        """GADM areas in one request, each custom area in its own: the
+        analytics API refuses a whole request for one unsaved custom area,
+        so one unsaved or deleted area must not fail the others."""
+        admin_alerts, custom_alerts = await asyncio.gather(
+            self._pull(
+                [aoi for aoi in aois if not is_custom_area(aoi)], start, end
+            ),
+            self._pull_each(
+                [aoi for aoi in aois if is_custom_area(aoi)], start, end
+            ),
+        )
+        return {**admin_alerts, **custom_alerts}
+
+    async def _pull_each(
+        self, aois: list[dict], start: date, end: date
+    ) -> dict[str, DashboardAlerts]:
+        """Each AOI's alerts from its own request, at most
+        CUSTOM_AREAS_CONCURRENCY at once."""
+        slots = asyncio.Semaphore(CUSTOM_AREAS_CONCURRENCY)
+
+        async def pull_one(aoi: dict) -> dict[str, DashboardAlerts]:
+            async with slots:
+                return await self._pull([aoi], start, end)
+
+        alerts: dict[str, DashboardAlerts] = {}
+        for one in await asyncio.gather(*(pull_one(aoi) for aoi in aois)):
+            alerts.update(one)
+        return alerts
+
+    async def _pull(
+        self, aois: list[dict], start: date, end: date
+    ) -> dict[str, DashboardAlerts]:
+        """The AOIs' alerts from one request; all unavailable if it fails."""
         if not aois:
             return {}
         try:
