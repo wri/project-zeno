@@ -463,6 +463,9 @@ def _patch_post(monkeypatch, status_codes):
             self.status_code = status_code
 
     class _Client:
+        def __init__(self, **kwargs):
+            pass
+
         async def __aenter__(self):
             return self
 

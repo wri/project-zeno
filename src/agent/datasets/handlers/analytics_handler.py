@@ -25,6 +25,10 @@ logger = get_logger(__name__)
 POLL_TIMEOUT_SECONDS = 180
 # Wait between polls when the API sends no (usable) Retry-After.
 POLL_DEFAULT_INTERVAL_SECONDS = 1.0
+# How long one request (the analysis POST, the result download) may wait
+# for an answer. httpx's 5 s default is too short: the API checks saved
+# custom areas before it answers, which took up to 6.1 s (2026-11-20).
+ANALYTICS_REQUEST_TIMEOUT_SECONDS = 30.0
 
 ADMIN_SUBTYPES = (
     "country",
@@ -585,7 +589,9 @@ class AnalyticsHandler(DataSourceHandler):
     ) -> httpx.Response:
         """Post an analysis request, sending saved custom areas again as their
         geometry if the analytics API doesn't have them yet."""
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(
+            timeout=ANALYTICS_REQUEST_TIMEOUT_SECONDS
+        ) as client:
             response = await client.post(
                 endpoint_url, headers=headers, json=payload
             )
@@ -689,7 +695,9 @@ class AnalyticsHandler(DataSourceHandler):
             )
 
         download_link = data_section["link"]
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(
+            timeout=ANALYTICS_REQUEST_TIMEOUT_SECONDS
+        ) as client:
             response = await client.get(
                 download_link, headers=analytics_api_headers()
             )
