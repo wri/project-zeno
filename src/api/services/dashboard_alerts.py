@@ -32,6 +32,10 @@ LATEST_ALERT_DATE_TIMEOUT_SECONDS = 10.0
 # At most this many custom area pulls at once, so one dashboards page
 # cannot flood the analytics API with saved-area checks.
 CUSTOM_AREAS_CONCURRENCY = 8
+# The longest wait for custom areas: enough for a result the analytics API
+# already holds (its saved-area check takes up to about 6 s); slower areas
+# are unavailable this time and come from its cache on the next load.
+CUSTOM_AREAS_TIMEOUT_SECONDS = 10.0
 
 # The latest alert date changes at most daily, so keep it for an hour.
 _latest_alert_date_cache: cachetools.TTLCache = cachetools.TTLCache(
@@ -152,9 +156,11 @@ class DashboardAlertsService:
         self,
         source: AlertsSource,
         today: Callable[[], date] = date.today,
+        custom_areas_timeout_seconds: float = CUSTOM_AREAS_TIMEOUT_SECONDS,
     ):
         self.source = source
         self.today = today
+        self.custom_areas_timeout_seconds = custom_areas_timeout_seconds
 
     async def summarize(
         self,
@@ -204,7 +210,8 @@ class DashboardAlertsService:
     ) -> dict[str, DashboardAlerts]:
         """GADM areas in one request, each custom area in its own: the
         analytics API refuses a whole request for one unsaved custom area,
-        so one unsaved or deleted area must not fail the others."""
+        so one unsaved, deleted or slow area must not fail or hold up the
+        others."""
         admin_alerts, custom_alerts = await asyncio.gather(
             self._pull(
                 [aoi for aoi in aois if not is_custom_area(aoi)], start, end
@@ -219,16 +226,38 @@ class DashboardAlertsService:
         self, aois: list[dict], start: date, end: date
     ) -> dict[str, DashboardAlerts]:
         """Each AOI's alerts from its own request, at most
-        CUSTOM_AREAS_CONCURRENCY at once."""
+        CUSTOM_AREAS_CONCURRENCY at once. An AOI whose request is not done
+        within custom_areas_timeout_seconds of the start is unavailable."""
+        if not aois:
+            return {}
         slots = asyncio.Semaphore(CUSTOM_AREAS_CONCURRENCY)
 
         async def pull_one(aoi: dict) -> dict[str, DashboardAlerts]:
             async with slots:
                 return await self._pull([aoi], start, end)
 
-        alerts: dict[str, DashboardAlerts] = {}
-        for one in await asyncio.gather(*(pull_one(aoi) for aoi in aois)):
-            alerts.update(one)
+        tasks = {
+            aoi["src_id"]: asyncio.create_task(pull_one(aoi)) for aoi in aois
+        }
+        _, pending = await asyncio.wait(
+            tasks.values(), timeout=self.custom_areas_timeout_seconds
+        )
+        for task in pending:
+            task.cancel()
+        # Let the cancelled requests unwind before their tasks are dropped.
+        await asyncio.gather(*pending, return_exceptions=True)
+        late = [src_id for src_id, task in tasks.items() if task in pending]
+        if late:
+            # Ids only: custom area names are user text.
+            logger.warning(
+                "dashboard_alerts_custom_areas_timeout",
+                custom_area_ids=late,
+                timeout_seconds=self.custom_areas_timeout_seconds,
+            )
+        alerts = {src_id: unavailable() for src_id in late}
+        for src_id, task in tasks.items():
+            if task not in pending:
+                alerts.update(task.result())
         return alerts
 
     async def _pull(

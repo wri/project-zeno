@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import httpx
 import pytest
+import structlog
 
 from src.agent.datasets.handlers.analytics_handler import INTEGRATED_ALERTS_ID
 from src.agent.datasets.handlers.base import DataPullResult, DataSourceHandler
@@ -56,26 +57,36 @@ class FakeAlertsSource:
         fail=False,
         latest=LATEST_ALERT_DATE,
         failing=(),
+        hanging=(),
     ):
         self.area_ha = area_ha_by_src_id or {}
         self.fail = fail
         self.latest = latest
         # Requests that include one of these src_ids fail.
         self.failing = set(failing)
+        # Requests that include one of these src_ids never answer.
+        self.hanging = set(hanging)
         self.calls = []
+        self.cancelled = []
         self.in_flight = 0
         self.most_in_flight = 0
 
     async def area_ha_by_src_id(self, aois, start, end):
         self.calls.append((aois, start, end))
+        src_ids = {aoi["src_id"] for aoi in aois}
         self.in_flight += 1
         self.most_in_flight = max(self.most_in_flight, self.in_flight)
         try:
             # Yield, so that concurrent requests overlap.
             await asyncio.sleep(0)
-            if self.fail or self.failing & {aoi["src_id"] for aoi in aois}:
+            if self.hanging & src_ids:
+                await asyncio.Event().wait()
+            if self.fail or self.failing & src_ids:
                 raise AlertsUnavailableError("timed out")
             return self.area_ha
+        except asyncio.CancelledError:
+            self.cancelled.extend(sorted(src_ids))
+            raise
         finally:
             self.in_flight -= 1
 
@@ -318,6 +329,39 @@ async def test_summarize_pulls_a_limited_number_of_custom_areas_at_once():
     assert len(source.calls) == count
     assert source.most_in_flight == dashboard_alerts.CUSTOM_AREAS_CONCURRENCY
     assert set(report.dashboards) == set(areas)
+
+
+@pytest.mark.asyncio
+async def test_summarize_stops_waiting_for_slow_custom_areas():
+    source = FakeAlertsSource(
+        {"BRA.16_1": 12.5, MY_AREA["src_id"]: 3.0},
+        hanging={RIVER_FARM["src_id"]},
+    )
+    service = DashboardAlertsService(
+        source, today=lambda: MONDAY, custom_areas_timeout_seconds=0.05
+    )
+    parana, mine, farm = uuid4(), uuid4(), uuid4()
+
+    with structlog.testing.capture_logs() as logs:
+        report = await service.summarize(
+            {parana: PARANA, mine: MY_AREA, farm: RIVER_FARM}
+        )
+
+    assert report.dashboards == {
+        parana: DashboardAlerts(integrated_alerts=12.5),
+        mine: DashboardAlerts(integrated_alerts=3.0),
+        farm: dashboard_alerts.unavailable(),
+    }
+    assert source.cancelled == [RIVER_FARM["src_id"]]
+    [record] = [
+        log
+        for log in logs
+        if log["event"] == "dashboard_alerts_custom_areas_timeout"
+    ]
+    assert record["log_level"] == "warning"
+    assert record["custom_area_ids"] == [RIVER_FARM["src_id"]]
+    # Custom area names are user text, so they stay out of the logs.
+    assert RIVER_FARM["name"] not in str(record)
 
 
 @pytest.mark.asyncio
