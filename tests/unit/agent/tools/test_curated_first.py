@@ -11,8 +11,10 @@ from src.agent.agent_config import (
     default_registry,
 )
 from src.agent.datasets.handlers.analytics_handler import (
+    DEFAULT_CANOPY_COVER,
     FOREST_CARBON_FLUX_ID,
     GRASSLANDS_ID,
+    NATURAL_FOREST_DEFAULT_CANOPY_COVER,
     SLUC_EMISSION_FACTORS_ID,
     TREE_COVER_LOSS_BY_DRIVER_ID,
     TREE_COVER_LOSS_ID,
@@ -262,6 +264,50 @@ async def test_the_gate_reads_the_latest_pull_only(run):
     )
 
     assert run.persist.await_args.kwargs["statistics_ids"] == [latest["id"]]
+
+
+async def test_a_curated_chart_records_the_latest_pull_only(run):
+    older = _statistics(dataset_id=GRASSLANDS_ID)
+    latest = {
+        **_statistics(),
+        "aoi_ids": ["BRA.14_1"],
+        "aoi_sources": ["gadm"],
+    }
+
+    command = await Analyst().analyze(
+        "tree cover loss",
+        statistics=[older, latest],
+        tool_call_id="call-1",
+        language="en",
+        chart="standard",
+    )
+
+    expected = [
+        {
+            "areas": [
+                {"name": "Pará", "source": "gadm", "src_id": "BRA.14_1"}
+            ],
+            "dataset_id": TREE_COVER_LOSS_ID,
+            "dataset_name": "Tree cover loss",
+            "start_date": "2021-01-01",
+            "end_date": "2023-12-31",
+            "canopy_cover": DEFAULT_CANOPY_COVER,
+            "context_layer": None,
+        }
+    ]
+    assert command.update["analysis_inputs"] == expected
+    assert run.persist.await_args.kwargs["analysis_inputs"] == expected
+
+
+async def test_a_curated_chart_records_the_threshold_its_caption_states(run):
+    command = await _analyze(_statistics(context_layer="natural_forest"))
+
+    (entry,) = command.update["analysis_inputs"]
+    assert entry["canopy_cover"] == NATURAL_FOREST_DEFAULT_CANOPY_COVER
+    assert entry["context_layer"] == "natural_forest"
+    caption = run.persist.await_args.args[0].primary_insight
+    threshold = NATURAL_FOREST_DEFAULT_CANOPY_COVER
+    assert f"canopy cover ≥ {threshold}%" in caption
 
 
 # --- caption ----------------------------------------------------------------

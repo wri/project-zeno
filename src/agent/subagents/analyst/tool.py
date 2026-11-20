@@ -438,10 +438,11 @@ async def _persist_curated(
     statistics: dict,
     content: str,
     tool_call_id: Optional[str],
-    analysis_inputs: Optional[list[dict]] = None,
 ) -> Command:
     """Persist a curated insight of one pull and return the state update.
     The update has the same fields as the code executor path."""
+    # Both curated routes build the charts from this one pull only.
+    analysis_inputs = inputs_from_statistics([statistics])
     ctx = structlog.contextvars.get_contextvars()
     insight_id = await persist_insight(
         insight,
@@ -811,8 +812,6 @@ class Analyst:
             statistics,
             await _build_curated_only_tool_message(insight, language),
             tool_call_id,
-            # The one pull the standard charts are built from.
-            analysis_inputs=inputs_from_statistics([statistics]),
         )
 
     async def _analyze_curated(
