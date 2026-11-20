@@ -14,12 +14,22 @@ _DEFAULT_DASHBOARD = (
 TOOL_DESCRIPTIONS: dict[str, str] = {
     "pick_aoi": (
         "Resolve the place in the request to the area of interest (AOI) in "
-        "state (geocoding subagent). Pass the user's words about the place "
-        'verbatim, for example "tree cover loss in Pará, Brazil", "the '
-        'districts of Odisha", "forest loss worldwide". It extracts, '
+        "state (geocoding subagent). Pass the user's full request about the "
+        'area to analyze, not only the place name, for example "tree cover '
+        'loss in Pará, Brazil", "which province of the DRC had the most '
+        'alerts", "forest loss worldwide". The words around the place ("each '
+        'state", "the provinces of", "Indigenous territories in") tell it to '
+        'select the subregions: with only "DRC" it selects the country. When '
+        "the message does not name the place, add it from the earlier turns "
+        '("which states lost the most?" after a question about Brazil becomes '
+        '"which states of Brazil lost the most?"). Leave out places that are '
+        "not part of the area to analyze. It extracts, "
         "translates and resolves the place and any subregions itself. Set "
         "`area_of_interest` when the type of area is obvious. Returns a "
-        "clarifying question when the place is ambiguous or missing."
+        "clarifying question when the place is ambiguous or missing. A zone "
+        'with no boundary (a "belt", a "frontier") resolves to its country '
+        "or to the country's units: say in the answer that the figures are "
+        "for the country, not the zone."
     ),
     "pick_dataset": (
         "Select the dataset, context layer and date range that best answer "

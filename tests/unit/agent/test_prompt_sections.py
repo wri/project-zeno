@@ -132,3 +132,14 @@ def test_skills_list_is_one_description_line_per_skill():
             assert line not in prompt + "\n"
         else:
             assert line in prompt + "\n"
+
+
+def test_the_pick_aoi_description_asks_for_the_full_request():
+    """The geocoder decides between one area and its subregions from the
+    words around the place. With "Pass the user's words about the place",
+    the orchestrator sent "Democratic Republic of the Congo" for "Which
+    province of the DRC…" and got the country (a GOLD regression after
+    #911). The description must ask for the whole request."""
+    description = TOOL_DESCRIPTIONS["pick_aoi"]
+    assert "full request" in description
+    assert "not only the place name" in description
