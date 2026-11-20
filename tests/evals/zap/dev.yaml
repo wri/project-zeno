@@ -1,0 +1,325 @@
+# Zap map eval: the dev part. Use this part to tune the planner.
+# The format and the rules are in README.md.
+today: "2026-11-12"
+cases:
+  # --- Gold single-area prompts (gnw-gold-evals cases/v2) ---
+  - id: d-01
+    source: gold 1-009
+    kind: gold
+    tests: [dataset, area, time]
+    prompt: What percentage of disturbances in Sara, Bolivia were caught by multiple systems during July 2025?
+    expect: {dataset: 11, area: gadm:BOL.8.12_2, start: "2025-07-01", end: "2025-07-31"}
+  - id: d-02
+    source: gold 1-031
+    kind: gold
+    tests: [dataset, area]
+    prompt: Whats the second largest natural land class by area in Cogo, Eq. Guinea?
+    expect: {dataset: 3, area: gadm:GNQ.6.3_1, start: null, end: null}
+  - id: d-03
+    source: gold 1-064
+    kind: gold
+    tests: [dataset, area]
+    prompt: What is the largest driver of deforestation in Nannup, Western Australia.
+    expect: {dataset: 8, area: gadm:AUS.11.90_1, start: null, end: null}
+  - id: d-04
+    source: gold 1-095
+    kind: gold
+    tests: [dataset, area, time, canopy]
+    prompt: Using a 10% canopy threshold, how much tree cover did Finland lose in 2025?
+    expect: {dataset: 4, area: gadm:FIN, start: "2025-01-01", end: "2025-12-31", canopy: 10}
+  - id: d-05
+    source: gold 1-002
+    kind: gold
+    tests: [dataset, area, time]
+    prompt: How much of Sao Paulo was affected by disturbance alerts in the second half of 2024, considering high and highest confidence alerts only?
+    expect: {dataset: 11, area: gadm:BRA.25_1, start: "2024-07-01", end: "2024-12-31"}
+  - id: d-06
+    source: gold 1-017
+    kind: gold
+    tests: [dataset, area, time]
+    prompt: How much natural grassland is there in the Bulgan Tal key biodiversity area in 2019?
+    expect: {dataset: 2, area: kba:28293, start: "2019-01-01", end: "2019-12-31"}
+  - id: d-07
+    source: gold 1-033
+    kind: gold
+    tests: [dataset, area, time]
+    prompt: How much tree cover loss was there in the Corona Forestal protected area in Tenerife in 2023?
+    expect: {dataset: 4, area: [wdpa:196266, wdpa:555524151], start: "2023-01-01", end: "2023-12-31"}
+  - id: d-08
+    source: gold 1-041
+    kind: gold
+    tests: [dataset, area, time]
+    prompt: Which year had the most carbon emissions due to tree cover loss in Sebangau National Park between 2002 and 2008?
+    expect: {dataset: 4, area: wdpa:317262, start: "2002-01-01", end: "2008-12-31"}
+  - id: d-09
+    source: gold 1-046
+    kind: gold
+    tests: [dataset, area, time]
+    prompt: How many tonnes of CO2 was emitted in Ihorombe, Madagascar in 2019 due to tree cover loss?
+    expect: {dataset: 4, area: gadm:MDG.3.4_1, start: "2019-01-01", end: "2019-12-31"}
+  - id: d-10
+    source: gold 1-052
+    kind: gold
+    tests: [dataset, area]
+    prompt: Which 5-year period betwween 2000 and 2020 saw Huelva, Spain gain the most tree cover?
+    expect: {dataset: 5, area: gadm:ESP.1.5_1, start: null, end: null}
+  - id: d-11
+    source: gold 1-055
+    kind: gold
+    tests: [dataset, area]
+    prompt: What was the net greenhouse gas flux for Las Palmas, Canarias (ESP)?
+    expect: {dataset: 6, area: gadm:ESP.14.1_1, start: null, end: null}
+  - id: d-12
+    source: gold 1-070
+    kind: gold
+    tests: [dataset, area, time]
+    prompt: How much tree cover loss was there in Colombia in 2025?
+    expect: {dataset: 4, area: gadm:COL, start: "2025-01-01", end: "2025-12-31"}
+  - id: d-13
+    source: gold 1-075
+    kind: gold
+    tests: [dataset, area, time, context]
+    prompt: How much tree cover loss occurred within intact forest landscapes in Sweden between 2020 and 2024?
+    expect: {dataset: 4, area: gadm:SWE, start: "2020-01-01", end: "2024-12-31", context: intact_forest}
+  - id: d-14
+    source: gold 1-090
+    kind: multilingual
+    tests: [dataset, area, time]
+    prompt: Cuánta superficie forestal se perdió en España en 2022?
+    expect: {dataset: 4, area: gadm:ESP, start: "2022-01-01", end: "2022-12-31"}
+  - id: d-15
+    source: gold 1-092
+    kind: multilingual
+    tests: [dataset, area, time]
+    prompt: Qual foi a área florestal perdida em Portugal em 2022?
+    expect: {dataset: 4, area: gadm:PRT, start: "2022-01-01", end: "2022-12-31"}
+  - id: d-16
+    source: gold 1-094
+    kind: multilingual
+    tests: [dataset, area, time]
+    prompt: 2022年中国损失了多少森林面积?
+    expect: {dataset: 4, area: gadm:CHN, start: "2022-01-01", end: "2022-12-31"}
+  - id: d-17
+    source: gold 1-010
+    kind: gold
+    tests: [dataset, area, time]
+    prompt: How much wetland was there in the Arawe KBA in Papua New Guinea in 2024?
+    expect: {dataset: 1, area: kba:45017, start: "2024-01-01", end: "2024-12-31"}
+  - id: d-18
+    source: gold 1-018
+    kind: gold
+    tests: [dataset, area, time]
+    prompt: "Yes or no: did natural grasslands increase from 2017 to 2022 in Hwange national park, botswana?"
+    expect: {dataset: 2, area: [wdpa:1991, gadm:ZWE.8.3_2, landmark:ZWE143], start: "2017-01-01", end: "2022-12-31"}
+  - id: d-19
+    source: gold 1-025
+    kind: gold
+    tests: [dataset, area, time]
+    prompt: "True or False: Pocho in Cordoba (ARG) gained natural grasslands from 2020 to 2021"
+    expect: {dataset: 2, area: gadm:ARG.6.11_1, start: "2020-01-01", end: "2021-12-31"}
+  - id: d-20
+    source: gold 1-036
+    kind: gold
+    tests: [dataset, area, time]
+    prompt: In which year between 2001 and 2024 did Gabon have the most tree cover loss?
+    expect: {dataset: 4, area: gadm:GAB, start: "2001-01-01", end: "2024-12-31"}
+  - id: d-21
+    source: gold 1-044
+    kind: gold
+    tests: [dataset, area, time]
+    prompt: In which year between 2001 and 2024 did Indonesia have the lowest emissions due to tree cover loss?
+    expect: {dataset: 4, area: gadm:IDN, start: "2001-01-01", end: "2024-12-31"}
+  - id: d-22
+    source: gold 1-071
+    kind: gold
+    tests: [dataset, area, time]
+    prompt: Show me trends in Tree cover loss for Brazil
+    expect: {dataset: 4, area: gadm:BRA, start: null, end: null}
+  - id: d-23
+    source: gold 1-080
+    kind: gold
+    tests: [dataset, area, context]
+    prompt: Show me deforestation in Brazil
+    expect: {dataset: 4, area: gadm:BRA, start: null, end: null, context: primary_forest}
+  - id: d-24
+    source: gold 1-087
+    kind: gold
+    tests: [dataset, area, time, context]
+    prompt: How much tree cover loss in intact forests in Russia in 2025?
+    expect: {dataset: 4, area: gadm:RUS, start: "2025-01-01", end: "2025-12-31", context: intact_forest}
+
+  # --- Free date ranges ---
+  - id: d-25
+    kind: free-range
+    tests: [time]
+    prompt: Tree cover loss in Peru from 2015 to 2020
+    expect: {dataset: 4, area: gadm:PER, start: "2015-01-01", end: "2020-12-31"}
+  - id: d-26
+    kind: free-range
+    tests: [time]
+    prompt: Natural grassland in Kenya between 2005 and 2010
+    expect: {dataset: 2, area: gadm:KEN, start: "2005-01-01", end: "2010-12-31"}
+
+  # --- Months and days (integrated alerts) ---
+  - id: d-27
+    kind: month
+    tests: [time]
+    prompt: Alerts in Pará in March 2026
+    expect: {dataset: 11, area: gadm:BRA.14_1, start: "2026-03-01", end: "2026-03-31"}
+  - id: d-28
+    kind: month
+    tests: [time]
+    prompt: Disturbance alerts in Madre de Dios on 15 June 2025
+    expect: {dataset: 11, area: gadm:PER.18_1, start: "2025-06-15", end: "2025-06-15"}
+  - id: d-29
+    kind: month
+    tests: [time]
+    prompt: Integrated alerts in Sabah from January to April 2025
+    expect: {dataset: 11, area: gadm:MYS.13_1, start: "2025-01-01", end: "2025-04-30"}
+
+  # --- Periods back from today ---
+  - id: d-30
+    kind: relative
+    tests: [time]
+    prompt: Alerts in Mato Grosso in the last 3 months
+    expect: {dataset: 11, area: gadm:BRA.12_1, start: "2026-08-12", end: "2026-11-12", relative: true}
+  - id: d-31
+    kind: relative
+    tests: [time]
+    prompt: Deforestation alerts in Loreto over the past week
+    expect: {dataset: 11, area: gadm:PER.17_1, start: "2026-11-05", end: "2026-11-12", relative: true}
+  - id: d-32
+    kind: relative
+    tests: [time]
+    prompt: Alerts in Amazonas, Brazil this year
+    expect: {dataset: 11, area: gadm:BRA.4_1, start: "2026-01-01", end: "2026-11-12"}
+
+  # --- Place names of more than four words ---
+  - id: d-33
+    kind: long-place
+    tests: [area]
+    prompt: Tree cover loss in Parque Nacional Montanhas do Tumucumaque
+    expect: {dataset: 4, area: [wdpa:351784, kba:23880], start: null, end: null}
+  - id: d-34
+    kind: long-place
+    tests: [area]
+    prompt: Natural grassland in Tierra del Fuego, Antártida e Islas del Atlántico Sur
+    expect: {dataset: 2, area: gadm:ARG.23_1, start: null, end: null}
+  - id: d-35
+    kind: long-place
+    tests: [area]
+    prompt: Land cover in Santa Cruz de la Sierra
+    expect: {dataset: 1, area: gadm:BOL.8.1.5_2, start: null, end: null}
+
+  # --- Canopy cover values ---
+  - id: d-36
+    kind: canopy
+    tests: [canopy]
+    prompt: Tree cover loss in Ghana with more than 50% canopy cover
+    expect: {dataset: 4, area: gadm:GHA, start: null, end: null, canopy: 50}
+  - id: d-37
+    kind: canopy
+    tests: [canopy]
+    prompt: Tree cover loss in Peru at 12% canopy
+    expect: {dataset: 4, area: gadm:PER, start: null, end: null, canopy: 10}
+  - id: d-38
+    kind: canopy
+    tests: [canopy]
+    prompt: Net forest carbon flux in Côte d'Ivoire with 50% canopy
+    expect: {dataset: 6, area: gadm:CIV, start: null, end: null, canopy: 50}
+
+  # --- Follow-up pairs: the second prompt runs on the state after the first ---
+  - id: d-39
+    kind: follow-up
+    tests: [dataset, area, context]
+    prompt: Primary forest loss in Pará
+    expect: {dataset: 4, area: gadm:BRA.14_1, start: null, end: null, context: primary_forest}
+  - id: d-40
+    kind: follow-up
+    follows: d-39
+    tests: [time, context]
+    prompt: since 2015
+    current: {dataset: 4, area: {id: gadm:BRA.14_1, name: "Pará, Brazil"}, start: "2002-01-01", end: "2025-12-31", context: primary_forest}
+    expect: {dataset: 4, area: gadm:BRA.14_1, start: "2015-01-01", end: "2026-11-12", context: primary_forest}
+  - id: d-41
+    kind: follow-up
+    tests: [dataset, area, time, context]
+    prompt: Deforestation in Rondônia from 2010 to 2020
+    expect: {dataset: 4, area: gadm:BRA.22_1, start: "2010-01-01", end: "2020-12-31", context: primary_forest}
+  - id: d-42
+    kind: follow-up
+    follows: d-41
+    tests: [dataset, time, context]
+    prompt: fires instead
+    current: {dataset: 4, area: {id: gadm:BRA.22_1, name: "Rondônia, Brazil"}, start: "2010-01-01", end: "2020-12-31", context: primary_forest}
+    expect: {dataset: 10, area: gadm:BRA.22_1, start: "2010-01-01", end: "2020-12-31", context: primary_forest}
+  - id: d-43
+    kind: follow-up
+    tests: [dataset, area, time]
+    prompt: Tree cover loss in Riau 2015-2020
+    expect: {dataset: 4, area: gadm:IDN.24_1, start: "2015-01-01", end: "2020-12-31"}
+  - id: d-44
+    kind: follow-up
+    follows: d-43
+    tests: [area, time]
+    prompt: and in Kalimantan Tengah?
+    current: {dataset: 4, area: {id: gadm:IDN.24_1, name: "Riau, Indonesia"}, start: "2015-01-01", end: "2020-12-31"}
+    expect: {dataset: 4, area: gadm:IDN.14_1, start: "2015-01-01", end: "2020-12-31"}
+  - id: d-45
+    kind: follow-up
+    tests: [dataset, area]
+    prompt: Natural grassland in Mongolia
+    expect: {dataset: 2, area: gadm:MNG, start: null, end: null}
+  - id: d-46
+    kind: follow-up
+    follows: d-45
+    tests: [dataset, area, time]
+    prompt: what about Kenya
+    current: {dataset: 2, area: {id: gadm:MNG, name: Mongolia}, start: "2000-01-01", end: "2022-12-31"}
+    expect: {dataset: 2, area: gadm:KEN, start: "2000-01-01", end: "2022-12-31"}
+
+  # --- Requests that must change nothing ---
+  - id: d-47
+    kind: no-change
+    tests: [no_change]
+    prompt: thanks!
+    current: {dataset: 4, area: {id: gadm:BRA.14_1, name: "Pará, Brazil"}, start: "2001-01-01", end: "2025-12-31"}
+    no_change: true
+  - id: d-48
+    kind: no-change
+    tests: [no_change]
+    prompt: what am I looking at?
+    current: {dataset: 11, area: {id: gadm:BRA.12_1, name: "Mato Grosso, Brazil"}, start: "2023-12-01", end: "2026-11-12"}
+    no_change: true
+  - id: d-49
+    kind: no-change
+    tests: [no_change]
+    prompt: make the map darker
+    current: {dataset: 2, area: {id: gadm:KEN, name: Kenya}, start: "2000-01-01", end: "2022-12-31"}
+    no_change: true
+  - id: d-50
+    kind: no-change
+    tests: [no_change]
+    prompt: hi there
+    expect: {dataset: null, area: null}
+    no_change: true
+  - id: d-51
+    kind: no-change
+    tests: [no_change]
+    prompt: what's the weather like today?
+    current: {dataset: 4, area: {id: gadm:GHA, name: Ghana}, start: "2001-01-01", end: "2025-12-31"}
+    no_change: true
+
+  # --- Month rules (phase 5): the calendar month before today, and a range
+  # of months over two years. The failing cases t-30 and t-31 are in the
+  # test part, so the rules were written on these cases.
+  - id: d-52
+    kind: month
+    tests: [time]
+    prompt: Integrated alerts in Mato Grosso last month
+    expect: {dataset: 11, area: gadm:BRA.12_1, start: "2026-10-01", end: "2026-10-31"}
+  - id: d-53
+    kind: month
+    tests: [time]
+    prompt: Alerts in Sabah from November 2025 to January 2026
+    expect: {dataset: 11, area: gadm:MYS.13_1, start: "2025-11-01", end: "2026-01-31"}
