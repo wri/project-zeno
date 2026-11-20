@@ -912,9 +912,55 @@ async def test_a_parent_inferred_with_the_child_type_is_searched_untyped(
         subregion=subregion,
     )
 
-    assert {call[1] for call in searches} == {None}
+    # One typed search finds no area named "Ecuador" in the child source,
+    # so the parent itself is searched untyped.
+    assert [call[1] for call in searches] == [area_type, None]
     assert expansions == [(subregion, "gadm", "ECU")]
     assert len(command.update["aoi_selection"]["aois"]) == 3
+
+
+@pytest.mark.asyncio
+async def test_a_parent_named_in_the_child_source_keeps_its_type(monkeypatch):
+    """WDPA areas nest (a biosphere reserve holds national parks), so a WDPA
+    parent of WDPA children is real. Untyped, the admin units that share the
+    parent's leaf name ("San Rafael") can crowd it out of the results, and
+    one of them becomes the parent."""
+    reserve = _row("1001", "San Rafael", "wdpa", "protected-area")
+    district = _row(
+        "ARG.13.17_1",
+        "San Rafael, Mendoza, Argentina",
+        subtype="district-county",
+    )
+
+    def by_source(place_name, searched_type):
+        return [reserve] if searched_type is not None else [district]
+
+    _patch_search(monkeypatch, by_source)
+    expansions = _patch_subregions(
+        monkeypatch,
+        [
+            {
+                "name": f"Park {i}",
+                "subtype": "protected-area",
+                "source": "wdpa",
+                "src_id": str(i),
+            }
+            for i in range(3)
+        ],
+    )
+
+    await _lookup(
+        [
+            ExtractedPlace(
+                place="San Rafael Biosphere Reserve",
+                canonical="San Rafael",
+                area_type=AreaOfInterestType.WDPA,
+            )
+        ],
+        subregion="wdpa",
+    )
+
+    assert expansions == [("wdpa", "wdpa", "1001")]
 
 
 @pytest.mark.asyncio
