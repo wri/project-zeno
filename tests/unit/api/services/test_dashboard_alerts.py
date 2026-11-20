@@ -225,6 +225,7 @@ async def test_analytics_source_sums_area_by_aoi():
             success=True,
             data={
                 "aoi_id": ["BRA.16", "BRA.14", "BRA.14"],
+                "alert_confidence": ["high", "high", "highest"],
                 "area_ha": [1.25, 2.5, 0.5],
             },
             message="",
@@ -243,6 +244,98 @@ async def test_analytics_source_sums_area_by_aoi():
         "start_date": "2026-10-04",
         "end_date": "2026-10-10",
     }
+
+
+def _analytics_source(data):
+    """An analytics source whose pull returns this column-oriented result."""
+    handler = FakeHandler(DataPullResult(success=True, data=data, message=""))
+    return AnalyticsAlertsSource(handler, BASE_URL)
+
+
+@pytest.mark.asyncio
+async def test_analytics_source_leaves_out_low_confidence_alerts():
+    source = _analytics_source(
+        {
+            "aoi_id": ["BRA.16", "BRA.16", "BRA.14"],
+            "alert_confidence": ["low", "high", "low"],
+            "area_ha": [100.0, 1.5, 7.0],
+        }
+    )
+
+    area_ha = await source.area_ha_by_src_id([dict(PARANA), dict(PARA)], *WEEK)
+
+    assert area_ha == {"BRA.16_1": 1.5}
+
+
+@pytest.mark.asyncio
+async def test_analytics_source_counts_a_missing_area_as_zero():
+    source = _analytics_source(
+        {
+            "aoi_id": ["BRA.16", "BRA.16"],
+            "alert_confidence": ["high", "highest"],
+            "area_ha": [None, 2.0],
+        }
+    )
+
+    area_ha = await source.area_ha_by_src_id([dict(PARANA)], *WEEK)
+
+    assert area_ha == {"BRA.16_1": 2.0}
+
+
+@pytest.mark.asyncio
+async def test_analytics_source_reads_an_empty_result_as_no_alerts():
+    # The analytics API's answer for an area without alerts, plus the name
+    # column the handler adds.
+    source = _analytics_source(
+        {
+            "aoi_id": [],
+            "alert_date": [],
+            "alert_confidence": [],
+            "area_ha": [],
+            "aoi_type": [],
+            "name": [],
+        }
+    )
+
+    assert await source.area_ha_by_src_id([dict(PARANA)], *WEEK) == {}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "data",
+    [
+        {
+            "aoi_id": ["BRA.16"],
+            "alert_confidence": ["medium"],
+            "area_ha": [1.0],
+        },
+        {"aoi_id": ["BRA.16"], "area_ha": [1.0]},
+        {
+            "aoi_id": ["BRA.16"],
+            "alert_confidence": ["high"],
+            "area_ha": ["lots"],
+        },
+        {
+            "aoi_id": ["BRA.16", "BRA.16"],
+            "alert_confidence": ["high"],
+            "area_ha": [1.0, 2.0],
+        },
+    ],
+    ids=[
+        "unknown-tier",
+        "no-confidence-column",
+        "non-numeric-area",
+        "uneven-columns",
+    ],
+)
+async def test_summarize_reports_an_unreadable_result_as_unavailable(data):
+    parana = uuid4()
+
+    report = await _service(_analytics_source(data)).summarize(
+        {parana: PARANA}, *WEEK
+    )
+
+    assert report.dashboards == {parana: dashboard_alerts.unavailable()}
 
 
 @pytest.mark.asyncio
