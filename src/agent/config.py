@@ -26,6 +26,20 @@ class _AgentSettings(BaseSettings):
     small_fallback_models: str = Field(
         default="gemini-flash-lite", alias="SMALL_FALLBACK_MODELS"
     )
+
+    # OpenRouter backend. Comma-separated OpenRouter model IDs
+    # ("deepseek/deepseek-v4-pro,z-ai/glm-5.3"); each is registered in
+    # MODEL_REGISTRY under an "or:" slug. Empty means no OpenRouter models.
+    # OPENROUTER_API_KEY is read by ChatOpenAI itself, not declared here.
+    openrouter_models: str = Field(default="", alias="OPENROUTER_MODELS")
+    openrouter_base_url: str = Field(
+        default="https://openrouter.ai/api/v1", alias="OPENROUTER_BASE_URL"
+    )
+    # Most open models set no output cap of their own, so a looping model
+    # would otherwise burn the whole context window.
+    openrouter_max_tokens: int = Field(
+        default=16_384, alias="OPENROUTER_MAX_TOKENS"
+    )
     # Retries handled by ModelRetryMiddleware, so default should be 0
     # this is only used in unit tests
     llm_max_retries: int = Field(default=0, alias="LLM_MAX_RETRIES")
