@@ -12,6 +12,10 @@ from pydantic import PrivateAttr
 
 _MODEL = "gemini-3-flash-preview"
 
+# What Gemini reports as the version that answered. The library copies it
+# into the reply's response_metadata["model_name"].
+MODEL_VERSION = "gemini-3-flash-preview-test-version"
+
 
 class StopBeforeNetwork(Exception):
     """Raised by RequestSpyGemini once the request has been built."""
@@ -64,9 +68,14 @@ class ScriptedGemini(ChatGoogleGenerativeAI):
         if isinstance(outcome, Exception):
             raise outcome
         text = outcome(messages) if callable(outcome) else outcome
-        return ChatResult(
-            generations=[ChatGeneration(message=AIMessage(content=text))]
+        message = AIMessage(
+            content=text,
+            response_metadata={
+                "model_provider": "google_genai",
+                "model_name": MODEL_VERSION,
+            },
         )
+        return ChatResult(generations=[ChatGeneration(message=message)])
 
     def _generate(self, messages, stop=None, run_manager=None, **kwargs):
         return self._reply(messages, stop, kwargs)

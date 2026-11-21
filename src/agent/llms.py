@@ -1,3 +1,4 @@
+import re
 import types
 import typing
 from typing import Optional
@@ -8,12 +9,16 @@ from langchain_anthropic import ChatAnthropic
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import Runnable, RunnableLambda
 from langchain_google_genai import ChatGoogleGenerativeAI
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from src.agent.config import AgentSettings
+from src.shared.logging_config import get_logger
 from src.shared.text_sanitize import strip_control_chars_deep
 
 load_dotenv()
+
+logger = get_logger(__name__)
+
 
 # Anthropic
 SONNET = ChatAnthropic(
@@ -164,7 +169,15 @@ RETRY_WAIT = {"initial": 1.0, "max": 4.0, "exp_base": 2.0}
 def resilient_structured_output(
     schema: type[BaseModel], model: Optional[BaseChatModel] = None
 ) -> Runnable:
-    """`model.with_structured_output(schema)`, retried and with fallbacks."""
+    """`model.with_structured_output(schema)`, retried and with fallbacks.
+
+    For model calls made from tools and API routes. ModelRetryMiddleware and
+    ModelFallbackMiddleware (graph._build_middleware) cover only the agent's
+    own calls, and the clients are built with LLM_MAX_RETRIES=0, so a model
+    called directly from a tool gets its retries and fallbacks here.
+    `model` defaults to SMALL_MODEL followed by SMALL_FALLBACK_MODELS; a
+    model passed in is used alone.
+    """
     return _resilient_output(
         schema, model, lambda m: m.with_structured_output(schema)
     )
@@ -174,16 +187,20 @@ def _strip_control_chars_from(schema: type[BaseModel]) -> Runnable:
     """Strip control characters from every string in a structured reply.
 
     Gemini Flash sometimes puts a control character where an accented letter
-    belongs (PZB-1243). Done once, after the fallbacks, so the reply is
-    cleaned whichever model produced it.
+    belongs (PZB-1243).
     """
 
     def _strip(reply: BaseModel) -> BaseModel:
-        return schema.model_validate(
-            strip_control_chars_deep(reply.model_dump(), field=schema.__name__)
-        )
+        return _strip_and_validate(schema, reply)
 
     return RunnableLambda(_strip)
+
+
+def _strip_and_validate(schema: type[BaseModel], reply: BaseModel):
+    """`reply` with control characters stripped, validated again."""
+    return schema.model_validate(
+        strip_control_chars_deep(reply.model_dump(), field=schema.__name__)
+    )
 
 
 _JSON_KINDS = {
@@ -264,8 +281,9 @@ def _resilient_output(
     """Retries, fallbacks and control-character stripping around `build`.
 
     `build(m)` turns one model into a pipeline that returns a `schema`
-    instance. Each is retried on TRANSIENT_ERRORS, the next model is tried
-    when one still fails, and the reply is cleaned once at the end.
+    instance. Each is retried on TRANSIENT_ERRORS; when one still fails, for
+    any reason, the next model is tried. The reply is cleaned once at the
+    end, whichever model produced it.
     """
     models = (
         [model] if model is not None else [SMALL_MODEL, *SMALL_FALLBACK_MODELS]
@@ -280,6 +298,67 @@ def _resilient_output(
     ]
     chain = primary.with_fallbacks(fallbacks) if fallbacks else primary
     return chain | _strip_control_chars_from(schema)
+
+
+# Responses are sometimes encapsulated in code fences even though we request
+# they not be
+_CODE_FENCE = re.compile(r"\A\s*```(?:json)?\s*(.*?)\s*```\s*\Z", re.DOTALL)
+
+
+class JsonReplyFormatError(ValueError):
+    """A model's JSON reply could not be parsed or did not fit the schema.
+
+    Says where and how it failed, as (location, error type) pairs, but never
+    contains the reply text: replies can hold user data, and this error ends
+    up in logs.
+    """
+
+    def __init__(
+        self,
+        schema_name: str,
+        errors: list[tuple[str, str]],
+        reply_length: int,
+    ):
+        self.schema_name = schema_name
+        self.errors = errors
+        self.reply_length = reply_length
+        where = "; ".join(f"{loc}: {kind}" for loc, kind in errors)
+        super().__init__(f"Reply does not fit {schema_name}: {where}")
+
+
+def _location(loc: tuple) -> str:
+    """A Pydantic error location as text: `follow_up_suggestions.0`."""
+    return ".".join(str(part) for part in loc) or "(root)"
+
+
+def parse_json_reply(schema: type[BaseModel], text: str) -> BaseModel:
+    original = text
+    fenced = _CODE_FENCE.match(text)
+    if fenced:
+        text = fenced.group(1)
+    try:
+        return _strip_and_validate(schema, schema.model_validate_json(text))
+    except ValidationError as error:
+        raise JsonReplyFormatError(
+            schema.__name__,
+            [(_location(e["loc"]), e["type"]) for e in error.errors()],
+            len(original),
+        ) from error
+
+
+def _parse_logging_format_errors(schema: type[BaseModel], reply) -> BaseModel:
+    """`parse_json_reply` on a model's reply, logging any format error."""
+    try:
+        return parse_json_reply(schema, reply.text)
+    except JsonReplyFormatError as error:
+        logger.warning(
+            "json_reply_format_error",
+            schema=error.schema_name,
+            model_version=reply.response_metadata.get("model_name"),
+            errors=error.errors,
+            reply_length=error.reply_length,
+        )
+        raise
 
 
 def resilient_json_output(
@@ -298,7 +377,7 @@ def resilient_json_output(
         if not isinstance(m, ChatGoogleGenerativeAI):
             return m.with_structured_output(schema)
         return m.bind(response_mime_type="application/json") | RunnableLambda(
-            lambda reply: schema.model_validate_json(reply.text)
+            lambda reply: _parse_logging_format_errors(schema, reply)
         )
 
     return _resilient_output(schema, model, build)

@@ -14,7 +14,7 @@ from typing import List, Optional
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from src.agent.language import DEFAULT_LANGUAGE, language_name
 from src.agent.llms import json_reply_instruction, resilient_json_output
@@ -31,9 +31,17 @@ class InsightText(BaseModel):
     primary_insight: str = Field(
         description="Overall insight that ties the chart(s) together (2-3 sentences)"
     )
+
     follow_up_suggestions: List[str] = Field(
         description="1-2 follow-up suggestions based on the available data"
     )
+
+    @field_validator("primary_insight")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("must not be blank")
+        return value
 
 
 _SYSTEM = """You write the narrative insight for one or two charts that have \
