@@ -12,6 +12,7 @@ it nests as a span in the active Langfuse trace via the ambient
 
 from typing import List, Optional
 
+import structlog
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field, field_validator
@@ -116,9 +117,10 @@ class InsightTextGenerator:
             ),
             "charts": charts_block,
         }
-        result: InsightText = await self._chain.ainvoke(inputs, config=config)
-        logger.info(
-            f"Generated insight text ({len(result.primary_insight)} chars, "
-            f"{len(result.follow_up_suggestions)} follow-ups)"
-        )
+        # Every log inside, such as control_chars_stripped, carries the
+        # language the model was asked to write in.
+        with structlog.contextvars.bound_contextvars(language=language):
+            result: InsightText = await self._chain.ainvoke(
+                inputs, config=config
+            )
         return result
