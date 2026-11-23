@@ -1,12 +1,10 @@
-"""The canopy cover threshold an analytics pull sends, and the catalog merge
-the pull applies first. Saved insights record the same value, so the handler
-and the insight builders share these functions."""
+"""The canopy cover threshold an analytics pull sends, and reports on its
+result."""
 
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from src.agent.datasets.config import DATASETS
 from src.agent.datasets.handlers.analytics_handler import (
     DEFAULT_CANOPY_COVER,
     INTEGRATED_ALERTS_ID,
@@ -15,7 +13,6 @@ from src.agent.datasets.handlers.analytics_handler import (
     TREE_COVER_LOSS_ID,
     AnalyticsHandler,
     canopy_cover_threshold,
-    with_catalog_record,
 )
 
 
@@ -66,35 +63,12 @@ def test_datasets_without_a_threshold_give_none(dataset_id):
     assert _threshold(dataset) is None
 
 
-def test_the_selection_wins_over_the_catalog_record():
-    merged = with_catalog_record(
-        {"dataset_id": TREE_COVER_LOSS_ID, "parameters": None}
-    )
-    assert merged["parameters"] is None
-    assert merged["dataset_name"] == "Tree cover loss"
-
-
-def test_a_selection_without_parameters_gets_the_catalog_list():
-    record = next(
-        ds for ds in DATASETS if ds["dataset_id"] == TREE_COVER_LOSS_ID
-    )
-    merged = with_catalog_record({"dataset_id": TREE_COVER_LOSS_ID})
-    assert merged["parameters"] == record["parameters"]
-
-
-def test_an_unknown_dataset_raises():
-    with pytest.raises(ValueError, match="Dataset not found"):
-        with_catalog_record({"dataset_id": 9999})
-
-
 async def test_the_payload_sends_the_effective_threshold():
-    dataset = with_catalog_record(
-        {
-            "dataset_id": TREE_COVER_LOSS_ID,
-            "context_layer": "natural_forest",
-            "parameters": None,
-        }
-    )
+    dataset = {
+        "dataset_id": TREE_COVER_LOSS_ID,
+        "context_layer": "natural_forest",
+        "parameters": None,
+    }
     payload = await AnalyticsHandler()._build_payload(
         dataset,
         [{"source": "gadm", "src_id": "BRA", "subtype": "country"}],
@@ -105,7 +79,7 @@ async def test_the_payload_sends_the_effective_threshold():
 
 
 async def test_a_dataset_without_a_threshold_sends_none():
-    dataset = with_catalog_record({"dataset_id": INTEGRATED_ALERTS_ID})
+    dataset = {"dataset_id": INTEGRATED_ALERTS_ID}
     payload = await AnalyticsHandler()._build_payload(
         dataset,
         [{"source": "gadm", "src_id": "BRA", "subtype": "country"}],

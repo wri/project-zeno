@@ -9,6 +9,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends
 from src.agent.datasets.handlers.analytics_handler import AnalyticsHandler
 from src.api.auth.dependencies import require_auth
 from src.api.repositories.job_repository import get_job_repository
+from src.api.repositories.statistics_writer import persist_statistics
 from src.api.schemas import AnalyzeRequest, JobResponse, UserModel
 from src.api.services.analysis_job import AnalysisJobRunner
 from src.api.services.analyze import AnalyzeService
@@ -28,6 +29,7 @@ def get_analysis_runner(
         service=AnalyzeService(handler, DETERMINISTIC_GENERATORS),
         repo=repo,
         aoi_names=fetch_aoi_names,
+        write_statistics=persist_statistics,
     )
 
 

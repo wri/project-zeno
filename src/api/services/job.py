@@ -63,7 +63,7 @@ class JobRepository(ABC):
         user_id: str,
         thread_id: Optional[str],
         insight: Insight,
-        analysis_inputs: Optional[list[dict]],
+        statistics_ids: list[str],
     ) -> str: ...
 
     @abstractmethod

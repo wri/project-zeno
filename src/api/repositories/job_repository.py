@@ -54,13 +54,13 @@ class DBJobRepository(JobRepository):
         user_id: str,
         thread_id: Optional[str],
         insight: Insight,
-        analysis_inputs: Optional[list[dict]],
+        statistics_ids: list[str],
     ) -> str:
         insight_id = await persist_insight(
             insight,
             user_id=user_id,
             thread_id=thread_id or "",
-            analysis_inputs=analysis_inputs,
+            statistics_ids=statistics_ids,
         )
         async with get_session_from_pool() as session:
             session.add(

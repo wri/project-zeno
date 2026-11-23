@@ -79,11 +79,13 @@ def _dashboard(aois=None):
     )
 
 
-def _pull(success=True, data=None, message=""):
+def _pull(success=True, data=None, message="", canopy_cover=None):
     return DataPullResult(
         success=success,
         data=ROWS if data is None else data,
         message=message,
+        analytics_api_url="https://analytics.example.com/result/1",
+        canopy_cover=canopy_cover,
     )
 
 
@@ -192,28 +194,28 @@ async def test_builds_three_widgets_in_template_order():
 
 
 @pytest.mark.asyncio
-async def test_a_chart_widget_records_its_pull():
+async def test_a_chart_widget_carries_the_statistics_of_its_pull():
     mocks, stack = _patches(written=("section-1", ["w1", "w2", "w3"]))
 
     await _apply(stack)
 
     pull = mocks.pull.await_args_list[0].kwargs
     chart_widget = mocks.write.await_args.kwargs["widgets"][0]
-    assert chart_widget.analysis_inputs == [
-        {
-            # The dashboard's area, with the id it stores.
-            "areas": [
-                {"name": "Paraná", "source": "gadm", "src_id": "BRA.16_1"}
-            ],
-            "dataset_id": INTEGRATED_ALERTS_ID,
-            "dataset_name": "Integrated alerts",
-            # The period clamped to the dataset, as pulled.
-            "start_date": pull["start_date"],
-            "end_date": pull["end_date"],
-            "canopy_cover": None,
-            "context_layer": None,
-        }
+    (pull_record,) = chart_widget.statistics
+    # The dashboard's area, with the id it stores.
+    assert pull_record.areas == [
+        {"name": "Paraná", "source": "gadm", "src_id": "BRA.16_1"}
     ]
+    assert pull_record.dataset_id == INTEGRATED_ALERTS_ID
+    assert pull_record.dataset_name == "Integrated alerts"
+    # The period clamped to the dataset, as pulled.
+    assert (pull_record.start_date, pull_record.end_date) == (
+        pull["start_date"],
+        pull["end_date"],
+    )
+    assert pull_record.source_url == "https://analytics.example.com/result/1"
+    assert pull_record.canopy_cover is None
+    assert pull_record.context_layer is None
 
 
 @pytest.mark.asyncio
@@ -838,7 +840,9 @@ def _split_pulls(natural=NATURAL_FOREST_DATA, all_loss=ALL_LOSS_DATA):
         in_natural_forest = (
             kwargs["dataset"].get("context_layer") == "natural_forest"
         )
-        return _pull(data=natural if in_natural_forest else all_loss)
+        return _pull(
+            data=natural if in_natural_forest else all_loss, canopy_cover=10
+        )
 
     return pull
 
@@ -879,12 +883,10 @@ async def test_natural_forest_loss_pulls_natural_forest_and_all_loss_at_10():
     assert (widget.widget_type, widget.config) == ("insight", {})
     # Both pulls, natural forest first, each at the 10% it sent.
     assert [
-        (entry["context_layer"], entry["canopy_cover"])
-        for entry in widget.analysis_inputs
+        (pull.context_layer, pull.canopy_cover) for pull in widget.statistics
     ] == [("natural_forest", 10), (None, 10)]
     assert {
-        (entry["start_date"], entry["end_date"])
-        for entry in widget.analysis_inputs
+        (pull.start_date, pull.end_date) for pull in widget.statistics
     } == {("2021-01-01", "2025-12-31")}
     (chart,) = widget.insight.charts
     assert chart.series_fields == ["Other tree cover", "Natural forest"]

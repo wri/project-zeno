@@ -3,8 +3,8 @@ from typing import Awaitable, Callable, Optional
 from uuid import UUID
 
 from src.agent.subagents.analyst.charts import Insight
-from src.api.services.analysis_inputs import input_for_analysis, named_areas
-from src.api.services.analyze import AnalyzeService, sent_canopy_cover
+from src.api.services.analysis_inputs import named_areas, pulled_statistics
+from src.api.services.analyze import AnalyzeService
 from src.api.services.job import JobRepository, JobStatus
 from src.shared.logging_config import get_logger
 
@@ -17,16 +17,22 @@ AoiNameLookup = Callable[
 ]
 
 
+# Writes the statistics row of a pull; see persist_statistics.
+StatisticsWriter = Callable[..., Awaitable[str]]
+
+
 class AnalysisJobRunner:
     def __init__(
         self,
         service: AnalyzeService,
         repo: JobRepository,
         aoi_names: AoiNameLookup,
+        write_statistics: StatisticsWriter,
     ):
         self._service = service
         self._repo = repo
         self._aoi_names = aoi_names
+        self._write_statistics = write_statistics
 
     async def run(
         self,
@@ -85,27 +91,28 @@ class AnalysisJobRunner:
             insight = Insight(charts=result.charts)
             # The request is the one pull. The service passes the dates
             # through unclamped, so they are the dates it pulled.
-            analysis_inputs = [
-                input_for_analysis(
+            statistics_id = await self._write_statistics(
+                pulled_statistics(
+                    result.data,
+                    dataset_id=dataset_id,
                     areas=named_areas(
                         requested, await self._aoi_names(requested)
                     ),
-                    dataset_id=dataset_id,
                     start_date=start_date,
                     end_date=end_date,
-                    canopy_cover=sent_canopy_cover(
-                        dataset_id, context_layer, canopy_cover
-                    ),
                     context_layer=context_layer,
-                )
-            ]
+                    canopy_cover=canopy_cover,
+                ),
+                user_id=user_id,
+                thread_id=thread_id,
+            )
 
             await self._repo.create_insight_resource(
                 job_id=job_id,
                 user_id=user_id,
                 thread_id=thread_id,
                 insight=insight,
-                analysis_inputs=analysis_inputs,
+                statistics_ids=[statistics_id],
             )
 
             await self._repo.update_job_status(job_id, JobStatus.COMPLETED)

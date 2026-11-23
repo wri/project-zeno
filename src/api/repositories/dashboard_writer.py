@@ -8,7 +8,7 @@ Ownership checks live in the callers (router/tools) via ``dashboard_access``
 (None/False) rather than raising.
 """
 
-from typing import NamedTuple, Optional
+from typing import NamedTuple, Optional, Sequence
 from uuid import UUID
 
 from sqlalchemy import delete, func, select, update
@@ -26,6 +26,10 @@ from src.api.data_models import (
 )
 from src.api.repositories.dashboard_access import visible_dashboards_clause
 from src.api.repositories.insight_writer import add_insight_rows
+from src.api.repositories.statistics_writer import (
+    PulledStatistics,
+    add_statistics_row,
+)
 from src.api.repositories.subscription_eligibility import (
     refresh_subscription_eligibility,
 )
@@ -417,14 +421,15 @@ class SectionWidget(NamedTuple):
     """One widget for ``add_section_with_widgets``.
 
     ``insight`` is an insight that is not yet written. The writer adds it in
-    the same transaction as the widget that shows it, with
-    ``analysis_inputs`` (see ``src.api.services.analysis_inputs``).
+    the same transaction as the widget that shows it, and links the
+    statistics rows of ``statistics``, the pulls the insight is computed
+    from.
     """
 
     widget_type: str
     config: dict
     insight: Optional[Insight] = None
-    analysis_inputs: Optional[list[dict]] = None
+    statistics: Sequence[PulledStatistics] = ()
 
 
 async def add_section_with_widgets(
@@ -470,6 +475,18 @@ async def add_section_with_widgets(
             template=template,
         )
         session.add(section)
+        # The pulls go in and are flushed first, so each insight can link
+        # the ids of its own pulls.
+        pull_rows = [
+            [
+                add_statistics_row(
+                    session, pull, user_id=user_id, thread_id=thread_id
+                )
+                for pull in spec.statistics
+            ]
+            for spec in widgets
+        ]
+        await session.flush()
         insights = [
             add_insight_rows(
                 session,
@@ -477,11 +494,11 @@ async def add_section_with_widgets(
                 user_id=user_id,
                 thread_id=thread_id,
                 is_public=is_public,
-                analysis_inputs=spec.analysis_inputs,
+                statistics_ids=[str(row.id) for row in statistics_rows],
             )
             if spec.insight is not None
             else None
-            for spec in widgets
+            for spec, statistics_rows in zip(widgets, pull_rows)
         ]
         # Ids for the section and the insights, which the widgets reference.
         await session.flush()

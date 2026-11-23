@@ -8,10 +8,12 @@ insight, sent on the chat stream and kept in agent state.
 
 from typing import Optional
 
+from src.agent.datasets.config import DATASETS
 from src.agent.datasets.handlers.analytics_handler import (
     canopy_cover_threshold,
-    with_catalog_record,
 )
+from src.agent.datasets.handlers.base import DataPullResult
+from src.api.repositories.statistics_writer import PulledStatistics
 from src.api.schemas import AnalysisInput
 from src.shared.logging_config import get_logger
 
@@ -110,28 +112,40 @@ def named_areas(
     return areas
 
 
-def input_for_analysis(
+def pulled_statistics(
+    result: DataPullResult,
     *,
-    areas: list[dict],
     dataset_id: int,
+    areas: list[dict],
     start_date: str,
     end_date: str,
-    canopy_cover: Optional[int],
     context_layer: Optional[str],
-) -> dict:
-    """The entry for a pull made from explicit options (``/api/analyze``,
-    dashboard templates). ``canopy_cover`` is the threshold the pull sent
-    (see ``sent_canopy_cover`` in ``src.api.services.analyze``)."""
-    return analysis_input(
-        areas=areas,
+    canopy_cover: Optional[int],
+) -> PulledStatistics:
+    """The statistics record of a pull made from explicit options
+    (``/api/analyze``, dashboard templates).
+
+    ``canopy_cover`` is the threshold the caller asked for, which the
+    selection records as ``parameters``; the threshold the pull sent is
+    ``result.canopy_cover``. The dataset name is the catalog's.
+    """
+    record = next((d for d in DATASETS if d["dataset_id"] == dataset_id), None)
+    if record is None:
+        raise ValueError(f"Dataset not found: {dataset_id}")
+    return PulledStatistics(
         dataset_id=dataset_id,
-        dataset_name=with_catalog_record({"dataset_id": dataset_id})[
-            "dataset_name"
-        ],
+        dataset_name=record["dataset_name"],
         start_date=start_date,
         end_date=end_date,
-        canopy_cover=canopy_cover,
+        source_url=result.analytics_api_url,
+        areas=areas,
+        parameters=(
+            None
+            if canopy_cover is None
+            else [{"name": "canopy_cover", "values": [canopy_cover]}]
+        ),
         context_layer=context_layer,
+        canopy_cover=result.canopy_cover,
     )
 
 

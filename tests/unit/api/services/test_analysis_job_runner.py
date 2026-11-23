@@ -4,15 +4,10 @@ from uuid import UUID, uuid4
 import pytest
 import structlog
 
-from src.agent.datasets.handlers.analytics_handler import (
-    DEFAULT_CANOPY_COVER,
-    INTEGRATED_ALERTS_ID,
-    NATURAL_FOREST_DEFAULT_CANOPY_COVER,
-    TREE_COVER_LOSS_ID,
-)
+from src.agent.datasets.handlers.analytics_handler import TREE_COVER_LOSS_ID
 from src.agent.subagents.analyst.charts import Insight, InsightChart
 from src.api.services.analysis_job import AnalysisJobRunner
-from src.api.services.analyze import AnalyzeResult, sent_canopy_cover
+from src.api.services.analyze import AnalyzeResult
 from src.api.services.job import JobRepository, JobStatus
 
 JOB_ID = uuid4()
@@ -35,6 +30,10 @@ class _Result:
     def __init__(self, success, message=""):
         self.success = success
         self.message = message
+        self.analytics_api_url = "https://analytics.example.com/result/1"
+        # What the handler reports it sent; the fake sends 30 whatever the
+        # request asked for.
+        self.canopy_cover = 30
 
 
 class FakeService:
@@ -80,7 +79,7 @@ class FakeJobRepository(JobRepository):
         user_id: str,
         thread_id: Optional[str],
         insight: Insight,
-        analysis_inputs: Optional[list[dict]],
+        statistics_ids: list[str],
     ) -> str:
         self.insight_resources.append(
             {
@@ -88,7 +87,7 @@ class FakeJobRepository(JobRepository):
                 "user_id": user_id,
                 "thread_id": thread_id,
                 "insight": insight,
-                "analysis_inputs": analysis_inputs,
+                "statistics_ids": statistics_ids,
             }
         )
         return "insight-123"
@@ -109,11 +108,27 @@ class FakeNames:
         return {pair: self.names[pair] for pair in pairs if pair in self.names}
 
 
-def make_runner(repo, *, success=True, charts=CHARTS, names=None):
+class FakeStatistics:
+    """The statistics writer, with the pulls it was given."""
+
+    def __init__(self):
+        self.written: list[dict] = []
+
+    async def __call__(self, pull, *, user_id, thread_id):
+        self.written.append(
+            {"pull": pull, "user_id": user_id, "thread_id": thread_id}
+        )
+        return f"statistics-{len(self.written)}"
+
+
+def make_runner(
+    repo, *, success=True, charts=CHARTS, names=None, statistics=None
+):
     return AnalysisJobRunner(
         FakeService(success=success, charts=charts),
         repo,
         names or FakeNames(),
+        statistics or FakeStatistics(),
     )
 
 
@@ -197,7 +212,10 @@ async def test_run_forwards_the_readers_language_to_the_service():
     survive the hop through the background job."""
     service = FakeService(success=True, charts=[])
     runner = AnalysisJobRunner(
-        service=service, repo=FakeJobRepository(), aoi_names=FakeNames()
+        service=service,
+        repo=FakeJobRepository(),
+        aoi_names=FakeNames(),
+        write_statistics=FakeStatistics(),
     )
 
     await runner.run(
@@ -213,60 +231,70 @@ async def test_run_forwards_the_readers_language_to_the_service():
     assert service.language == "pt"
 
 
-# --- analysis_inputs ----------------------------------------------------------
+# --- statistics ----------------------------------------------------------------
 
 
-async def _inputs(**run_kwargs) -> tuple[list[dict], FakeNames]:
+async def _run(**run_kwargs):
     names = run_kwargs.pop("names", FakeNames())
+    statistics = FakeStatistics()
     repo = FakeJobRepository()
-    runner = make_runner(repo, names=names)
+    runner = make_runner(repo, names=names, statistics=statistics)
     await runner.run(JOB_ID, USER_ID, **run_kwargs)
-    return repo.insight_resources[0]["analysis_inputs"], names
+    return repo, statistics, names
 
 
-async def test_the_request_is_recorded_as_one_pull():
+async def test_the_request_is_written_as_one_pull_and_linked():
     names = FakeNames({("gadm", "BRA.22_1"): "Rondônia, Brazil"})
-    inputs, _ = await _inputs(
+    repo, statistics, names = await _run(
         aois=[{"source": "gadm", "src_id": "BRA.22_1", "subtype": "state"}],
         dataset_id=TREE_COVER_LOSS_ID,
         start_date="2020-01-01",
         end_date="2022-12-31",
+        thread_id="thread-1",
         context_layer="primary_forest",
         canopy_cover=50,
         names=names,
     )
 
-    assert inputs == [
-        {
-            # The id as requested, not as the handler rewrote it.
-            "areas": [
-                {
-                    "name": "Rondônia, Brazil",
-                    "source": "gadm",
-                    "src_id": "BRA.22_1",
-                }
-            ],
-            "dataset_id": TREE_COVER_LOSS_ID,
-            "dataset_name": "Tree cover loss",
-            "start_date": "2020-01-01",
-            "end_date": "2022-12-31",
-            "canopy_cover": 50,
-            "context_layer": "primary_forest",
-        }
+    (written,) = statistics.written
+    pull = written["pull"]
+    # The id as requested, not as the handler rewrote it.
+    assert pull.areas == [
+        {"name": "Rondônia, Brazil", "source": "gadm", "src_id": "BRA.22_1"}
     ]
+    assert pull.dataset_id == TREE_COVER_LOSS_ID
+    assert pull.dataset_name == "Tree cover loss"
+    assert (pull.start_date, pull.end_date) == ("2020-01-01", "2022-12-31")
+    assert pull.source_url == "https://analytics.example.com/result/1"
+    assert pull.parameters == [{"name": "canopy_cover", "values": [50]}]
+    assert pull.context_layer == "primary_forest"
+    # What the handler reported it sent, not what the request asked for.
+    assert pull.canopy_cover == 30
+    assert (written["user_id"], written["thread_id"]) == (USER_ID, "thread-1")
     assert names.calls == [[("gadm", "BRA.22_1")]]
+    assert repo.insight_resources[0]["statistics_ids"] == ["statistics-1"]
+
+
+async def test_a_request_without_a_threshold_records_no_parameters():
+    _, statistics, _ = await _run(
+        aois=[AOI],
+        dataset_id=TREE_COVER_LOSS_ID,
+        start_date="2020-01-01",
+        end_date="2022-12-31",
+    )
+    assert statistics.written[0]["pull"].parameters is None
 
 
 async def test_an_area_without_a_name_is_named_by_its_id():
     with structlog.testing.capture_logs() as logs:
-        inputs, _ = await _inputs(
+        _, statistics, _ = await _run(
             aois=[AOI],
             dataset_id=TREE_COVER_LOSS_ID,
             start_date="2020-01-01",
             end_date="2022-12-31",
         )
 
-    assert inputs[0]["areas"] == [
+    assert statistics.written[0]["pull"].areas == [
         {"name": "BRA", "source": "gadm", "src_id": "BRA"}
     ]
     assert any(
@@ -274,62 +302,16 @@ async def test_an_area_without_a_name_is_named_by_its_id():
     )
 
 
-async def test_without_a_threshold_the_sent_one_is_recorded():
-    inputs, _ = await _inputs(
-        aois=[AOI],
-        dataset_id=TREE_COVER_LOSS_ID,
-        start_date="2020-01-01",
-        end_date="2022-12-31",
-    )
-    assert inputs[0]["canopy_cover"] == sent_canopy_cover(TREE_COVER_LOSS_ID)
-    assert inputs[0]["canopy_cover"] == DEFAULT_CANOPY_COVER
-
-
-async def test_natural_forest_without_a_threshold_records_the_sent_one():
-    """The request carries no threshold, so the pull sends the natural
-    forest default. The entry records what was sent."""
-    inputs, _ = await _inputs(
-        aois=[AOI],
-        dataset_id=TREE_COVER_LOSS_ID,
-        start_date="2021-01-01",
-        end_date="2022-12-31",
-        context_layer="natural_forest",
-    )
-    assert inputs[0]["canopy_cover"] == sent_canopy_cover(
-        TREE_COVER_LOSS_ID, "natural_forest"
-    )
-    assert inputs[0]["canopy_cover"] == NATURAL_FOREST_DEFAULT_CANOPY_COVER
-    assert inputs[0]["context_layer"] == "natural_forest"
-
-
-async def test_natural_forest_with_a_threshold_records_it():
-    inputs, _ = await _inputs(
-        aois=[AOI],
-        dataset_id=TREE_COVER_LOSS_ID,
-        start_date="2021-01-01",
-        end_date="2022-12-31",
-        context_layer="natural_forest",
-        canopy_cover=NATURAL_FOREST_DEFAULT_CANOPY_COVER,
-    )
-    assert inputs[0]["canopy_cover"] == NATURAL_FOREST_DEFAULT_CANOPY_COVER
-
-
-async def test_a_dataset_without_a_threshold_records_null():
-    inputs, _ = await _inputs(
-        aois=[AOI],
-        dataset_id=INTEGRATED_ALERTS_ID,
-        start_date="2024-01-01",
-        end_date="2024-12-31",
-    )
-    assert inputs[0]["canopy_cover"] is None
-
-
-async def test_a_failed_pull_looks_up_no_names():
+async def test_a_failed_pull_writes_no_statistics_and_looks_up_no_names():
     names = FakeNames()
+    statistics = FakeStatistics()
     repo = FakeJobRepository()
-    runner = make_runner(repo, success=False, names=names)
+    runner = make_runner(
+        repo, success=False, names=names, statistics=statistics
+    )
 
     await runner.run(JOB_ID, USER_ID, [AOI], 4, "2020-01-01", "2022-12-31")
 
     assert names.calls == []
+    assert statistics.written == []
     assert repo.insight_resources == []
