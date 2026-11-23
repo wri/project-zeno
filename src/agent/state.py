@@ -47,6 +47,9 @@ class Statistics(TypedDict):
     aoi_sources: NotRequired[list[str]]
     parameters: list[StatisticsParameter] | None
     context_layer: str | None
+    # The threshold (percent) the pull sent; `parameters` keeps meaning what
+    # the selection set. None for a dataset that takes none.
+    canopy_cover: NotRequired[int | None]
 
 
 class EncodedCodeActPart(TypedDict):
