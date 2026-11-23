@@ -11,6 +11,7 @@ from src.agent.datasets.handlers.analytics_handler import INTEGRATED_ALERTS_ID
 from src.agent.datasets.handlers.base import DataPullResult
 from src.agent.tools import pull_data as pull_data_module
 from src.agent.tools.pull_data import pull_data
+from src.api.repositories import statistics_writer
 
 BRAZIL = {
     "name": "Brazil",
@@ -44,6 +45,7 @@ def successful_pull(monkeypatch):
                 data={"aoi_id": ["BRA"], "name": ["Brazil"]},
                 message="Pulled data.",
                 analytics_api_url="https://analytics.example.com/result/1",
+                canopy_cover=30,
             )
 
     session = MagicMock()
@@ -58,7 +60,7 @@ def successful_pull(monkeypatch):
         pull_data_module, "data_pull_orchestrator", Orchestrator()
     )
     monkeypatch.setattr(
-        pull_data_module, "get_session_from_pool", fake_pool_session
+        statistics_writer, "get_session_from_pool", fake_pool_session
     )
 
 
@@ -105,3 +107,9 @@ async def test_tile_error_does_not_fail_the_pull(monkeypatch):
 
     assert "dataset" not in command.update
     assert command.update["statistics"][0]["start_date"] == "2025-03-01"
+
+
+async def test_the_statistics_in_state_carry_the_canopy_cover_the_pull_sent():
+    command = await _pull("2025-03-01", "2025-03-31")
+
+    assert command.update["statistics"][0]["canopy_cover"] == 30

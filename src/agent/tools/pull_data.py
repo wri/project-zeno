@@ -24,8 +24,10 @@ from src.agent.tool_spec import (
     ToolSpec,
     bound_availability,
 )
-from src.api.data_models import StatisticsOrm
-from src.shared.database import get_session_from_pool
+from src.api.repositories.statistics_writer import (
+    PulledStatistics,
+    persist_statistics,
+)
 from src.shared.logging_config import get_logger
 from src.shared.request_context import current_user_id
 
@@ -296,28 +298,32 @@ async def pull_data(
         "aoi_sources": [aoi["source"] for aoi in aois],
         "parameters": dataset.get("parameters"),
         "context_layer": dataset.get("context_layer"),
+        "canopy_cover": result.canopy_cover,
     }
 
     ctx = structlog.contextvars.get_contextvars()
-    async with get_session_from_pool() as session:
-        statistics_row = StatisticsOrm(
-            user_id=current_user_id(),
-            thread_id=ctx.get("thread_id"),
-            dataset_name=statistics["dataset_name"],
+    statistics["id"] = await persist_statistics(
+        PulledStatistics(
             dataset_id=statistics["dataset_id"],
+            dataset_name=statistics["dataset_name"],
             start_date=statistics["start_date"],
             end_date=statistics["end_date"],
             source_url=statistics["source_url"],
-            aoi_names=statistics["aoi_names"],
-            aoi_ids=statistics["aoi_ids"],
-            aoi_sources=statistics["aoi_sources"],
+            areas=[
+                {
+                    "name": a["name"],
+                    "source": a["source"],
+                    "src_id": a["src_id"],
+                }
+                for a in aois
+            ],
             parameters=statistics["parameters"],
             context_layer=statistics["context_layer"],
-        )
-        session.add(statistics_row)
-        await session.flush()
-        statistics["id"] = str(statistics_row.id)
-        await session.commit()
+            canopy_cover=statistics["canopy_cover"],
+        ),
+        user_id=current_user_id(),
+        thread_id=ctx.get("thread_id"),
+    )
 
     update: dict[str, Any] = {
         "statistics": [statistics],
