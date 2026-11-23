@@ -636,20 +636,29 @@ class AnalysisInput(BaseModel):
 
     Absence convention: every field is always present, and a nullable field
     is an explicit ``null``, never omitted. A list of these is ``null`` when
-    the inputs were not recorded (the insight was saved before they were, or
-    the analyst's code read no input file), and never ``[]``.
+    the inputs were not recorded (the insight was saved before its pulls
+    were linked exactly, or its analysis read no pull), and never ``[]``.
 
-    ``start_date`` and ``end_date`` are ISO date strings, as stored on the
-    pull. ``canopy_cover`` is the threshold the analytics request sent (the
-    dataset default when none was selected), or ``null`` for a dataset that
-    takes none.
+    ``canopy_cover`` is the threshold the pull sent to the analytics API
+    (the dataset default when none was selected), or ``null`` for a dataset
+    that takes none or a pull stored before the threshold was.
     """
 
     areas: List[AnalysisArea]
     dataset_id: Optional[int]
     dataset_name: str
-    start_date: str
-    end_date: str
+    pulled_start_date: str = Field(
+        description=(
+            "Start of the data pull, as an ISO date. It can be earlier than "
+            "the period the chart shows."
+        )
+    )
+    pulled_end_date: str = Field(
+        description=(
+            "End of the data pull, as an ISO date. It can be later than the "
+            "period the chart shows."
+        )
+    )
     canopy_cover: Optional[int]
     context_layer: Optional[str]
 

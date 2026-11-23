@@ -149,8 +149,8 @@ async def test_curated_only_insight_records_its_one_pull(curated_run):
             "areas": [{"name": "Pará", "source": "gadm", "src_id": "BRA.14"}],
             "dataset_id": LAND_GHG_INVENTORY_ID,
             "dataset_name": LGMS_NAME,
-            "start_date": "2016-01-01",
-            "end_date": "2024-12-31",
+            "pulled_start_date": "2016-01-01",
+            "pulled_end_date": "2024-12-31",
             "canopy_cover": None,
             "context_layer": None,
         }

@@ -12,8 +12,8 @@ ANALYSIS_INPUTS = [
         "areas": [{"name": "Brazil", "source": "gadm", "src_id": "BRA"}],
         "dataset_id": 4,
         "dataset_name": "Tree cover loss",
-        "start_date": "2020-01-01",
-        "end_date": "2020-12-31",
+        "pulled_start_date": "2020-01-01",
+        "pulled_end_date": "2020-12-31",
         "canopy_cover": 30,
         "context_layer": None,
     }
