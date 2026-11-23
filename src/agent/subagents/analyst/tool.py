@@ -141,6 +141,25 @@ def _extract_statistics_ids(statistics: list[dict]) -> list[str]:
     )
 
 
+def _links_of(
+    pulls: list[dict],
+) -> tuple[list[str], bool, Optional[list[dict]]]:
+    """What an insight records of the pulls it used: the ids to link, whether
+    the links are exact, and its ``analysis_inputs``.
+
+    One place works out all three so the chat stream and the API agree. A
+    pull without an id (state from before pulls were stored) cannot be
+    linked, so the links are not exact and, as a partial label is worse than
+    none, the inputs are None.
+    """
+    exact = all(pull.get("id") for pull in pulls)
+    return (
+        _extract_statistics_ids(pulls),
+        exact,
+        inputs_from_statistics(pulls) if exact else None,
+    )
+
+
 def replace_csv_paths_with_urls(
     code_block: str, source_urls: List[str], read_files: set[int]
 ) -> str:
@@ -416,15 +435,14 @@ async def _persist_curated(
     """Persist a curated insight of one pull and return the state update.
     The update has the same fields as the code executor path."""
     # Both curated routes build the charts from this one pull only.
-    analysis_inputs = inputs_from_statistics([statistics])
+    statistics_ids, exact, analysis_inputs = _links_of([statistics])
     ctx = structlog.contextvars.get_contextvars()
     insight_id = await persist_insight(
         insight,
         user_id=current_user_id(),
         thread_id=ctx.get("thread_id", ""),
-        statistics_ids=_extract_statistics_ids([statistics]),
-        # The charts are built from this one pull only.
-        statistics_ids_exact=True,
+        statistics_ids=statistics_ids,
+        statistics_ids_exact=exact,
         codeact_parts=[],
     )
     logger.info(f"Persisted curated insight to DB: {insight_id}")
@@ -687,21 +705,20 @@ class Analyst:
 
         # PERSIST + STATE.
         ctx = structlog.contextvars.get_contextvars()
+        statistics_ids, exact, analysis_inputs = _links_of(read_statistics)
         insight_id = await persist_insight(
             insight,
             user_id=current_user_id(),
             thread_id=ctx.get("thread_id", ""),
-            statistics_ids=_extract_statistics_ids(read_statistics),
-            # A read pull without an id (state from before pulls were
-            # stored) cannot be linked, so the links are then incomplete.
-            statistics_ids_exact=all(s.get("id") for s in read_statistics),
+            statistics_ids=statistics_ids,
+            statistics_ids_exact=exact,
             codeact_parts=codeact_parts,
         )
         logger.info(f"Persisted insight to DB: {insight_id}")
 
         updated_state = {
             "insight_id": insight_id,
-            "analysis_inputs": inputs_from_statistics(read_statistics),
+            "analysis_inputs": analysis_inputs,
             "insight": insight.primary_insight,
             "follow_up_suggestions": insight.follow_up_suggestions,
             "codeact_parts": codeact_parts,

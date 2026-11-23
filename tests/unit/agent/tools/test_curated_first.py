@@ -307,6 +307,24 @@ async def test_a_curated_chart_records_the_latest_pull_only(run):
     assert command.update["analysis_inputs"] == expected
 
 
+async def test_a_curated_pull_without_an_id_records_no_inputs(run):
+    old = _statistics()
+    del old["id"]
+
+    command = await Analyst().analyze(
+        "tree cover loss",
+        statistics=[old],
+        tool_call_id="call-1",
+        language="en",
+        chart="standard",
+    )
+
+    # The API reports null for links that are not exact, so the stream does.
+    assert run.persist.await_args.kwargs["statistics_ids"] == []
+    assert run.persist.await_args.kwargs["statistics_ids_exact"] is False
+    assert command.update["analysis_inputs"] is None
+
+
 async def test_a_curated_chart_records_the_threshold_its_caption_states(run):
     command = await _analyze(
         _statistics(

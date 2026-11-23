@@ -191,6 +191,8 @@ async def test_a_read_pull_without_an_id_makes_the_links_not_exact(run):
     )
     assert _linked(command, persist) == ["b"]
     assert persist.await_args.kwargs["statistics_ids_exact"] is False
+    # The stream agrees with the API, which reports null for these links.
+    assert command.update["analysis_inputs"] is None
 
 
 async def test_a_file_read_twice_is_linked_once(run):
