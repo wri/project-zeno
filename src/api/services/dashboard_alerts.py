@@ -3,15 +3,14 @@ AOI over a period, by default the week ending on the latest alert date. If
 that date is unavailable, the default is the latest full Sunday-to-Saturday
 week."""
 
-import math
-from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date, timedelta
-from typing import Any, Callable, Iterable, Optional, Protocol
+from typing import Callable, Iterable, Optional, Protocol
 from uuid import UUID
 
 import cachetools
 import httpx
+import pandas as pd
 
 from src.agent.datasets.handlers.analytics_handler import (
     ANALYTICS_ADMIN_SUBTYPES,
@@ -56,48 +55,35 @@ EXCLUDED_CONFIDENCES = ("low",)
 SUMMARY_COLUMNS = ("aoi_id", "alert_confidence", "area_ha")
 
 
-def alert_columns(data: Optional[dict], names: tuple[str, ...]) -> list[list]:
-    """The named columns of a column-oriented analytics result, or empty
-    lists for an empty result. Raises ``UnexpectedAlertsDataError`` for a
-    missing column or columns of different lengths."""
+def read_alert_rows(
+    data: Optional[dict], names: tuple[str, ...]
+) -> pd.DataFrame:
+    """Read the named columns of an analytics result, a missing area
+    counting as 0 as on the alerts chart. Raises
+    ``UnexpectedAlertsDataError`` for a result it cannot read, including an
+    unknown confidence tier, so that a new tier is never counted or dropped
+    unseen."""
     if not data or not any(data.values()):
-        return [[] for _ in names]
-    missing = [name for name in names if name not in data]
-    if missing:
+        return pd.DataFrame(columns=list(names))
+    if missing := [name for name in names if name not in data]:
         raise UnexpectedAlertsDataError(
             f"The integrated alerts result has no {', '.join(missing)} column."
         )
-    columns = [list(data[name]) for name in names]
-    if len({len(column) for column in columns}) > 1:
+    if len({len(data[name]) for name in names}) > 1:
         raise UnexpectedAlertsDataError(
             "The integrated alerts result has columns of different lengths."
         )
-    return columns
-
-
-def alert_area(value: Any) -> float:
-    """Hectares; a missing area counts as 0, as on the alerts chart."""
-    if value is None:
-        return 0.0
+    alerts = pd.DataFrame({name: data[name] for name in names})
     try:
-        return float(value)
+        alerts["area_ha"] = pd.to_numeric(alerts["area_ha"]).fillna(0.0)
     except (TypeError, ValueError) as error:
         raise UnexpectedAlertsDataError(
-            f"Unexpected alert area: {value!r}"
+            f"Unexpected alert area: {error}"
         ) from error
-
-
-def is_listed_confidence(confidence: Any) -> bool:
-    """Whether alerts of this tier are counted: True for high and highest,
-    False for low. Raises ``UnexpectedAlertsDataError`` for any other tier,
-    so that a new tier is never counted or dropped unseen."""
-    if confidence in EXCLUDED_CONFIDENCES:
-        return False
-    if confidence not in LISTED_CONFIDENCES:
-        raise UnexpectedAlertsDataError(
-            f"Unknown alert confidence: {confidence!r}"
-        )
-    return True
+    known = {*LISTED_CONFIDENCES, *EXCLUDED_CONFIDENCES}
+    if unknown := set(alerts["alert_confidence"]) - known:
+        raise UnexpectedAlertsDataError(f"Unknown alert confidence: {unknown}")
+    return alerts
 
 
 @dataclass(frozen=True)
@@ -227,11 +213,9 @@ def total_area_ha_by_aoi_id(data: Optional[dict]) -> dict[str, float]:
     """High and highest confidence alert area of each AOI that has such
     alerts, by the alerts list's rules. Raises ``UnexpectedAlertsDataError``
     for a result it cannot read."""
-    areas: dict[str, list[float]] = defaultdict(list)
-    for aoi_id, confidence, area in zip(*alert_columns(data, SUMMARY_COLUMNS)):
-        if is_listed_confidence(confidence):
-            areas[aoi_id].append(alert_area(area))
-    return {aoi_id: math.fsum(values) for aoi_id, values in areas.items()}
+    alerts = read_alert_rows(data, SUMMARY_COLUMNS)
+    listed = alerts[alerts["alert_confidence"].isin(LISTED_CONFIDENCES)]
+    return listed.groupby("aoi_id")["area_ha"].sum().to_dict()
 
 
 class AnalyticsAlertsSource:

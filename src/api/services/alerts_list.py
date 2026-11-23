@@ -24,11 +24,9 @@ from src.api.services.dashboard_alerts import (
     LISTED_CONFIDENCES,
     AlertsUnavailableError,
     UnexpectedAlertsDataError,
-    alert_area,
-    alert_columns,
-    is_listed_confidence,
     latest_alert_week,
     period_ending,
+    read_alert_rows,
 )
 from src.shared.logging_config import get_logger
 
@@ -109,7 +107,7 @@ def _parse_date(value: Any) -> date:
 def get_data_to(data: Optional[dict]) -> Optional[date]:
     """The most recent alert date in the result, of any confidence tier: a
     low confidence alert is data arriving too. None for an empty result."""
-    dates, _, _ = alert_columns(data, ALERT_COLUMNS)
+    dates = read_alert_rows(data, ALERT_COLUMNS)["alert_date"]
     return max((_parse_date(value) for value in dates), default=None)
 
 
@@ -128,10 +126,10 @@ def get_daily_alerts(
     areas: dict[date, dict[str, list[float]]] = defaultdict(
         lambda: {confidence: [] for confidence in LISTED_CONFIDENCES}
     )
-    for raw_date, confidence, area in zip(*alert_columns(data, ALERT_COLUMNS)):
-        if not is_listed_confidence(confidence):
-            continue
-        areas[_parse_date(raw_date)][confidence].append(alert_area(area))
+    alerts = read_alert_rows(data, ALERT_COLUMNS)
+    listed = alerts[alerts["alert_confidence"].isin(LISTED_CONFIDENCES)]
+    for raw_date, confidence, area in listed.itertuples(index=False):
+        areas[_parse_date(raw_date)][confidence].append(area)
 
     days = []
     for day in sorted(areas, reverse=True):
