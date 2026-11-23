@@ -305,8 +305,10 @@ async def summarize_dashboard_alerts(
     user: UserModel = Depends(require_auth),
     service: DashboardAlertsService = Depends(get_dashboard_alerts_service),
 ):
-    """Integrated alerts area in each dashboard's AOI over the requested
-    period, by default the week ending on the latest alert date."""
+    """High and highest confidence integrated alerts area in each
+    dashboard's AOI over the requested period, by default the week ending
+    on the latest alert date. Low confidence alerts are left out, as in the
+    dashboard alerts widget."""
     rows = await dashboard_writer.get_visible_dashboards_with_dataset(
         body.dashboard_ids, user.id, INTEGRATED_ALERTS_ID
     )

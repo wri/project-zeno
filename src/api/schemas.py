@@ -1109,7 +1109,10 @@ class DashboardAlertsSummaryRequest(BaseModel):
 
 class DashboardAlertsResponse(BaseModel):
     integrated_alerts: Optional[float] = Field(
-        description="Alert area in hectares; null when it could not be fetched."
+        description=(
+            "High and highest confidence alert area in hectares; null when "
+            "it could not be fetched or read."
+        )
     )
     errors: Dict[str, str] = Field(
         default={}, description="Why an alert type could not be fetched."

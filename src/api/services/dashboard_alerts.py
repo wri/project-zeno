@@ -1,8 +1,8 @@
-"""Integrated alerts area in each dashboard's AOI over a period, by default
-the week ending on the latest alert date. If that date is unavailable, the
-default is the latest full Sunday-to-Saturday week."""
+"""High and highest confidence integrated alerts area in each dashboard's
+AOI over a period, by default the week ending on the latest alert date. If
+that date is unavailable, the default is the latest full Sunday-to-Saturday
+week."""
 
-from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Callable, Iterable, Optional, Protocol
@@ -10,6 +10,7 @@ from uuid import UUID
 
 import cachetools
 import httpx
+import pandas as pd
 
 from src.agent.datasets.handlers.analytics_handler import (
     ANALYTICS_ADMIN_SUBTYPES,
@@ -38,8 +39,51 @@ class AlertsUnavailableError(Exception):
     pass
 
 
+class UnexpectedAlertsDataError(AlertsUnavailableError):
+    """The analytics API answered with rows this module cannot read."""
+
+
 class InvalidPeriodError(ValueError):
     pass
+
+
+# The confidence tiers counted, each as a column in the alerts list. Low
+# confidence alerts are left out: they are single detections by one system.
+LISTED_CONFIDENCES = ("high", "highest")
+EXCLUDED_CONFIDENCES = ("low",)
+# The columns the summary reads from the analytics result.
+SUMMARY_COLUMNS = ("aoi_id", "alert_confidence", "area_ha")
+
+
+def read_alert_rows(
+    data: Optional[dict], names: tuple[str, ...]
+) -> pd.DataFrame:
+    """Read the named columns of an analytics result, a missing area
+    counting as 0 as on the alerts chart. Raises
+    ``UnexpectedAlertsDataError`` for a result it cannot read, including an
+    unknown confidence tier, so that a new tier is never counted or dropped
+    unseen."""
+    if not data or not any(data.values()):
+        return pd.DataFrame(columns=list(names))
+    if missing := [name for name in names if name not in data]:
+        raise UnexpectedAlertsDataError(
+            f"The integrated alerts result has no {', '.join(missing)} column."
+        )
+    if len({len(data[name]) for name in names}) > 1:
+        raise UnexpectedAlertsDataError(
+            "The integrated alerts result has columns of different lengths."
+        )
+    alerts = pd.DataFrame({name: data[name] for name in names})
+    try:
+        alerts["area_ha"] = pd.to_numeric(alerts["area_ha"]).fillna(0.0)
+    except (TypeError, ValueError) as error:
+        raise UnexpectedAlertsDataError(
+            f"Unexpected alert area: {error}"
+        ) from error
+    known = {*LISTED_CONFIDENCES, *EXCLUDED_CONFIDENCES}
+    if unknown := set(alerts["alert_confidence"]) - known:
+        raise UnexpectedAlertsDataError(f"Unknown alert confidence: {unknown}")
+    return alerts
 
 
 @dataclass(frozen=True)
@@ -110,8 +154,9 @@ class DashboardAlertsService:
         start: Optional[date] = None,
         end: Optional[date] = None,
     ) -> AlertsReport:
-        """Alerts between start and end, which default together to the week
-        ending on the latest alert date."""
+        """High and highest confidence alerts between start and end, which
+        default together to the week ending on the latest alert date. A
+        dashboard whose alerts cannot be fetched or read is unavailable."""
         if (start is None) != (end is None):
             raise InvalidPeriodError(
                 "Send both start_date and end_date, or neither."
@@ -164,13 +209,13 @@ class DashboardAlertsService:
         }
 
 
-def total_area_ha_by_aoi_id(data: dict) -> dict[str, float]:
-    totals: dict[str, float] = defaultdict(float)
-    for aoi_id, area_ha in zip(
-        data.get("aoi_id", []), data.get("area_ha", [])
-    ):
-        totals[aoi_id] += area_ha
-    return dict(totals)
+def total_area_ha_by_aoi_id(data: Optional[dict]) -> dict[str, float]:
+    """High and highest confidence alert area of each AOI that has such
+    alerts, by the alerts list's rules. Raises ``UnexpectedAlertsDataError``
+    for a result it cannot read."""
+    alerts = read_alert_rows(data, SUMMARY_COLUMNS)
+    listed = alerts[alerts["alert_confidence"].isin(LISTED_CONFIDENCES)]
+    return listed.groupby("aoi_id")["area_ha"].sum().to_dict()
 
 
 class AnalyticsAlertsSource:

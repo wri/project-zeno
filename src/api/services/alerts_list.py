@@ -21,28 +21,23 @@ from src.agent.datasets.handlers.analytics_handler import (
 from src.agent.datasets.handlers.base import DataSourceHandler
 from src.api.schemas import ALERTS_MAX_DAYS
 from src.api.services.dashboard_alerts import (
+    LISTED_CONFIDENCES,
     AlertsUnavailableError,
+    UnexpectedAlertsDataError,
     latest_alert_week,
     period_ending,
+    read_alert_rows,
 )
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-# The confidence tiers the list shows, each as a column. Low confidence
-# alerts are left out: they are single detections by one system.
-LISTED_CONFIDENCES = ("high", "highest")
-EXCLUDED_CONFIDENCES = ("low",)
 # The only columns read from the analytics result. The handler also adds the
 # AOI name, and the API the AOI id and type; one pull is one AOI, so they
 # carry nothing.
 ALERT_COLUMNS = ("alert_date", "alert_confidence", "area_ha")
 # The period when the caller gives no start date, counted back from the end.
 ALERTS_LIST_DEFAULT_DAYS = 30
-
-
-class UnexpectedAlertsDataError(AlertsUnavailableError):
-    """The analytics API answered with rows this module cannot read."""
 
 
 class UnsupportedAreaError(ValueError):
@@ -109,39 +104,10 @@ def _parse_date(value: Any) -> date:
         ) from error
 
 
-def _area(value: Any) -> float:
-    """Hectares; a missing area counts as 0, as on the alerts chart."""
-    if value is None:
-        return 0.0
-    try:
-        return float(value)
-    except (TypeError, ValueError) as error:
-        raise UnexpectedAlertsDataError(
-            f"Unexpected alert area: {value!r}"
-        ) from error
-
-
-def _columns(data: Optional[dict]) -> list[list]:
-    """The three alert columns, or empty lists for an empty result."""
-    if not data or not any(data.values()):
-        return [[] for _ in ALERT_COLUMNS]
-    missing = [column for column in ALERT_COLUMNS if column not in data]
-    if missing:
-        raise UnexpectedAlertsDataError(
-            f"The integrated alerts result has no {', '.join(missing)} column."
-        )
-    columns = [list(data[column]) for column in ALERT_COLUMNS]
-    if len({len(column) for column in columns}) > 1:
-        raise UnexpectedAlertsDataError(
-            "The integrated alerts result has columns of different lengths."
-        )
-    return columns
-
-
 def get_data_to(data: Optional[dict]) -> Optional[date]:
     """The most recent alert date in the result, of any confidence tier: a
     low confidence alert is data arriving too. None for an empty result."""
-    dates, _, _ = _columns(data)
+    dates = read_alert_rows(data, ALERT_COLUMNS)["alert_date"]
     return max((_parse_date(value) for value in dates), default=None)
 
 
@@ -160,14 +126,10 @@ def get_daily_alerts(
     areas: dict[date, dict[str, list[float]]] = defaultdict(
         lambda: {confidence: [] for confidence in LISTED_CONFIDENCES}
     )
-    for raw_date, confidence, area in zip(*_columns(data)):
-        if confidence in EXCLUDED_CONFIDENCES:
-            continue
-        if confidence not in LISTED_CONFIDENCES:
-            raise UnexpectedAlertsDataError(
-                f"Unknown alert confidence: {confidence!r}"
-            )
-        areas[_parse_date(raw_date)][confidence].append(_area(area))
+    alerts = read_alert_rows(data, ALERT_COLUMNS)
+    listed = alerts[alerts["alert_confidence"].isin(LISTED_CONFIDENCES)]
+    for raw_date, confidence, area in listed.itertuples(index=False):
+        areas[_parse_date(raw_date)][confidence].append(area)
 
     days = []
     for day in sorted(areas, reverse=True):
