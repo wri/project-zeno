@@ -93,8 +93,8 @@ async def test_selected_threshold_is_sent():
 
 async def test_dataset_picked_in_the_ui_sends_the_default():
     # The shape the FE sends in ui_context.dataset_selected.dataset: no
-    # `parameters` key. chat.py puts it into state["dataset"], and pull_data
-    # receives that.
+    # `parameters` key. The chat service puts it into state["dataset"], and
+    # pull_data receives that.
     picked = {
         "dataset_id": TREE_COVER_LOSS_ID,
         "dataset_name": "Tree cover loss",
