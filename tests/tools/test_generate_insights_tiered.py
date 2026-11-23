@@ -417,6 +417,12 @@ async def test_extract_statistics_ids_tracks_new_state_ids():
     ) == ["stat-1", "stat-2"]
 
 
+async def test_extract_statistics_ids_drops_repeats():
+    assert _extract_statistics_ids(
+        [{"id": "stat-1"}, {"id": "stat-2"}, {"id": "stat-1"}]
+    ) == ["stat-1", "stat-2"]
+
+
 async def test_extract_statistics_ids_keeps_older_states_compatible():
     assert _extract_statistics_ids([{}, {}, None]) == []
 
@@ -500,9 +506,13 @@ async def test_generate_insights_persists_statistics_provenance(monkeypatch):
         insight = _insight
         parts = [
             SimpleNamespace(
+                type=generate_insights_module.PartType.CODE_BLOCK,
+                content='df = pd.read_csv("input_file_0.csv")',
+            ),
+            SimpleNamespace(
                 type=generate_insights_module.PartType.TEXT_OUTPUT,
                 content="Brazil has one unit.",
-            )
+            ),
         ]
 
     class FakeExecutor:

@@ -131,49 +131,18 @@ async def prepare_dataframes(
 
 
 def _extract_statistics_ids(statistics: list[dict]) -> list[str]:
-    return [
-        stat["id"]
-        for stat in statistics
-        if isinstance(stat, dict) and stat.get("id")
-    ]
-
-
-# How the executor's code names an input file: `build_file_references` calls
-# them input_file_{i}.csv, and the prompt makes the code load them by name.
-INPUT_FILE_PATTERN = re.compile(r"input_file_(\d+)\.csv")
-
-
-def referenced_statistics(
-    code_blocks: List[str], loaded: list[dict]
-) -> list[dict]:
-    """The pulls whose input file the executor's code names, in pull order.
-
-    `loaded` is parallel to the input files (see `prepare_dataframes`). A
-    file named in a comment counts as read; a name built at run time, such
-    as an f-string, is not seen.
-    """
-    indices = sorted(
-        {
-            int(index)
-            for code in code_blocks
-            for index in INPUT_FILE_PATTERN.findall(code)
-        }
+    """The ids of these pulls, in order, each once."""
+    return list(
+        dict.fromkeys(
+            stat["id"]
+            for stat in statistics
+            if isinstance(stat, dict) and stat.get("id")
+        )
     )
-    referenced = []
-    for index in indices:
-        if index < len(loaded):
-            referenced.append(loaded[index])
-        else:
-            logger.warning(
-                "analysis_inputs_unknown_input_file",
-                index=index,
-                input_files=len(loaded),
-            )
-    return referenced
 
 
 def replace_csv_paths_with_urls(
-    code_block: str, source_urls: List[str]
+    code_block: str, source_urls: List[str], read_files: set[int]
 ) -> str:
     """
     Replace CSV file paths in code blocks with URL-based data loading.
@@ -184,6 +153,9 @@ def replace_csv_paths_with_urls(
     Args:
         code_block: Code block string that may contain CSV file references
         source_urls: List of source URLs corresponding to input_file_{i}.csv files
+        read_files: Receives the index {i} of every input file the code names,
+            also one with no source URL. A file named in a comment counts as
+            read; a name built at run time, such as an f-string, is not seen.
 
     Returns:
         List of code blocks with CSV paths replaced by URL-based loading
@@ -199,6 +171,7 @@ def replace_csv_paths_with_urls(
 
     def replace_match(match):
         file_index = int(match.group(1))
+        read_files.add(file_index)
         if file_index < len(source_urls) and source_urls[file_index]:
             url = source_urls[file_index]
             # Replace the entire pd.read_csv(...) call with URL-based loading
@@ -219,6 +192,7 @@ def replace_csv_paths_with_urls(
 
     def replace_standalone(match):
         file_index = int(match.group(1))
+        read_files.add(file_index)
         if file_index < len(source_urls) and source_urls[file_index]:
             url = source_urls[file_index]
             # Replace with URL string
@@ -494,16 +468,16 @@ class Analyst:
         Optional[list[InsightChart]],
         list[dict],
         str,
-        Optional[list[dict]],
+        list[dict],
         Optional[str],
     ]:
         """Build charts via the LLM code executor.
 
         Returns (charts, encoded_codeact_parts, executor_context,
-        analysis_inputs, error_message). `executor_context` is the
+        read_statistics, error_message). `executor_context` is the
         concatenated execution-output text (printed totals, key statistics)
-        for the text-generator stage. `analysis_inputs` describes the pulls
-        the code read, or is None when it read none. On success `charts` is
+        for the text-generator stage. `read_statistics` are the pulls the
+        code read, in pull order, which can be none. On success `charts` is
         non-empty and error is None. On failure `charts` is None and a
         user-facing error message is returned.
         """
@@ -556,14 +530,14 @@ class Analyst:
         )
         if result.error:
             logger.error(f"Code execution error: {result.error}")
-            return None, [], "", None, f"Analysis failed: {result.error}"
+            return None, [], "", [], f"Analysis failed: {result.error}"
         if not result.chart_data:
             logger.error("No chart data generated")
             return (
                 None,
                 [],
                 "",
-                None,
+                [],
                 f"Failed to generate chart data. Feedback:{text_output}",
             )
         if result.insight is None or not result.insight.charts:
@@ -572,36 +546,34 @@ class Analyst:
                 None,
                 [],
                 "",
-                None,
+                [],
                 f"Failed to generate chart insight. Feedback:{text_output}",
             )
 
-        # Record the pulls the code read before the URL swap below rewrites
-        # the file names away. `statistics` holds every pull of the thread,
-        # so the insight is described by the ones its code used.
-        analysis_inputs = inputs_from_statistics(
-            referenced_statistics(
-                [
-                    part.content
-                    for part in result.parts
-                    if part.type == PartType.CODE_BLOCK
-                ],
-                loaded,
-            )
-        )
-        if analysis_inputs is None:
-            logger.warning(
-                "analysis_inputs_not_recorded",
-                reason="the code read no input file",
-                input_files=len(loaded),
-            )
-
-        # Make code blocks runnable anywhere by swapping CSV paths for URLs.
+        # The swap records which input files the code read. `statistics`
+        # holds every pull of the thread, so the insight links only these.
+        read_files: set[int] = set()
         for part in result.parts:
             if part.type == PartType.CODE_BLOCK:
                 part.content = replace_csv_paths_with_urls(
-                    part.content, source_urls
+                    part.content, source_urls, read_files
                 )
+        read_statistics = []
+        for index in sorted(read_files):
+            if index < len(loaded):
+                read_statistics.append(loaded[index])
+            else:
+                logger.warning(
+                    "statistics_unknown_input_file",
+                    index=index,
+                    input_files=len(loaded),
+                )
+        if not read_statistics:
+            logger.warning(
+                "statistics_not_linked",
+                reason="the code read no input file",
+                input_files=len(loaded),
+            )
 
         charts = [
             resolve_chart_colors(
@@ -627,7 +599,7 @@ class Analyst:
             charts,
             _encode_parts(result.parts),
             executor_context,
-            analysis_inputs,
+            read_statistics,
             None,
         )
 
@@ -681,7 +653,7 @@ class Analyst:
             charts,
             codeact_parts,
             executor_context,
-            analysis_inputs,
+            read_statistics,
             error,
         ) = await self._resolve_charts(
             query,
@@ -717,14 +689,14 @@ class Analyst:
             insight,
             user_id=current_user_id(),
             thread_id=ctx.get("thread_id", ""),
-            statistics_ids=_extract_statistics_ids(statistics),
+            statistics_ids=_extract_statistics_ids(read_statistics),
             codeact_parts=codeact_parts,
         )
         logger.info(f"Persisted insight to DB: {insight_id}")
 
         updated_state = {
             "insight_id": insight_id,
-            "analysis_inputs": analysis_inputs,
+            "analysis_inputs": inputs_from_statistics(read_statistics),
             "insight": insight.primary_insight,
             "follow_up_suggestions": insight.follow_up_suggestions,
             "codeact_parts": codeact_parts,

@@ -1,5 +1,5 @@
-"""analysis_inputs on the CodeAct path: the insight records the pulls whose
-input file its code read, not every pull of the thread."""
+"""The CodeAct path links the pulls whose input file its code read, not every
+pull of the thread."""
 
 from base64 import b64decode
 from unittest.mock import AsyncMock, patch
@@ -117,26 +117,24 @@ def run():
     return _run
 
 
-def _recorded(command, persist):
-    """The value in the state update; the persisted value must match."""
+def _linked(command, persist):
+    """The ids the insight links; the state update describes the same
+    pulls."""
     update = command.update
     assert update["insight_id"] == "insight-1"
-    assert (
-        persist.await_args.kwargs["analysis_inputs"]
-        == (update["analysis_inputs"])
-    )
-    return update["analysis_inputs"]
+    return persist.await_args.kwargs["statistics_ids"]
 
 
-async def test_one_file_read_records_its_pull(run):
+async def test_one_file_read_links_its_pull(run):
     brazil = _stat("a")
     command, persist = await run(
         [brazil], 'df = pd.read_csv("input_file_0.csv")'
     )
-    assert _recorded(command, persist) == [input_from_statistics(brazil)]
+    assert _linked(command, persist) == ["a"]
+    assert command.update["analysis_inputs"] == [input_from_statistics(brazil)]
 
 
-async def test_only_the_files_read_are_recorded_in_pull_order(run):
+async def test_only_the_files_read_are_linked_in_pull_order(run):
     brazil, peru = _stat("a"), _stat("b", area="Peru")
     chile = _stat("c", area="Chile")
     command, persist = await run(
@@ -144,7 +142,8 @@ async def test_only_the_files_read_are_recorded_in_pull_order(run):
         'second = pd.read_csv("input_file_2.csv")',
         'first = pd.read_csv("input_file_0.csv")',
     )
-    assert _recorded(command, persist) == [
+    assert _linked(command, persist) == ["a", "c"]
+    assert command.update["analysis_inputs"] == [
         input_from_statistics(brazil),
         input_from_statistics(chile),
     ]
@@ -158,7 +157,7 @@ async def test_a_pull_that_did_not_load_shifts_the_file_index(run):
         'df = pd.read_csv("input_file_0.csv")',
         failing={"a"},
     )
-    assert _recorded(command, persist) == [input_from_statistics(brazil)]
+    assert _linked(command, persist) == ["b"]
 
 
 async def test_a_curated_only_pull_takes_no_file_index(run):
@@ -167,42 +166,53 @@ async def test_a_curated_only_pull_takes_no_file_index(run):
     command, persist = await run(
         [lgms, brazil], 'df = pd.read_csv("input_file_0.csv")'
     )
-    assert _recorded(command, persist) == [input_from_statistics(brazil)]
+    assert _linked(command, persist) == ["b"]
 
 
-async def test_repeated_reads_and_repeated_pulls_give_one_entry(run):
-    brazil, again = _stat("a"), _stat("b")
+async def test_a_file_read_twice_is_linked_once(run):
     command, persist = await run(
-        [brazil, again],
+        [_stat("a"), _stat("b")],
         'df = pd.read_csv("input_file_0.csv")\n'
         'df2 = pd.read_csv("input_file_0.csv")',
-        'df3 = pd.read_csv("input_file_1.csv")',
+        'df3 = pd.read_csv("input_file_0.csv")',
     )
-    assert _recorded(command, persist) == [input_from_statistics(brazil)]
+    assert _linked(command, persist) == ["a"]
 
 
-async def test_an_unknown_file_index_is_ignored(run):
-    brazil = _stat("a")
+async def test_a_file_named_as_a_string_counts_as_read(run):
+    command, persist = await run(
+        [_stat("a"), _stat("b")], 'path = "input_file_1.csv"'
+    )
+    assert _linked(command, persist) == ["b"]
+
+
+async def test_a_file_read_without_a_source_url_still_counts(run):
+    command, persist = await run(
+        [_stat("a", source_url="")], 'df = pd.read_csv("input_file_0.csv")'
+    )
+    assert _linked(command, persist) == ["a"]
+
+
+async def test_an_unknown_file_index_is_ignored_with_a_warning(run):
     with structlog.testing.capture_logs() as logs:
         command, persist = await run(
-            [brazil],
+            [_stat("a")],
             'df = pd.read_csv("input_file_0.csv")\n'
             'x = pd.read_csv("input_file_5.csv")',
         )
-    assert _recorded(command, persist) == [input_from_statistics(brazil)]
+    assert _linked(command, persist) == ["a"]
     assert any(
-        log["event"] == "analysis_inputs_unknown_input_file"
-        and log["index"] == 5
+        log["event"] == "statistics_unknown_input_file" and log["index"] == 5
         for log in logs
     )
 
 
-async def test_code_that_reads_no_file_records_null_and_warns(run):
+async def test_code_that_reads_no_file_links_none_and_warns(run):
     with structlog.testing.capture_logs() as logs:
         command, persist = await run([_stat("a")], "print('no data')")
-    assert "analysis_inputs" in command.update
-    assert _recorded(command, persist) is None
-    assert any(log["event"] == "analysis_inputs_not_recorded" for log in logs)
+    assert _linked(command, persist) == []
+    assert command.update["analysis_inputs"] is None
+    assert any(log["event"] == "statistics_not_linked" for log in logs)
     # The insight is still saved and shown.
     assert command.update["charts_data"]
 
@@ -215,7 +225,7 @@ async def test_the_file_is_detected_before_the_url_swap(run):
     code = b64decode(command.update["codeact_parts"][0]["content"]).decode()
     assert brazil["source_url"] in code
     assert "input_file_0.csv" not in code
-    assert _recorded(command, persist) == [input_from_statistics(brazil)]
+    assert _linked(command, persist) == ["a"]
 
 
 async def test_prepare_dataframes_lists_the_statistics_that_loaded():
