@@ -43,6 +43,7 @@ from src.agent.tools.common import (
 from src.api.data_models import InsightOrm
 from src.api.repositories.insight_access import is_editable_by_user
 from src.api.repositories.insight_writer import update_insight
+from src.api.services.analysis_inputs import recorded_inputs
 from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger
 
@@ -230,8 +231,8 @@ async def update_insight_display(
             f"Summary: {updated.primary_insight}{facts_block}"
         ),
         tool_call_id,
-        # A restyle keeps the data, so the stored inputs still hold.
-        analysis_inputs=row.analysis_inputs,
+        # A restyle keeps the data, so the linked pulls still hold.
+        analysis_inputs=await recorded_inputs(row),
     )
 
 

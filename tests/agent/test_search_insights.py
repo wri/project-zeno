@@ -24,8 +24,8 @@ ANALYSIS_INPUTS = [
         "areas": [{"name": "Brazil", "source": "gadm", "src_id": "BRA"}],
         "dataset_id": 4,
         "dataset_name": "Tree cover loss",
-        "start_date": "2020-01-01",
-        "end_date": "2020-12-31",
+        "pulled_start_date": "2020-01-01",
+        "pulled_end_date": "2020-12-31",
         "canopy_cover": 30,
         "context_layer": None,
     }
@@ -41,7 +41,6 @@ def _fake_insight(**kwargs):
         insight_text="Tree cover loss in the Amazon rose 12% over the period.",
         follow_up_suggestions=["Compare to fires"],
         created_at=datetime(2026, 6, 1),
-        analysis_inputs=ANALYSIS_INPUTS,
         charts=[
             SimpleNamespace(
                 position=0,
@@ -89,13 +88,21 @@ def test_score_rewards_phrase_match():
 @pytest.mark.asyncio
 async def test_search_insights_surfaces_best_match():
     insight = _fake_insight()
-    with patch(
-        "src.agent.tools.search_insights._search_insights",
-        new=AsyncMock(return_value=[insight]),
+    with (
+        patch(
+            "src.agent.tools.search_insights._search_insights",
+            new=AsyncMock(return_value=[insight]),
+        ),
+        patch(
+            "src.agent.tools.search_insights.recorded_inputs",
+            new=AsyncMock(return_value=ANALYSIS_INPUTS),
+        ) as mock_inputs,
     ):
         command = await search_insights.coroutine(
             query="tree cover in the amazon", tool_call_id="t1"
         )
+    # Built from the pulls the insight links, like the API response.
+    mock_inputs.assert_awaited_once_with(insight)
 
     # Surfaced into state exactly like the generator would.
     assert command.update["insight_id"] == str(insight.id)
@@ -124,14 +131,21 @@ async def test_search_insights_picks_highest_scoring():
         insight_text="Tree cover loss in the Amazon rose sharply.",
         created_at=datetime(2026, 6, 1),
     )
-    with patch(
-        "src.agent.tools.search_insights._search_insights",
-        new=AsyncMock(return_value=[weak, strong]),
+    with (
+        patch(
+            "src.agent.tools.search_insights._search_insights",
+            new=AsyncMock(return_value=[weak, strong]),
+        ),
+        patch(
+            "src.agent.tools.search_insights.recorded_inputs",
+            new=AsyncMock(return_value=None),
+        ) as mock_inputs,
     ):
         command = await search_insights.coroutine(
             query="tree cover amazon", tool_call_id="t1"
         )
     assert command.update["insight_id"] == str(strong.id)
+    mock_inputs.assert_awaited_once_with(strong)
 
 
 @pytest.mark.asyncio
