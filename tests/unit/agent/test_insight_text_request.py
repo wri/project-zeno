@@ -10,7 +10,7 @@ import pytest
 import structlog
 from google.genai.errors import ServerError
 
-from agent import llms
+from src.agent import llms
 from src.agent.llms import json_reply_instruction
 from src.agent.subagents.analyst.charts.model import InsightChart
 from src.agent.subagents.analyst.text_generator import (
