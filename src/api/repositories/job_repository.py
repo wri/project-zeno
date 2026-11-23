@@ -61,6 +61,7 @@ class DBJobRepository(JobRepository):
             user_id=user_id,
             thread_id=thread_id or "",
             statistics_ids=statistics_ids,
+            statistics_ids_exact=True,
         )
         async with get_session_from_pool() as session:
             session.add(

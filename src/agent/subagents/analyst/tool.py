@@ -423,6 +423,8 @@ async def _persist_curated(
         user_id=current_user_id(),
         thread_id=ctx.get("thread_id", ""),
         statistics_ids=_extract_statistics_ids([statistics]),
+        # The charts are built from this one pull only.
+        statistics_ids_exact=True,
         codeact_parts=[],
     )
     logger.info(f"Persisted curated insight to DB: {insight_id}")
@@ -690,6 +692,9 @@ class Analyst:
             user_id=current_user_id(),
             thread_id=ctx.get("thread_id", ""),
             statistics_ids=_extract_statistics_ids(read_statistics),
+            # A read pull without an id (state from before pulls were
+            # stored) cannot be linked, so the links are then incomplete.
+            statistics_ids_exact=all(s.get("id") for s in read_statistics),
             codeact_parts=codeact_parts,
         )
         logger.info(f"Persisted insight to DB: {insight_id}")

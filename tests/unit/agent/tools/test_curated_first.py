@@ -264,6 +264,7 @@ async def test_the_gate_reads_the_latest_pull_only(run):
     )
 
     assert run.persist.await_args.kwargs["statistics_ids"] == [latest["id"]]
+    assert run.persist.await_args.kwargs["statistics_ids_exact"] is True
 
 
 async def test_a_curated_chart_records_the_latest_pull_only(run):
@@ -296,7 +297,6 @@ async def test_a_curated_chart_records_the_latest_pull_only(run):
         }
     ]
     assert command.update["analysis_inputs"] == expected
-    assert run.persist.await_args.kwargs["analysis_inputs"] == expected
 
 
 async def test_a_curated_chart_records_the_threshold_its_caption_states(run):

@@ -228,7 +228,10 @@ async def test_persist_insight_strips_nul_from_insight_text():
     )
 
     insight_id = await persist_insight(
-        insight, user_id=None, thread_id="thread-1"
+        insight,
+        user_id=None,
+        thread_id="thread-1",
+        statistics_ids_exact=True,
     )
 
     async with async_session_maker() as session:
@@ -244,7 +247,10 @@ async def test_persist_insight_strips_nul_from_follow_up_suggestions():
     )
 
     insight_id = await persist_insight(
-        insight, user_id=None, thread_id="thread-1"
+        insight,
+        user_id=None,
+        thread_id="thread-1",
+        statistics_ids_exact=True,
     )
 
     async with async_session_maker() as session:
@@ -277,7 +283,10 @@ async def test_persist_insight_strips_nul_from_chart_rows():
     )
 
     insight_id = await persist_insight(
-        insight, user_id=None, thread_id="thread-1"
+        insight,
+        user_id=None,
+        thread_id="thread-1",
+        statistics_ids_exact=True,
     )
 
     async with async_session_maker() as session:

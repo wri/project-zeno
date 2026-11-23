@@ -495,6 +495,7 @@ async def add_section_with_widgets(
                 thread_id=thread_id,
                 is_public=is_public,
                 statistics_ids=[str(row.id) for row in statistics_rows],
+                statistics_ids_exact=True,
             )
             if spec.insight is not None
             else None

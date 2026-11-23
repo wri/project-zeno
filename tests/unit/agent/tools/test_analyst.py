@@ -169,6 +169,30 @@ async def test_a_curated_only_pull_takes_no_file_index(run):
     assert _linked(command, persist) == ["b"]
 
 
+async def test_the_links_are_exact_when_every_read_pull_has_an_id(run):
+    command, persist = await run(
+        [_stat("a")], 'df = pd.read_csv("input_file_0.csv")'
+    )
+    assert persist.await_args.kwargs["statistics_ids_exact"] is True
+
+
+async def test_code_that_reads_no_file_still_links_exactly_none(run):
+    _, persist = await run([_stat("a")], "print('no data')")
+    assert persist.await_args.kwargs["statistics_ids_exact"] is True
+
+
+async def test_a_read_pull_without_an_id_makes_the_links_not_exact(run):
+    old = _stat("a")
+    del old["id"]
+    command, persist = await run(
+        [old, _stat("b")],
+        'a = pd.read_csv("input_file_0.csv")\n'
+        'b = pd.read_csv("input_file_1.csv")',
+    )
+    assert _linked(command, persist) == ["b"]
+    assert persist.await_args.kwargs["statistics_ids_exact"] is False
+
+
 async def test_a_file_read_twice_is_linked_once(run):
     command, persist = await run(
         [_stat("a"), _stat("b")],

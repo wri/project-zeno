@@ -42,9 +42,38 @@ def test_add_insight_rows_tags_chart_row_warnings_as_create(monkeypatch):
     )
 
     insight_writer.add_insight_rows(
-        MagicMock(), insight, user_id=None, thread_id="thread-1"
+        MagicMock(),
+        insight,
+        user_id=None,
+        thread_id="thread-1",
+        statistics_ids_exact=True,
     )
 
     (call,) = logger.warning.call_args_list
     assert call.args == ("control_chars_stripped",)
     assert call.kwargs["field"] == "chart_row:create"
+
+
+@pytest.mark.parametrize("exact", [True, False])
+def test_add_insight_rows_stores_whether_the_links_are_exact(exact):
+    session = MagicMock()
+    row = insight_writer.add_insight_rows(
+        session,
+        Insight(charts=[], primary_insight="text"),
+        user_id="user-1",
+        thread_id="thread-1",
+        statistics_ids=["stat-1"],
+        statistics_ids_exact=exact,
+    )
+    assert row.statistics_ids == ["stat-1"]
+    assert row.statistics_ids_exact is exact
+
+
+def test_every_writer_must_decide_whether_the_links_are_exact():
+    with pytest.raises(TypeError, match="statistics_ids_exact"):
+        insight_writer.add_insight_rows(  # type: ignore[call-arg]
+            MagicMock(),
+            Insight(charts=[], primary_insight="text"),
+            user_id="user-1",
+            thread_id="thread-1",
+        )

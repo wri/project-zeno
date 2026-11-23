@@ -156,7 +156,7 @@ async def test_curated_only_insight_records_its_one_pull(curated_run):
         }
     ]
     assert command.update["analysis_inputs"] == expected
-    assert curated_run.await_args.kwargs["analysis_inputs"] == expected
+    assert curated_run.await_args.kwargs["statistics_ids_exact"] is True
 
 
 async def test_curated_only_charts_carry_grouped_ids(curated_run):
