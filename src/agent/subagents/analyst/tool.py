@@ -173,8 +173,9 @@ def replace_csv_paths_with_urls(
         code_block: Code block string that may contain CSV file references
         source_urls: List of source URLs corresponding to input_file_{i}.csv files
         read_files: Receives the index {i} of every input file the code names,
-            also one with no source URL. A file named in a comment counts as
-            read; a name built at run time, such as an f-string, is not seen.
+            also one with no source URL. A quoted file name counts as read,
+            also inside a comment. An unquoted mention, or a name built at
+            run time such as in an f-string, is not seen.
 
     Returns:
         List of code blocks with CSV paths replaced by URL-based loading
