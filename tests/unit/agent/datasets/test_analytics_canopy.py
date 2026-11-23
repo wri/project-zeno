@@ -2,6 +2,8 @@
 the pull applies first. Saved insights record the same value, so the handler
 and the insight builders share these functions."""
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 
 from src.agent.datasets.config import DATASETS
@@ -111,3 +113,51 @@ async def test_a_dataset_without_a_threshold_sends_none():
         "2024-12-31",
     )
     assert "canopy_cover" not in payload
+
+
+class _Response:
+    status_code = 200
+    text = "{}"
+    headers: dict = {}
+
+    def json(self):
+        return {"status": "success", "data": {}}
+
+
+async def _pull(dataset: dict):
+    handler = AnalyticsHandler()
+    with (
+        patch.object(
+            handler, "_request_analysis", AsyncMock(return_value=_Response())
+        ),
+        patch.object(
+            handler,
+            "_process_response_data",
+            AsyncMock(return_value=({"x": [1]}, 1, "ok", "https://a/b")),
+        ),
+    ):
+        return await handler.pull_data(
+            query="",
+            dataset=dataset,
+            start_date="2021-01-01",
+            end_date="2024-12-31",
+            change_over_time_query=False,
+            aois=[{"source": "gadm", "src_id": "BRA", "subtype": "country"}],
+        )
+
+
+async def test_a_pull_reports_the_canopy_cover_it_sent():
+    result = await _pull(
+        {
+            "dataset_id": TREE_COVER_LOSS_ID,
+            "context_layer": "natural_forest",
+            "parameters": None,
+        }
+    )
+    assert result.canopy_cover == NATURAL_FOREST_DEFAULT_CANOPY_COVER
+
+
+async def test_a_pull_of_a_dataset_without_a_threshold_reports_none():
+    result = await _pull({"dataset_id": INTEGRATED_ALERTS_ID})
+    assert result.success
+    assert result.canopy_cover is None
