@@ -135,7 +135,8 @@ class AgentState(TypedDict):
     insight_id: str
     charts_data: list
     codeact_parts: list[EncodedCodeActPart]
-    # The pulls the insight in insight_id was computed from, as saved on it:
+    # The pulls the insight in insight_id was computed from, built from the
+    # pulls it links (the same entries the API builds from the linked rows):
     # one dict per pull, shaped like the API's AnalysisInput.
     # None when not recorded. Every write of insight_id writes this too,
     # null included, so a stale value never outlives its insight. A key
