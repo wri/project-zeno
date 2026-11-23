@@ -164,9 +164,10 @@ async def inputs_by_insight(
     one query.
 
     None for an insight whose links are not exact (see
-    ``InsightOrm.statistics_ids_exact``) or whose linked rows are all gone.
-    Otherwise one entry per linked row, in ``statistics_ids`` order, a
-    repeated id once.
+    ``InsightOrm.statistics_ids_exact``) or whose linked rows are not all
+    found: entries for only some of the pulls would label the insight with
+    a partial set. Otherwise one entry per linked row, in
+    ``statistics_ids`` order, a repeated id once.
     """
     wanted = {
         statistics_id
@@ -196,8 +197,10 @@ async def inputs_by_insight(
                 insight_id=str(row.id),
                 statistics_ids=missing,
             )
+            inputs[row.id] = None
+            continue
         inputs[row.id] = inputs_from_statistics(
-            [statistics_dict(found[i]) for i in ids if i in found]
+            [statistics_dict(found[i]) for i in ids]
         )
     return inputs
 

@@ -218,6 +218,17 @@ async def test_exact_links_to_no_pull_give_null_not_an_empty_list():
     )
 
 
+async def test_partly_missing_linked_rows_give_null_not_a_partial_list():
+    a = _row(uuid4())
+    partial = _insight([str(a.id), str(uuid4())])
+    with structlog.testing.capture_logs() as logs:
+        inputs = await inputs_by_insight(_session(a), [partial])
+    assert inputs == {partial.id: None}
+    assert any(
+        log["event"] == "analysis_inputs_statistics_missing" for log in logs
+    )
+
+
 async def test_a_page_mixes_exact_and_old_insights():
     a = _row(uuid4())
     exact, old = _insight([str(a.id)]), _insight([str(a.id)], exact=False)
