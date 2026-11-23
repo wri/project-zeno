@@ -223,10 +223,10 @@ def canopy_cover_threshold(
 def with_catalog_record(dataset: dict) -> dict:
     """The dataset as a pull uses it: the selection over its catalog record.
 
-    A key the selection does not set comes from the catalog record, except
-    ``parameters``: the catalog lists every allowed value of a parameter, not
-    a choice. So a selection with no ``parameters`` key gets none, and
-    ``canopy_cover_threshold`` then gives the default.
+    A key the selection does not set comes from the catalog record. So a
+    selection with no ``parameters`` key gets the catalog's parameter list,
+    with every allowed value, and ``canopy_cover_threshold`` then reads the
+    highest one.
     """
     record = next(
         (
@@ -238,9 +238,7 @@ def with_catalog_record(dataset: dict) -> dict:
     )
     if record is None:
         raise ValueError(f"Dataset not found: {dataset.get('dataset_id')}")
-    # Only the selection may set `parameters`, so a selection without them
-    # gets the default canopy cover, not the highest allowed value.
-    return {**record, "parameters": None} | dataset
+    return record | dataset
 
 
 def _first_list_len(section: Any) -> int:

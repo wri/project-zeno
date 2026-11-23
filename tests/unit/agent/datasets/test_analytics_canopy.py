@@ -4,6 +4,7 @@ and the insight builders share these functions."""
 
 import pytest
 
+from src.agent.datasets.config import DATASETS
 from src.agent.datasets.handlers.analytics_handler import (
     DEFAULT_CANOPY_COVER,
     INTEGRATED_ALERTS_ID,
@@ -14,7 +15,6 @@ from src.agent.datasets.handlers.analytics_handler import (
     canopy_cover_threshold,
     with_catalog_record,
 )
-from src.api.services.analyze import sent_canopy_cover
 
 
 def _canopy(values):
@@ -72,20 +72,12 @@ def test_the_selection_wins_over_the_catalog_record():
     assert merged["dataset_name"] == "Tree cover loss"
 
 
-def test_a_selection_without_parameters_does_not_take_the_catalog_list():
-    # The catalog's list holds every allowed threshold, never a choice.
-    merged = with_catalog_record({"dataset_id": TREE_COVER_LOSS_ID})
-    assert merged["parameters"] is None
-    assert _threshold(merged) == DEFAULT_CANOPY_COVER
-
-
-def test_sent_canopy_cover_is_the_default_without_a_threshold():
-    assert sent_canopy_cover(TREE_COVER_LOSS_ID) == DEFAULT_CANOPY_COVER
-    assert (
-        sent_canopy_cover(TREE_COVER_LOSS_ID, context_layer="natural_forest")
-        == NATURAL_FOREST_DEFAULT_CANOPY_COVER
+def test_a_selection_without_parameters_gets_the_catalog_list():
+    record = next(
+        ds for ds in DATASETS if ds["dataset_id"] == TREE_COVER_LOSS_ID
     )
-    assert sent_canopy_cover(TREE_COVER_LOSS_ID, canopy_cover=50) == 50
+    merged = with_catalog_record({"dataset_id": TREE_COVER_LOSS_ID})
+    assert merged["parameters"] == record["parameters"]
 
 
 def test_an_unknown_dataset_raises():

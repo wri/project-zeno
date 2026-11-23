@@ -37,8 +37,10 @@ def analysis_dataset(
     """The dataset selection an analysis sends to the handler: the same
     fields the agent's pick_dataset sets. The handler reads the forest
     filter and the canopy cover threshold from them."""
-    # `parameters` is always set, as pick_dataset sets it, so the selection
-    # reads the same way on every path.
+    # `parameters` is always set. The handler merges the catalog entry
+    # under these fields, and the catalog lists every allowed threshold
+    # (10 to 75): without the key, the pull takes the largest one, 75,
+    # in place of the default of 30.
     dataset: dict = {"dataset_id": dataset_id, "parameters": None}
     if context_layer:
         dataset["context_layer"] = context_layer
