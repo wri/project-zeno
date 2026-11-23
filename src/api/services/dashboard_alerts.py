@@ -3,6 +3,7 @@ AOI over a period, by default the week ending on the latest alert date. If
 that date is unavailable, the default is the latest full Sunday-to-Saturday
 week."""
 
+import asyncio
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Callable, Iterable, Optional, Protocol
@@ -28,6 +29,13 @@ SATURDAY = 5
 DEFAULT_PERIOD_DAYS = 7
 LATEST_ALERT_DATE_PATH = "/v0/land_change/integrated_alerts/latest"
 LATEST_ALERT_DATE_TIMEOUT_SECONDS = 10.0
+# At most this many custom area pulls at once, so one dashboards page
+# cannot flood the analytics API with saved-area checks.
+CUSTOM_AREAS_CONCURRENCY = 8
+# The longest wait for custom areas: enough for a result the analytics API
+# already holds (its saved-area check takes up to about 6 s); slower areas
+# are unavailable this time and come from its cache on the next load.
+CUSTOM_AREAS_TIMEOUT_SECONDS = 10.0
 
 # The latest alert date changes at most daily, so keep it for an hour.
 _latest_alert_date_cache: cachetools.TTLCache = cachetools.TTLCache(
@@ -122,8 +130,12 @@ def period_ending(end: date) -> tuple[date, date]:
     return end - timedelta(days=DEFAULT_PERIOD_DAYS - 1), end
 
 
+def is_custom_area(aoi: dict) -> bool:
+    return aoi["subtype"] == "custom-area"
+
+
 def supports_alerts(aoi: dict) -> bool:
-    return (
+    return is_custom_area(aoi) or (
         aoi["source"] == "gadm" and aoi["subtype"] in ANALYTICS_ADMIN_SUBTYPES
     )
 
@@ -144,9 +156,11 @@ class DashboardAlertsService:
         self,
         source: AlertsSource,
         today: Callable[[], date] = date.today,
+        custom_areas_timeout_seconds: float = CUSTOM_AREAS_TIMEOUT_SECONDS,
     ):
         self.source = source
         self.today = today
+        self.custom_areas_timeout_seconds = custom_areas_timeout_seconds
 
     async def summarize(
         self,
@@ -194,6 +208,62 @@ class DashboardAlertsService:
     async def _alerts_by_src_id(
         self, aois: list[dict], start: date, end: date
     ) -> dict[str, DashboardAlerts]:
+        """GADM areas in one request, each custom area in its own: the
+        analytics API refuses a whole request for one unsaved custom area,
+        so one unsaved, deleted or slow area must not fail or hold up the
+        others."""
+        admin_alerts, custom_alerts = await asyncio.gather(
+            self._pull(
+                [aoi for aoi in aois if not is_custom_area(aoi)], start, end
+            ),
+            self._pull_each(
+                [aoi for aoi in aois if is_custom_area(aoi)], start, end
+            ),
+        )
+        return {**admin_alerts, **custom_alerts}
+
+    async def _pull_each(
+        self, aois: list[dict], start: date, end: date
+    ) -> dict[str, DashboardAlerts]:
+        """Each AOI's alerts from its own request, at most
+        CUSTOM_AREAS_CONCURRENCY at once. An AOI whose request is not done
+        within custom_areas_timeout_seconds of the start is unavailable."""
+        if not aois:
+            return {}
+        slots = asyncio.Semaphore(CUSTOM_AREAS_CONCURRENCY)
+
+        async def pull_one(aoi: dict) -> dict[str, DashboardAlerts]:
+            async with slots:
+                return await self._pull([aoi], start, end)
+
+        tasks = {
+            aoi["src_id"]: asyncio.create_task(pull_one(aoi)) for aoi in aois
+        }
+        _, pending = await asyncio.wait(
+            tasks.values(), timeout=self.custom_areas_timeout_seconds
+        )
+        for task in pending:
+            task.cancel()
+        # Let the cancelled requests unwind before their tasks are dropped.
+        await asyncio.gather(*pending, return_exceptions=True)
+        late = [src_id for src_id, task in tasks.items() if task in pending]
+        if late:
+            # Ids only: custom area names are user text.
+            logger.warning(
+                "dashboard_alerts_custom_areas_timeout",
+                custom_area_ids=late,
+                timeout_seconds=self.custom_areas_timeout_seconds,
+            )
+        alerts = {src_id: unavailable() for src_id in late}
+        for src_id, task in tasks.items():
+            if task not in pending:
+                alerts.update(task.result())
+        return alerts
+
+    async def _pull(
+        self, aois: list[dict], start: date, end: date
+    ) -> dict[str, DashboardAlerts]:
+        """The AOIs' alerts from one request; all unavailable if it fails."""
         if not aois:
             return {}
         try:

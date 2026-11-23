@@ -308,7 +308,12 @@ async def summarize_dashboard_alerts(
     """High and highest confidence integrated alerts area in each
     dashboard's AOI over the requested period, by default the week ending
     on the latest alert date. Low confidence alerts are left out, as in the
-    dashboard alerts widget."""
+    dashboard alerts widget.
+
+    The AOI is a GADM country, state-province or district-county, or a
+    custom area. A custom area whose alerts are not ready within the
+    summary's time limit is null this time; the analytics API keeps
+    computing, so a later request gets them."""
     rows = await dashboard_writer.get_visible_dashboards_with_dataset(
         body.dashboard_ids, user.id, INTEGRATED_ALERTS_ID
     )

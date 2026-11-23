@@ -1125,7 +1125,8 @@ class DashboardAlertsSummaryResponse(BaseModel):
     dashboards: Dict[UUID, DashboardAlertsResponse] = Field(
         description=(
             "Dashboards the user may see that have an integrated alerts chart "
-            "and a GADM country, state-province or district-county AOI."
+            "and a GADM country, state-province or district-county AOI, or "
+            "a custom area AOI."
         )
     )
 
