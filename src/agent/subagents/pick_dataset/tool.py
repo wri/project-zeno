@@ -30,6 +30,8 @@ from src.agent.language import (
 from src.agent.llms import resilient_structured_output
 from src.agent.subagents.pick_dataset.prompts import DATASET_SELECTOR_PROMPT
 from src.agent.subagents.pick_dataset.schema import (
+    DatasetOption,
+    DatasetParameter,
     DatasetSelectionResponse,
     DatasetSelectionResult,
 )
@@ -37,6 +39,9 @@ from src.agent.subagents.progress import emit_progress
 from src.agent.tool_spec import ToolCategory, ToolSpec, bound_availability
 from src.agent.tools.send_nudge import NUDGE_ALREADY_SET_NOTE
 from src.shared.config import SharedSettings
+from src.shared.decisions import Answer as DecisionAnswer
+from src.shared.decisions import DecisionError, decide
+from src.shared.decisions import Question as DecisionQuestion
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -281,15 +286,14 @@ def _format_layer_options(candidate_datasets: pd.DataFrame) -> str:
     return "\n\n".join(blocks) if blocks else "None"
 
 
-async def select_best_dataset(
+async def _select_with_llm(
     query: str,
     candidate_datasets: pd.DataFrame,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-    aoi_selection=None,
-    language: str = DEFAULT_LANGUAGE,
+    removed_df: Optional[str],
+    language: str,
     rules: str = SELECTION_RULES,
 ) -> DatasetSelectionResponse:
+    """The selection model: the fallback when the decision call fails."""
     DATASET_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
         [
             (
@@ -341,16 +345,6 @@ async def select_best_dataset(
         DATASET_SELECTION_PROMPT
         | resilient_structured_output(DatasetSelectionResponse)
     ).with_config(run_name="select_dataset")
-
-    if aoi_selection is None:
-        removed_df = None
-    else:
-        filtered_layers, removed_layers = get_filtered_contextual_layers(
-            candidate_datasets["context_layers"], aoi_selection
-        )
-
-        candidate_datasets["context_layers"] = filtered_layers
-        removed_df = removed_layers.to_csv(index=False)
 
     selection_hints = _format_selection_hints(candidate_datasets)
     layer_options = _format_layer_options(candidate_datasets)
@@ -412,14 +406,362 @@ def selection_query(query: str, user_message: Optional[str]) -> str:
     )
 
 
+# The decision model (DECISION_PROVIDER: Gemini Decision 1, or jev) picks
+# the dataset. The request structure was tuned offline on jev
+# (~/bench-runs/jev-picker/eval.py; PR #841 for the earlier work):
+# - jev sees every dataset in the profile, not the RAG shortlist.
+# - Each dataset is one option: its catalog `decision_key` as the key and
+#   its short `decision_card` as the text. The long LLM text is worse.
+# - Short neutral instructions. LLM rules such as "only choose a dataset if
+#   it answers ALL parts" make jev decline valid requests.
+# - The dataset is asked alone. A second call asks for the context layer,
+#   map layer and parameters of the chosen dataset only: asking them in the
+#   same call changes the dataset answer.
+# - A low top probability asks the user (the dataset-choice nudge): jev
+#   seldom picks "none" when one dataset matches in part.
+APP_CONTEXT = (
+    "The user asks questions about environmental data for places on a "
+    "map. Each question needs one dataset. A question about a topic asks "
+    "for the dataset that measures it."
+)
+DATASET_INSTRUCTIONS = (
+    "Which dataset answers the user's request best? Choose 'none' only "
+    "when none of the datasets measures what the request is about."
+)
+NO_DATASET = "none"
+NO_DATASET_TEXT = "None of these datasets measures what the request is about"
+# The same rule as USER_MESSAGE_SELECTION_RULES gives the selection LLM. The
+# catalog hints make primary forest the default for "general forest loss". A
+# decision call that reads them applied it to plain "tree cover loss" in
+# 12 of 51 trials (BENCHMARK 2026-draft-5, PR #922); the rule fixed all of
+# them on 111 tree cover loss questions in an offline test.
+CONTEXT_INSTRUCTIONS = (
+    "Which forest or land type does the user's request ask the {dataset} "
+    "data to be limited to? Limit it to a forest type only when the "
+    "request names it, asks for a kind of forest (primary, intact, natural, "
+    "plantation) or asks about deforestation. For deforestation, use the "
+    "layer that its description says is the default. A plain "
+    '"tree cover loss" or "forest loss" request has no limit, also in the '
+    "humid tropics."
+)
+NO_CONTEXT = "all"
+NO_CONTEXT_TEXT = "No limit: all of the area"
+LAYER_INSTRUCTIONS = (
+    "Which map layer of {dataset} matches the focus of the user's request "
+    "best?"
+)
+PARAMETER_INSTRUCTIONS = (
+    "Which value of '{parameter}' does the user's request ask for, for "
+    "{dataset}? {description}"
+)
+NO_PARAMETER = "default"
+NO_PARAMETER_TEXT = "The request names no value"
+# Below this top probability the user chooses from the closest datasets.
+# 0.5 was the best value on the dev set; higher values ask on too many
+# requests that have one right answer.
+ASK_BELOW = 0.5
+# A suggestion needs at least this probability.
+SUGGESTION_THRESHOLD = 0.05
+MAX_SUGGESTIONS = 3
+
+
+class NoCandidateDatasets(RuntimeError):
+    """The fallback selection had no candidate datasets to choose from."""
+
+
+def _text(value) -> str:
+    """A catalog text field; a missing one is None or NaN in the frame."""
+    return value.strip() if isinstance(value, str) else ""
+
+
+def _first_sentence(value) -> str:
+    text = _text(value)
+    end = text.find(". ")
+    return text if end == -1 else text[: end + 1]
+
+
+def _decision_key(row) -> str:
+    return _text(row.get("decision_key")) or str(row["dataset_id"])
+
+
+def _decision_card(row) -> str:
+    return (
+        _text(row.get("decision_card"))
+        or _text(row.get("selection_hints"))
+        or row["dataset_name"]
+    )
+
+
+def profile_datasets() -> pd.DataFrame:
+    """Every dataset the current agent profile offers."""
+    return _drop_excluded_datasets(
+        pd.DataFrame(DATASETS), bound_availability().excluded_datasets
+    ).reset_index(drop=True)
+
+
+def _dataset_state(
+    query: str, start_date: Optional[str], end_date: Optional[str]
+) -> str:
+    text = f"{APP_CONTEXT}\n\nUser request: {query}"
+    if start_date or end_date:
+        text += (
+            f"\nRequested period: {start_date or 'open'} to "
+            f"{end_date or 'open'}"
+        )
+    return text
+
+
+def _dataset_question(candidate_datasets: pd.DataFrame) -> DecisionQuestion:
+    return DecisionQuestion(
+        DATASET_INSTRUCTIONS,
+        {
+            **{
+                _decision_key(row): _decision_card(row)
+                for _, row in candidate_datasets.iterrows()
+            },
+            NO_DATASET: NO_DATASET_TEXT,
+        },
+    )
+
+
+def _option_questions(row: pd.Series) -> dict[str, DecisionQuestion]:
+    """The context layer, map layer and parameters of one dataset."""
+    name = row["dataset_name"]
+    questions: dict[str, DecisionQuestion] = {}
+    context_layers = row.get("context_layers")
+    if isinstance(context_layers, list) and context_layers:
+        questions["context"] = DecisionQuestion(
+            CONTEXT_INSTRUCTIONS.format(dataset=name),
+            {
+                **{
+                    layer["value"]: layer.get("description") or layer["value"]
+                    for layer in context_layers
+                },
+                NO_CONTEXT: NO_CONTEXT_TEXT,
+            },
+        )
+    layers = row.get("layers")
+    if isinstance(layers, list) and len(layers) > 1:
+        questions["layer"] = DecisionQuestion(
+            LAYER_INSTRUCTIONS.format(dataset=name),
+            {layer["name"]: _format_layer(layer) for layer in layers},
+        )
+    parameters = row.get("parameters")
+    for param in parameters if isinstance(parameters, list) else []:
+        values = param.get("values") or []
+        if not values:
+            continue
+        questions[f"param_{param['name']}"] = DecisionQuestion(
+            PARAMETER_INSTRUCTIONS.format(
+                dataset=name,
+                parameter=param["name"],
+                description=param.get("description") or "",
+            ).strip(),
+            {
+                **{str(v): str(v) for v in values},
+                NO_PARAMETER: NO_PARAMETER_TEXT,
+            },
+        )
+    return questions
+
+
+def _option_from_answers(
+    row: pd.Series, answers: dict[str, DecisionAnswer], reason: str
+) -> DatasetOption:
+    context = answers.get("context")
+    layer = answers.get("layer")
+    parameters = []
+    raw_parameters = row.get("parameters")
+    for param in raw_parameters if isinstance(raw_parameters, list) else []:
+        answer = answers.get(f"param_{param['name']}")
+        if answer is None or answer.choice == NO_PARAMETER:
+            continue
+        value = next(
+            (v for v in param["values"] if str(v) == answer.choice), None
+        )
+        if value is not None:
+            parameters.append(
+                DatasetParameter(
+                    name=param["name"],
+                    description=param.get("description") or "",
+                    values=[value],
+                )
+            )
+    return DatasetOption(
+        dataset_id=int(row["dataset_id"]),
+        context_layer=(
+            context.choice
+            if context and context.choice != NO_CONTEXT
+            else None
+        ),
+        selected_layer=layer.choice if layer else None,
+        parameters=parameters or None,
+        start_date=None,
+        end_date=None,
+        reason=reason,
+    )
+
+
+def _suggestion(row: pd.Series) -> DatasetOption:
+    return _option_from_answers(
+        row, {}, _first_sentence(row.get("description")) or row["dataset_name"]
+    )
+
+
+async def _select_with_decisions(
+    query: str,
+    candidate_datasets: pd.DataFrame,
+    start_date: Optional[str],
+    end_date: Optional[str],
+) -> DatasetSelectionResponse:
+    """The dataset from one decision call, then its options from a second one.
+
+    Raises:
+        DecisionError: When a call fails or returns no dataset answer.
+    """
+    state = _dataset_state(query, start_date, end_date)
+    answers = await decide(
+        state, {"dataset": _dataset_question(candidate_datasets)}
+    )
+    dataset = answers.get("dataset")
+    if dataset is None:
+        raise DecisionError("no answer for the dataset question")
+    rows = {
+        _decision_key(row): row for _, row in candidate_datasets.iterrows()
+    }
+    logger.info(
+        "DATASET-SELECTOR: decision (%s) %s (p=%.3f), probabilities %s",
+        SharedSettings.decision_provider,
+        dataset.choice,
+        dataset.probability,
+        dataset.probabilities,
+    )
+
+    if dataset.choice != NO_DATASET and dataset.probability >= ASK_BELOW:
+        row = rows[dataset.choice]
+        options = _option_questions(row)
+        option_answers = await decide(state, options) if options else {}
+        reason = (
+            f"Best match for the request among the {len(rows)} datasets, "
+            f"with probability {dataset.probability:.2f}."
+        )
+        return DatasetSelectionResponse(
+            selected_dataset=_option_from_answers(row, option_answers, reason),
+            suggested_datasets=None,
+            reason=reason,
+        )
+
+    # No clear match: offer the datasets that came closest, if any.
+    ranked = sorted(
+        (
+            (p, key)
+            for key, p in dataset.probabilities.items()
+            if key in rows and p >= SUGGESTION_THRESHOLD
+        ),
+        reverse=True,
+    )[:MAX_SUGGESTIONS]
+    suggestions = [_suggestion(rows[key]) for _, key in ranked]
+    if dataset.choice == NO_DATASET:
+        reason = (
+            "None of the datasets measures what the request asks about "
+            "directly."
+        )
+    else:
+        reason = "More than one dataset could answer the request."
+    return DatasetSelectionResponse(
+        suggested_datasets=suggestions or None,
+        reason=reason,
+    )
+
+
+async def select_best_dataset(
+    query: str,
+    candidate_datasets: pd.DataFrame,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    aoi_selection=None,
+    language: str = DEFAULT_LANGUAGE,
+    rules: str = SELECTION_RULES,
+    retrieval_query: Union[str, Sequence[str], None] = None,
+) -> DatasetSelectionResponse:
+    """Pick the dataset with the decision model (DECISION_PROVIDER).
+
+    `query` is the text the selection reads (`selection_query`) and
+    `candidate_datasets` are all datasets of the profile. Context layers
+    outside the AOI are removed first. When a decision call fails, the RAG
+    shortlist (searched with `retrieval_query`, default `query`) and the
+    selection LLM (with `rules`) pick instead.
+
+    Raises:
+        NoCandidateDatasets: When the fallback finds no candidates.
+    """
+    if aoi_selection is not None:
+        filtered_layers, _ = get_filtered_contextual_layers(
+            candidate_datasets["context_layers"], aoi_selection
+        )
+        candidate_datasets["context_layers"] = filtered_layers
+
+    try:
+        return await _select_with_decisions(
+            query, candidate_datasets, start_date, end_date
+        )
+    except DecisionError as exc:
+        logger.warning(
+            "DATASET-SELECTOR: decision call failed, using the selection "
+            "model: %s",
+            exc,
+        )
+    return await _select_with_rag_and_llm(
+        query, retrieval_query or query, aoi_selection, language, rules
+    )
+
+
+async def _select_with_rag_and_llm(
+    query: str,
+    retrieval_query: Union[str, Sequence[str]],
+    aoi_selection,
+    language: str,
+    rules: str,
+) -> DatasetSelectionResponse:
+    """The earlier selection: RAG shortlist, then the selection LLM."""
+    candidate_datasets = await rag_candidate_datasets(retrieval_query, k=5)
+    # Drop datasets the current agent profile (feature flag) excludes, so
+    # they can never be selected under a flag that hides them.
+    if not candidate_datasets.empty:
+        candidate_datasets = _drop_excluded_datasets(
+            candidate_datasets, bound_availability().excluded_datasets
+        )
+    if candidate_datasets.empty:
+        # Nothing retrieved survived the catalog lookup or the profile
+        # exclusions. The cause is in the logs.
+        logger.error(
+            "No candidate datasets for query %r (index %s). Every "
+            "retrieved document was skipped.",
+            query,
+            SharedSettings.dataset_embeddings_db,
+        )
+        raise NoCandidateDatasets(query)
+    if aoi_selection is None:
+        removed_df = None
+    else:
+        filtered_layers, removed_layers = get_filtered_contextual_layers(
+            candidate_datasets["context_layers"], aoi_selection
+        )
+        candidate_datasets["context_layers"] = filtered_layers
+        removed_df = removed_layers.to_csv(index=False)
+    return await _select_with_llm(
+        query, candidate_datasets, removed_df, language, rules
+    )
+
+
 class DatasetSelector:
     """Dataset-selection subagent: resolves a request to the best dataset.
 
     Used as a tool by the orchestrator via `pick_dataset`. The orchestrator
-    passes the user's request; this subagent does its own reasoning — it
-    retrieves candidate datasets, picks the best match with the selection LLM
-    (driven by DATASET_SELECTOR_PROMPT), resolves the context layer and
-    parameters, and clamps the date range to the dataset's real coverage.
+    passes the user's request; this subagent picks the dataset and its
+    context layer and parameters with the decision model (RAG and the
+    selection LLM, driven by DATASET_SELECTOR_PROMPT, are the fallback), and
+    clamps the date range to the dataset's real coverage.
     """
 
     async def resolve(
@@ -440,28 +782,30 @@ class DatasetSelector:
         logger.info("DATASET-SELECTOR: resolving query")
         selection_text = selection_query(query, user_message)
 
-        # Step 1: RAG lookup of candidate datasets
-        candidate_datasets = await rag_candidate_datasets(
-            [user_message, query]
-            if selection_text != query and user_message
-            else query,
-            k=5,
-        )
-        # Drop datasets the current agent profile (feature flag) excludes, so
-        # they can never be selected under a flag that hides them.
-        if not candidate_datasets.empty:
-            candidate_datasets = _drop_excluded_datasets(
-                candidate_datasets, bound_availability().excluded_datasets
+        # Every dataset of the profile is a candidate. The decision model
+        # picks the dataset and its options; RAG and the selection LLM are
+        # the fallback.
+        candidate_datasets = profile_datasets()
+        try:
+            selection_result = await select_best_dataset(
+                selection_text,
+                candidate_datasets,
+                start_date,
+                end_date,
+                aoi_selection,
+                language=language,
+                rules=(
+                    USER_MESSAGE_SELECTION_RULES
+                    if selection_text != query
+                    else SELECTION_RULES
+                ),
+                retrieval_query=(
+                    [user_message, query]
+                    if selection_text != query and user_message
+                    else query
+                ),
             )
-        if candidate_datasets.empty:
-            # Nothing retrieved survived the catalog lookup or the profile
-            # exclusions. Tell the user plainly; the cause is in the logs.
-            logger.error(
-                "No candidate datasets for query %r (index %s). Every "
-                "retrieved document was skipped.",
-                query,
-                SharedSettings.dataset_embeddings_db,
-            )
+        except NoCandidateDatasets:
             return Command(
                 update={
                     "messages": [
@@ -474,20 +818,6 @@ class DatasetSelector:
                     ]
                 }
             )
-        # Step 2: LLM picks the best dataset and context layer
-        selection_result = await select_best_dataset(
-            selection_text,
-            candidate_datasets,
-            start_date,
-            end_date,
-            aoi_selection,
-            language=language,
-            rules=(
-                USER_MESSAGE_SELECTION_RULES
-                if selection_text != query
-                else SELECTION_RULES
-            ),
-        )
 
         if selection_result.selected_dataset is None:
             if selection_result.suggested_datasets:

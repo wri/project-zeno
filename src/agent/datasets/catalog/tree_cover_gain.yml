@@ -100,3 +100,12 @@ citation: 'Use the following credit when this data is displayed: Accessed throug
 
   '
 series_color: "#3F08F5"
+# The jev decision model reads decision_card as this dataset's option and
+# decision_key as its option key (src/agent/subagents/pick_dataset/tool.py).
+# Keep the card to one fixed template: what it measures, units, time range
+# and step, breakdowns, its own limits. Do not name other datasets.
+decision_key: tc_gain
+decision_card: >-
+  Tree cover gain (2000-2020). Area (ha) where new tree cover over 5 m tall
+  grew, in 5-year periods from 2000 to 2020, at 30 m. Includes natural
+  regrowth, forest recovery and plantation cycles. No annual values.

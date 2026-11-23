@@ -19,6 +19,7 @@ from src.agent.subagents.pick_dataset.tool import (
     selection_query,
 )
 from src.agent.tool_spec import Availability, set_bound_availability
+from src.shared.decisions import DecisionError
 
 
 def test_latest_user_message_is_the_last_human_text():
@@ -186,6 +187,11 @@ async def test_resolve_retrieves_with_both_texts():
 
     rag = AsyncMock(side_effect=RuntimeError("stop after the call"))
     with (
+        patch.object(
+            pd_tool,
+            "decide",
+            AsyncMock(side_effect=DecisionError("decision call failed")),
+        ),
         patch.object(pd_tool, "rag_candidate_datasets", rag),
         pytest.raises(RuntimeError),
     ):
