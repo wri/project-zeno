@@ -471,6 +471,21 @@ class UserAoiModel(BaseModel):
     )
 
 
+class UserAoiCreate(BaseModel):
+    """A source area to save to the user's library, by its address."""
+
+    source: str = Field(..., description="gadm, kba, wdpa, landmark, ...")
+    src_id: Union[int, str]
+    name: Optional[str] = Field(
+        default=None,
+        description="The user's label; omit to use the area's name",
+    )
+
+
+class UserAoiRename(BaseModel):
+    name: str
+
+
 class CustomAreaCreate(BaseModel):
     name: str
     geometries: List[Polygon]
