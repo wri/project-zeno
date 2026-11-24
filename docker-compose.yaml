@@ -174,7 +174,11 @@ services:
       start_period: 1s
 
   minio:
-    image: docker.io/minio/minio
+    # MinIO withdrew its public images from [ADDRESS] and Quay (both now
+    # return 401/denied), so this is a community mirror of the same server.
+    # It ships `minio` on PATH and `mc` at /usr/bin/mc, which the healthcheck
+    # below needs. Swap back to docker.io/minio/minio if that access returns.
+    image: ghcr.io/coollabsio/minio:latest
     restart: always
     entrypoint: sh
     # create the 'langfuse' bucket before starting the service

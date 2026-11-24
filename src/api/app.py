@@ -6,6 +6,7 @@ import structlog
 from fastapi import FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
 from src.agent.graph import close_checkpointer_pool, get_checkpointer_pool
 from src.agent.utils.sgrep import data_status
@@ -30,7 +31,11 @@ from src.api.routers import (
     zap,
 )
 from src.shared.config import SharedSettings
-from src.shared.database import close_global_pool, initialize_global_pool
+from src.shared.database import (
+    close_global_pool,
+    get_connection_from_pool,
+    initialize_global_pool,
+)
 from src.shared.logging_config import get_logger
 from src.shared.version import get_version
 
@@ -71,10 +76,38 @@ async def lifespan(app: FastAPI):
             detail=blog_data_detail,
         )
     await initialize_global_pool()
+    await _warn_if_aois_empty()
     await get_checkpointer_pool()
     yield
     await close_global_pool()
     await close_checkpointer_pool()
+
+
+async def _warn_if_aois_empty() -> None:
+    """Report an unbuilt ``aois`` table at startup.
+
+    The ingests fill the per-source ``geometries_*`` staging tables; the API's
+    location search reads ``aois``, which only ``build-aois`` populates. When
+    that step is skipped every lookup answers "No matching location was
+    found" with no server-side signal, so say it once, loudly, at boot.
+    """
+    try:
+        async with get_connection_from_pool() as conn:
+            count = (
+                await conn.execute(text("SELECT count(*) FROM aois"))
+            ).scalar_one()
+    except Exception as exc:  # noqa: BLE001 - startup must not fail on this
+        logger.warning("aois_check_failed", error=str(exc))
+        return
+    if count == 0:
+        logger.error(
+            "aois table is empty - location search will find nothing. "
+            "Run the ingests, then `uv run python src/api/cli.py build-aois`.",
+            aois_rows=count,
+        )
+    else:
+        logger.info("aois table ready", aois_rows=count)
+
 
 
 app = FastAPI(

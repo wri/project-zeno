@@ -168,6 +168,26 @@ for running the system locally.
    uv run python src/ingest/ingest_concessions.py  # GFW concessions, five types (~1.8 GB)
    ```
 
+   Then build the unified `aois` table the API reads:
+
+   ```bash
+   uv run python src/api/cli.py build-aois
+   ```
+
+   **This step is required, not optional.** The ingests only fill the
+   per-source staging tables (`geometries_gadm`, `geometries_kba`, ...). The
+   API's location search reads `aois`, which `build-aois` populates from
+   those tables. Skip it and every location lookup fails with
+   "No matching location was found", even though the ingests reported
+   success. It is idempotent, so re-run it after any ingest.
+
+   Verify the build landed:
+
+   ```bash
+   docker exec project-zeno-db-1 psql -U postgres -d zeno-data \
+     -c "SELECT source, count(*) FROM aois GROUP BY source ORDER BY source;"
+   ```
+
    See `src/ingest/` directory for details on each ingestion script.
 
    The WDPA, LandMark and concessions ingests repair invalid shapes as they
@@ -275,8 +295,13 @@ Runs all services — API, PostgreSQL, Langfuse, and ClickHouse — in container
    uv python src/ingest/ingest_landmark.py
    uv python src/ingest/ingest_wdpa.py
    uv python src/ingest/ingest_concessions.py
+   uv python src/api/cli.py build-aois
    exit
    ```
+
+   `build-aois` is required: the ingests fill the per-source staging tables,
+   and the API's location search reads the `aois` table it builds. Without it
+   every location lookup fails with "No matching location was found".
 
    See `src/ingest/` directory for details on each ingestion script.
 
