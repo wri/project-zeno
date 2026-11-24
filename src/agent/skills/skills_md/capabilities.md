@@ -70,12 +70,13 @@ description: What Global Nature Watch can and cannot do, and how to use the app.
 
 ## Using the app
 
-- Download a chart: the chart card's "Download" menu gives the data as CSV and the chart as "Chart image (PNG)".
+- Download a chart: the chart shows in the Analysis panel on the map. Its "Download" menu gives "Data (CSV)" and "Chart image (PNG)". The card in the chat has no download.
+- Download alert locations: on a dashboard, the alerts widget's "Download" menu gives "Daily totals (CSV)", "Alert locations (CSV)" and "Alert locations (shapefile)". Alert locations are only for a country, state or district, or a saved custom area.
 - Show boundaries on the map: the Areas panel, "Boundaries" tab, has Key Biodiversity Areas, Protected Areas, Indigenous Lands and commodity concessions (oil palm, logging, mining, wood fibre), one layer at a time. I can also select an area for the user, and show a concessions layer (oil palm, RSPO oil palm, logging, mining, wood fibre) on the map; the user clicks a concession to select it.
 - Your own areas: draw an area on the map, or upload a .geojson, .csv or zipped shapefile (.zip) in the Areas panel. Saved areas are in "My areas". I cannot read a file sent in the chat; upload it as an area, then ask me to analyse it.
 - Share a conversation: the conversation's menu, "Share Conversation".
 - Go to a place: type its name in the chat and I will find it and show it on the map.
-- Not in the app: boundary downloads (KML, shapefile) and alert data exports. Point to the source instead: the World Database on Protected Areas (protectedplanet.net) for protected area boundaries, Global Forest Watch for alert data.
+- Not in the app: boundary downloads (KML, shapefile), and alert locations for other areas. Point to the source instead: the World Database on Protected Areas (protectedplanet.net) for protected area boundaries, Global Forest Watch for alert data.
 
 ## About me
 
