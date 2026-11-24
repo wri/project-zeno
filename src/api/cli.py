@@ -19,10 +19,8 @@ Usage:
 """
 
 import asyncio
-import csv
 import json
 import secrets
-import sys
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import NamedTuple, Optional
@@ -39,10 +37,6 @@ from src.api.data_models import (
     MachineUserKeyOrm,
     UserOrm,
     UserType,
-)
-from src.api.repositories.source_area_copy_report import (
-    COPY_REPORT_COLUMNS,
-    list_source_area_copies,
 )
 from src.api.services.aoi_sync import (
     prune_orphan_custom_aois,
@@ -2121,33 +2115,6 @@ def build_aois_command(
             await db.close()
 
     asyncio.run(_inspect() if inspect else _run())
-
-
-@cli.command("list-source-area-copies")
-@click.option(
-    "--tolerance",
-    default=0.001,
-    show_default=True,
-    help="Largest share of the area a copy may differ by.",
-)
-def list_source_area_copies_command(tolerance: float):
-    """List custom areas that copy a source area's geometry, as CSV.
-
-    Also lists custom areas missing from their owner's library. Read-only.
-    """
-
-    async def _run():
-        db = DatabaseManager()
-        try:
-            async with db.async_session() as session:
-                rows = await list_source_area_copies(session, tolerance)
-        finally:
-            await db.close()
-        writer = csv.DictWriter(sys.stdout, fieldnames=COPY_REPORT_COLUMNS)
-        writer.writeheader()
-        writer.writerows(dict(row) for row in rows)
-
-    asyncio.run(_run())
 
 
 if __name__ == "__main__":
