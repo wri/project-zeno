@@ -364,13 +364,13 @@ def _parse_logging_format_errors(schema: type[BaseModel], reply) -> BaseModel:
 def resilient_json_output(
     schema: type[BaseModel], model: Optional[BaseChatModel] = None
 ) -> Runnable:
-    """Like `resilient_structured_output`, but Gemini is asked for JSON by
+    """Like `resilient_structured_output`, but the LLM is asked for JSON by
     mime type only, with no response schema, and the reply is parsed here.
 
-    Schema-constrained decoding makes Gemini put control characters where
-    accented letters belong (PZB-1243). The caller's prompt must spell out
-    the keys: see `json_reply_instruction`. Other models keep
-    `with_structured_output`.
+    Schema-constrained decoding makes Gemini Flash models sometimes put
+    control characters where accented letters belong (PZB-1243). The
+    caller's prompt must spell out the keys: see `json_reply_instruction`.
+    Other models keep `with_structured_output`.
     """
 
     def build(m: BaseChatModel) -> Runnable:

@@ -79,7 +79,7 @@ _USER = """## User query
 ## Charts (spec + data)
 {charts}"""
 
-_PROMPT = ChatPromptTemplate.from_messages(
+_INSIGHT_TEXT_JSON_PROMPT = ChatPromptTemplate.from_messages(
     [("system", _SYSTEM), ("user", _USER)]
 ).partial(json_instruction=json_reply_instruction(InsightText))
 
@@ -89,7 +89,8 @@ class InsightTextGenerator:
 
     def __init__(self, model=None):
         self._chain = (
-            _PROMPT | resilient_json_output(InsightText, model)
+            _INSIGHT_TEXT_JSON_PROMPT
+            | resilient_json_output(InsightText, model)
         ).with_config(run_name="generate_insight_text")
 
     async def generate(
@@ -123,4 +124,8 @@ class InsightTextGenerator:
             result: InsightText = await self._chain.ainvoke(
                 inputs, config=config
             )
+        logger.info(
+            f"Generated insight text ({len(result.primary_insight)} chars, "
+            f"{len(result.follow_up_suggestions)} follow-ups)"
+        )
         return result
