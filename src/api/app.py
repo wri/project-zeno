@@ -109,7 +109,6 @@ async def _warn_if_aois_empty() -> None:
         logger.info("aois table ready", aois_rows=count)
 
 
-
 app = FastAPI(
     lifespan=lifespan,
     title="Zeno API",
