@@ -12,12 +12,13 @@ it nests as a span in the active Langfuse trace via the ambient
 
 from typing import List, Optional
 
+import structlog
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from src.agent.language import DEFAULT_LANGUAGE, language_name
-from src.agent.llms import resilient_structured_output
+from src.agent.llms import json_reply_instruction, resilient_json_output
 from src.agent.subagents.analyst.charts.model import InsightChart
 from src.agent.subagents.analyst.prompts import WORDING_GUIDE
 from src.shared.logging_config import get_logger
@@ -31,9 +32,17 @@ class InsightText(BaseModel):
     primary_insight: str = Field(
         description="Overall insight that ties the chart(s) together (2-3 sentences)"
     )
+
     follow_up_suggestions: List[str] = Field(
         description="1-2 follow-up suggestions based on the available data"
     )
+
+    @field_validator("primary_insight")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("must not be blank")
+        return value
 
 
 _SYSTEM = """You write the narrative insight for one or two charts that have \
@@ -47,6 +56,8 @@ already present in the pre-computed findings.
 
 Write a 2-3 sentence `primary_insight` grounded in the numbers, and 1-2 \
 `follow_up_suggestions`.
+
+{json_instruction}
 
 Write both in {language} — regardless of what language the query, dataset \
 cautions, or presentation instructions below are written in.
@@ -68,9 +79,9 @@ _USER = """## User query
 ## Charts (spec + data)
 {charts}"""
 
-_PROMPT = ChatPromptTemplate.from_messages(
+_INSIGHT_TEXT_JSON_PROMPT = ChatPromptTemplate.from_messages(
     [("system", _SYSTEM), ("user", _USER)]
-)
+).partial(json_instruction=json_reply_instruction(InsightText))
 
 
 class InsightTextGenerator:
@@ -78,7 +89,8 @@ class InsightTextGenerator:
 
     def __init__(self, model=None):
         self._chain = (
-            _PROMPT | resilient_structured_output(InsightText, model)
+            _INSIGHT_TEXT_JSON_PROMPT
+            | resilient_json_output(InsightText, model)
         ).with_config(run_name="generate_insight_text")
 
     async def generate(
@@ -106,7 +118,12 @@ class InsightTextGenerator:
             ),
             "charts": charts_block,
         }
-        result: InsightText = await self._chain.ainvoke(inputs, config=config)
+        # Every log inside, such as control_chars_stripped, carries the
+        # language the model was asked to write in.
+        with structlog.contextvars.bound_contextvars(language=language):
+            result: InsightText = await self._chain.ainvoke(
+                inputs, config=config
+            )
         logger.info(
             f"Generated insight text ({len(result.primary_insight)} chars, "
             f"{len(result.follow_up_suggestions)} follow-ups)"
