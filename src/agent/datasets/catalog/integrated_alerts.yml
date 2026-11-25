@@ -15,6 +15,13 @@ update_frequency: Daily, updated when any of the four source alert systems (DIST
 content_date: 1 December 2023 - present
 start_date: '2023-12-01'
 content_date_fixed: false
+coverage:
+  period: 1 December 2023 to today
+  time_step: Daily
+  limits: >-
+    Includes the current year and month. Disturbance alerts from four
+    systems, not fire-specific. The only filter is natural lands (no primary
+    forest filter).
 keywords:
 - alerts
 - deforestation

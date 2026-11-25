@@ -12,6 +12,12 @@ content_date: 2015-2024
 start_date: '2015-01-01'
 end_date: '2024-12-31'
 content_date_fixed: false
+coverage:
+  period: 2015 and 2024
+  time_step: Two years
+  limits: >-
+    No other years. Start and end states only. Classes include cropland,
+    built-up, short vegetation, tree cover, wetland and water.
 keywords:
 - global
 - land cover

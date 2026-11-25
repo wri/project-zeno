@@ -24,6 +24,11 @@ content_date: 2001-2025 annual
 start_date: '2001-01-01'
 end_date: '2025-12-31'
 content_date_fixed: false
+coverage:
+  period: 2001 to 2025
+  time_step: Annual
+  limits: >-
+    Tree cover lost to fire. Not active fires or hotspots.
 keywords:
 - deforestation
 - forest loss

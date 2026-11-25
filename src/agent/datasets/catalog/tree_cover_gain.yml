@@ -11,6 +11,12 @@ content_date: 2000-2020 five year intervals
 start_date: '2000-01-01'
 end_date: '2020-12-31'
 content_date_fixed: false
+coverage:
+  period: 2000 to 2020
+  time_step: Four 5-year periods
+  limits: >-
+    Cumulative. Never subtract loss from gain for a net change: the two use
+    different methods. Not for custom areas or concessions.
 keywords:
 - gain
 - forest regrowth

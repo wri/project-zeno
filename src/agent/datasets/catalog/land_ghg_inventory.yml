@@ -41,6 +41,13 @@ content_date: 2016-2024
 start_date: '2016-01-01'
 end_date: '2024-12-31'
 content_date_fixed: false
+coverage:
+  period: 2016 to 2024
+  time_step: Annual
+  limits: >-
+    Countries, states or provinces and districts only. Emissions, removals
+    and net flux from vegetation, soil and agriculture. Agriculture uses its
+    2020 values for every year. No split by gas, carbon pool or crop.
 keywords:
 - carbon
 - greenhouse gas

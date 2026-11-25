@@ -12,6 +12,11 @@ content_date: '2020'
 start_date: '2020-01-01'
 end_date: '2020-12-31'
 content_date_fixed: true
+coverage:
+  period: '2020'
+  time_step: One year
+  limits: >-
+    Natural and non-natural land classes.
 keywords:
 - land cover
 - deforestation
