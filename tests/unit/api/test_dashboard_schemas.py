@@ -174,6 +174,19 @@ class TestMapWidgetConfig:
         )
         assert body.config["imagery"]["mosaic_id"] == "abc123"
 
+    def test_client_imagery_needs_no_tile_url(self):
+        body = DashboardWidgetCreateRequest(
+            widget_type="map",
+            config={"imagery": {"render": "client", "mosaic_id": "tok"}},
+        )
+        assert body.config["imagery"]["render"] == "client"
+
+    def test_client_imagery_requires_mosaic_id(self):
+        with pytest.raises(ValidationError, match="mosaic_id"):
+            DashboardWidgetCreateRequest(
+                widget_type="map", config={"imagery": {"render": "client"}}
+            )
+
     def test_extra_config_keys_tolerated(self):
         # The snapshot shape may evolve without a schema change here — only
         # the discriminator and tile_url are load-bearing.

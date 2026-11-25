@@ -118,6 +118,10 @@ async def show_imagery(
     search to +/-N days around target_date; max_cloud_cover (default 20,
     percent) loosens the cloud filter. Only raise them when the defaults find
     no scenes and the user agrees. Run pick_aoi first. Regional areas only.
+
+    The browser searches and draws the scenes after this call, so the result
+    carries no scene count or dates; the frontend reports them in the view
+    context on the next message.
     """
     logger.info("show_imagery tool called")
     request = await build_request(

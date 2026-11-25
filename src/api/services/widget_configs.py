@@ -13,9 +13,12 @@ instructions, ...) can never leak into the database.
 
 from typing import Optional
 
+from src.shared.imagery_recipe import InvalidRecipeError, decode_recipe
+
 # Render-relevant fields of the imagery state (ImageryState) — all of it.
 IMAGERY_KEYS = (
     "provider",
+    "render",
     "tile_url",
     "tilejson_url",
     "bounds",
@@ -106,14 +109,29 @@ def dataset_config(state: dict) -> Optional[dict]:
     }
 
 
+def is_renderable_imagery(imagery: object) -> bool:
+    """Whether an imagery snapshot has what the frontend renders from.
+
+    A tiler layer (Planet, legacy Sentinel-2 mosaics) needs its tile_url. A
+    client-rendered Sentinel-2 layer (``render="client"``) has none: the
+    browser searches and draws the scenes from the recipe token in
+    ``mosaic_id``.
+    """
+    if not isinstance(imagery, dict):
+        return False
+    if imagery.get("render") == "client":
+        return bool(imagery.get("mosaic_id"))
+    return bool(imagery.get("tile_url"))
+
+
 def imagery_config(state: dict) -> Optional[dict]:
     """Snapshot the imagery in state (ImageryState shape) for the widget.
 
-    Returns None when no imagery was built this conversation or the state
-    lacks a tile URL / mosaic id to render from.
+    Returns None when no imagery was shown this conversation or the state
+    lacks what the frontend renders from (see is_renderable_imagery).
     """
     imagery = state.get("imagery") or {}
-    if not imagery.get("tile_url") or not imagery.get("mosaic_id"):
+    if not imagery.get("mosaic_id") or not is_renderable_imagery(imagery):
         return None
     return {key: imagery.get(key) for key in IMAGERY_KEYS}
 
@@ -123,3 +141,49 @@ def widget_config(layer: str, snapshot: dict, title: Optional[str]) -> dict:
     if title:
         config["title"] = title
     return config
+
+
+# What a client-rendered Sentinel-2 snapshot keeps: the request. Tile URLs,
+# bounds/zoom and the server mosaic's scene stats are dropped; the frontend
+# searches the scenes and computes those itself.
+_CLIENT_IMAGERY_KEYS = (
+    "provider",
+    "render",
+    "mosaic_id",
+    "target_date",
+    "window_days",
+    "max_cloud_cover",
+    "aoi_names",
+)
+
+
+def migrate_imagery_config(config: Optional[dict]) -> Optional[dict]:
+    """The client-rendered form of a legacy Sentinel-2 map widget config.
+
+    Returns the new config, or None when there is nothing to change: no
+    imagery, Planet imagery, already client-rendered, or a mosaic_id that is
+    not a recipe token (it cannot be rendered in the browser). The recipe
+    in the token is the source of truth for the request fields. The input
+    is never mutated.
+    """
+    imagery = (config or {}).get("imagery")
+    if not isinstance(imagery, dict):
+        return None
+    if (imagery.get("provider") or "sentinel-2") != "sentinel-2":
+        return None
+    if imagery.get("render") == "client":
+        return None
+    try:
+        recipe = decode_recipe(imagery.get("mosaic_id") or "")
+    except InvalidRecipeError:
+        return None
+    migrated = {
+        "provider": "sentinel-2",
+        "render": "client",
+        "mosaic_id": imagery["mosaic_id"],
+        "target_date": recipe.target_date.isoformat(),
+        "window_days": recipe.window_days,
+        "max_cloud_cover": recipe.max_cloud_cover,
+        "aoi_names": imagery.get("aoi_names") or [],
+    }
+    return {**(config or {}), "imagery": migrated}

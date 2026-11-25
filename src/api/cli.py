@@ -16,6 +16,8 @@ Usage:
     python src/api/cli.py revoke-key --key-id "key_456"
     python src/api/cli.py make-user-admin --email "admin@example.com"
     python src/api/cli.py build-aois --source custom --prune --dry-run
+    python src/api/cli.py migrate-imagery-widgets            # dry run
+    python src/api/cli.py migrate-imagery-widgets --apply
 """
 
 import asyncio
@@ -34,6 +36,7 @@ from sqlalchemy.orm import sessionmaker
 from src.api.auth.machine_user import MACHINE_USER_PREFIX
 from src.api.auth.scopes import KNOWN_SCOPES
 from src.api.data_models import (
+    DashboardWidgetOrm,
     MachineUserKeyOrm,
     UserOrm,
     UserType,
@@ -42,6 +45,7 @@ from src.api.services.aoi_sync import (
     prune_orphan_custom_aois,
     upsert_custom_aoi,
 )
+from src.api.services.widget_configs import migrate_imagery_config
 from src.shared.aoi_geometry import (
     bbox_float_array_sql,
     multipolygon_sql,
@@ -2115,6 +2119,63 @@ def build_aois_command(
             await db.close()
 
     asyncio.run(_inspect() if inspect else _run())
+
+
+@cli.command("migrate-imagery-widgets")
+@click.option(
+    "--apply",
+    is_flag=True,
+    help="Write the changes. Without it, only report what would change.",
+)
+def migrate_imagery_widgets_command(apply: bool):
+    """Move Sentinel-2 map widgets from S3 mosaics to browser rendering.
+
+    Legacy imagery widgets render from a GFW-tiler URL over a MosaicJSON on
+    S3. Their mosaic_id is the recipe token, so the request decodes from it
+    without loss: the widget becomes render="client" and keeps only the
+    request. Planet widgets and ids that are not recipes are left alone.
+    Run this before the S3 mosaics or the mosaic service are removed.
+    """
+
+    async def _run():
+        db = DatabaseManager()
+        try:
+            async with db.async_session() as session:
+                widgets = (
+                    (
+                        await session.execute(
+                            select(DashboardWidgetOrm).where(
+                                DashboardWidgetOrm.widget_type == "map"
+                            )
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
+                changed = 0
+                for widget in widgets:
+                    migrated = migrate_imagery_config(widget.config)
+                    if migrated is None:
+                        continue
+                    changed += 1
+                    click.echo(
+                        f"{'migrate' if apply else 'would migrate'} widget "
+                        f"{widget.id} (dashboard {widget.dashboard_id}): "
+                        f"{migrated['imagery']['target_date']} "
+                        f"±{migrated['imagery']['window_days']} days"
+                    )
+                    if apply:
+                        widget.config = migrated
+                if apply:
+                    await session.commit()
+                click.echo(
+                    f"{len(widgets)} map widgets, {changed} "
+                    f"{'migrated' if apply else 'to migrate (dry run)'}."
+                )
+        finally:
+            await db.close()
+
+    asyncio.run(_run())
 
 
 if __name__ == "__main__":

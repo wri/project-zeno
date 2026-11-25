@@ -626,8 +626,7 @@ async def add_section_from_template(
 
     The request is synchronous and takes tens of seconds. A failed required
     widget (for example the analytics pull) gives 502 and writes nothing. A
-    failed optional widget (for example the imagery) is left out and named
-    in ``warnings``.
+    failed optional widget is left out and named in ``warnings``.
     """
     template = get_template(body.template)
     if template is None:

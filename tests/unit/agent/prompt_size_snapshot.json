@@ -116,7 +116,7 @@
       "system_prompt": 10914,
       "tools": {
         "add_dashboard_section": 864,
-        "add_map_widget": 770,
+        "add_map_widget": 771,
         "add_text_widget": 810,
         "add_to_dashboard": 722,
         "create_dashboard": 342,
@@ -133,17 +133,17 @@
         "search_insights": 434,
         "send_nudge": 551,
         "show_boundary_layer": 601,
-        "show_imagery": 758,
+        "show_imagery": 852,
         "show_planet_imagery": 878,
         "update_insight_display": 834
       },
-      "tools_total": 14939
+      "tools_total": 15034
     },
     "experimental": {
       "system_prompt": 10914,
       "tools": {
         "add_dashboard_section": 864,
-        "add_map_widget": 770,
+        "add_map_widget": 771,
         "add_template_section": 1334,
         "add_text_widget": 810,
         "add_to_dashboard": 722,
@@ -161,17 +161,17 @@
         "search_insights": 434,
         "send_nudge": 551,
         "show_boundary_layer": 601,
-        "show_imagery": 758,
+        "show_imagery": 852,
         "show_planet_imagery": 878,
         "update_insight_display": 834
       },
-      "tools_total": 16273
+      "tools_total": 16368
     },
     "lgms": {
       "system_prompt": 10914,
       "tools": {
         "add_dashboard_section": 864,
-        "add_map_widget": 770,
+        "add_map_widget": 771,
         "add_text_widget": 810,
         "add_to_dashboard": 722,
         "create_dashboard": 342,
@@ -188,21 +188,21 @@
         "search_insights": 434,
         "send_nudge": 551,
         "show_boundary_layer": 601,
-        "show_imagery": 758,
+        "show_imagery": 852,
         "show_planet_imagery": 878,
         "update_insight_display": 834
       },
-      "tools_total": 14939
+      "tools_total": 15034
     }
   },
   "skills": {
     "analyze": 4069,
     "capabilities": 17293,
     "concessions-layer": 1869,
-    "dashboard": 7276,
+    "dashboard": 7332,
     "explore": 1823,
     "pull-data": 1610,
-    "show-imagery": 3476,
+    "show-imagery": 3904,
     "wri-insights": 3371
   }
 }

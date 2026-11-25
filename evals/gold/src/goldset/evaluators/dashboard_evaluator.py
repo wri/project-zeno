@@ -119,6 +119,10 @@ def _widget_is_valid(widget: dict[str, Any]) -> bool:
     if widget_type == "map":
         config = widget.get("config") or {}
         snapshot = config.get("dataset") or config.get("imagery") or {}
+        # Client-rendered Sentinel-2 imagery has no tile_url: the browser
+        # renders it from the recipe token in mosaic_id.
+        if snapshot.get("render") == "client":
+            return bool(snapshot.get("mosaic_id"))
         return bool(snapshot.get("tile_url"))
     if widget_type == "alerts":
         # The live alerts list (project-zeno PZB-1468, Stage 1): the widget

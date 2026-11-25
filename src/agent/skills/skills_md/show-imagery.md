@@ -42,11 +42,17 @@ imagery, anywhere outside Planet's footprint, and any request not tied to
 alerts. Defaults to scenes within ±7 days of the target date under 20% cloud
 cover.
 
+The map searches the scenes **after** the call, so the tool message has no
+scene count or dates. The map reports them with the user's next message,
+in the session line `Imagery: ... (map: ...)`: a scene count and dates, or
+"no scenes found" / "area too large". Users can also change the date,
+window and cloud limit in the legend (Edit).
+
 # Steps
 
 1. `pick_aoi` — only if the AOI is not already in state. Imagery works for
-   regional areas (up to ~50,000 km²); country-scale requests will be
-   rejected — ask the user for a smaller region.
+   regional areas (up to ~50,000 km²); for larger areas the map shows
+   none — ask the user for a smaller region.
 2. Choose the tool:
    - `show_planet_imagery` when the user wants imagery in the Amazon and is
      not explicitly asking for the past few weeks.
@@ -57,15 +63,16 @@ cover.
 3. **Stop.** Confirm the provider actually shown from the tool message. No
    dataset, pull or insights unless asked.
 
-Always report the period shown from the returned `start_date` and `end_date`.
-`show_planet_imagery` falls back to Sentinel-2 outside coverage — read the
-tool message rather than assuming.
+For Sentinel-2, say what was requested (date, ±window, cloud limit); never
+invent a scene count or dates before the map reports them. For Planet,
+report the month shown. `show_planet_imagery` falls back to Sentinel-2
+outside coverage — read the tool message rather than assuming.
 
 # When no scenes are found
 
-The Sentinel-2 defaults are strict on purpose (recent + clear). If the tool
-reports no scenes, do **not** silently retry. Tell the user what was searched
-and offer the levers:
+The Sentinel-2 defaults are strict on purpose (recent + clear). When the map
+reports no scenes, do **not** silently retry. Tell the user what was
+searched and offer the levers:
 
 - **Widen the date window**: `window_days=30` (or 60 for cloudy regions) —
   imagery may be further from the requested date.

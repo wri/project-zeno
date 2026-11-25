@@ -98,8 +98,7 @@ their defaults.
 - The dashboard must have an area. If there is no dashboard, create one first
   with `create_dashboard`.
 - Tell the user that the build takes some seconds.
-- Give each warning in the tool reply to the user as written (for example
-  "no cloud-free imagery").
+- Give each warning in the tool reply to the user as written.
 - The new section is a normal section. Change it with the normal tools
   (`edit_dashboard_section`, `move_dashboard_widget`, the widget tools).
 - `nrt-monitoring` takes no arguments: it always covers the 30 days to the
@@ -120,8 +119,9 @@ answers; add it ungrouped only when none fits.
 
 `add_map_widget(layer="dataset")` snapshots the currently selected dataset
 layer — run `pick_dataset` first if none is selected.
-`add_map_widget(layer="imagery")` snapshots the Sentinel-2 mosaic — run
-`show_imagery` first. Build the layer/imagery for the dashboard's area. Map
+`add_map_widget(layer="imagery")` snapshots the imagery from
+`show_imagery` (for Sentinel-2, its search parameters; the dashboard map
+searches the scenes itself) — run `show_imagery` first. Build the layer/imagery for the dashboard's area. Map
 widgets render focused on the dashboard's area automatically.
 
 # Adding a text note ("add a note / summary / explanation to my dashboard")

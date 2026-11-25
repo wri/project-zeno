@@ -9,7 +9,18 @@ class ImageryState(BaseModel):
     provider: Literal["sentinel-2", "planet"] = Field(
         "sentinel-2", description="Imagery provider"
     )
-    tile_url: str = Field(..., description="Tile URL for the imagery layer")
+    render: Literal["tiler", "client"] = Field(
+        "tiler",
+        description=(
+            "How the frontend draws the layer. 'tiler': from tile_url "
+            "(Planet, and legacy Sentinel-2 mosaics). 'client': the browser "
+            "searches and renders the Sentinel-2 scenes itself from the "
+            "recipe token in mosaic_id; there is no tile_url."
+        ),
+    )
+    tile_url: Optional[str] = Field(
+        None, description="Tile URL for the imagery layer (tiler only)"
+    )
     tilejson_url: Optional[str] = Field(
         None, description="TileJSON URL for the imagery layer"
     )
@@ -18,7 +29,13 @@ class ImageryState(BaseModel):
     )
     min_zoom: Optional[int] = Field(None, description="Minimum tile zoom")
     max_zoom: Optional[int] = Field(None, description="Maximum tile zoom")
-    mosaic_id: str = Field(..., description="ID of the mosaic")
+    mosaic_id: str = Field(
+        ...,
+        description=(
+            "ID of the imagery. For Sentinel-2, the recipe token "
+            "(src/shared/imagery_recipe.py) the frontend decodes."
+        ),
+    )
     item_count: Optional[int] = Field(
         None, description="Number of scenes in the mosaic"
     )

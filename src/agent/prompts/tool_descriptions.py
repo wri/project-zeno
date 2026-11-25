@@ -60,7 +60,9 @@ TOOL_DESCRIPTIONS: dict[str, str] = {
         "be closest to; null shows about the previous two weeks. "
         "`window_days` (default 7, max 183) and `max_cloud_cover` (default "
         "20 percent) widen the search: raise them only when the defaults "
-        "find no scenes and the user agrees. Regional areas only."
+        "find no scenes and the user agrees. The map searches the scenes "
+        "after the call; their count and dates come with the next message. "
+        "Regional areas only."
     ),
     "show_planet_imagery": (
         "Show Planet's high-resolution monthly mosaic for the AOI in state "
@@ -125,7 +127,7 @@ TOOL_DESCRIPTIONS: dict[str, str] = {
     "add_map_widget": (
         'Add a map widget to a dashboard. `layer="dataset"`: the selected '
         'dataset layer (pick_dataset first). `layer="imagery"`: the '
-        "Sentinel-2 mosaic from show_imagery. `title` overrides the header; "
+        "Sentinel-2 imagery from show_imagery. `title` overrides the header; "
         "`section` (a section title or id) groups it. " + _DEFAULT_DASHBOARD
     ),
     "add_text_widget": (

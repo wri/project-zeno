@@ -17,6 +17,7 @@ from typing_extensions import TypedDict
 
 from src.api.data_models import UserType
 from src.api.services.subscription import Dataset, SubscriptionChannel
+from src.api.services.widget_configs import is_renderable_imagery
 from src.api.user_profile_configs.countries import COUNTRIES
 from src.api.user_profile_configs.gis_expertise import GIS_EXPERTISE_LEVELS
 from src.api.user_profile_configs.languages import LANGUAGES
@@ -488,6 +489,24 @@ class VisibleAoiContext(BaseModel):
     name: Optional[str] = None
 
 
+class VisibleImageryContext(BaseModel):
+    """An imagery capture on the map, with the browser's scene search result
+    (see src/agent/imagery_view_status.py)."""
+
+    model_config = ConfigDict(extra="allow")
+    imagery_id: Optional[str] = None  # the recipe token (mosaic_id)
+    provider: Optional[str] = None
+    render: Optional[str] = None  # "client" | "tiler"
+    status: Optional[str] = None
+    aoi_names: Optional[List[str]] = None
+    target_date: Optional[str] = None
+    window_days: Optional[int] = None
+    max_cloud_cover: Optional[int] = None
+    item_count: Optional[int] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+
+
 class ViewContext(BaseModel):
     """Ambient frontend view state — what the user is currently looking at.
 
@@ -515,6 +534,8 @@ class ViewContext(BaseModel):
     # Set on the dashboard page, alongside dashboard_name.
     dashboard_id: Optional[str] = None
     dashboard_name: Optional[str] = None
+    # Imagery captures on the map and their scene search results.
+    visible_imagery: Optional[List[VisibleImageryContext]] = None
 
 
 class ChatRequest(BaseModel):
@@ -804,8 +825,9 @@ class DashboardWidgetCreateRequest(BaseModel):
             "Map widgets: a self-contained layer snapshot under exactly one "
             "of the keys `dataset` (resolved tile_url, optional `layers` for "
             "a multi-layer dataset's independently-toggleable siblings, "
-            "context layers, parameters, dates) or `imagery` (Sentinel-2 "
-            "mosaic_id and tile URLs); optional `viewport` override — by "
+            "context layers, parameters, dates) or `imagery` (a tiler "
+            "`tile_url`, or `render: client` with the Sentinel-2 recipe "
+            "token in `mosaic_id`); optional `viewport` override — by "
             "default map widgets render fitted to the dashboard's area. "
             "Text widgets: `text` (markdown string) and an optional "
             "`source`: `template` for an analysis template's fixed note, "
@@ -845,8 +867,9 @@ class DashboardWidgetCreateRequest(BaseModel):
     def validate_map_config(self) -> "DashboardWidgetCreateRequest":
         """Map widgets need a renderable layer snapshot in config.
 
-        Only the discriminator and its tile_url are checked — the remaining
-        snapshot keys may evolve without a schema change here.
+        Only the discriminator and what the layer renders from are checked
+        (a tile_url; for client-rendered imagery the mosaic_id) — the
+        remaining snapshot keys may evolve without a schema change here.
         """
         if self.widget_type != "map":
             return self
@@ -858,7 +881,13 @@ class DashboardWidgetCreateRequest(BaseModel):
                 "'dataset' or 'imagery'"
             )
         layer = config[kinds[0]]
-        if not isinstance(layer, dict) or not layer.get("tile_url"):
+        if kinds[0] == "imagery":
+            if not is_renderable_imagery(layer):
+                raise ValueError(
+                    "map widget imagery config requires a tile_url, or "
+                    "render='client' with a mosaic_id"
+                )
+        elif not isinstance(layer, dict) or not layer.get("tile_url"):
             raise ValueError(
                 f"map widget {kinds[0]} config requires a tile_url"
             )
@@ -1072,10 +1101,7 @@ class SectionFromTemplateResponse(BaseModel):
     widget_ids: List[UUID]
     warnings: List[str] = Field(
         default=[],
-        description=(
-            "Optional widgets that failed and were left out, for example "
-            "no cloud-free imagery."
-        ),
+        description=("Optional widgets that failed and were left out."),
     )
     dashboard: DashboardResponse
 

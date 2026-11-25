@@ -18,6 +18,7 @@ from src.agent.datasets.handlers.analytics_handler import (
 )
 from src.agent.datasets.handlers.base import DataPullResult
 from src.agent.i18n import MESSAGES
+from src.agent.imagery import Sentinel2ImageryProvider
 from src.agent.imagery.base import ImageryProviderResult
 from src.agent.models import ImageryState
 from src.api.services.analysis_templates import builder, text
@@ -43,6 +44,7 @@ from src.api.services.analysis_templates.registry import (
 )
 from src.api.services.dashboard_alerts import AlertsUnavailableError
 from src.api.user_profile_configs.languages import LANGUAGES
+from src.shared.imagery_recipe import decode_recipe
 from tests.unit.api.analysis_templates.test_text import _FakeModel
 from tests.unit.api.services.test_alerts_list import FakeHandler, FakeLatest
 from tests.unit.api.services.test_chart_generators import (
@@ -1040,6 +1042,25 @@ async def test_post_2020_forest_loss_builds_its_three_widgets():
         kwargs["template"]["start_date"],
         kwargs["template"]["end_date"],
     ) == ("2021-01-01", "2025-12-31")
+
+
+@pytest.mark.asyncio
+async def test_template_imagery_is_a_client_recipe_with_no_search():
+    """The real Sentinel-2 provider (unpatched): the template's imagery widget
+    holds the request for the browser, with no tile URL and no mosaic."""
+    mocks, stack = _patches(written=("section-1", ["w1", "w2", "w3"]))
+    mocks.pull.side_effect = _split_pulls()
+    real = Sentinel2ImageryProvider()
+    mocks.imagery.side_effect = real.get_imagery
+    _with_fallback_text(mocks)
+    await _apply(stack, template=POST_2020)
+
+    *_, imagery = mocks.write.await_args.kwargs["widgets"]
+    snapshot = imagery.config["imagery"]
+    assert snapshot["render"] == "client"
+    assert snapshot["tile_url"] is None
+    recipe = decode_recipe(snapshot["mosaic_id"])
+    assert (recipe.target_date, recipe.window_days) == (TODAY, 30)
 
 
 @pytest.mark.asyncio

@@ -2,7 +2,7 @@
 
 The third dashboard primitive next to create_dashboard and add_to_dashboard.
 A map widget snapshots the resolved layer already in agent state — either the
-dataset layer picked by pick_dataset or the Sentinel-2 mosaic built by
+dataset layer picked by pick_dataset or the imagery (its recipe) shown by
 show_imagery — into the widget's config, so the dashboard renders it without
 any chat state. The dashboard defaults to the one in state or the one the
 user is looking at (view_context). Owner-only, like the other primitives.
@@ -96,8 +96,8 @@ async def add_map_widget(
     """Add a map widget to a dashboard.
 
     `layer="dataset"` snapshots the currently selected dataset layer
-    (pick_dataset must have run); `layer="imagery"` snapshots the Sentinel-2
-    mosaic from show_imagery. `dashboard_id` defaults to the dashboard in
+    (pick_dataset must have run); `layer="imagery"` snapshots the imagery
+    from show_imagery (Sentinel-2 or Planet). `dashboard_id` defaults to the dashboard in
     state or the one the user is currently viewing; `title` optionally
     overrides the widget header; `section` places the widget in one of the
     dashboard's sections (by title or id), otherwise it lands ungrouped at
@@ -181,7 +181,7 @@ SPEC = ToolSpec(
         "widget to "
         "a dashboard. layer='dataset' snapshots the currently selected "
         "dataset layer (pick_dataset must have run); layer='imagery' "
-        "snapshots the Sentinel-2 mosaic from show_imagery. Dashboard "
+        "snapshots the imagery from show_imagery. Dashboard "
         "defaults to the one in state or on screen; `section` (a section "
         "title or id) groups it. Use when the user asks "
         "to add a layer, map or satellite imagery to their dashboard."

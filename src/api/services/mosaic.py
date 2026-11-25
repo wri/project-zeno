@@ -17,7 +17,6 @@ Before building, we check S3 for the mosaic object: if it already exists we
 skip the (expensive) STAC search, build and upload.
 """
 
-import base64
 import functools
 import json
 import time
@@ -38,6 +37,12 @@ from shapely.geometry import mapping, shape
 
 from src.shared.config import SharedSettings
 from src.shared.geocoding_helpers import get_geometry_data
+from src.shared.imagery_recipe import (  # noqa: F401 (re-exported)
+    InvalidRecipeError,
+    MosaicRecipe,
+    encode_recipe,
+)
+from src.shared.imagery_recipe import decode_recipe as _decode_recipe
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -174,23 +179,6 @@ def _write_mosaic(
     logger.info("Mosaic uploaded to S3", bucket=bucket, key=_s3_key(token))
 
 
-@dataclass(frozen=True)
-class MosaicRecipe:
-    """Everything needed to (re)build a mosaic deterministically.
-
-    target_date is always a resolved date, never an implicit "today", so a
-    token rebuilt later yields the same imagery. user_id is only set when a
-    custom area is referenced (its geometry lookup is scoped to the owner).
-    """
-
-    aois: tuple[tuple[str, str], ...]  # (source, src_id) pairs
-    target_date: date
-    window_days: int = 7
-    max_cloud_cover: int = 20
-    max_items: int = 50
-    user_id: Optional[str] = None
-
-
 @dataclass
 class MosaicResult:
     # item_count / date_start / date_end / cloud_cover stats are read from
@@ -221,34 +209,11 @@ class MosaicResult:
         )
 
 
-def encode_recipe(recipe: MosaicRecipe) -> str:
-    payload = {
-        "a": [list(pair) for pair in recipe.aois],
-        "d": recipe.target_date.isoformat(),
-        "w": recipe.window_days,
-        "c": recipe.max_cloud_cover,
-        "n": recipe.max_items,
-    }
-    if recipe.user_id:
-        payload["u"] = recipe.user_id
-    raw = json.dumps(payload, separators=(",", ":"), sort_keys=True)
-    return base64.urlsafe_b64encode(raw.encode()).decode().rstrip("=")
-
-
 def decode_recipe(token: str) -> MosaicRecipe:
     """Decode a mosaic token; raise MosaicNotFoundError if malformed."""
     try:
-        raw = base64.urlsafe_b64decode(token + "=" * (-len(token) % 4))
-        payload = json.loads(raw)
-        return MosaicRecipe(
-            aois=tuple((source, src_id) for source, src_id in payload["a"]),
-            target_date=date.fromisoformat(payload["d"]),
-            window_days=max(1, min(int(payload["w"]), 183)),
-            max_cloud_cover=max(1, min(int(payload["c"]), 100)),
-            max_items=max(1, min(int(payload["n"]), 100)),
-            user_id=payload.get("u"),
-        )
-    except (KeyError, ValueError, TypeError):
+        return _decode_recipe(token)
+    except InvalidRecipeError:
         raise MosaicNotFoundError("Invalid mosaic token")
 
 

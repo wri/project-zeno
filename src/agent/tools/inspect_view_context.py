@@ -32,6 +32,7 @@ from src.agent.datasets.curated_only import (
     is_curated_only,
 )
 from src.agent.i18n import t
+from src.agent.imagery_view_status import describe_imagery
 from src.agent.language import DEFAULT_LANGUAGE
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.common import require_current_user_id
@@ -56,6 +57,7 @@ _KNOWN_KEYS = {
     "visible_insights",
     "dashboard_id",
     "dashboard_name",
+    "visible_imagery",
 }
 
 # Rows at or below this get full data injected; above get per-column stats.
@@ -127,6 +129,17 @@ def format_view_context(view: dict) -> str:
         # Detail is loaded from the DB and appended by the tool; here we just
         # note the count so the line shows even if a load later turns up empty.
         lines.append(f"- Visible insights: {len(insights)} (detail below)")
+
+    imagery = [
+        entry
+        for entry in view.get("visible_imagery") or []
+        if isinstance(entry, dict)
+    ]
+    if imagery:
+        # Sentinel-2 is searched in the browser: this is the only place the
+        # agent learns how many scenes the map found (or that it found none).
+        lines.append(f"- Imagery on the map ({len(imagery)}):")
+        lines.extend(f"  - {describe_imagery(entry)}" for entry in imagery)
 
     if view.get("dashboard_id"):
         # Same deal: the dashboard content is loaded from the DB by the tool.

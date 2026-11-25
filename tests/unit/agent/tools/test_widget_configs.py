@@ -8,6 +8,7 @@ from src.api.services.widget_configs import (
     dataset_config,
     default_layer,
     imagery_config,
+    migrate_imagery_config,
     widget_config,
 )
 
@@ -237,3 +238,77 @@ def test_widget_config_wraps_one_layer_and_optional_title():
         "dataset": {"tile_url": "x"},
         "title": "Alerts",
     }
+
+
+CLIENT_IMAGERY = {
+    "provider": "sentinel-2",
+    "render": "client",
+    "mosaic_id": "tok",
+    "target_date": "2026-11-10",
+    "window_days": 7,
+    "max_cloud_cover": 20,
+    "aoi_names": ["Jaru"],
+}
+
+
+def test_imagery_config_accepts_client_imagery_without_tile_url():
+    config = imagery_config({"imagery": CLIENT_IMAGERY})
+    assert config["render"] == "client"
+    assert config["mosaic_id"] == "tok"
+    assert config["tile_url"] is None
+
+
+def test_imagery_config_rejects_client_imagery_without_mosaic_id():
+    imagery = {**CLIENT_IMAGERY, "mosaic_id": None}
+    assert imagery_config({"imagery": imagery}) is None
+
+
+# A recipe token (see tests/unit/shared/test_imagery_recipe.py).
+LEGACY_TOKEN = (
+    "eyJhIjpbWyJnYWRtIiwiUEVSLjExLjNfMSJdLFsia2JhIiwiUGFjYXlhLVNhbWlyaWEg"
+    "XHUwMGU5Il1dLCJjIjo1MCwiZCI6IjIwMjYtMDYtMTUiLCJuIjo1MCwidyI6MzB9"
+)
+
+
+def test_migrate_moves_a_legacy_mosaic_to_client_rendering():
+    legacy = {
+        "default_view": "map",
+        "title": "Imagery",
+        "imagery": {
+            "provider": "sentinel-2",
+            "tile_url": "https://tiles.globalforestwatch.org/cog/mosaic/x",
+            "tilejson_url": "https://tiles.globalforestwatch.org/t.json",
+            "mosaic_id": LEGACY_TOKEN,
+            "item_count": 9,
+            "target_date": "2026-06-15",
+            "window_days": 30,
+            "max_cloud_cover": 50,
+            "aoi_names": ["Paracas", "Pacaya-Samiria"],
+        },
+    }
+    migrated = migrate_imagery_config(legacy)
+    assert migrated == {
+        "default_view": "map",
+        "title": "Imagery",
+        "imagery": {
+            "provider": "sentinel-2",
+            "render": "client",
+            "mosaic_id": LEGACY_TOKEN,
+            "target_date": "2026-06-15",
+            "window_days": 30,
+            "max_cloud_cover": 50,
+            "aoi_names": ["Paracas", "Pacaya-Samiria"],
+        },
+    }
+    # The input is not mutated.
+    assert legacy["imagery"]["tile_url"]
+
+
+def test_migrate_leaves_other_widgets_alone():
+    assert migrate_imagery_config(None) is None
+    assert migrate_imagery_config({"dataset": {"tile_url": "x"}}) is None
+    planet = {"imagery": {"provider": "planet", "mosaic_id": LEGACY_TOKEN}}
+    assert migrate_imagery_config(planet) is None
+    assert migrate_imagery_config({"imagery": CLIENT_IMAGERY}) is None
+    not_a_recipe = {"imagery": {"tile_url": "x", "mosaic_id": "abc123"}}
+    assert migrate_imagery_config(not_a_recipe) is None
