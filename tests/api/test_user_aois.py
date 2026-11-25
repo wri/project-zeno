@@ -1,4 +1,4 @@
-"""Tests for the user's area library: the ``user_aois`` rows behind "My areas"."""
+"""Tests for the user's areas: the ``user_aois`` rows behind "My areas"."""
 
 import pytest
 from sqlalchemy import text
@@ -38,7 +38,7 @@ async def count_rows(table):
         return await session.scalar(text(f"SELECT count(*) FROM {table}"))
 
 
-async def list_library(client):
+async def list_user_aois(client):
     res = await client.get("/api/user_aois", headers=AUTH)
     assert res.status_code == 200, res.text
     return res.json()
@@ -51,7 +51,7 @@ async def test_my_areas_lists_the_users_custom_areas_without_geometry(
     auth_override("test-user-wri")
     area_id = await create_custom_area(client, "Farm plot")
 
-    (entry,) = await list_library(client)
+    (entry,) = await list_user_aois(client)
 
     assert entry["relationship"] == "owner"
     assert entry["name"] == "Farm plot"
@@ -71,7 +71,7 @@ async def test_my_areas_shows_only_the_callers_rows(
     auth_override("test-user-ds")
     await create_custom_area(client, "Theirs")
 
-    assert [e["name"] for e in await list_library(client)] == ["Theirs"]
+    assert [e["name"] for e in await list_user_aois(client)] == ["Theirs"]
 
 
 @pytest.mark.asyncio
@@ -101,7 +101,7 @@ async def test_renaming_a_custom_area_renames_it_in_my_areas(
     )
     assert res.status_code == 200, res.text
 
-    assert [e["name"] for e in await list_library(client)] == ["New name"]
+    assert [e["name"] for e in await list_user_aois(client)] == ["New name"]
 
 
 @pytest.mark.asyncio
@@ -131,7 +131,7 @@ async def test_saved_area_lists_with_its_source_identity(
     await save_area(client, "gadm", "BRA", name="Project country")
     await save_area(client, "kba", 12345)
 
-    kba, gadm = await list_library(client)
+    kba, gadm = await list_user_aois(client)
 
     assert (gadm["relationship"], gadm["name"]) == ("saved", "Project country")
     assert (gadm["source"], gadm["src_id"], gadm["subtype"]) == (
@@ -151,7 +151,7 @@ async def test_saving_the_same_area_twice_conflicts(auth_override, client):
     res = await save_area(client, "gadm", "BRA")
 
     assert res.status_code == 409, res.text
-    assert len(await list_library(client)) == 1
+    assert len(await list_user_aois(client)) == 1
 
 
 @pytest.mark.asyncio
@@ -207,7 +207,7 @@ async def test_deleting_a_saved_area_removes_only_the_link(
     res = await client.delete(f"/api/user_aois/{entry_id}", headers=AUTH)
 
     assert res.status_code == 204, res.text
-    assert await list_library(client) == []
+    assert await list_user_aois(client) == []
     assert await count_rows("aois") == 1
 
 
@@ -217,7 +217,7 @@ async def test_renaming_and_deleting_an_owned_entry_acts_on_the_custom_area(
 ):
     auth_override("test-user-wri")
     area_id = await create_custom_area(client, "Old name")
-    (entry,) = await list_library(client)
+    (entry,) = await list_user_aois(client)
 
     res = await client.patch(
         f"/api/user_aois/{entry['id']}",

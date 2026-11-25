@@ -451,11 +451,11 @@ class CustomAreaModel(BaseModel):
 
 
 class UserAoiModel(BaseModel):
-    """An area in the user's library: a custom area they own or a reference
-    area they saved. Geometry is read separately, from
+    """One of the user's areas: a custom area they own or a reference area
+    they saved. Geometry is read separately, from
     ``GET /api/geometry/{source}/{src_id}``."""
 
-    id: UUID = Field(..., description="The library entry's id")
+    id: UUID = Field(..., description="The user AOI's id")
     relationship: AoiRelationship
     name: str = Field(
         ..., description="The user's label, else the area's own name"
@@ -467,12 +467,12 @@ class UserAoiModel(BaseModel):
         default=None, description="Bounding box as [west, south, east, north]"
     )
     created_at: datetime = Field(
-        ..., description="When the area entered the user's library"
+        ..., description="When the area was added to the user's areas"
     )
 
 
 class UserAoiCreate(BaseModel):
-    """A source area to save to the user's library, by its address."""
+    """A source area to save to the user's areas, by its address."""
 
     source: str = Field(..., description="gadm, kba, wdpa, landmark, ...")
     src_id: Union[int, str]

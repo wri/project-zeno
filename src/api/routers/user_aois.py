@@ -1,8 +1,8 @@
-"""The user's area library: custom areas they own and reference areas they
-saved, as ``user_aois`` rows.
+"""The user's areas ("My areas"): custom areas they own and reference areas
+they saved, as ``user_aois`` rows.
 
 A saved area is a link to the shared ``aois`` row and never a copy of its
-geometry, so renaming or removing it changes only the user's library.
+geometry, so renaming or removing it changes only the user's areas.
 """
 
 from uuid import UUID
@@ -49,7 +49,7 @@ from src.shared.geocoding_helpers import _response_src_id, normalize_aoi_source
 
 router = APIRouter()
 
-NOT_FOUND = "Area not found in your library"
+NOT_FOUND = "Area not found in your areas"
 
 
 def to_user_aoi_model(row: RowMapping) -> UserAoiModel:
@@ -61,7 +61,7 @@ def to_user_aoi_model(row: RowMapping) -> UserAoiModel:
 async def select_entry_or_404(
     session: AsyncSession, user_id: str, entry_id: UUID
 ) -> RowMapping:
-    """Select an entry of the caller's library, or raise 404."""
+    """Select one of the caller's user AOIs, or raise 404."""
     entry = await select_user_aoi(session, user_id, entry_id)
     if entry is None:
         raise HTTPException(status_code=404, detail=NOT_FOUND)
@@ -76,7 +76,7 @@ async def list_user_aois_endpoint(
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
-    """List the caller's library, newest first, without geometry.
+    """List the caller's areas, newest first, without geometry.
 
     When more results are available, the next page offset is returned in the
     ``X-Next-Offset`` response header.
@@ -95,10 +95,10 @@ async def save_user_aoi(
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
-    """Save a source area, such as a GADM country, to the caller's library.
+    """Save a source area, such as a GADM country, to the caller's areas.
 
     Returns 404 for an unknown area and 409 if it is already saved. Custom
-    areas are in their owner's library from the moment they are drawn.
+    areas are in their owner's areas from the moment they are drawn.
     """
     try:
         source = normalize_aoi_source(area.source)
@@ -106,7 +106,7 @@ async def save_user_aoi(
         raise HTTPException(status_code=422, detail=str(error))
     if source == "custom":
         raise HTTPException(
-            status_code=422, detail="Custom areas are already in your library"
+            status_code=422, detail="Custom areas are already in your areas"
         )
     aoi_id = await select_reference_aoi_id(session, source, str(area.src_id))
     if aoi_id is None:
@@ -114,7 +114,7 @@ async def save_user_aoi(
     entry_id = await insert_saved_aoi(session, user.id, aoi_id, area.name)
     if entry_id is None:
         raise HTTPException(
-            status_code=409, detail="Area is already in your library"
+            status_code=409, detail="Area is already in your areas"
         )
     await session.commit()
     return to_user_aoi_model(
@@ -133,7 +133,7 @@ async def rename_user_aoi(
         get_custom_aoi_analytics_service
     ),
 ):
-    """Rename an area in the caller's library.
+    """Rename one of the caller's areas.
 
     A saved area gets the caller's own label; the shared area keeps its name.
     An owned custom area is renamed itself.
@@ -167,7 +167,7 @@ async def delete_user_aoi(
         get_custom_aoi_analytics_service
     ),
 ):
-    """Remove an area from the caller's library.
+    """Remove an area from the caller's areas.
 
     A saved area loses only its link. An owned custom area is deleted.
     Dashboards on the area are not touched.

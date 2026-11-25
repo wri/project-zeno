@@ -1,4 +1,4 @@
-"""The user's area library in Postgres: ``user_aois`` rows joined to ``aois``."""
+"""The user's areas in Postgres: ``user_aois`` rows joined to ``aois``."""
 
 from typing import Optional
 from uuid import UUID
@@ -54,7 +54,7 @@ INSERT_SAVED_AOI_SQL = text(
 async def list_user_aois(
     session: AsyncSession, user_id: str, limit: int, offset: int
 ) -> list[RowMapping]:
-    """List a user's library entries, newest first."""
+    """List a user's areas, newest first."""
     result = await session.execute(
         LIST_USER_AOIS_SQL,
         {"user_id": user_id, "limit": limit, "offset": offset},
@@ -65,7 +65,7 @@ async def list_user_aois(
 async def select_user_aoi(
     session: AsyncSession, user_id: str, entry_id: UUID
 ) -> Optional[RowMapping]:
-    """Select one entry of a user's library, or None if it isn't theirs."""
+    """Select one of a user's areas, or None if it isn't theirs."""
     result = await session.execute(
         SELECT_USER_AOI_SQL, {"user_id": user_id, "entry_id": entry_id}
     )
@@ -84,7 +84,7 @@ async def select_reference_aoi_id(
 async def insert_saved_aoi(
     session: AsyncSession, user_id: str, aoi_id: UUID, name: Optional[str]
 ) -> Optional[UUID]:
-    """Save an area to a user's library; None if it is already saved."""
+    """Save an area to a user's areas; None if it is already saved."""
     return await session.scalar(
         INSERT_SAVED_AOI_SQL,
         {"user_id": user_id, "aoi_id": aoi_id, "name": name},
@@ -105,7 +105,7 @@ async def update_saved_aoi_name(
 
 
 async def delete_saved_aoi(session: AsyncSession, entry_id: UUID) -> None:
-    """Remove a saved area from a user's library."""
+    """Remove a saved area from a user's areas."""
     await session.execute(
         text("DELETE FROM user_aois WHERE id = :entry_id"),
         {"entry_id": entry_id},
