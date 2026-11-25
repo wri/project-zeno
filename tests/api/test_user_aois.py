@@ -1,8 +1,15 @@
 """Tests for the user's areas: the ``user_aois`` rows behind "My areas"."""
 
+from unittest.mock import patch
+
 import pytest
 from sqlalchemy import text
 
+from src.agent.datasets.config import DATASETS
+from src.agent.datasets.handlers.analytics_handler import (
+    TREE_COVER_LOSS_ID,
+    AnalyticsHandler,
+)
 from tests.conftest import async_session_maker, seed_reference_aoi
 
 AUTH = {"Authorization": "Bearer abc123"}
@@ -140,6 +147,43 @@ async def test_saved_area_lists_with_its_source_identity(
         "country",
     )
     assert (kba["name"], kba["src_id"]) == ("Mount Kenya", 12345)
+
+
+# A saved municipality used to be a custom-area copy, analysed by its
+# geometry; the reference must stay analysable.
+@pytest.mark.asyncio
+async def test_saving_a_municipality_keeps_it_analysable(
+    auth_override, client
+):
+    auth_override("test-user-wri")
+    await seed_reference_aoi(
+        "gadm", "BRA.16.137.1_1", "Curitiba, Paraná, Brazil", "municipality"
+    )
+    await save_area(client, "gadm", "BRA.16.137.1_1")
+    (saved,) = await list_user_aois(client)
+    aoi = {key: saved[key] for key in ("source", "src_id", "subtype")}
+    tree_cover_loss = next(
+        d for d in DATASETS if d["dataset_id"] == TREE_COVER_LOSS_ID
+    )
+
+    with patch(
+        "src.agent.datasets.handlers.analytics_handler.httpx.AsyncClient",
+        side_effect=AssertionError("reached the analytics API"),
+    ):
+        pulled = await AnalyticsHandler().pull_data(
+            query="",
+            dataset={"dataset_id": TREE_COVER_LOSS_ID},
+            start_date="2001-01-01",
+            end_date="2020-12-31",
+            change_over_time_query=False,
+            aois=[dict(aoi)],
+        )
+    payload = await AnalyticsHandler()._build_payload(
+        tree_cover_loss, [dict(aoi)], "2001-01-01", "2020-12-31"
+    )
+
+    assert "reached the analytics API" in pulled.message
+    assert payload["aoi"] == {"type": "admin", "ids": ["BRA.16.137.1"]}
 
 
 @pytest.mark.asyncio
