@@ -1,7 +1,7 @@
-from typing import Optional
+from typing import Literal, Optional
 
 from dotenv import load_dotenv
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings
 
 load_dotenv()
@@ -50,6 +50,45 @@ class _SharedSettings(BaseSettings):
     mosaic_s3_prefix: str = Field(default="mosaics", alias="MOSAIC_S3_PREFIX")
     mosaic_s3_region: Optional[str] = Field(
         default=None, alias="MOSAIC_S3_REGION"
+    )
+
+    # The decision model (src/shared/decisions.py). It picks the dataset in
+    # pick_dataset and the area in pick_aoi's model-selection path. The
+    # selection LLM is the fallback when a call fails or times out.
+    # DECISION_PROVIDER selects the model: "gemini" (Gemini Decision 1, the
+    # default) or "jev".
+    decision_provider: Literal["jev", "gemini"] = Field(
+        default="gemini", alias="DECISION_PROVIDER"
+    )
+    # jev (Typesafe) on OpenRouter's alpha decisions API. Warm calls take
+    # 0.2-0.5 s.
+    openrouter_api_key: str = Field(default="", alias="OPENROUTER_API_KEY")
+    decision_model: str = Field(
+        default="typesafe/jev-1.13", alias="DECISION_MODEL"
+    )
+    decisions_url: str = Field(
+        default="https://openrouter.ai/api/alpha/decisions",
+        alias="DECISIONS_URL",
+    )
+    decisions_timeout_seconds: float = Field(
+        default=5.0, alias="DECISIONS_TIMEOUT_SECONDS"
+    )
+    # Gemini Decision 1 on the Gemini API (v1beta). Warm calls take 0.3-0.5
+    # s, but the first calls after an idle period took 5-14 s (2026-11-18),
+    # so its timeout is longer.
+    google_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("GOOGLE_API_KEY", "GEMINI_API_KEY"),
+    )
+    gemini_decision_model: str = Field(
+        default="gemini-decision-1", alias="GEMINI_DECISION_MODEL"
+    )
+    gemini_decisions_url: str = Field(
+        default="https://generativelanguage.googleapis.com/v1beta/decisions",
+        alias="GEMINI_DECISIONS_URL",
+    )
+    gemini_decisions_timeout_seconds: float = Field(
+        default=15.0, alias="GEMINI_DECISIONS_TIMEOUT_SECONDS"
     )
 
     model_config = {

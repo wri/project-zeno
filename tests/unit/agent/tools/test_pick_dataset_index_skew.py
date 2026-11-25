@@ -18,6 +18,7 @@ from src.agent.subagents.pick_dataset.tool import (
     _log_index_catalog_skew,
     rag_candidate_datasets,
 )
+from src.shared.decisions import DecisionError
 
 CATALOG_IDS = sorted(ds["dataset_id"] for ds in DATASETS)
 # An id no catalog dataset uses. 0 was DIST-ALERT, removed in #802, and is
@@ -66,10 +67,17 @@ async def test_non_numeric_document_id_is_skipped():
 
 async def test_no_valid_candidates_returns_message_instead_of_raising():
     """Every retrieved document stale: the turn ends with a plain message, not
-    an exception that surfaces a dataset id to the user."""
-    with patch(
-        "src.agent.subagents.pick_dataset.tool.rag_candidate_datasets",
-        AsyncMock(return_value=pd.DataFrame()),
+    an exception that surfaces a dataset id to the user. Retrieval runs only
+    in the fallback, after a failed decision call."""
+    with (
+        patch(
+            "src.agent.subagents.pick_dataset.tool.decide",
+            AsyncMock(side_effect=DecisionError("decisions call failed")),
+        ),
+        patch(
+            "src.agent.subagents.pick_dataset.tool.rag_candidate_datasets",
+            AsyncMock(return_value=pd.DataFrame()),
+        ),
     ):
         command = await DatasetSelector().resolve(
             "daily deforestation alerts", tool_call_id="call-1"

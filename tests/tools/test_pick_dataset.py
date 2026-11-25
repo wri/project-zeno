@@ -1,15 +1,13 @@
 import sys
 import uuid
 from datetime import date
-from typing import Literal, Optional
+from typing import Optional
 from unittest.mock import AsyncMock, patch
 
 import pytest
 import requests
-from pydantic import BaseModel, Field
 
 from src.agent.datasets.config import DATASETS
-from src.agent.llms import SMALL_MODEL
 from src.agent.state import AgentState, AOISelection
 from src.agent.subagents.pick_dataset import (
     DatasetLayer,
@@ -65,6 +63,28 @@ def reset_google_clients():
     pd_module.retriever_cache = None
 
 
+@pytest.fixture(autouse=True)
+def decision_model_only(request):
+    """Fail when the selection LLM picks instead of the decision model.
+
+    select_best_dataset falls back to the LLM when the decision call fails.
+    These tests measure the decision model, so a silent fallback must not
+    pass. Tests that patch select_best_dataset never reach either path.
+    """
+
+    async def no_fallback(*_args, **_kwargs):
+        raise AssertionError(
+            "the decision call failed and the selection LLM was used; "
+            "see the DATASET-SELECTOR warning in the log"
+        )
+
+    with patch(
+        "src.agent.subagents.pick_dataset.tool._select_with_llm",
+        new=no_fallback,
+    ):
+        yield
+
+
 @pytest.fixture
 def state():
     return AgentState(
@@ -94,6 +114,7 @@ TREE_COVER_LOSS_BY_DRIVER = "tree cover loss by driver"
 SLUC_EF = "deforestation (sLUC) emission factors by agricultural crop"
 TREE_COVER_LOSS_FROM_FIRES = "tree cover loss by fires"
 INTEGRATED_ALERTS = "integrated alerts"
+LGMS = "land ghg monitoring system"
 
 lookup = {
     1: LAND_COVER_CHANGE,
@@ -107,6 +128,7 @@ lookup = {
     9: SLUC_EF,
     10: TREE_COVER_LOSS_FROM_FIRES,
     11: INTEGRATED_ALERTS,
+    12: LGMS,
 }
 
 
@@ -290,7 +312,7 @@ def _query_case_id(param):
             "2000-12-31",
         ),
         (
-            "Where has foreLAND_COVER_CHANGEst regrowth occurred in Indonesia since 2000?",
+            "Where has forest regrowth occurred in Indonesia since 2000?",
             TREE_COVER_GAIN,
             "2000-01-01",
             "2020-12-31",
@@ -425,12 +447,14 @@ async def test_queries_return_expected_dataset(
 @pytest.mark.parametrize(
     "query,expected_dataset_id,expected_context_layer",
     [
-        # Former DIST context-layer phrasings ask for an intersection no dataset
-        # provides any more. The selector declines rather than substituting a
-        # dataset that cannot answer: no dataset, no context layer. (It either
-        # raises a dataset_choice nudge or reports "No dataset selected"; both
-        # leave the dataset slot empty, which is what this asserts.)
-        ("Vegetation disturbances by natural lands", None, None),
+        # Integrated alerts has a natural_lands context layer (#725), so this
+        # former DIST phrasing has a real answer again.
+        ("Vegetation disturbances by natural lands", 11, "natural_lands"),
+        # No dataset intersects disturbances with grasslands. The selector
+        # declines rather than substituting a dataset that cannot answer: no
+        # dataset, no context layer. (It either raises a dataset_choice nudge
+        # or reports "No dataset selected"; both leave the dataset slot
+        # empty, which is what this asserts.)
         ("Vegetation disturbances over grasslands", None, None),
         ("Tree cover loss by driver", 8, "driver"),
         ("Tree cover loss in primary forest", 4, "primary_forest"),
@@ -1106,45 +1130,28 @@ async def test_intact_forest_selected_outside_tropics():
     assert context_layer == expected_context_layer
 
 
-class LanguageJudgeResult(BaseModel):
-    language: Literal["spanish", "portuguese", "english"] = Field(
-        description="Detected language for the provided text."
-    )
-
-
-async def _judge_language_with_llm(text: str) -> str:
-    """Use the project small model as an LLM judge for language detection."""
-    prompt = (
-        "Classify the language of the following text as exactly one of: "
-        "spanish, portuguese, english.\n"
-        f"Text: {text}"
-    )
-    chain = SMALL_MODEL.with_structured_output(LanguageJudgeResult)
-    result = await chain.ainvoke(prompt)
-    return result.language
-
-
 @pytest.mark.parametrize(
-    "query,expected_language",
+    "query,expected_dataset",
     [
+        # The decision model writes no reason text, so the reason is not in
+        # the user's language any more (the old LLM-judge test). What is left
+        # to check is that a non-English request picks the right dataset.
         (
             "Que tamaño de area fue desforestada en los Estados Unidos entre 2015 y 2020?",
-            "spanish",
+            TREE_COVER_LOSS,
         ),
         (
-            "Qual a extensão de terras cultiváveis ​​na República da Irlanda?",
-            "portuguese",
+            "Qual a extensão de terras cultiváveis na República da Irlanda?",
+            LAND_COVER_CHANGE,
         ),
         (
-            "What are the trends in grassland area in Spain",
-            "english",
+            "Quelles sont les tendances des prairies naturelles en Espagne ?",
+            GRASSLANDS,
         ),
     ],
 )
-async def test_pick_dataset_reason_matches_query_language_with_llm_judge(
-    query,
-    expected_language,
-    state,
+async def test_non_english_query_picks_expected_dataset(
+    query, expected_dataset, state
 ):
     tool_call_id = str(uuid.uuid4())
     tool_call = {
@@ -1161,13 +1168,9 @@ async def test_pick_dataset_reason_matches_query_language_with_llm_judge(
     }
 
     command = await pick_dataset.ainvoke(tool_call)
-    reason = command.update.get("dataset", {}).get("reason", "")
-    judged_language = await _judge_language_with_llm(reason)
 
-    assert judged_language == expected_language, (
-        f"Expected reason language '{expected_language}', "
-        f"but judge returned '{judged_language}'. Reason: {reason}"
-    )
+    dataset_id = command.update.get("dataset", {}).get("dataset_id")
+    assert lookup.get(dataset_id) == expected_dataset
 
 
 @pytest.mark.parametrize(
