@@ -3,73 +3,69 @@
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import RowMapping, text
+from sqlalchemy import (
+    RowMapping,
+    Select,
+    case,
+    delete,
+    desc,
+    func,
+    select,
+    update,
+)
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# An owner link may be backfilled long after its custom area was drawn, so an
-# owned area is dated by the area itself; a saved area by when it was saved.
-USER_AOI_SELECT = """
-    SELECT
-        ua.id,
-        ua.relationship,
-        COALESCE(ua.name, a.name) AS name,
-        a.source,
-        a.source_id AS src_id,
-        a.subtype,
-        a.bbox,
-        CASE WHEN ua.relationship = 'owner' THEN a.created_at
-             ELSE ua.created_at END AS created_at
-    FROM user_aois ua
-    JOIN aois a ON a.id = ua.aoi_id
-    WHERE ua.user_id = :user_id
-"""
+from src.api.data_models import AoiOrm, AoiRelationship, UserAoiOrm
 
-LIST_USER_AOIS_SQL = text(
-    USER_AOI_SELECT
-    + """
-    ORDER BY created_at DESC, ua.id
-    LIMIT :limit OFFSET :offset
-    """
-)
 
-SELECT_USER_AOI_SQL = text(USER_AOI_SELECT + " AND ua.id = :user_aoi_id")
-
-SELECT_REFERENCE_AOI_ID_SQL = text(
-    """
-    SELECT id FROM aois
-    WHERE source = :source AND source_id = :src_id AND NOT is_deprecated
-    """
-)
-
-INSERT_SAVED_AOI_SQL = text(
-    """
-    INSERT INTO user_aois (user_id, aoi_id, relationship, name)
-    VALUES (:user_id, :aoi_id, 'saved', :name)
-    ON CONFLICT (user_id, aoi_id, relationship) DO NOTHING
-    RETURNING id
-    """
-)
+def user_aois_query(user_id: str) -> Select:
+    """Build the query for a user's areas, with the fields "My areas" shows."""
+    # An owner link may be backfilled long after its custom area was drawn,
+    # so an owned area is dated by the area itself; a saved area by when it
+    # was saved.
+    added_at = case(
+        (
+            UserAoiOrm.relationship_type == AoiRelationship.OWNER,
+            AoiOrm.created_at,
+        ),
+        else_=UserAoiOrm.created_at,
+    )
+    return (
+        select(
+            UserAoiOrm.id,
+            UserAoiOrm.relationship_type.label("relationship"),
+            func.coalesce(UserAoiOrm.name, AoiOrm.name).label("name"),
+            AoiOrm.source,
+            AoiOrm.source_id.label("src_id"),
+            AoiOrm.subtype,
+            AoiOrm.bbox,
+            added_at.label("created_at"),
+        )
+        .join(AoiOrm, AoiOrm.id == UserAoiOrm.aoi_id)
+        .where(UserAoiOrm.user_id == user_id)
+    )
 
 
 async def list_user_aois(
     session: AsyncSession, user_id: str, limit: int, offset: int
 ) -> list[RowMapping]:
     """List a user's areas, newest first."""
-    result = await session.execute(
-        LIST_USER_AOIS_SQL,
-        {"user_id": user_id, "limit": limit, "offset": offset},
+    query = (
+        user_aois_query(user_id)
+        .order_by(desc("created_at"), UserAoiOrm.id)
+        .limit(limit)
+        .offset(offset)
     )
-    return list(result.mappings().all())
+    return list((await session.execute(query)).mappings().all())
 
 
 async def select_user_aoi(
     session: AsyncSession, user_id: str, user_aoi_id: UUID
 ) -> Optional[RowMapping]:
     """Select one of a user's areas, or None if it isn't theirs."""
-    result = await session.execute(
-        SELECT_USER_AOI_SQL, {"user_id": user_id, "user_aoi_id": user_aoi_id}
-    )
-    return result.mappings().first()
+    query = user_aois_query(user_id).where(UserAoiOrm.id == user_aoi_id)
+    return (await session.execute(query)).mappings().first()
 
 
 async def select_reference_aoi_id(
@@ -77,7 +73,11 @@ async def select_reference_aoi_id(
 ) -> Optional[UUID]:
     """Select the id of the live ``aois`` row for a source area."""
     return await session.scalar(
-        SELECT_REFERENCE_AOI_ID_SQL, {"source": source, "src_id": src_id}
+        select(AoiOrm.id).where(
+            AoiOrm.source == source,
+            AoiOrm.source_id == src_id,
+            AoiOrm.is_deprecated.is_(False),
+        )
     )
 
 
@@ -86,8 +86,15 @@ async def insert_saved_aoi(
 ) -> Optional[UUID]:
     """Save an area to a user's areas; None if it is already saved."""
     return await session.scalar(
-        INSERT_SAVED_AOI_SQL,
-        {"user_id": user_id, "aoi_id": aoi_id, "name": name},
+        insert(UserAoiOrm)
+        .values(
+            user_id=user_id,
+            aoi_id=aoi_id,
+            relationship_type=AoiRelationship.SAVED,
+            name=name,
+        )
+        .on_conflict_do_nothing(constraint="uq_user_aoi_relationship")
+        .returning(UserAoiOrm.id)
     )
 
 
@@ -96,17 +103,14 @@ async def update_saved_aoi_name(
 ) -> None:
     """Set a user's own label for a saved area."""
     await session.execute(
-        text(
-            "UPDATE user_aois SET name = :name, updated_at = now() "
-            "WHERE id = :user_aoi_id"
-        ),
-        {"user_aoi_id": user_aoi_id, "name": name},
+        update(UserAoiOrm)
+        .where(UserAoiOrm.id == user_aoi_id)
+        .values(name=name)
     )
 
 
 async def delete_saved_aoi(session: AsyncSession, user_aoi_id: UUID) -> None:
     """Remove a saved area from a user's areas."""
     await session.execute(
-        text("DELETE FROM user_aois WHERE id = :user_aoi_id"),
-        {"user_aoi_id": user_aoi_id},
+        delete(UserAoiOrm).where(UserAoiOrm.id == user_aoi_id)
     )
