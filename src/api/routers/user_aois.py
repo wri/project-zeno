@@ -15,11 +15,11 @@ from fastapi import (
     Query,
     Response,
 )
-from sqlalchemy import RowMapping
+from sqlalchemy import RowMapping, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth.dependencies import require_auth
-from src.api.data_models import AoiRelationship
+from src.api.data_models import AoiRelationship, CustomAreaOrm
 from src.api.repositories import user_aoi_repository
 from src.api.routers.custom_areas import get_custom_aoi_analytics_service
 from src.api.schemas import (
@@ -28,14 +28,10 @@ from src.api.schemas import (
     UserAoiRename,
     UserModel,
 )
+from src.api.services.aoi_sync import delete_custom_aoi, upsert_custom_aoi
 from src.api.services.custom_aoi_analytics import (
     CustomAoiAnalyticsService,
     custom_aoi_payload,
-)
-from src.api.services.custom_area_edits import (
-    delete_custom_area_and_mirror,
-    get_owned_custom_area,
-    rename_custom_area_and_mirror,
 )
 from src.shared.database import get_session_from_pool_dependency
 from src.shared.geocoding_helpers import _response_src_id, normalize_aoi_source
@@ -60,6 +56,19 @@ async def _get_user_aoi(
     if user_aoi is None:
         raise HTTPException(status_code=404, detail="Area not found")
     return user_aoi
+
+
+async def _get_owned_custom_area(
+    session: AsyncSession, user_id: str, area_id: UUID
+) -> CustomAreaOrm:
+    """Get a custom area the user owns, or raise 404."""
+    result = await session.execute(
+        select(CustomAreaOrm).filter_by(id=area_id, user_id=user_id)
+    )
+    area = result.scalars().first()
+    if area is None:
+        raise HTTPException(status_code=404, detail="Area not found")
+    return area
 
 
 @router.get("/api/user_aois", response_model=list[UserAoiModel])
@@ -138,12 +147,15 @@ async def rename_user_aoi(
     """
     user_aoi = await _get_user_aoi(session, user.id, user_aoi_id)
     if user_aoi["relationship"] == AoiRelationship.OWNER:
-        area = await get_owned_custom_area(
+        area = await _get_owned_custom_area(
             session, user.id, UUID(user_aoi["src_id"])
         )
-        if area is None:
-            raise HTTPException(status_code=404, detail="Area not found")
-        await rename_custom_area_and_mirror(session, area, rename.name)
+        area.name = rename.name
+        # Flush so the mirror reads the new name in this same transaction.
+        await session.flush()
+        await upsert_custom_aoi(session, area_id=area.id)
+        await session.refresh(area)
+        await session.commit()
         background_tasks.add_task(
             analytics_service.save, [custom_aoi_payload(area)]
         )
@@ -173,10 +185,10 @@ async def delete_user_aoi(
     user_aoi = await _get_user_aoi(session, user.id, user_aoi_id)
     if user_aoi["relationship"] == AoiRelationship.OWNER:
         area_id = UUID(user_aoi["src_id"])
-        area = await get_owned_custom_area(session, user.id, area_id)
-        if area is None:
-            raise HTTPException(status_code=404, detail="Area not found")
-        await delete_custom_area_and_mirror(session, area)
+        area = await _get_owned_custom_area(session, user.id, area_id)
+        await delete_custom_aoi(session, area_id)
+        await session.delete(area)
+        await session.commit()
         background_tasks.add_task(analytics_service.delete, area_id)
     else:
         await user_aoi_repository.delete_saved_aoi(session, user_aoi_id)

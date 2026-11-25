@@ -36,7 +36,7 @@ from src.api.schemas import (
     UploadedAreaSummary,
     UserModel,
 )
-from src.api.services.aoi_sync import upsert_custom_aoi
+from src.api.services.aoi_sync import delete_custom_aoi, upsert_custom_aoi
 from src.api.services.area_upload import (
     MAX_UPLOAD_BYTES,
     UploadValidationError,
@@ -47,11 +47,6 @@ from src.api.services.area_upload import (
 from src.api.services.custom_aoi_analytics import (
     CustomAoiAnalyticsService,
     custom_aoi_payload,
-)
-from src.api.services.custom_area_edits import (
-    delete_custom_area_and_mirror,
-    get_owned_custom_area,
-    rename_custom_area_and_mirror,
 )
 from src.shared.database import get_session_from_pool_dependency
 from src.shared.langfuse_tracing import auxiliary_config
@@ -345,10 +340,16 @@ async def update_custom_area_name(
     The request body is ``{"name": "<new name>"}``. The mirrored ``aois`` row
     is renamed in the same transaction.
     """
-    area = await get_owned_custom_area(session, user.id, area_id)
+    stmt = select(CustomAreaOrm).filter_by(id=area_id, user_id=user.id)
+    result = await session.execute(stmt)
+    area = result.scalars().first()
     if not area:
         raise HTTPException(status_code=404, detail="Custom area not found")
-    await rename_custom_area_and_mirror(session, area, payload["name"])
+    area.name = payload["name"]
+    await session.flush()
+    await upsert_custom_aoi(session, area_id=area.id)
+    await session.refresh(area)
+    await session.commit()
     background_tasks.add_task(
         analytics_service.save, [custom_aoi_payload(area)]
     )
@@ -380,9 +381,13 @@ async def delete_custom_area(
     The mirrored ``aois`` row is deleted in the same transaction, and the
     ``user_aois`` foreign key cascades, so no owner link survives the area.
     """
-    area = await get_owned_custom_area(session, user.id, area_id)
+    stmt = select(CustomAreaOrm).filter_by(id=area_id, user_id=user.id)
+    result = await session.execute(stmt)
+    area = result.scalars().first()
     if not area:
         raise HTTPException(status_code=404, detail="Custom area not found")
-    await delete_custom_area_and_mirror(session, area)
+    await delete_custom_aoi(session, area_id)
+    await session.delete(area)
+    await session.commit()
     background_tasks.add_task(analytics_service.delete, area_id)
     return {"detail": f"Area {area_id} deleted successfully"}
