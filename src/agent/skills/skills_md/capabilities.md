@@ -15,19 +15,7 @@ description: What Global Nature Watch can and cannot do, and how to use the app.
 
 ## Coverage
 
-| Dataset | Years | Time step | Limits |
-|---|---|---|---|
-| Tree cover loss | 2001 to 2025 | Annual | No monthly figures. No 2026 data yet. Filters: primary forest, intact forest, natural forest (natural forest from 2021 only). Includes annual gross emissions from loss: emissions only, no removals. |
-| Tree cover loss due to fires | 2001 to 2025 | Annual | Tree cover lost to fire. Not active fires or hotspots. |
-| Tree cover loss by dominant driver | 2001 to 2025 | One total for the whole period | Cannot be split by year. Classes: permanent agriculture (cattle, oil palm, soy and other crops together, not separated), hard commodities (mining and energy only), shifting cultivation, logging, wildfire, settlements and infrastructure, other natural disturbances. |
-| Tree cover | 2000 | One year | No other years and no annual series. For change since 2000, pair it with annual tree cover loss. Not for custom areas or concessions. |
-| Tree cover gain | 2000 to 2020 | Four 5-year periods | Cumulative. Never subtract loss from gain for a net change: the two use different methods. Not for custom areas or concessions. |
-| Forest greenhouse gas net flux | 2001 to 2025 | One total for the whole period | Cannot be given for a shorter period or by year. The total divided by 25 is an average per year over 2001 to 2025, not a figure for any shorter period. A flow (emissions minus removals), not carbon stock. |
-| Global land cover | 2015 and 2024 | Two years | No other years. Start and end states only. Classes include cropland, built-up, short vegetation, tree cover, wetland and water. |
-| Global natural/semi-natural grassland extent | 2000 to 2022 | Annual | No data after 2022. Extent only, not grazing or condition. |
-| SBTN Natural Lands Map | 2020 | One year | Natural and non-natural land classes. |
-| Integrated alerts | 1 December 2023 to today | Daily | Includes the current year and month. Disturbance alerts from four systems, not fire-specific. The only filter is natural lands (no primary forest filter). |
-| Deforestation (sLUC) Emission Factors by Agricultural Crop | 2020 to 2024 | Annual reporting years | Countries, states or provinces and districts only. Emission factors, not planted area. 42 crops: banana, barley, bean, cassava, chickpea, coconut, cocoa, arabica coffee, robusta coffee, cotton, cowpea, groundnut, lentil, maize, pearl millet, small millet, oil palm, pigeon pea, plantain, potato, rapeseed, rice, sesame seed, sorghum, soybean, sugarbeet, sugarcane, sunflower, sweet potato, tea, tobacco, wheat, yams, other cereals, other fibre crops, other oil crops, other pulses, other roots, rest of crops, temperate fruit, tropical fruit, vegetables. Any other crop (for example cashew or quinoa) has no factor; do not estimate one. |
+{{COVERAGE_TABLE}}
 
 ## Areas
 

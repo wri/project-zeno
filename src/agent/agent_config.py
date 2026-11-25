@@ -205,8 +205,8 @@ class AgentConfig:
     skills: tuple[str, ...] = ()
     tools: tuple[ToolSpec, ...] = ()
     system_prompt: Optional[str] = field(default=None)
-    # Dataset names this profile hides from selection and from pull_data.
-    # Unlike skills/tools, this does NOT accumulate down the
+    # Dataset names this profile hides from selection and the capabilities
+    # listing. Unlike skills/tools, this does NOT accumulate down the
     # ``extends`` chain (see AgentConfigRegistry.register): a child reveals a
     # parent-hidden dataset simply by not listing it.
     excluded_datasets: frozenset[str] = field(default_factory=frozenset)

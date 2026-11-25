@@ -87,21 +87,51 @@ def test_capabilities_skill_body_starts_with_the_workflow():
     assert body.strip().startswith("# Workflow")
 
 
-def test_capabilities_coverage_table_matches_the_catalog():
-    """The Coverage table is the skill's only dataset list, written by hand.
-    Each row must name a catalog dataset exactly, and every dataset the
-    default profile can select must have a row."""
-    body = get_skill_body("capabilities")
-    assert body is not None
+_CAPABILITIES_PROFILES = [
+    cfg for cfg in default_registry.configs() if "capabilities" in cfg.skills
+]
+
+
+def _coverage_names(body: str) -> list[str]:
     section = body.split("## Coverage", 1)[1].split("\n## ", 1)[0]
     rows = [line for line in section.splitlines() if line.startswith("|")]
     # Skip the header row and the separator row.
-    table_names = {row.split("|")[1].strip() for row in rows[2:]}
-    catalog_names = {d["dataset_name"] for d in DATASETS}
-    excluded = default_registry.resolve(DEFAULT_PROFILE).excluded_datasets
+    return [row.split("|")[1].strip() for row in rows[2:]]
 
-    assert table_names - catalog_names == set()
-    assert (catalog_names - excluded) - table_names == set()
+
+@pytest.mark.parametrize(
+    "cfg", _CAPABILITIES_PROFILES, ids=[c.name for c in _CAPABILITIES_PROFILES]
+)
+def test_capabilities_coverage_table_lists_the_profile_datasets(cfg):
+    """The Coverage table is built from the catalog for each profile: one
+    row for each dataset that the profile can select, and none for a
+    dataset that it excludes."""
+    set_bound_availability(cfg.availability())
+    body = get_skill_body("capabilities")
+    assert body is not None
+
+    names = _coverage_names(body)
+    catalog_names = {d["dataset_name"] for d in DATASETS}
+
+    assert "{{" not in body
+    assert len(names) == len(set(names))
+    assert set(names) == catalog_names - cfg.excluded_datasets
+
+
+def test_capabilities_coverage_table_shows_lgms_only_where_selectable():
+    """LGMS is excluded from the default profile; the lgms and experimental
+    profiles select it, so their Coverage table must name it."""
+    lgms = "Land GHG Monitoring System (LGMS)"
+    shown = {}
+    for cfg in _CAPABILITIES_PROFILES:
+        set_bound_availability(cfg.availability())
+        shown[cfg.name] = lgms in _coverage_names(
+            get_skill_body("capabilities") or ""
+        )
+
+    assert shown[DEFAULT_PROFILE] is False
+    assert shown["lgms"] is True
+    assert shown["experimental"] is True
 
 
 def test_get_skill_body():

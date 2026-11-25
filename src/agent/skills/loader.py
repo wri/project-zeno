@@ -3,9 +3,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+from src.agent.datasets.config import DATASETS
 from src.agent.tool_spec import bound_availability
 
 _SKILLS_DIR = Path(__file__).resolve().parent / "skills_md"
+
+# Replaced with the Coverage table of the datasets the profile can select.
+COVERAGE_PLACEHOLDER = "{{COVERAGE_TABLE}}"
 
 
 @dataclass
@@ -111,14 +115,37 @@ def apply_flags(body: str, flags: frozenset[str]) -> str:
     return "".join(kept)
 
 
+def coverage_table(excluded_datasets: frozenset[str]) -> str:
+    """A Markdown table of each catalog dataset's `coverage` block, without
+    the datasets that the profile excludes."""
+    rows = [
+        "| Dataset | Years | Time step | Limits |",
+        "|---|---|---|---|",
+    ]
+    for dataset in DATASETS:
+        if dataset["dataset_name"] in excluded_datasets:
+            continue
+        coverage = dataset["coverage"]
+        rows.append(
+            f"| {dataset['dataset_name']} | {coverage['period']} "
+            f"| {coverage['time_step']} | {coverage['limits']} |"
+        )
+    return "\n".join(rows)
+
+
 def render_body(
     skill: SkillMeta, flags: Optional[frozenset[str]] = None
 ) -> str:
     """A skill's body as handed to the model. `flags` selects the flagged
-    blocks; by default the flags of the current request's profile."""
+    blocks; by default the flags of the current request's profile. The
+    Coverage table lists the datasets of the current request's profile."""
+    availability = bound_availability()
     if flags is None:
-        flags = bound_availability().flags
-    return apply_flags(skill.body, flags)
+        flags = availability.flags
+    body = apply_flags(skill.body, flags)
+    return body.replace(
+        COVERAGE_PLACEHOLDER, coverage_table(availability.excluded_datasets)
+    )
 
 
 def get_skill_body(name: str) -> str | None:
