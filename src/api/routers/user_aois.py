@@ -34,7 +34,7 @@ from src.api.services.custom_aoi_analytics import (
 )
 from src.api.services.custom_area_edits import (
     delete_custom_area_and_mirror,
-    read_owned_custom_area,
+    get_owned_custom_area,
     rename_custom_area_and_mirror,
 )
 from src.shared.database import get_session_from_pool_dependency
@@ -49,12 +49,12 @@ def _row_to_response(row: RowMapping) -> UserAoiModel:
     )
 
 
-async def _read_user_aoi(
+async def _get_user_aoi(
     session: AsyncSession, user_id: str, user_aoi_id: UUID
 ) -> RowMapping:
-    """Read one of the user's areas, or raise 404 (not-found and not-owned
+    """Get one of the user's areas, or raise 404 (not-found and not-owned
     are indistinguishable)."""
-    user_aoi = await user_aoi_repository.select_user_aoi(
+    user_aoi = await user_aoi_repository.get_user_aoi(
         session, user_id, user_aoi_id
     )
     if user_aoi is None:
@@ -104,12 +104,12 @@ async def save_user_aoi(
         raise HTTPException(
             status_code=422, detail="Custom areas are already in your areas"
         )
-    aoi_id = await user_aoi_repository.select_reference_aoi_id(
+    aoi_id = await user_aoi_repository.get_reference_aoi_id(
         session, source, str(area.src_id)
     )
     if aoi_id is None:
         raise HTTPException(status_code=404, detail="Area not found")
-    user_aoi_id = await user_aoi_repository.insert_saved_aoi(
+    user_aoi_id = await user_aoi_repository.create_saved_aoi(
         session, user.id, aoi_id, area.name
     )
     if user_aoi_id is None:
@@ -117,9 +117,7 @@ async def save_user_aoi(
             status_code=409, detail="Area is already in your areas"
         )
     await session.commit()
-    return _row_to_response(
-        await _read_user_aoi(session, user.id, user_aoi_id)
-    )
+    return _row_to_response(await _get_user_aoi(session, user.id, user_aoi_id))
 
 
 @router.patch("/api/user_aois/{user_aoi_id}", response_model=UserAoiModel)
@@ -138,9 +136,9 @@ async def rename_user_aoi(
     A saved area gets the caller's own label; the shared area keeps its name.
     An owned custom area is renamed itself.
     """
-    user_aoi = await _read_user_aoi(session, user.id, user_aoi_id)
+    user_aoi = await _get_user_aoi(session, user.id, user_aoi_id)
     if user_aoi["relationship"] == AoiRelationship.OWNER:
-        area = await read_owned_custom_area(
+        area = await get_owned_custom_area(
             session, user.id, UUID(user_aoi["src_id"])
         )
         if area is None:
@@ -154,9 +152,7 @@ async def rename_user_aoi(
             session, user_aoi_id, rename.name
         )
         await session.commit()
-    return _row_to_response(
-        await _read_user_aoi(session, user.id, user_aoi_id)
-    )
+    return _row_to_response(await _get_user_aoi(session, user.id, user_aoi_id))
 
 
 @router.delete("/api/user_aois/{user_aoi_id}", status_code=204)
@@ -174,10 +170,10 @@ async def delete_user_aoi(
     A saved area loses only its link. An owned custom area is deleted.
     Dashboards on the area are not touched.
     """
-    user_aoi = await _read_user_aoi(session, user.id, user_aoi_id)
+    user_aoi = await _get_user_aoi(session, user.id, user_aoi_id)
     if user_aoi["relationship"] == AoiRelationship.OWNER:
         area_id = UUID(user_aoi["src_id"])
-        area = await read_owned_custom_area(session, user.id, area_id)
+        area = await get_owned_custom_area(session, user.id, area_id)
         if area is None:
             raise HTTPException(status_code=404, detail="Area not found")
         await delete_custom_area_and_mirror(session, area)

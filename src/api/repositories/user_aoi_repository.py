@@ -60,18 +60,18 @@ async def list_user_aois(
     return list((await session.execute(query)).mappings().all())
 
 
-async def select_user_aoi(
+async def get_user_aoi(
     session: AsyncSession, user_id: str, user_aoi_id: UUID
 ) -> Optional[RowMapping]:
-    """Select one of a user's areas, or None if it isn't theirs."""
+    """Get one of a user's areas, or None if it isn't theirs."""
     query = user_aois_query(user_id).where(UserAoiOrm.id == user_aoi_id)
     return (await session.execute(query)).mappings().first()
 
 
-async def select_reference_aoi_id(
+async def get_reference_aoi_id(
     session: AsyncSession, source: str, src_id: str
 ) -> Optional[UUID]:
-    """Select the id of the live ``aois`` row for a source area."""
+    """Get the id of the live ``aois`` row for a source area."""
     return await session.scalar(
         select(AoiOrm.id).where(
             AoiOrm.source == source,
@@ -81,7 +81,7 @@ async def select_reference_aoi_id(
     )
 
 
-async def insert_saved_aoi(
+async def create_saved_aoi(
     session: AsyncSession, user_id: str, aoi_id: UUID, name: Optional[str]
 ) -> Optional[UUID]:
     """Save an area to a user's areas; None if it is already saved."""

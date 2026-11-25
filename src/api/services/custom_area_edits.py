@@ -14,10 +14,10 @@ from src.api.data_models import CustomAreaOrm
 from src.api.services.aoi_sync import delete_custom_aoi, upsert_custom_aoi
 
 
-async def read_owned_custom_area(
+async def get_owned_custom_area(
     session: AsyncSession, user_id: str, area_id: UUID
 ) -> Optional[CustomAreaOrm]:
-    """Read a custom area if this user owns it."""
+    """Get a custom area if this user owns it."""
     result = await session.execute(
         select(CustomAreaOrm).filter_by(id=area_id, user_id=user_id)
     )
