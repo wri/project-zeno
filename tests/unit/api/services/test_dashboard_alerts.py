@@ -343,7 +343,7 @@ async def test_summarize_keeps_the_other_totals_when_a_custom_area_fails():
 @pytest.mark.asyncio
 async def test_summarize_pulls_a_limited_number_of_custom_areas_at_once():
     source = FakeAlertsSource()
-    count = dashboard_alerts.CUSTOM_AREAS_CONCURRENCY + 4
+    count = dashboard_alerts.SINGLE_AREA_CONCURRENCY + 4
     areas = {
         uuid4(): {**MY_AREA, "src_id": str(uuid4())} for _ in range(count)
     }
@@ -351,7 +351,7 @@ async def test_summarize_pulls_a_limited_number_of_custom_areas_at_once():
     report = await _service(source).summarize(areas)
 
     assert len(source.calls) == count
-    assert source.most_in_flight == dashboard_alerts.CUSTOM_AREAS_CONCURRENCY
+    assert source.most_in_flight == dashboard_alerts.SINGLE_AREA_CONCURRENCY
     assert set(report.dashboards) == set(areas)
 
 
@@ -362,7 +362,7 @@ async def test_summarize_stops_waiting_for_slow_custom_areas():
         hanging={RIVER_FARM["src_id"]},
     )
     service = DashboardAlertsService(
-        source, today=lambda: MONDAY, custom_areas_timeout_seconds=0.05
+        source, today=lambda: MONDAY, single_area_timeout_seconds=0.05
     )
     parana, mine, farm = uuid4(), uuid4(), uuid4()
 
@@ -380,10 +380,10 @@ async def test_summarize_stops_waiting_for_slow_custom_areas():
     [record] = [
         log
         for log in logs
-        if log["event"] == "dashboard_alerts_custom_areas_timeout"
+        if log["event"] == "dashboard_alerts_single_area_timeout"
     ]
     assert record["log_level"] == "warning"
-    assert record["custom_area_ids"] == [RIVER_FARM["src_id"]]
+    assert record["src_ids"] == [RIVER_FARM["src_id"]]
     # Custom area names are user text, so they stay out of the logs.
     assert RIVER_FARM["name"] not in str(record)
 
