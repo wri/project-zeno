@@ -308,6 +308,17 @@ async def test_without_a_latest_alert_date_it_counts_from_today():
     assert "No latest alert date" in record["error"]
 
 
+# The API computes admin levels 3 to 5 on the fly.
+@pytest.mark.asyncio
+async def test_lists_alerts_for_a_municipality():
+    handler = FakeHandler()
+
+    await _list(handler, aoi={**PARANA, "subtype": "municipality"})
+
+    (call,) = handler.calls
+    assert call["aois"][0]["subtype"] == "municipality"
+
+
 @pytest.mark.asyncio
 async def test_a_latest_alert_date_after_today_is_capped_at_today():
     alerts = await _list(latest=FakeLatest(date(2026, 10, 20)))
@@ -504,11 +515,10 @@ async def test_an_invalid_period_never_reaches_the_api(start, end):
 @pytest.mark.parametrize(
     "aoi",
     [
-        {**PARANA, "subtype": "municipality"},
         {**PARANA, "subtype": "planet"},
         {"source": "gadm", "src_id": "BRA"},
     ],
-    ids=["admin-level-3", "unknown", "no-subtype"],
+    ids=["unknown", "no-subtype"],
 )
 async def test_an_unsupported_area_never_reaches_the_api(aoi):
     handler = FakeHandler()

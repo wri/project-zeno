@@ -58,8 +58,8 @@ def test_named_area_types(subtype, aoi_type):
 @pytest.mark.parametrize(
     "subtype", ["municipality", "locality", "neighbourhood"]
 )
-def test_admin_levels_below_2_are_not_analytics_subtypes(subtype):
-    assert subtype not in ANALYTICS_AOI_SUBTYPES
+def test_admin_levels_3_to_5_are_analytics_subtypes(subtype):
+    assert subtype in ANALYTICS_AOI_SUBTYPES
 
 
 def test_custom_areas_go_to_integrated_alerts_as_saved_custom_aois():

@@ -748,18 +748,36 @@ async def test_alerts_widget_for_a_key_biodiversity_area():
 
 
 @pytest.mark.asyncio
-async def test_alerts_widget_for_an_unsupported_area_writes_nothing():
+async def test_alerts_widget_covers_a_municipality():
     town = SimpleNamespace(
         source="gadm",
         src_id="BRA.16.137.1_1",
         subtype="municipality",
+        name="Curitiba",
+        position=0,
+    )
+
+    mocks = await _apply_alerts(dashboard=_dashboard(aois=[town]))
+
+    (widget,) = mocks.write.await_args.kwargs["widgets"]
+    assert widget.config["alerts"]["aoi"]["subtype"] == "municipality"
+
+
+@pytest.mark.asyncio
+async def test_alerts_widget_for_an_unsupported_area_writes_nothing():
+    unknown = SimpleNamespace(
+        source="gadm",
+        src_id="BRA.16.137.1_1",
+        subtype="planet",
         name="Somewhere",
         position=0,
     )
     mocks, stack = _patches()
 
-    with pytest.raises(WidgetFailedError, match="municipality"):
-        await _apply(stack, dashboard=_dashboard(aois=[town]), template=ALERTS)
+    with pytest.raises(WidgetFailedError, match="planet"):
+        await _apply(
+            stack, dashboard=_dashboard(aois=[unknown]), template=ALERTS
+        )
 
     mocks.pull.assert_not_awaited()
     mocks.write.assert_not_awaited()

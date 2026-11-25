@@ -15,7 +15,7 @@ from pydantic import (
 )
 from typing_extensions import TypedDict
 
-from src.api.data_models import UserType
+from src.api.data_models import AoiRelationship, UserType
 from src.api.services.subscription import Dataset, SubscriptionChannel
 from src.api.user_profile_configs.countries import COUNTRIES
 from src.api.user_profile_configs.gis_expertise import GIS_EXPERTISE_LEVELS
@@ -448,6 +448,42 @@ class CustomAreaModel(BaseModel):
     upload_batch_id: Optional[UUID] = None
     created_at: datetime
     updated_at: datetime
+
+
+class UserAoiModel(BaseModel):
+    """One of the user's areas: a custom area they own or a reference area
+    they saved. Geometry is read separately, from
+    ``GET /api/geometry/{source}/{src_id}``."""
+
+    id: UUID = Field(..., description="The user AOI's id")
+    relationship: AoiRelationship
+    name: str = Field(
+        ..., description="The user's label, else the area's own name"
+    )
+    source: str
+    src_id: Union[int, str]
+    subtype: str
+    bbox: Optional[List[float]] = Field(
+        default=None, description="Bounding box as [west, south, east, north]"
+    )
+    created_at: datetime = Field(
+        ..., description="When the area was added to the user's areas"
+    )
+
+
+class UserAoiCreate(BaseModel):
+    """A source area to save to the user's areas, by its address."""
+
+    source: str = Field(..., description="gadm, kba, wdpa, landmark, ...")
+    src_id: Union[int, str]
+    name: Optional[str] = Field(
+        default=None,
+        description="The user's label; omit to use the area's name",
+    )
+
+
+class UserAoiRename(BaseModel):
+    name: str
 
 
 class CustomAreaCreate(BaseModel):

@@ -233,9 +233,9 @@ class AlertsListService:
             raise UnsupportedAreaError(
                 f"The integrated alerts list is not available for "
                 f"{aoi.get('subtype')!r} areas. It is available for "
-                "countries, states or provinces, districts or counties, "
-                "protected areas, key biodiversity areas, indigenous lands, "
-                "custom areas and concessions."
+                "admin areas down to neighbourhoods, protected areas, key "
+                "biodiversity areas, indigenous lands, custom areas and "
+                "concessions."
             )
         latest = await self.resolve_latest_alert_date(today)
         start, end = await self.window(start, end, today, latest)
