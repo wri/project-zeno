@@ -47,19 +47,9 @@ async def show_planet_imagery(
     target_date: Optional[str] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
-    """Show Planet's high-resolution monthly mosaic for the AOI in state.
-
-    Use this to inspect Integrated Disturbance Alerts up close in the
-    Amazon biome. Planet renders only inside a 500 m buffer around alerts
-    from the past 2 years, so it is blank away from alerts and is not a
-    general basemap. Mosaics start in September 2020; each month is
-    published around the 15th of the following month, so there is never a
-    current-month mosaic.
-    target_date (YYYY-MM-DD) selects the month; pass null to get the most
-    recent available month, and tell the user it is the most recently
-    available Planet imagery. Outside the footprint, or for
-    "latest"/"recent" imagery, use show_imagery instead — this tool falls
-    back to Sentinel-2 and says so. Run pick_aoi first. Regional areas only.
+    """Show Planet's monthly mosaic of the AOI in state, or Sentinel-2
+    where Planet has none. The model sees the description in
+    TOOL_DESCRIPTIONS.
     """
     logger.info("show_planet_imagery tool called")
     request = await build_request(state, target_date, tool_call_id)
@@ -88,8 +78,7 @@ async def show_planet_imagery(
             UNAVAILABLE_PREFIX if status == "unavailable" else ERROR_PREFIX
         )
 
-    # Still show imagery rather than dead-ending with no layer, and keep the
-    # reason attached even when Sentinel-2 itself fails.
+    # Still show imagery rather than dead-ending with no layer, and say why.
     result = await SENTINEL2_PROVIDER.get_imagery(request)
     return provider_command(
         replace(

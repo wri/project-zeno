@@ -8,7 +8,6 @@ from src.api.services.widget_configs import (
     dataset_config,
     default_layer,
     imagery_config,
-    migrate_imagery_config,
     widget_config,
 )
 
@@ -77,17 +76,12 @@ def _imagery_state():
     return {
         "provider": "sentinel-2",
         "tile_url": "https://tiles.example.com/mosaic/{z}/{x}/{y}.png?url=x",
-        "tilejson_url": "https://tiles.example.com/tilejson.json?url=x",
         "bounds": [-70.0, -10.0, -60.0, 0.0],
         "min_zoom": 5,
         "max_zoom": 15,
         "mosaic_id": "abc123",
-        "item_count": 12,
         "start_date": "2024-05-28",
         "end_date": "2024-06-04",
-        "mean_cloud_cover": 8.5,
-        "min_cloud_cover": 2.1,
-        "max_cloud_cover_observed": 15.3,
         "max_cloud_cover": 20,
         "target_date": "2024-06-01",
         "window_days": 7,
@@ -212,16 +206,13 @@ def test_dataset_config_carries_multilayer_layers_through():
 def test_imagery_config_none_without_essentials():
     assert imagery_config({}) is None
     assert imagery_config({"imagery": {"tile_url": "x"}}) is None
-    assert imagery_config({"imagery": {"mosaic_id": "x"}}) is None
+    planet_without_tiles = {"provider": "planet", "mosaic_id": "planet:x"}
+    assert imagery_config({"imagery": planet_without_tiles}) is None
 
 
-def test_imagery_config_includes_cloud_cover():
-    """Cloud cover fields are included in the widget config snapshot."""
+def test_imagery_config_keeps_the_render_fields():
     state = {"imagery": _imagery_state()}
     config = imagery_config(state)
-    assert config["mean_cloud_cover"] == 8.5
-    assert config["min_cloud_cover"] == 2.1
-    assert config["max_cloud_cover_observed"] == 15.3
     assert config["max_cloud_cover"] == 20
     assert config["bounds"] == [-70.0, -10.0, -60.0, 0.0]
     assert config["min_zoom"] == 5
@@ -240,75 +231,22 @@ def test_widget_config_wraps_one_layer_and_optional_title():
     }
 
 
-CLIENT_IMAGERY = {
+SENTINEL2_IMAGERY = {
     "provider": "sentinel-2",
-    "render": "client",
     "mosaic_id": "tok",
     "target_date": "2026-11-10",
     "window_days": 7,
-    "max_cloud_cover": 20,
+    "max_cloud_cover": 50,
     "aoi_names": ["Jaru"],
 }
 
 
-def test_imagery_config_accepts_client_imagery_without_tile_url():
-    config = imagery_config({"imagery": CLIENT_IMAGERY})
-    assert config["render"] == "client"
+def test_imagery_config_accepts_sentinel2_without_tile_url():
+    config = imagery_config({"imagery": SENTINEL2_IMAGERY})
     assert config["mosaic_id"] == "tok"
     assert config["tile_url"] is None
 
 
-def test_imagery_config_rejects_client_imagery_without_mosaic_id():
-    imagery = {**CLIENT_IMAGERY, "mosaic_id": None}
+def test_imagery_config_rejects_sentinel2_without_mosaic_id():
+    imagery = {**SENTINEL2_IMAGERY, "mosaic_id": None}
     assert imagery_config({"imagery": imagery}) is None
-
-
-# A recipe token (see tests/unit/shared/test_imagery_recipe.py).
-LEGACY_TOKEN = (
-    "eyJhIjpbWyJnYWRtIiwiUEVSLjExLjNfMSJdLFsia2JhIiwiUGFjYXlhLVNhbWlyaWEg"
-    "XHUwMGU5Il1dLCJjIjo1MCwiZCI6IjIwMjYtMDYtMTUiLCJuIjo1MCwidyI6MzB9"
-)
-
-
-def test_migrate_moves_a_legacy_mosaic_to_client_rendering():
-    legacy = {
-        "default_view": "map",
-        "title": "Imagery",
-        "imagery": {
-            "provider": "sentinel-2",
-            "tile_url": "https://tiles.globalforestwatch.org/cog/mosaic/x",
-            "tilejson_url": "https://tiles.globalforestwatch.org/t.json",
-            "mosaic_id": LEGACY_TOKEN,
-            "item_count": 9,
-            "target_date": "2026-06-15",
-            "window_days": 30,
-            "max_cloud_cover": 50,
-            "aoi_names": ["Paracas", "Pacaya-Samiria"],
-        },
-    }
-    migrated = migrate_imagery_config(legacy)
-    assert migrated == {
-        "default_view": "map",
-        "title": "Imagery",
-        "imagery": {
-            "provider": "sentinel-2",
-            "render": "client",
-            "mosaic_id": LEGACY_TOKEN,
-            "target_date": "2026-06-15",
-            "window_days": 30,
-            "max_cloud_cover": 50,
-            "aoi_names": ["Paracas", "Pacaya-Samiria"],
-        },
-    }
-    # The input is not mutated.
-    assert legacy["imagery"]["tile_url"]
-
-
-def test_migrate_leaves_other_widgets_alone():
-    assert migrate_imagery_config(None) is None
-    assert migrate_imagery_config({"dataset": {"tile_url": "x"}}) is None
-    planet = {"imagery": {"provider": "planet", "mosaic_id": LEGACY_TOKEN}}
-    assert migrate_imagery_config(planet) is None
-    assert migrate_imagery_config({"imagery": CLIENT_IMAGERY}) is None
-    not_a_recipe = {"imagery": {"tile_url": "x", "mosaic_id": "abc123"}}
-    assert migrate_imagery_config(not_a_recipe) is None

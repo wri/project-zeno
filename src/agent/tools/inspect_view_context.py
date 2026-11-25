@@ -32,7 +32,6 @@ from src.agent.datasets.curated_only import (
     is_curated_only,
 )
 from src.agent.i18n import t
-from src.agent.imagery_view_status import describe_imagery
 from src.agent.language import DEFAULT_LANGUAGE
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.common import require_current_user_id
@@ -82,6 +81,44 @@ def _label(item: object, *keys: str) -> str:
                 return str(value)
         return "?"
     return str(item)
+
+
+# The browser's Sentinel-2 scene search result, per visible_imagery entry.
+_IMAGERY_STATUS = {
+    "no_scenes": "no scenes found under the cloud limit in the window",
+    "too_large": "area too large for satellite imagery (no search ran)",
+    "error": "scene search failed",
+    "searching": "scene search still running",
+}
+
+
+def describe_imagery(entry: dict) -> str:
+    """One imagery capture on the map, e.g. "sentinel-2 around 2026-11-10
+    (Jaru; ±7 days; <50% cloud): 9 scenes, 2026-11-08 to 2026-11-12"."""
+    params = [", ".join(entry.get("aoi_names") or [])]
+    if entry.get("window_days") is not None:
+        params.append(f"±{entry['window_days']} days")
+    if entry.get("max_cloud_cover") is not None:
+        params.append(f"<{entry['max_cloud_cover']}% cloud")
+    params = [p for p in params if p]
+    text = (
+        f"{entry.get('provider') or 'sentinel-2'} around "
+        f"{entry.get('target_date') or '?'}"
+    )
+    if params:
+        text += f" ({'; '.join(params)})"
+    status = entry.get("status")
+    count = entry.get("item_count")
+    if status in _IMAGERY_STATUS:
+        result = _IMAGERY_STATUS[status]
+    elif count is None:
+        result = "shown"
+    else:
+        result = f"{count} scene{'' if count == 1 else 's'}"
+        start, end = entry.get("start_date"), entry.get("end_date")
+        if start and end:
+            result += f", {start}" if start == end else f", {start} to {end}"
+    return f"{text}: {result}"
 
 
 def format_view_context(view: dict) -> str:
@@ -136,8 +173,8 @@ def format_view_context(view: dict) -> str:
         if isinstance(entry, dict)
     ]
     if imagery:
-        # Sentinel-2 is searched in the browser: this is the only place the
-        # agent learns how many scenes the map found (or that it found none).
+        # Sentinel-2 is searched in the browser: this is where the agent
+        # learns how many scenes the map found (or that it found none).
         lines.append(f"- Imagery on the map ({len(imagery)}):")
         lines.extend(f"  - {describe_imagery(entry)}" for entry in imagery)
 

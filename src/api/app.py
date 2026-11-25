@@ -21,7 +21,6 @@ from src.api.routers import (
     insights,
     jobs,
     metadata,
-    mosaic,
     subscriptions,
     threads,
     thumbnails,
@@ -93,20 +92,6 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["Content-Disposition", "X-Next-Cursor", "X-Next-Offset"],
 )
-
-
-@app.middleware("http")
-async def mosaic_cache_headers(request: Request, call_next) -> Response:
-    """Mosaic tiles are immutable per token; let browsers cache them."""
-    response = await call_next(request)
-    if (
-        request.method == "GET"
-        and request.url.path.startswith("/mosaic/")
-        and response.status_code == 200
-    ):
-        # private: responses require auth, so only browsers should cache.
-        response.headers["Cache-Control"] = "private, max-age=86400"
-    return response
 
 
 @app.middleware("http")
@@ -193,4 +178,3 @@ app.include_router(metadata.router)
 app.include_router(admin.router)
 app.include_router(traces.router)
 app.include_router(zap.router)
-app.include_router(mosaic.router, prefix="/mosaic", tags=["Map Tiles"])

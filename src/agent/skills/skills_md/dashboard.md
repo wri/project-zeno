@@ -120,8 +120,7 @@ answers; add it ungrouped only when none fits.
 `add_map_widget(layer="dataset")` snapshots the currently selected dataset
 layer — run `pick_dataset` first if none is selected.
 `add_map_widget(layer="imagery")` snapshots the imagery from
-`show_imagery` (for Sentinel-2, its search parameters; the dashboard map
-searches the scenes itself) — run `show_imagery` first. Build the layer/imagery for the dashboard's area. Map
+`show_imagery` — run `show_imagery` first. Build the layer/imagery for the dashboard's area. Map
 widgets render focused on the dashboard's area automatically.
 
 # Adding a text note ("add a note / summary / explanation to my dashboard")

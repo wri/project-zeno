@@ -8,8 +8,8 @@ Profiles form a chain, each one a small delta on its parent:
 
 ```
 base         core toolbox (pick_aoi, pick_dataset, pull_data, generate_insights), no skills
-  └─ default       base + core skills (analyze, pull-data, capabilities, show-imagery,
-                    wri-insights, dashboard, explore)
+  └─ default       base + core skills (analyze, pull-data, capabilities,
+                    wri-insights, dashboard, explore) + imagery tools
        └─ experimental  default + standalone tools not yet owned by any skill
                         (inspect_view_context, update_insight_display)
 ```

@@ -1057,7 +1057,6 @@ async def test_template_imagery_is_a_client_recipe_with_no_search():
 
     *_, imagery = mocks.write.await_args.kwargs["widgets"]
     snapshot = imagery.config["imagery"]
-    assert snapshot["render"] == "client"
     assert snapshot["tile_url"] is None
     recipe = decode_recipe(snapshot["mosaic_id"])
     assert (recipe.target_date, recipe.window_days) == (TODAY, 30)

@@ -1,7 +1,6 @@
 """Sentinel-2 imagery is a request for the browser: no I/O on the server."""
 
 from datetime import date, timedelta
-from unittest.mock import patch
 
 from src.agent.imagery import ImageryRequest, Sentinel2ImageryProvider
 from src.shared.imagery_recipe import decode_recipe
@@ -25,9 +24,7 @@ async def test_writes_a_client_recipe_and_no_tile_url():
     )
     assert result.status == "success"
     imagery = result.imagery
-    assert imagery.render == "client"
     assert imagery.tile_url is None
-    assert imagery.item_count is None
     assert imagery.aoi_names == ["Jaru"]
     assert (imagery.target_date, imagery.window_days) == ("2026-11-10", 30)
     assert imagery.max_cloud_cover == 50
@@ -64,17 +61,13 @@ async def test_clamps_the_search_parameters():
     assert (imagery.window_days, imagery.max_cloud_cover) == (183, 1)
 
 
-async def test_custom_areas_carry_their_owner():
+async def test_custom_areas_carry_no_owner():
     custom = {"source": "custom", "src_id": "area-1", "name": "My area"}
-    with patch(
-        "src.agent.imagery.sentinel2.current_user_id", return_value="u-9"
-    ):
-        imagery = (
-            await Sentinel2ImageryProvider().get_imagery(
-                request(aois=[custom])
-            )
-        ).imagery
-    assert decode_recipe(imagery.mosaic_id).user_id == "u-9"
+    imagery = (
+        await Sentinel2ImageryProvider().get_imagery(request(aois=[custom]))
+    ).imagery
+    assert decode_recipe(imagery.mosaic_id).aois == (("custom", "area-1"),)
+    assert '"u"' not in str(imagery.mosaic_id)
 
 
 async def test_numeric_src_ids_are_written_as_strings():

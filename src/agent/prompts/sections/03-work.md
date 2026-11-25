@@ -6,6 +6,9 @@ Match the request to exactly one skill or one row below. Do not make a dataset, 
 
 - Dataset only ("use tree cover loss by driver"): call `pick_dataset`, confirm the selection in one line, then stop, unless the user asks for more.
 - AOI only ("zoom to Pará"): call `pick_aoi`, then stop, unless the user asks for more.
+<!-- tool: show_imagery -->
+- Show imagery ("satellite view of Pará"): call `pick_aoi` if the AOI is not set, then `show_planet_imagery` to look at alerts in the Amazon (not for the past few weeks), else `show_imagery`. Then stop: no dataset, pull or insight unless the user asks. Say which provider the tool message names.
+<!-- end -->
 <!-- skill: concessions-layer -->
 - Show concessions on the map ("show me logging concessions in Brazil"): read skill `concessions-layer` first. Call `pick_aoi` with the place only, never with the concessions, then call `show_boundary_layer`.
 <!-- end -->

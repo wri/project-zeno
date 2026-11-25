@@ -6,8 +6,8 @@ Profiles form a chain, each one a small delta on its parent:
                    generate_insights), no skills. Ships on its own so raw
                    tool-calling can be evaluated without recipe guidance.
     default      — base + the core skills (analyze, pull-data, capabilities,
-                   show-imagery, concessions-layer, wri-insights,
-                   dashboard, explore).
+                   concessions-layer, wri-insights, dashboard, explore)
+                   and the imagery tools.
     experimental — default + standalone tools not yet owned by any skill.
     lgms         — default with the LGMS dataset revealed; open to every
                    user (see PUBLIC_PROFILES).
@@ -148,15 +148,19 @@ DEFAULT_SKILLS = (
     "analyze",
     "pull-data",
     "capabilities",
-    "show-imagery",
     "concessions-layer",
     "wri-insights",
     "dashboard",
     "explore",
 )
 # Standalone tools no skill's workflow owns, bound directly on top of the
-# core toolbox.
-DEFAULT_TOOLS = (update_insight_display_spec,)
+# core toolbox. The imagery tools need no skill: their descriptions and the
+# "Show imagery" line of the work section hold all their guidance.
+DEFAULT_TOOLS = (
+    show_imagery_spec,
+    show_planet_imagery_spec,
+    update_insight_display_spec,
+)
 # Datasets hidden from normal traffic; revealed by opting into a flag whose
 # profile omits them (see EXPERIMENTAL_PROFILE below).
 DEFAULT_EXCLUDED_DATASETS = frozenset({"Land GHG Monitoring System (LGMS)"})

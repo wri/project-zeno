@@ -17,7 +17,6 @@ from src.agent.datasets.curated_only import (
     CURATED_ONLY_SESSION_NOTE,
     is_curated_only,
 )
-from src.agent.imagery_view_status import find_imagery, imagery_result
 from src.agent.language import DEFAULT_LANGUAGE, language_name
 from src.agent.view_pages import get_page, on_screen_counts
 
@@ -94,21 +93,11 @@ def format_session_block(state: dict) -> str:
     if imagery:
         provider = imagery.get("provider") or "sentinel-2"
         line = f"Imagery: {provider} around {imagery.get('target_date')}"
-        if imagery.get("render") == "client":
-            # Searched in the browser: the map reports the result in the
-            # view context of each message. Absent in the turn of the
-            # show_imagery call itself (the view predates it), and when the
-            # user hid or removed the imagery.
-            shown = find_imagery(
-                state.get("view_context"), imagery.get("mosaic_id")
-            )
+        if imagery.get("window_days") is not None:
             line += (
-                f" (map: {imagery_result(shown)})"
-                if shown
-                else " (no map report: it comes with the next user message)"
+                f" (±{imagery['window_days']} days, "
+                f"<{imagery.get('max_cloud_cover')}% cloud)"
             )
-        elif imagery.get("item_count") is not None:
-            line += f" ({imagery.get('item_count')} scenes)"
         lines.append(line)
     else:
         lines.append("Imagery: none")

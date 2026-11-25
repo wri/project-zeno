@@ -6,15 +6,15 @@ from datetime import date
 import pytest
 
 from src.shared.imagery_recipe import (
+    ImageryRecipe,
     InvalidRecipeError,
-    MosaicRecipe,
     decode_recipe,
     encode_recipe,
 )
 
 # The same tokens the frontend tests pin (project-zeno-next
 # src/features/imagery/model/__tests__/request.test.ts).
-TWO_AREAS = MosaicRecipe(
+TWO_AREAS = ImageryRecipe(
     aois=(("gadm", "PER.11.3_1"), ("kba", "Pacaya-Samiria é")),
     target_date=date(2026, 6, 15),
     window_days=30,
@@ -24,10 +24,16 @@ TWO_AREAS_TOKEN = (
     "eyJhIjpbWyJnYWRtIiwiUEVSLjExLjNfMSJdLFsia2JhIiwiUGFjYXlhLVNhbWlyaWEg"
     "XHUwMGU5Il1dLCJjIjo1MCwiZCI6IjIwMjYtMDYtMTUiLCJuIjo1MCwidyI6MzB9"
 )
-CUSTOM = MosaicRecipe(
-    aois=(("custom", "abc"),), target_date=date(2026, 6, 15), user_id="u-1"
+CUSTOM = ImageryRecipe(
+    aois=(("custom", "abc"),), target_date=date(2026, 6, 15)
 )
 CUSTOM_TOKEN = (
+    "eyJhIjpbWyJjdXN0b20iLCJhYmMiXV0sImMiOjUwLCJkIjoiMjAyNi0wNi0xNSIsIm4i"
+    "OjUwLCJ3Ijo3fQ"
+)
+# Tokens written before browser rendering carry the owner of a custom area
+# ("u"). It is no longer used and decodes away.
+OLD_CUSTOM_TOKEN = (
     "eyJhIjpbWyJjdXN0b20iLCJhYmMiXV0sImMiOjIwLCJkIjoiMjAyNi0wNi0xNSIsIm4i"
     "OjUwLCJ1IjoidS0xIiwidyI6N30"
 )
@@ -41,6 +47,12 @@ def test_token_matches_the_frontend():
 def test_token_round_trips():
     assert decode_recipe(TWO_AREAS_TOKEN) == TWO_AREAS
     assert decode_recipe(CUSTOM_TOKEN) == CUSTOM
+
+
+def test_old_tokens_with_an_owner_still_decode():
+    recipe = decode_recipe(OLD_CUSTOM_TOKEN)
+    assert recipe.aois == (("custom", "abc"),)
+    assert recipe.max_cloud_cover == 20
 
 
 @pytest.mark.parametrize(

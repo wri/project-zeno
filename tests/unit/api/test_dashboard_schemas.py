@@ -174,17 +174,25 @@ class TestMapWidgetConfig:
         )
         assert body.config["imagery"]["mosaic_id"] == "abc123"
 
-    def test_client_imagery_needs_no_tile_url(self):
+    def test_sentinel2_imagery_needs_no_tile_url(self):
         body = DashboardWidgetCreateRequest(
             widget_type="map",
-            config={"imagery": {"render": "client", "mosaic_id": "tok"}},
+            config={"imagery": {"provider": "sentinel-2", "mosaic_id": "tok"}},
         )
-        assert body.config["imagery"]["render"] == "client"
+        assert body.config["imagery"]["mosaic_id"] == "tok"
 
-    def test_client_imagery_requires_mosaic_id(self):
+    def test_sentinel2_imagery_requires_mosaic_id(self):
         with pytest.raises(ValidationError, match="mosaic_id"):
             DashboardWidgetCreateRequest(
-                widget_type="map", config={"imagery": {"render": "client"}}
+                widget_type="map",
+                config={"imagery": {"provider": "sentinel-2"}},
+            )
+
+    def test_planet_imagery_requires_tile_url(self):
+        with pytest.raises(ValidationError, match="tile_url"):
+            DashboardWidgetCreateRequest(
+                widget_type="map",
+                config={"imagery": {"provider": "planet", "mosaic_id": "p"}},
             )
 
     def test_extra_config_keys_tolerated(self):

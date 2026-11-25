@@ -55,15 +55,15 @@ TOOL_DESCRIPTIONS: dict[str, str] = {
         "need those details to answer."
     ),
     "show_imagery": (
-        "Show Sentinel-2 imagery on the map for the AOI in state (pick_aoi "
-        "first). Global, any date. `target_date` (YYYY-MM-DD) is the centre "
-        "of the search window; null shows about the previous two weeks. "
-        "The least cloudy scenes of the window are shown on top. "
-        "`window_days` (default 7, max 183) and `max_cloud_cover` (default "
-        "50 percent) widen the search: raise them only when the defaults "
-        "find no scenes and the user agrees. The map searches the scenes "
-        "after the call; their count and dates come with the next message. "
-        "Regional areas only."
+        "Show Sentinel-2 imagery of the AOI in state (pick_aoi first; "
+        "regional areas up to about 50,000 km²). Global, any date. "
+        "`target_date` (YYYY-MM-DD) centres a search of ±`window_days` "
+        "(default 7, max 183); null means about the past two weeks. With "
+        "alert data, use the alert period's end_date. The least cloudy "
+        "scenes show on top. The map searches after the call: never state a "
+        "scene count. If the user sees no imagery, offer a wider window "
+        "(`window_days=30`), cloudier scenes (`max_cloud_cover=80`, default "
+        '50) or another date. On "try again", loosen both once.'
     ),
     "show_planet_imagery": (
         "Show Planet's high-resolution monthly mosaic for the AOI in state "
@@ -76,7 +76,7 @@ TOOL_DESCRIPTIONS: dict[str, str] = {
         'available Planet imagery). For other places or for "latest" or '
         '"recent" imagery, use show_imagery. Outside its footprint the tool '
         "falls back to Sentinel-2 by itself and says so. Regional areas "
-        "only."
+        "up to about 50,000 km²."
     ),
     "search_blogs": (
         "Research subagent: searches the WRI and LCL Insights articles and "

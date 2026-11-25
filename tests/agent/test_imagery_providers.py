@@ -146,7 +146,6 @@ async def test_sentinel_provider_writes_a_client_recipe():
     )
 
     assert result.status == "success"
-    assert result.imagery.render == "client"
     assert result.imagery.tile_url is None
     recipe = decode_recipe(result.imagery.mosaic_id)
     assert recipe.aois == (("gadm", "CHE.26_1"),)
@@ -155,7 +154,6 @@ async def test_sentinel_provider_writes_a_client_recipe():
     assert recipe.max_cloud_cover == 100
     assert result.imagery.window_days == 60
     assert result.imagery.max_cloud_cover == 100
-    assert result.imagery.item_count is None
 
 
 @pytest.mark.asyncio

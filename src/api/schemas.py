@@ -496,7 +496,6 @@ class VisibleImageryContext(BaseModel):
     model_config = ConfigDict(extra="allow")
     imagery_id: Optional[str] = None  # the recipe token (mosaic_id)
     provider: Optional[str] = None
-    render: Optional[str] = None  # "client" | "tiler"
     status: Optional[str] = None
     aoi_names: Optional[List[str]] = None
     target_date: Optional[str] = None
@@ -825,9 +824,9 @@ class DashboardWidgetCreateRequest(BaseModel):
             "Map widgets: a self-contained layer snapshot under exactly one "
             "of the keys `dataset` (resolved tile_url, optional `layers` for "
             "a multi-layer dataset's independently-toggleable siblings, "
-            "context layers, parameters, dates) or `imagery` (a tiler "
-            "`tile_url`, or `render: client` with the Sentinel-2 recipe "
-            "token in `mosaic_id`); optional `viewport` override — by "
+            "context layers, parameters, dates) or `imagery` (a Planet "
+            "`tile_url`, or the Sentinel-2 recipe token in `mosaic_id`); "
+            "optional `viewport` override — by "
             "default map widgets render fitted to the dashboard's area. "
             "Text widgets: `text` (markdown string) and an optional "
             "`source`: `template` for an analysis template's fixed note, "
@@ -868,7 +867,7 @@ class DashboardWidgetCreateRequest(BaseModel):
         """Map widgets need a renderable layer snapshot in config.
 
         Only the discriminator and what the layer renders from are checked
-        (a tile_url; for client-rendered imagery the mosaic_id) — the
+        (a tile_url; for Sentinel-2 imagery the mosaic_id) — the
         remaining snapshot keys may evolve without a schema change here.
         """
         if self.widget_type != "map":
@@ -885,7 +884,7 @@ class DashboardWidgetCreateRequest(BaseModel):
             if not is_renderable_imagery(layer):
                 raise ValueError(
                     "map widget imagery config requires a tile_url, or "
-                    "render='client' with a mosaic_id"
+                    "a Sentinel-2 mosaic_id"
                 )
         elif not isinstance(layer, dict) or not layer.get("tile_url"):
             raise ValueError(
