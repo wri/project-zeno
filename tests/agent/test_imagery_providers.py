@@ -167,4 +167,4 @@ async def test_sentinel_provider_defaults_to_previous_two_weeks():
     recipe = decode_recipe(result.imagery.mosaic_id)
     assert recipe.target_date == date.today() - timedelta(days=7)
     assert recipe.window_days == 7
-    assert recipe.max_cloud_cover == 20
+    assert recipe.max_cloud_cover == 50

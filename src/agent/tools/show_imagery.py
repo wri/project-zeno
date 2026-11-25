@@ -115,8 +115,9 @@ async def show_imagery(
     date. target_date (YYYY-MM-DD) is the date the imagery should be closest
     to; pass null when the user requests no date, which shows approximately
     the previous two weeks. window_days (default 7, max 183) widens the
-    search to +/-N days around target_date; max_cloud_cover (default 20,
-    percent) loosens the cloud filter. Only raise them when the defaults find
+    search to +/-N days around target_date; max_cloud_cover (default 50,
+    percent) loosens the cloud filter. The map shows the least cloudy scenes
+    of the window on top. Only raise them when the defaults find
     no scenes and the user agrees. Run pick_aoi first. Regional areas only.
 
     The browser searches and draws the scenes after this call, so the result

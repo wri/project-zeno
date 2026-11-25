@@ -39,8 +39,9 @@ usually fits the map below that zoom.
 
 Global coverage, any date, no dependence on alerts. Use it for recent
 imagery, anywhere outside Planet's footprint, and any request not tied to
-alerts. Defaults to scenes within ±7 days of the target date under 20% cloud
-cover.
+alerts. Defaults to scenes within ±7 days of the target date under 50% cloud
+cover; the map puts the least cloudy scenes of that window on top, so the
+imagery shown can be from any day in the window, not only the target date.
 
 The map searches the scenes **after** the call, so the tool message has no
 scene count or dates. The map reports them with the user's next message,
@@ -76,10 +77,10 @@ searched and offer the levers:
 
 - **Widen the date window**: `window_days=30` (or 60 for cloudy regions) —
   imagery may be further from the requested date.
-- **Allow cloudier scenes**: `max_cloud_cover=50` (or 80 as a last resort) —
+- **Allow cloudier scenes**: `max_cloud_cover=80` (or 100 as a last resort) —
   imagery may be partly obscured.
 - A different `target_date` (e.g. dry season) is often the best fix.
 
 Once the user picks an option, call `show_imagery` again with that parameter.
 If they just say "try again" or "whatever works", retry once with
-`window_days=30, max_cloud_cover=50` and say you loosened both.
+`window_days=30, max_cloud_cover=80` and say you loosened both.

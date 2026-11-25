@@ -56,10 +56,11 @@ TOOL_DESCRIPTIONS: dict[str, str] = {
     ),
     "show_imagery": (
         "Show Sentinel-2 imagery on the map for the AOI in state (pick_aoi "
-        "first). Global, any date. `target_date` (YYYY-MM-DD) is the date to "
-        "be closest to; null shows about the previous two weeks. "
+        "first). Global, any date. `target_date` (YYYY-MM-DD) is the centre "
+        "of the search window; null shows about the previous two weeks. "
+        "The least cloudy scenes of the window are shown on top. "
         "`window_days` (default 7, max 183) and `max_cloud_cover` (default "
-        "20 percent) widen the search: raise them only when the defaults "
+        "50 percent) widen the search: raise them only when the defaults "
         "find no scenes and the user agrees. The map searches the scenes "
         "after the call; their count and dates come with the next message. "
         "Regional areas only."

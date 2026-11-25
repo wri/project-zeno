@@ -40,7 +40,7 @@ async def test_writes_a_client_recipe_and_no_tile_url():
 async def test_message_states_the_request_not_a_scene_count():
     result = await Sentinel2ImageryProvider().get_imagery(request())
     assert result.message == (
-        "Sentinel-2 imagery for Jaru around 2026-11-10 (±7 days, under 20% "
+        "Sentinel-2 imagery for Jaru around 2026-11-10 (±7 days, under 50% "
         "cloud cover) is shown on the map."
     )
 
@@ -52,7 +52,7 @@ async def test_defaults_to_the_past_two_weeks():
     assert (
         imagery.target_date == (date.today() - timedelta(days=7)).isoformat()
     )
-    assert (imagery.window_days, imagery.max_cloud_cover) == (7, 20)
+    assert (imagery.window_days, imagery.max_cloud_cover) == (7, 50)
 
 
 async def test_clamps_the_search_parameters():
@@ -75,3 +75,11 @@ async def test_custom_areas_carry_their_owner():
             )
         ).imagery
     assert decode_recipe(imagery.mosaic_id).user_id == "u-9"
+
+
+async def test_numeric_src_ids_are_written_as_strings():
+    numeric = {"source": "wdpa", "src_id": 555555, "name": "Paracas"}
+    imagery = (
+        await Sentinel2ImageryProvider().get_imagery(request(aois=[numeric]))
+    ).imagery
+    assert decode_recipe(imagery.mosaic_id).aois == (("wdpa", "555555"),)

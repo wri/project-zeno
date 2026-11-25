@@ -69,11 +69,11 @@ class LayerWidgetSpec(_WidgetSpec):
 
 
 class ImageryWidgetSpec(_WidgetSpec):
-    """A map widget with a Sentinel-2 mosaic of the area at the period end."""
+    """A map widget with Sentinel-2 imagery of the area at the period end."""
 
     kind: Literal["imagery"] = "imagery"
     window_days: int = 7
-    max_cloud_cover: int = 20
+    max_cloud_cover: int = 50
     required: bool = False
 
 

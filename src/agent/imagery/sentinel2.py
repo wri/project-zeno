@@ -21,7 +21,9 @@ from src.shared.imagery_recipe import MosaicRecipe, encode_recipe
 from src.shared.request_context import current_user_id
 
 DEFAULT_WINDOW_DAYS = 7
-DEFAULT_MAX_CLOUD_COVER = 20
+# Loose on purpose: the map ranks scenes least cloudy first, so a high limit
+# only adds fallback scenes where nothing clearer covers the area.
+DEFAULT_MAX_CLOUD_COVER = 50
 
 
 def resolve_recipe(request: ImageryRequest) -> MosaicRecipe:
@@ -29,7 +31,11 @@ def resolve_recipe(request: ImageryRequest) -> MosaicRecipe:
 
     No date means about the past two weeks: target a week ago, ±7 days.
     """
-    aoi_refs = tuple((aoi["source"], aoi["src_id"]) for aoi in request.aois)
+    # src_id as a string: some sources have numeric ids, and the frontend
+    # reads (and rebuilds) the token with string ids.
+    aoi_refs = tuple(
+        (aoi["source"], str(aoi["src_id"])) for aoi in request.aois
+    )
     user_id = None
     if any(source == "custom" for source, _ in aoi_refs):
         # Custom areas belong to a user: the geometry endpoint scopes the

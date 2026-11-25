@@ -133,11 +133,11 @@
         "search_insights": 434,
         "send_nudge": 551,
         "show_boundary_layer": 601,
-        "show_imagery": 852,
+        "show_imagery": 914,
         "show_planet_imagery": 878,
         "update_insight_display": 834
       },
-      "tools_total": 15034
+      "tools_total": 15096
     },
     "experimental": {
       "system_prompt": 10914,
@@ -161,11 +161,11 @@
         "search_insights": 434,
         "send_nudge": 551,
         "show_boundary_layer": 601,
-        "show_imagery": 852,
+        "show_imagery": 914,
         "show_planet_imagery": 878,
         "update_insight_display": 834
       },
-      "tools_total": 16368
+      "tools_total": 16430
     },
     "lgms": {
       "system_prompt": 10914,
@@ -188,11 +188,11 @@
         "search_insights": 434,
         "send_nudge": 551,
         "show_boundary_layer": 601,
-        "show_imagery": 852,
+        "show_imagery": 914,
         "show_planet_imagery": 878,
         "update_insight_display": 834
       },
-      "tools_total": 15034
+      "tools_total": 15096
     }
   },
   "skills": {
@@ -202,7 +202,7 @@
     "dashboard": 7332,
     "explore": 1823,
     "pull-data": 1610,
-    "show-imagery": 3904,
+    "show-imagery": 4047,
     "wri-insights": 3371
   }
 }
