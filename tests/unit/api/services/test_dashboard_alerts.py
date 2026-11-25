@@ -42,6 +42,12 @@ RIVER_FARM = {
     "subtype": "custom-area",
     "name": "River farm",
 }
+CURITIBA = {
+    "source": "gadm",
+    "src_id": "BRA.16.137.1_1",
+    "subtype": "municipality",
+    "name": "Curitiba",
+}
 MONDAY = date(2026, 10, 12)
 WEEK = (date(2026, 10, 4), date(2026, 10, 10))
 LATEST_ALERT_DATE = date(2026, 10, 9)
@@ -243,10 +249,9 @@ async def test_summarize_reports_a_failed_request_on_every_dashboard():
     "aoi",
     [
         None,
-        {**PARANA, "subtype": "municipality"},
         {**PARANA, "source": "wdpa", "subtype": "protected-area"},
     ],
-    ids=["no-aoi", "unsupported-level", "protected-area"],
+    ids=["no-aoi", "protected-area"],
 )
 async def test_summarize_leaves_out_unsupported_aois(aoi):
     source = FakeAlertsSource()
@@ -295,6 +300,25 @@ async def test_summarize_pulls_admin_areas_together_and_custom_areas_alone():
         also_mine: DashboardAlerts(integrated_alerts=3.0),
         farm: DashboardAlerts(integrated_alerts=0.5),
     }
+
+
+# The API computes admin levels 3 to 5 on the fly, and never in a request
+# with levels 0 to 2.
+@pytest.mark.asyncio
+async def test_summarize_pulls_each_admin_area_below_district_alone():
+    source = FakeAlertsSource({"BRA.16_1": 12.5, CURITIBA["src_id"]: 1.5})
+    parana, para, curitiba = uuid4(), uuid4(), uuid4()
+
+    report = await _service(source).summarize(
+        {parana: PARANA, para: PARA, curitiba: CURITIBA}
+    )
+
+    assert _requested_src_ids(source) == sorted(
+        [("BRA.16_1", "BRA.14_1"), (CURITIBA["src_id"],)]
+    )
+    assert report.dashboards[curitiba] == DashboardAlerts(
+        integrated_alerts=1.5
+    )
 
 
 @pytest.mark.asyncio

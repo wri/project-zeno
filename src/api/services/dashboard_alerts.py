@@ -14,6 +14,7 @@ import httpx
 import pandas as pd
 
 from src.agent.datasets.handlers.analytics_handler import (
+    ADMIN_SUBTYPES,
     ANALYTICS_ADMIN_SUBTYPES,
     INTEGRATED_ALERTS_ID,
     analytics_api_headers,
@@ -136,6 +137,14 @@ def is_custom_area(aoi: dict) -> bool:
 
 def supports_alerts(aoi: dict) -> bool:
     return is_custom_area(aoi) or (
+        aoi["source"] == "gadm" and aoi["subtype"] in ADMIN_SUBTYPES
+    )
+
+
+def has_precomputed_alerts(aoi: dict) -> bool:
+    """Whether the analytics API reads the area's alerts from precomputed
+    results, which it serves for many areas in one request."""
+    return (
         aoi["source"] == "gadm" and aoi["subtype"] in ANALYTICS_ADMIN_SUBTYPES
     )
 
@@ -208,19 +217,26 @@ class DashboardAlertsService:
     async def _alerts_by_src_id(
         self, aois: list[dict], start: date, end: date
     ) -> dict[str, DashboardAlerts]:
-        """GADM areas in one request, each custom area in its own: the
-        analytics API refuses a whole request for one unsaved custom area,
-        so one unsaved, deleted or slow area must not fail or hold up the
-        others."""
-        admin_alerts, custom_alerts = await asyncio.gather(
+        """Precomputed areas in one request, every other area in its own.
+
+        The analytics API refuses a whole request for one unsaved custom
+        area, and computes custom areas and GADM levels 3 to 5 on the fly,
+        never mixed with precomputed levels. So one unsaved, deleted or slow
+        area must not fail or hold up the others.
+        """
+        precomputed_alerts, computed_alerts = await asyncio.gather(
             self._pull(
-                [aoi for aoi in aois if not is_custom_area(aoi)], start, end
+                [aoi for aoi in aois if has_precomputed_alerts(aoi)],
+                start,
+                end,
             ),
             self._pull_each(
-                [aoi for aoi in aois if is_custom_area(aoi)], start, end
+                [aoi for aoi in aois if not has_precomputed_alerts(aoi)],
+                start,
+                end,
             ),
         )
-        return {**admin_alerts, **custom_alerts}
+        return {**precomputed_alerts, **computed_alerts}
 
     async def _pull_each(
         self, aois: list[dict], start: date, end: date

@@ -70,14 +70,14 @@ async def test_alerts_list(client, auth_override, fake_alerts_list_service):
 async def test_alerts_list_refuses_an_unsupported_area(
     client, auth_override, fake_alerts_list_service
 ):
-    user = await _create_user("alerts-municipality")
+    user = await _create_user("alerts-unknown-area")
     auth_override(user.id)
 
     response = await client.post(
         "/api/alerts/list",
         headers=AUTH,
-        json={**BODY, "subtype": "municipality"},
+        json={**BODY, "subtype": "planet"},
     )
 
     assert response.status_code == 422
-    assert "municipality" in response.json()["detail"]
+    assert "planet" in response.json()["detail"]
