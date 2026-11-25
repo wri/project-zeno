@@ -51,15 +51,15 @@ async def test_my_areas_lists_the_users_custom_areas_without_geometry(
     auth_override("test-user-wri")
     area_id = await create_custom_area(client, "Farm plot")
 
-    (entry,) = await list_user_aois(client)
+    (user_aoi,) = await list_user_aois(client)
 
-    assert entry["relationship"] == "owner"
-    assert entry["name"] == "Farm plot"
-    assert entry["source"] == "custom"
-    assert entry["src_id"] == area_id
-    assert entry["subtype"] == "custom-area"
-    assert entry["bbox"] == pytest.approx([29.0, -2.0, 30.0, -1.0])
-    assert "geometry" not in entry and "geometries" not in entry
+    assert user_aoi["relationship"] == "owner"
+    assert user_aoi["name"] == "Farm plot"
+    assert user_aoi["source"] == "custom"
+    assert user_aoi["src_id"] == area_id
+    assert user_aoi["subtype"] == "custom-area"
+    assert user_aoi["bbox"] == pytest.approx([29.0, -2.0, 30.0, -1.0])
+    assert "geometry" not in user_aoi and "geometries" not in user_aoi
 
 
 @pytest.mark.asyncio
@@ -181,10 +181,10 @@ async def test_renaming_a_saved_area_changes_only_the_users_label(
 ):
     auth_override("test-user-wri")
     await seed_reference_aoi("gadm", "BRA", "Brazil", "country")
-    entry_id = (await save_area(client, "gadm", "BRA")).json()["id"]
+    user_aoi_id = (await save_area(client, "gadm", "BRA")).json()["id"]
 
     res = await client.patch(
-        f"/api/user_aois/{entry_id}", json={"name": "Project"}, headers=AUTH
+        f"/api/user_aois/{user_aoi_id}", json={"name": "Project"}, headers=AUTH
     )
 
     assert res.status_code == 200, res.text
@@ -202,9 +202,9 @@ async def test_deleting_a_saved_area_removes_only_the_link(
 ):
     auth_override("test-user-wri")
     await seed_reference_aoi("gadm", "BRA", "Brazil", "country")
-    entry_id = (await save_area(client, "gadm", "BRA")).json()["id"]
+    user_aoi_id = (await save_area(client, "gadm", "BRA")).json()["id"]
 
-    res = await client.delete(f"/api/user_aois/{entry_id}", headers=AUTH)
+    res = await client.delete(f"/api/user_aois/{user_aoi_id}", headers=AUTH)
 
     assert res.status_code == 204, res.text
     assert await list_user_aois(client) == []
@@ -212,15 +212,15 @@ async def test_deleting_a_saved_area_removes_only_the_link(
 
 
 @pytest.mark.asyncio
-async def test_renaming_and_deleting_an_owned_entry_acts_on_the_custom_area(
+async def test_renaming_and_deleting_an_owned_user_aoi_acts_on_the_custom_area(
     auth_override, client, custom_aoi_analytics
 ):
     auth_override("test-user-wri")
     area_id = await create_custom_area(client, "Old name")
-    (entry,) = await list_user_aois(client)
+    (user_aoi,) = await list_user_aois(client)
 
     res = await client.patch(
-        f"/api/user_aois/{entry['id']}",
+        f"/api/user_aois/{user_aoi['id']}",
         json={"name": "New name"},
         headers=AUTH,
     )
@@ -228,7 +228,7 @@ async def test_renaming_and_deleting_an_owned_entry_acts_on_the_custom_area(
     area = await client.get(f"/api/custom_areas/{area_id}", headers=AUTH)
     assert area.json()["name"] == "New name"
 
-    res = await client.delete(f"/api/user_aois/{entry['id']}", headers=AUTH)
+    res = await client.delete(f"/api/user_aois/{user_aoi['id']}", headers=AUTH)
     assert res.status_code == 204, res.text
     area = await client.get(f"/api/custom_areas/{area_id}", headers=AUTH)
     assert area.status_code == 404
@@ -236,17 +236,19 @@ async def test_renaming_and_deleting_an_owned_entry_acts_on_the_custom_area(
 
 
 @pytest.mark.asyncio
-async def test_users_cannot_change_another_users_entry(
+async def test_users_cannot_change_another_users_area(
     auth_override, client, user_ds
 ):
     auth_override("test-user-wri")
     await seed_reference_aoi("gadm", "BRA", "Brazil", "country")
-    entry_id = (await save_area(client, "gadm", "BRA")).json()["id"]
+    user_aoi_id = (await save_area(client, "gadm", "BRA")).json()["id"]
 
     auth_override("test-user-ds")
     renamed = await client.patch(
-        f"/api/user_aois/{entry_id}", json={"name": "Mine"}, headers=AUTH
+        f"/api/user_aois/{user_aoi_id}", json={"name": "Mine"}, headers=AUTH
     )
-    deleted = await client.delete(f"/api/user_aois/{entry_id}", headers=AUTH)
+    deleted = await client.delete(
+        f"/api/user_aois/{user_aoi_id}", headers=AUTH
+    )
 
     assert (renamed.status_code, deleted.status_code) == (404, 404)

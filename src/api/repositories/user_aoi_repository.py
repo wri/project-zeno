@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 # An owner link may be backfilled long after its custom area was drawn, so an
 # owned area is dated by the area itself; a saved area by when it was saved.
-ENTRY_SELECT = """
+USER_AOI_SELECT = """
     SELECT
         ua.id,
         ua.relationship,
@@ -25,14 +25,14 @@ ENTRY_SELECT = """
 """
 
 LIST_USER_AOIS_SQL = text(
-    ENTRY_SELECT
+    USER_AOI_SELECT
     + """
     ORDER BY created_at DESC, ua.id
     LIMIT :limit OFFSET :offset
     """
 )
 
-SELECT_USER_AOI_SQL = text(ENTRY_SELECT + " AND ua.id = :entry_id")
+SELECT_USER_AOI_SQL = text(USER_AOI_SELECT + " AND ua.id = :user_aoi_id")
 
 SELECT_REFERENCE_AOI_ID_SQL = text(
     """
@@ -63,11 +63,11 @@ async def list_user_aois(
 
 
 async def select_user_aoi(
-    session: AsyncSession, user_id: str, entry_id: UUID
+    session: AsyncSession, user_id: str, user_aoi_id: UUID
 ) -> Optional[RowMapping]:
     """Select one of a user's areas, or None if it isn't theirs."""
     result = await session.execute(
-        SELECT_USER_AOI_SQL, {"user_id": user_id, "entry_id": entry_id}
+        SELECT_USER_AOI_SQL, {"user_id": user_id, "user_aoi_id": user_aoi_id}
     )
     return result.mappings().first()
 
@@ -92,21 +92,21 @@ async def insert_saved_aoi(
 
 
 async def update_saved_aoi_name(
-    session: AsyncSession, entry_id: UUID, name: str
+    session: AsyncSession, user_aoi_id: UUID, name: str
 ) -> None:
     """Set a user's own label for a saved area."""
     await session.execute(
         text(
             "UPDATE user_aois SET name = :name, updated_at = now() "
-            "WHERE id = :entry_id"
+            "WHERE id = :user_aoi_id"
         ),
-        {"entry_id": entry_id, "name": name},
+        {"user_aoi_id": user_aoi_id, "name": name},
     )
 
 
-async def delete_saved_aoi(session: AsyncSession, entry_id: UUID) -> None:
+async def delete_saved_aoi(session: AsyncSession, user_aoi_id: UUID) -> None:
     """Remove a saved area from a user's areas."""
     await session.execute(
-        text("DELETE FROM user_aois WHERE id = :entry_id"),
-        {"entry_id": entry_id},
+        text("DELETE FROM user_aois WHERE id = :user_aoi_id"),
+        {"user_aoi_id": user_aoi_id},
     )
