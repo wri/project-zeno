@@ -11,6 +11,7 @@ gives the orchestrator the data and the facts to answer from
 """
 
 import dataclasses
+from collections import Counter
 from typing import Optional, Sequence
 
 from src.agent.datasets.curated_only import is_curated_only
@@ -36,6 +37,10 @@ from src.api.services.charts.views import ChartView, get_view
 # A chart with more rows than this gets its facts only (for example the
 # alerts of each day of a long period).
 MAX_MESSAGE_ROWS = 120
+
+# The areas with no value that a ranking fact names; above this it gives the
+# count only.
+MAX_ZERO_AREA_NAMES = 20
 
 # Model-facing, so English like the other tool instructions. The last part
 # of the tool message of a curated chart.
@@ -182,10 +187,100 @@ def _column_header(column: str) -> str:
     return f"{column} ({unit})" if unit else column
 
 
+def is_ranking(chart: InsightChart) -> bool:
+    """True for the chart of a view that ranks several areas. Read from the
+    view, not from the chart type: a restyled ranking keeps its view and
+    its rows."""
+    view = get_view(chart.view_id) if chart.view_id else None
+    return view is not None and view.shape == "several_areas"
+
+
+def _area_labels(rows: Sequence[dict]) -> list[str]:
+    """The name of each ranked area; "name · parent" when the name repeats
+    in the chart."""
+    counts = Counter(row.get("name") for row in rows)
+    return [
+        f"{row.get('name')} · {row['parent']}"
+        if counts[row.get("name")] > 1 and row.get("parent")
+        else str(row.get("name"))
+        for row in rows
+    ]
+
+
+def format_ranking_rows(chart: InsightChart) -> str:
+    """The ranked areas as a table of rank, name, value and share (when the
+    rows have it). The first `MAX_MESSAGE_ROWS` areas; a note counts the
+    rest."""
+    rows = chart.chart_data
+    shown = rows[:MAX_MESSAGE_ROWS]
+    with_share = any("share_pct" in row for row in shown)
+    columns = ["rank", "name", _column_header(chart.y_axis)]
+    if with_share:
+        columns.append(_column_header("share_pct"))
+    lines = [" | ".join(columns)]
+    for label, row in zip(_area_labels(rows), shown):
+        cells = [_cell(row.get("rank")), label, _cell(row.get(chart.y_axis))]
+        if with_share:
+            cells.append(_cell(row.get("share_pct")))
+        lines.append(" | ".join(cells))
+    rest = rows[len(shown) :]
+    if rest:
+        smaller = (rest[0].get(chart.y_axis) or 0) < (
+            shown[-1].get(chart.y_axis) or 0
+        )
+        lines.append(
+            f"{len(rest)} more areas, each with "
+            f"{'less' if smaller else 'the same or less'}"
+        )
+    return "\n".join(lines)
+
+
+def _areas(count: int) -> str:
+    return f"{count} area" if count == 1 else f"{count} areas"
+
+
+def ranking_fact_sentences(chart: InsightChart) -> list[str]:
+    """The facts of a ranking of areas, from the rows of the chart: the
+    number of areas, the total when the rows have shares, and the areas with
+    a value of 0. A saved ranking gives the same facts on a recall."""
+    rows = chart.chart_data
+    measure = _column_header(chart.y_axis)
+    sentences = [
+        f"{_areas(len(rows))} ranked by {measure}, largest first. Areas "
+        "with the same value share a rank."
+    ]
+    if rows and all("share_pct" in row for row in rows):
+        total = round(sum(row.get(chart.y_axis) or 0 for row in rows), 2)
+        sentences.append(
+            f"Total over the {_areas(len(rows))}: {_cell(total)} "
+            f"{unit_of(chart.y_axis)}. A share is the percent of this "
+            "total."
+        )
+    else:
+        sentences.append(
+            "No total and no share are given: these areas may overlap, so "
+            "a total over them could count the same ground twice."
+        )
+    labels = _area_labels(rows)
+    zero = [
+        label for label, row in zip(labels, rows) if not row.get(chart.y_axis)
+    ]
+    if zero:
+        names = (
+            f": {', '.join(zero)}" if len(zero) <= MAX_ZERO_AREA_NAMES else ""
+        )
+        sentences.append(
+            f"{_areas(len(zero))} with a value of 0 for {measure}{names}."
+        )
+    return sentences
+
+
 def format_rows(chart: InsightChart) -> str:
     """The rows of a chart as a table of the x axis and the measures, each
     value in full. A chart with too many rows gets a note in place of the
     table."""
+    if is_ranking(chart):
+        return format_ranking_rows(chart)
     columns = [chart.x_axis, *measures(chart)]
     if len(chart.chart_data) > MAX_MESSAGE_ROWS:
         return (
@@ -304,6 +399,8 @@ def chart_fact_sentences(
     its view (`fact_kinds`, `fact_shares`), then the view's own facts from
     the pulled rows. A saved chart has no pulled rows: it gets the generic
     facts only."""
+    if is_ranking(chart):
+        return ranking_fact_sentences(chart)
     view = get_view(chart.view_id) if chart.view_id else None
     facts = measure_facts(chart)
     if view is not None and view.fact_kinds is not None:
