@@ -3,6 +3,7 @@
 from src.agent.datasets.handlers.analytics_handler import (
     LAND_GHG_INVENTORY_ID,
     SLUC_EMISSION_FACTORS_ID,
+    TREE_COVER_GAIN_ID,
     TREE_COVER_ID,
     TREE_COVER_LOSS_ID,
 )
@@ -11,6 +12,7 @@ from src.api.services.charts.gate import (
     charts_with_data,
     count_areas,
     has_data,
+    shape_fits,
     view_gate,
 )
 from src.api.services.charts.views import VIEWS, agent_views, get_view
@@ -34,6 +36,8 @@ def test_the_enabled_views():
     assert {v.id for v in VIEWS if v.agent_enabled} == {
         "tcl.annual_loss",
         "tcl.annual_emissions",
+        "tcl.loss_ranking",
+        "tcl.emissions_ranking",
         "tcl_by_driver.by_driver",
         "grasslands.by_year",
         "land_cover.composition",
@@ -48,6 +52,8 @@ def test_the_enabled_views():
     assert [v.id for v in agent_views(TREE_COVER_LOSS_ID)] == [
         "tcl.annual_loss",
         "tcl.annual_emissions",
+        "tcl.loss_ranking",
+        "tcl.emissions_ranking",
     ]
     assert agent_views(SLUC_EMISSION_FACTORS_ID) == []
     # LGMS keeps its curated-only path.
@@ -72,11 +78,33 @@ def test_view_gate_one_area():
     ]
 
 
-def test_view_gate_several_areas_fail_a_one_area_view():
-    gate = view_gate(TREE_COVER_LOSS_ID, 3)
+def test_view_gate_several_areas_give_the_rankings():
+    for count in (2, 3, 47):
+        gate = view_gate(TREE_COVER_LOSS_ID, count)
 
+        assert gate.passed
+        assert gate.title_keys == [
+            "charts.tcl.loss_ranking",
+            "charts.tcl.emissions_ranking",
+        ]
+
+
+def test_a_several_areas_view_needs_two_areas():
+    ranking = get_view("tcl.loss_ranking")
+
+    assert ranking.shape == "several_areas"
+    assert not shape_fits(ranking, 1)
+    assert shape_fits(ranking, 2)
+    assert not shape_fits(get_view("tcl.annual_loss"), 2)
+
+
+def test_view_gate_fails_for_several_areas_of_a_dataset_with_no_ranking():
+    gate = view_gate(SLUC_EMISSION_FACTORS_ID, 3)
     assert not gate.passed
-    assert "3 areas" in gate.reason
+    # An enabled one-area view only: tree cover gain.
+    gain = view_gate(TREE_COVER_GAIN_ID, 3)
+    assert not gain.passed
+    assert "3 areas" in gain.reason
 
 
 def test_view_gate_fails_without_an_enabled_view():

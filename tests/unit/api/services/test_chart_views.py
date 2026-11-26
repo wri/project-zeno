@@ -69,6 +69,8 @@ def test_views_of_a_dataset_leave_out_template_only_views():
     assert [v.id for v in views_for_dataset(TREE_COVER_LOSS_ID)] == [
         "tcl.annual_loss",
         "tcl.annual_emissions",
+        "tcl.loss_ranking",
+        "tcl.emissions_ranking",
     ]
     assert "tcl_natural_forest.annual_split" in [
         v.id for v in views_for_dataset(TREE_COVER_LOSS_ID, from_pull=False)
