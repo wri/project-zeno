@@ -817,6 +817,26 @@ def test_ranking_rows_name_the_parent_of_a_repeated_name_only():
     assert lines[3] == "3 | Belém | 1"
 
 
+def test_ranking_rows_with_the_same_label_name_their_id():
+    chart = _ranking_chart(
+        [
+            _ranked_row(1, "Reserva", 9, None, area_id="555123"),
+            _ranked_row(2, "Reserva", 5, None, area_id="555124"),
+            _ranked_row(3, "Bom Jesus", 3, "Piauí", area_id="BRA.1.1"),
+            _ranked_row(4, "Bom Jesus", 2, "Piauí", area_id="BRA.1.2"),
+            _ranked_row(5, "Belém", 1, "Pará", area_id="BRA.3.1"),
+        ]
+    )
+
+    lines = format_rows(chart).splitlines()
+
+    assert lines[1] == "1 | Reserva (555123) | 9"
+    assert lines[2] == "2 | Reserva (555124) | 5"
+    assert lines[3] == "3 | Bom Jesus · Piauí (BRA.1.1) | 3"
+    assert lines[4] == "4 | Bom Jesus · Piauí (BRA.1.2) | 2"
+    assert lines[5] == "5 | Belém | 1"
+
+
 def test_ranking_rows_without_shares_have_no_share_column():
     chart = _ranking_chart([_ranked_row(1, "A", 2), _ranked_row(2, "B", 1)])
 

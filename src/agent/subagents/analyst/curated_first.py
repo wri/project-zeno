@@ -229,13 +229,20 @@ def is_ranking(chart: InsightChart) -> bool:
 
 def _area_labels(rows: Sequence[dict]) -> list[str]:
     """The name of each ranked area; "name · parent" when the name repeats
-    in the chart."""
+    in the chart, and "(id)" after that when the label still repeats."""
     counts = Counter(row.get("name") for row in rows)
-    return [
+    labels = [
         f"{row.get('name')} · {row['parent']}"
         if counts[row.get("name")] > 1 and row.get("parent")
         else str(row.get("name"))
         for row in rows
+    ]
+    label_counts = Counter(labels)
+    return [
+        f"{label} ({row['aoi_id']})"
+        if label_counts[label] > 1 and row.get("aoi_id") is not None
+        else label
+        for label, row in zip(labels, rows)
     ]
 
 
