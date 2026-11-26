@@ -1,5 +1,5 @@
 id: 1-147
-uid: 7ae3b333bddc6820
+uid: f06f6f4391fabdf6
 status: todo
 group: ranking
 query: Rank the provinces of Bolivia by tree cover loss in 2024. Where does Cercado province
@@ -13,7 +13,7 @@ expected:
   text: Gives the rank of Cercado province in Beni department among Bolivia's provinces, and
     does not give the rank or loss of another province named Cercado (in Cochabamba, Oruro
     or Tarija) as Beni's.
-  answer: 26th of Bolivia's 112 provinces (4,981 hectares)
+  answer: 4,981 hectares (26th of Bolivia's 112 provinces)
   scope: analyse
 notes:
   answer_source: '2026-11-26: production analytics API, the payload of the GOLD request builder
@@ -28,5 +28,9 @@ notes:
     are named Cercado (BOL.2.8_2 Cochabamba, BOL.3.1_2 Beni, BOL.5.3_2 Oruro, BOL.9.3_2 Tarija).
     The tool message must tell them apart ("Cercado · Beni"), and the answer must use the
     right one. 112 areas also gives 12 pages.'
+  answer_order: '2026-11-26: the value comes first in answer because the deterministic checks
+    (charts_answer, ground-truth match) take the first number in the answer. It was the rank
+    (26), which the ranked-bar chart never holds, so charts_answer failed on every run. The
+    rank stays in the text for the judged answer check and in expected.text.'
   chart_route: ranked-bar is decided by the code gate once the agent picks the standard route,
     so a CodeAct chart here is a routing regression, not chart-choice noise.
