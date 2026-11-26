@@ -1,0 +1,22 @@
+id: 1-145
+uid: b0995f66820eec82
+status: todo
+group: ranking
+query: Rank the counties of Kenya by tree cover loss from 2001 to 2024. Which county lost
+  the most?
+expected:
+  aoi_ids: KEN.1_1;KEN.2_1;KEN.3_1;KEN.4_1;KEN.5_1;KEN.6_1;KEN.7_1;KEN.8_1;KEN.9_1;KEN.10_1;KEN.11_1;KEN.12_1;KEN.13_1;KEN.14_1;KEN.15_1;KEN.16_1;KEN.17_1;KEN.18_1;KEN.19_1;KEN.20_1;KEN.21_1;KEN.22_1;KEN.23_1;KEN.24_1;KEN.25_1;KEN.26_1;KEN.27_1;KEN.28_1;KEN.29_1;KEN.30_1;KEN.31_1;KEN.32_1;KEN.33_1;KEN.34_1;KEN.35_1;KEN.36_1;KEN.37_1;KEN.38_1;KEN.39_1;KEN.40_1;KEN.41_1;KEN.42_1;KEN.43_1;KEN.44_1;KEN.45_1;KEN.46_1;KEN.47_1
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  chart_type: ranked-bar
+  scope: analyse
+notes:
+  status_reason: '2026-11-26: held until the curated ranking chart ships (PZB-1728). Before
+    that the first chart is a CodeAct chart, so chart_type_match fails. Add a verified answer
+    (the top county) from the local pull in Phase 4 of PRDs/curated-ranking-chart.md before
+    promoting; that edit mints the uid the case is verified at.'
+  purpose: 'More than 10 areas (47 counties, GADM level 1 "County" in KEN): the paged ranking,
+    the selection name in the caption, and a sum over a period of several years.'
+  chart_route: ranked-bar is decided by the code gate once the agent picks the standard route,
+    so a CodeAct chart here is a routing regression, not chart-choice noise.
