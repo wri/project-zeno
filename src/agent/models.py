@@ -9,36 +9,30 @@ class ImageryState(BaseModel):
     provider: Literal["sentinel-2", "planet"] = Field(
         "sentinel-2", description="Imagery provider"
     )
-    tile_url: str = Field(..., description="Tile URL for the imagery layer")
-    tilejson_url: Optional[str] = Field(
-        None, description="TileJSON URL for the imagery layer"
+    tile_url: Optional[str] = Field(
+        None,
+        description=(
+            "Tile URL (Planet). Sentinel-2 has none: the browser searches "
+            "and draws the scenes from the recipe token in mosaic_id."
+        ),
     )
     bounds: Optional[list[float]] = Field(
         None, description="Layer bounds as [west, south, east, north]"
     )
     min_zoom: Optional[int] = Field(None, description="Minimum tile zoom")
     max_zoom: Optional[int] = Field(None, description="Maximum tile zoom")
-    mosaic_id: str = Field(..., description="ID of the mosaic")
-    item_count: Optional[int] = Field(
-        None, description="Number of scenes in the mosaic"
+    mosaic_id: str = Field(
+        ...,
+        description=(
+            "ID of the imagery. For Sentinel-2, the recipe token "
+            "(src/shared/imagery_recipe.py) the frontend decodes."
+        ),
     )
     start_date: Optional[str] = Field(
-        None, description="Inclusive start date of selected imagery, ISO"
+        None, description="Start of the Planet month, ISO"
     )
     end_date: Optional[str] = Field(
-        None, description="Inclusive end date of selected imagery, ISO"
-    )
-    mean_cloud_cover: Optional[float] = Field(
-        None, description="Mean cloud cover across scenes (%)"
-    )
-    min_cloud_cover: Optional[float] = Field(
-        None, description="Minimum cloud cover across scenes (%)"
-    )
-    # Suffixed (unlike mean/min) because max_cloud_cover below is already
-    # taken by the pre-existing search-threshold field; persisted dashboard
-    # widget configs rely on that field keeping its original meaning.
-    max_cloud_cover_observed: Optional[float] = Field(
-        None, description="Highest observed cloud cover across scenes (%)"
+        None, description="End of the Planet month, ISO"
     )
     target_date: Optional[str] = Field(
         None, description="Target date requested (ISO format)"

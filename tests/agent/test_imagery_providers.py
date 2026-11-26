@@ -5,16 +5,11 @@ from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
-from cogeo_mosaic.errors import MosaicNotFoundError
 
 from src.agent.imagery.base import ImageryRequest
 from src.agent.imagery.planet import PlanetImageryProvider
 from src.agent.imagery.sentinel2 import Sentinel2ImageryProvider
-from src.api.services.mosaic import (
-    AoiTooLargeError,
-    MosaicResult,
-    NoScenesFoundError,
-)
+from src.shared.imagery_recipe import decode_recipe
 
 PLANET_AOIS = [
     {
@@ -138,76 +133,36 @@ async def test_planet_provider_combines_aoi_bounds():
 
 
 @pytest.mark.asyncio
-async def test_sentinel_provider_builds_imagery_and_recipe():
-    mosaic = MosaicResult(
-        mosaic_id="abc123",
-        item_count=4,
-        date_start=date(2025, 5, 20),
-        date_end=date(2025, 6, 10),
-        mean_cloud_cover=7.35,
-        min_cloud_cover=2.1,
-        max_cloud_cover=14.8,
-    )
-    create = AsyncMock(return_value=mosaic)
-
-    with patch("src.agent.imagery.sentinel2.create_sentinel2_mosaic", create):
-        result = await Sentinel2ImageryProvider().get_imagery(
-            _request(
-                aois=SENTINEL_AOIS,
-                target=date(2025, 6, 1),
-                window_days=60,
-                max_cloud_cover=500,
-            )
+async def test_sentinel_provider_writes_a_client_recipe():
+    """Sentinel-2 is searched and rendered in the browser: the provider only
+    resolves the request into a recipe token (no mosaic, no tile URL)."""
+    result = await Sentinel2ImageryProvider().get_imagery(
+        _request(
+            aois=SENTINEL_AOIS,
+            target=date(2025, 6, 1),
+            window_days=60,
+            max_cloud_cover=500,
         )
+    )
 
-    recipe = create.call_args.args[0]
+    assert result.status == "success"
+    assert result.imagery.tile_url is None
+    recipe = decode_recipe(result.imagery.mosaic_id)
     assert recipe.aois == (("gadm", "CHE.26_1"),)
     assert recipe.target_date == date(2025, 6, 1)
     assert recipe.window_days == 60
     assert recipe.max_cloud_cover == 100
-    assert result.status == "success"
-    assert result.imagery.mosaic_id == "abc123"
-    assert result.imagery.start_date == "2025-05-20"
-    assert result.imagery.end_date == "2025-06-10"
-    assert result.imagery.mean_cloud_cover == 7.35
-    assert result.imagery.min_cloud_cover == 2.1
-    assert result.imagery.max_cloud_cover_observed == 14.8
+    assert result.imagery.window_days == 60
+    assert result.imagery.max_cloud_cover == 100
 
 
 @pytest.mark.asyncio
 async def test_sentinel_provider_defaults_to_previous_two_weeks():
-    create = AsyncMock(
-        return_value=MosaicResult(mosaic_id="abc123", item_count=1)
+    result = await Sentinel2ImageryProvider().get_imagery(
+        _request(aois=SENTINEL_AOIS, target=None)
     )
 
-    with patch("src.agent.imagery.sentinel2.create_sentinel2_mosaic", create):
-        await Sentinel2ImageryProvider().get_imagery(
-            _request(aois=SENTINEL_AOIS, target=None)
-        )
-
-    recipe = create.call_args.args[0]
+    recipe = decode_recipe(result.imagery.mosaic_id)
     assert recipe.target_date == date.today() - timedelta(days=7)
     assert recipe.window_days == 7
-    assert recipe.max_cloud_cover == 20
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("error", "expected"),
-    [
-        (MosaicNotFoundError(), "geometry"),
-        (AoiTooLargeError(123456.0), "too large"),
-        (NoScenesFoundError(), "window_days"),
-    ],
-)
-async def test_sentinel_provider_translates_expected_errors(error, expected):
-    create = AsyncMock(side_effect=error)
-
-    with patch("src.agent.imagery.sentinel2.create_sentinel2_mosaic", create):
-        result = await Sentinel2ImageryProvider().get_imagery(
-            _request(aois=SENTINEL_AOIS)
-        )
-
-    assert result.status == "error"
-    assert result.imagery is None
-    assert expected in result.message.lower()
+    assert recipe.max_cloud_cover == 50

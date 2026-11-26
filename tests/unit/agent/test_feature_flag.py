@@ -174,20 +174,19 @@ def test_directly_bound_tools_do_not_activate_skills():
     could silently activate any skill whose ``requires`` it completed. Now
     the capability surface is exactly what's declared."""
     from src.agent.subagents.pick_aoi.tool import SPEC as pick_aoi_spec
-    from src.agent.tools.show_imagery import SPEC as show_imagery_spec
-    from src.agent.tools.show_planet_imagery import (
-        SPEC as show_planet_imagery_spec,
+    from src.agent.tools.show_boundary_layer import (
+        SPEC as show_boundary_layer_spec,
     )
 
     c = AgentConfig(
         "test",
         skills=("capabilities",),
-        tools=(pick_aoi_spec, show_imagery_spec, show_planet_imagery_spec),
+        tools=(pick_aoi_spec, show_boundary_layer_spec),
     )
-    # These tools satisfy show-imagery's requires, but it was
+    # These tools satisfy concessions-layer's requires, but it was
     # never declared — it must not be advertised or counted available.
     assert {s.name for s in c.skill_metas()} == {"capabilities"}
-    assert not c.availability().has_skill("show-imagery")
+    assert not c.availability().has_skill("concessions-layer")
 
 
 def test_config_bound_tools_returns_bound_tools():

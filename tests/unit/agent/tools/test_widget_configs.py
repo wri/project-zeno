@@ -76,17 +76,12 @@ def _imagery_state():
     return {
         "provider": "sentinel-2",
         "tile_url": "https://tiles.example.com/mosaic/{z}/{x}/{y}.png?url=x",
-        "tilejson_url": "https://tiles.example.com/tilejson.json?url=x",
         "bounds": [-70.0, -10.0, -60.0, 0.0],
         "min_zoom": 5,
         "max_zoom": 15,
         "mosaic_id": "abc123",
-        "item_count": 12,
         "start_date": "2024-05-28",
         "end_date": "2024-06-04",
-        "mean_cloud_cover": 8.5,
-        "min_cloud_cover": 2.1,
-        "max_cloud_cover_observed": 15.3,
         "max_cloud_cover": 20,
         "target_date": "2024-06-01",
         "window_days": 7,
@@ -211,16 +206,13 @@ def test_dataset_config_carries_multilayer_layers_through():
 def test_imagery_config_none_without_essentials():
     assert imagery_config({}) is None
     assert imagery_config({"imagery": {"tile_url": "x"}}) is None
-    assert imagery_config({"imagery": {"mosaic_id": "x"}}) is None
+    planet_without_tiles = {"provider": "planet", "mosaic_id": "planet:x"}
+    assert imagery_config({"imagery": planet_without_tiles}) is None
 
 
-def test_imagery_config_includes_cloud_cover():
-    """Cloud cover fields are included in the widget config snapshot."""
+def test_imagery_config_keeps_the_render_fields():
     state = {"imagery": _imagery_state()}
     config = imagery_config(state)
-    assert config["mean_cloud_cover"] == 8.5
-    assert config["min_cloud_cover"] == 2.1
-    assert config["max_cloud_cover_observed"] == 15.3
     assert config["max_cloud_cover"] == 20
     assert config["bounds"] == [-70.0, -10.0, -60.0, 0.0]
     assert config["min_zoom"] == 5
@@ -237,3 +229,24 @@ def test_widget_config_wraps_one_layer_and_optional_title():
         "dataset": {"tile_url": "x"},
         "title": "Alerts",
     }
+
+
+SENTINEL2_IMAGERY = {
+    "provider": "sentinel-2",
+    "mosaic_id": "tok",
+    "target_date": "2026-11-10",
+    "window_days": 7,
+    "max_cloud_cover": 50,
+    "aoi_names": ["Jaru"],
+}
+
+
+def test_imagery_config_accepts_sentinel2_without_tile_url():
+    config = imagery_config({"imagery": SENTINEL2_IMAGERY})
+    assert config["mosaic_id"] == "tok"
+    assert config["tile_url"] is None
+
+
+def test_imagery_config_rejects_sentinel2_without_mosaic_id():
+    imagery = {**SENTINEL2_IMAGERY, "mosaic_id": None}
+    assert imagery_config({"imagery": imagery}) is None

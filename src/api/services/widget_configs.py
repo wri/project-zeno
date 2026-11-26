@@ -17,17 +17,12 @@ from typing import Optional
 IMAGERY_KEYS = (
     "provider",
     "tile_url",
-    "tilejson_url",
     "bounds",
     "min_zoom",
     "max_zoom",
     "mosaic_id",
-    "item_count",
     "start_date",
     "end_date",
-    "mean_cloud_cover",
-    "min_cloud_cover",
-    "max_cloud_cover_observed",
     "target_date",
     "window_days",
     "max_cloud_cover",
@@ -106,14 +101,29 @@ def dataset_config(state: dict) -> Optional[dict]:
     }
 
 
+def is_renderable_imagery(imagery: object) -> bool:
+    """Whether an imagery snapshot has what the frontend renders from.
+
+    Planet (and Sentinel-2 imagery saved before browser rendering) renders
+    from its tile_url. Sentinel-2 has no tile_url: the browser searches and
+    draws the scenes from the recipe token in ``mosaic_id``.
+    """
+    if not isinstance(imagery, dict):
+        return False
+    if imagery.get("tile_url"):
+        return True
+    provider = imagery.get("provider") or "sentinel-2"
+    return provider == "sentinel-2" and bool(imagery.get("mosaic_id"))
+
+
 def imagery_config(state: dict) -> Optional[dict]:
     """Snapshot the imagery in state (ImageryState shape) for the widget.
 
-    Returns None when no imagery was built this conversation or the state
-    lacks a tile URL / mosaic id to render from.
+    Returns None when no imagery was shown this conversation or the state
+    lacks what the frontend renders from (see is_renderable_imagery).
     """
     imagery = state.get("imagery") or {}
-    if not imagery.get("tile_url") or not imagery.get("mosaic_id"):
+    if not imagery.get("mosaic_id") or not is_renderable_imagery(imagery):
         return None
     return {key: imagery.get(key) for key in IMAGERY_KEYS}
 

@@ -174,6 +174,27 @@ class TestMapWidgetConfig:
         )
         assert body.config["imagery"]["mosaic_id"] == "abc123"
 
+    def test_sentinel2_imagery_needs_no_tile_url(self):
+        body = DashboardWidgetCreateRequest(
+            widget_type="map",
+            config={"imagery": {"provider": "sentinel-2", "mosaic_id": "tok"}},
+        )
+        assert body.config["imagery"]["mosaic_id"] == "tok"
+
+    def test_sentinel2_imagery_requires_mosaic_id(self):
+        with pytest.raises(ValidationError, match="mosaic_id"):
+            DashboardWidgetCreateRequest(
+                widget_type="map",
+                config={"imagery": {"provider": "sentinel-2"}},
+            )
+
+    def test_planet_imagery_requires_tile_url(self):
+        with pytest.raises(ValidationError, match="tile_url"):
+            DashboardWidgetCreateRequest(
+                widget_type="map",
+                config={"imagery": {"provider": "planet", "mosaic_id": "p"}},
+            )
+
     def test_extra_config_keys_tolerated(self):
         # The snapshot shape may evolve without a schema change here — only
         # the discriminator and tile_url are load-bearing.

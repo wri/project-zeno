@@ -124,7 +124,10 @@ class PlanetImageryProvider:
             f"{month_start.year}.{latest_note} Planet imagery only appears "
             "once the map is zoomed in to about 10 km across, so zoom in if "
             "it looks blank. Sentinel-2 imagery is also available if you'd "
-            "like to compare it."
+            'like to compare it. If the user needs a citation: "Image © '
+            f"{month_start.year} Planet Labs Inc. Accessed through Global "
+            f"Nature Watch Horizon on {date.today().isoformat()}. "
+            'www.horizon.globalnaturewatch.org".'
         )
         return ImageryProviderResult(
             status="success", imagery=imagery, message=message

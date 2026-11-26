@@ -82,17 +82,12 @@ def _imagery_state():
     return {
         "provider": "sentinel-2",
         "tile_url": "https://tiles.example.com/mosaic/{z}/{x}/{y}.png?url=x",
-        "tilejson_url": "https://tiles.example.com/tilejson.json?url=x",
         "bounds": [-70.0, -10.0, -60.0, 0.0],
         "min_zoom": 5,
         "max_zoom": 15,
         "mosaic_id": "abc123",
-        "item_count": 12,
         "start_date": "2024-05-28",
         "end_date": "2024-06-04",
-        "mean_cloud_cover": 8.5,
-        "min_cloud_cover": 2.1,
-        "max_cloud_cover_observed": 15.3,
         "max_cloud_cover": 20,
         "target_date": "2024-06-01",
         "window_days": 7,
@@ -209,7 +204,7 @@ async def test_add_map_widget_imagery_from_state():
     imagery = config["imagery"]
     assert imagery == _imagery_state()
     assert imagery["mosaic_id"] == "abc123"
-    assert imagery["tilejson_url"].startswith("https://")
+    assert imagery["tile_url"].startswith("https://")
 
 
 async def test_add_map_widget_title_passthrough():

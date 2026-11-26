@@ -92,14 +92,13 @@ def format_session_block(state: dict) -> str:
     imagery = state.get("imagery") or {}
     if imagery:
         provider = imagery.get("provider") or "sentinel-2"
-        lines.append(
-            f"Imagery: {provider} around {imagery.get('target_date')}"
-            + (
-                f" ({imagery.get('item_count')} scenes)"
-                if imagery.get("item_count") is not None
-                else ""
+        line = f"Imagery: {provider} around {imagery.get('target_date')}"
+        if imagery.get("window_days") is not None:
+            line += (
+                f" (±{imagery['window_days']} days, "
+                f"<{imagery.get('max_cloud_cover')}% cloud)"
             )
-        )
+        lines.append(line)
     else:
         lines.append("Imagery: none")
 

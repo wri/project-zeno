@@ -109,15 +109,11 @@ async def show_imagery(
     max_cloud_cover: Optional[int] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
-    """Show a Sentinel-2 satellite imagery layer on the map for the AOI in state.
+    """Show Sentinel-2 imagery of the AOI in state on the map.
 
-    Sentinel-2 is global and continuous, so this serves any place and any
-    date. target_date (YYYY-MM-DD) is the date the imagery should be closest
-    to; pass null when the user requests no date, which shows approximately
-    the previous two weeks. window_days (default 7, max 183) widens the
-    search to +/-N days around target_date; max_cloud_cover (default 20,
-    percent) loosens the cloud filter. Only raise them when the defaults find
-    no scenes and the user agrees. Run pick_aoi first. Regional areas only.
+    The model sees the description in TOOL_DESCRIPTIONS. The browser
+    searches and draws the scenes after this call, so the result carries no
+    scene count; the frontend reports it in the view context.
     """
     logger.info("show_imagery tool called")
     request = await build_request(

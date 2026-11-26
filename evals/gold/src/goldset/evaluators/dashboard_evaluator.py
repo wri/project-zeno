@@ -118,8 +118,14 @@ def _widget_is_valid(widget: dict[str, Any]) -> bool:
         return config.get("text") is not None or widget.get("text") is not None
     if widget_type == "map":
         config = widget.get("config") or {}
-        snapshot = config.get("dataset") or config.get("imagery") or {}
-        return bool(snapshot.get("tile_url"))
+        if config.get("dataset"):
+            return bool(config["dataset"].get("tile_url"))
+        imagery = config.get("imagery") or {}
+        # Sentinel-2 imagery has no tile_url: the browser renders it from
+        # the recipe token in mosaic_id.
+        if (imagery.get("provider") or "sentinel-2") == "sentinel-2":
+            return bool(imagery.get("tile_url") or imagery.get("mosaic_id"))
+        return bool(imagery.get("tile_url"))
     if widget_type == "alerts":
         # The live alerts list (project-zeno PZB-1468, Stage 1): the widget
         # persists its area and a map-layer snapshot, never rows. Valid when
