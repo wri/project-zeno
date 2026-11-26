@@ -153,12 +153,19 @@ def gemini_usage_details(response: Any) -> Optional[Dict[str, int]]:
     are net of their breakdowns, which are reported as ``input_cache_read`` and
     ``output_reasoning``.
 
-    * ``prompt_token_count`` includes cached tokens, so they are subtracted.
     * ``tool_use_prompt_token_count`` is not in ``prompt_token_count`` but is
       billed as input. For code execution it is the code and execution results
       the model reads back, so it is added to ``input``.
+    * ``cached_content_token_count`` counts cached tokens on both of those
+      sides: during code execution the model re-reads its own earlier steps,
+      and those hit the cache too, so it can exceed ``prompt_token_count``.
+      It is therefore subtracted from their sum, not from the prompt alone.
     * ``thoughts_token_count`` is not in ``candidates_token_count`` and is
-      billed as output. Langfuse prices ``output_reasoning`` for Gemini models.
+      billed as output, so it is reported as ``output_reasoning``.
+
+    Whether Langfuse puts a price on ``input_cache_read`` and
+    ``output_reasoning`` depends on the model definition in the Langfuse
+    project; a key it has no price for is counted but costs nothing.
     """
     usage = getattr(response, "usage_metadata", None)
     if usage is None:
@@ -178,7 +185,7 @@ def gemini_usage_details(response: Any) -> Optional[Dict[str, int]]:
     total = _int(getattr(usage, "total_token_count", None))
 
     details = {
-        "input": max(prompt - cached, 0) + tool_use,
+        "input": max(prompt + tool_use - cached, 0),
         "output": output,
         "total": total or prompt + tool_use + output + thoughts,
     }
