@@ -1,9 +1,13 @@
 from src.agent.datasets.curated_only import CURATED_ONLY_DATASET_IDS
-from src.agent.datasets.handlers.analytics_handler import LAND_GHG_INVENTORY_ID
+from src.agent.datasets.handlers.analytics_handler import (
+    LAND_GHG_INVENTORY_ID,
+    TREE_COVER_LOSS_ID,
+)
 from src.agent.i18n import t
 from src.agent.subagents.analyst.charts import InsightChart
 from src.api.services.charts import ChartGenerator
 from src.api.services.charts.curated import build_curated_charts
+from src.api.services.charts.ranking import RankedArea
 from src.api.services.charts.registry import DETERMINISTIC_GENERATORS
 from tests.unit.api.services.test_chart_generators import LGMS_ROWS
 
@@ -165,3 +169,87 @@ async def test_lgms_charts_group_under_one_insight_id():
 
     assert all(i.startswith(f"{insight_id}-chart-") for i in ids)
     assert len(set(ids)) == len(charts)
+
+
+# --- the ranking of areas ---------------------------------------------------
+
+_TWO_AREA_ROWS = [
+    {
+        "aoi_id": "KEN.1",
+        "name": "Baringo",
+        "tree_cover_loss_year": 2024,
+        "area_ha": 3.0,
+        "carbon_emissions_MgCO2e": 30.0,
+    },
+    {
+        "aoi_id": "KEN.2",
+        "name": "Bomet",
+        "tree_cover_loss_year": 2024,
+        "area_ha": 9.0,
+        "carbon_emissions_MgCO2e": 20.0,
+    },
+]
+_TWO_AREAS = [
+    RankedArea("KEN.1", "Baringo", "Kenya", "gadm"),
+    RankedArea("KEN.2", "Bomet", "Kenya", "gadm"),
+]
+
+
+async def test_without_areas_the_charts_are_the_annual_pair():
+    # /api/analyze and the analysis templates pass no areas.
+    charts = await build_curated_charts(
+        TREE_COVER_LOSS_ID, _TWO_AREA_ROWS, "en"
+    )
+
+    assert [c.view_id for c in charts] == [
+        "tcl.annual_loss",
+        "tcl.annual_emissions",
+    ]
+    assert {c.chart_type for c in charts} == {"bar"}
+    assert {k for row in charts[0].chart_data for k in row} >= {
+        "aoi_id",
+        "name",
+    }
+
+
+async def test_with_areas_the_charts_are_the_rankings():
+    charts = await build_curated_charts(
+        TREE_COVER_LOSS_ID,
+        _TWO_AREA_ROWS,
+        "en",
+        areas=_TWO_AREAS,
+        for_agent=True,
+    )
+
+    assert [c.view_id for c in charts] == [
+        "tcl.loss_ranking",
+        "tcl.emissions_ranking",
+    ]
+    assert [c.title for c in charts] == [
+        "Tree Cover Loss by Area",
+        "GHG Emissions from Tree Cover Loss by Area",
+    ]
+    assert [c.view_revision for c in charts] == [1, 1]
+    assert set(charts[0].chart_data[0]) == {
+        "rank",
+        "aoi_id",
+        "name",
+        "parent",
+        "area_ha",
+        "share_pct",
+    }
+    assert charts[0].to_frontend_dict()["type"] == "ranked-bar"
+    assert charts[0].to_frontend_dict()["xAxis"] == "name"
+
+
+async def test_the_titles_of_the_gate_pick_the_rankings():
+    charts = await build_curated_charts(
+        TREE_COVER_LOSS_ID,
+        _TWO_AREA_ROWS,
+        "en",
+        titles=["charts.tcl.emissions_ranking"],
+        areas=_TWO_AREAS,
+    )
+
+    assert [c.view_id for c in charts] == ["tcl.emissions_ranking"]
+    assert charts[0].position == 0

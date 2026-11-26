@@ -19,8 +19,9 @@ from src.agent.i18n import MESSAGES, t
 from src.agent.language import DEFAULT_LANGUAGE
 from src.agent.subagents.analyst.charts import InsightChart
 from src.api.services.charts.base import ChartGenerator
+from src.api.services.charts.ranking import RankedArea
 from src.api.services.charts.registry import DETERMINISTIC_GENERATORS
-from src.api.services.charts.views import view_for_title
+from src.api.services.charts.views import get_view, view_for_title
 
 
 async def _localise(
@@ -93,7 +94,14 @@ def drawn_columns(chart: InsightChart) -> list[str]:
 def drawn_rows(chart: InsightChart) -> list[dict]:
     """The rows of a chart with only the columns that it draws. The pull
     also has the area id, its type and its name, and other measures; the
-    curated tool message names the columns that no chart shows."""
+    curated tool message names the columns that no chart shows.
+
+    A ranking of areas keeps every column that its builder gives: the rank,
+    the area id (the front end keys a bar by it, as names repeat), the name,
+    the parent and the share."""
+    view = get_view(chart.view_id) if chart.view_id else None
+    if view is not None and view.shape == "several_areas":
+        return [dict(row) for row in chart.chart_data]
     columns = drawn_columns(chart)
     return [
         {column: row[column] for column in columns if column in row}
@@ -129,13 +137,16 @@ async def build_curated_charts(
     period: Optional[tuple[str, str]] = None,
     context_layer: Optional[str] = None,
     for_agent: bool = False,
+    areas: Optional[Sequence[RankedArea]] = None,
 ) -> list[InsightChart]:
     """Curated charts for `dataset_id` from `rows`; [] when no generator
     handles the dataset. Charts carry `dataset_id` and, for a chart in the
     view registry, `view_id` and `view_revision`. `titles` keeps only
     the charts with those title keys; None keeps them all. `period` is the
     start and end date of the pull, for a chart whose axis spans it.
-    `context_layer` is the context layer of the pull.
+    `context_layer` is the context layer of the pull. `areas` are the areas
+    of the pull, for a chart that ranks them (`ChartGenerator.for_areas`);
+    None for the callers whose charts read the rows alone.
 
     `for_agent` is for the curated chart of `generate_insights` only: the
     chart of an agent view keeps only the columns that it draws, and each
@@ -147,6 +158,8 @@ async def build_curated_charts(
         if generator.can_handle(dataset_id):
             if period is not None:
                 generator = generator.for_period(*period)
+            if areas is not None:
+                generator = generator.for_areas(areas)
             charts = generator.generate(rows)
             # Before _localise, while the titles are still keys.
             for chart in charts:

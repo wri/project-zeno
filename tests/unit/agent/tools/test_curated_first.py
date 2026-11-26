@@ -69,6 +69,7 @@ def _statistics(
     context_layer=None,
     parameters=None,
     canopy_cover=DEFAULT_CANOPY_COVER,
+    aoi_ids=None,
 ):
     return {
         "id": str(uuid4()),
@@ -78,7 +79,10 @@ def _statistics(
         "end_date": "2023-12-31",
         "source_url": "https://analytics.example.com/result/tcl",
         "aoi_names": list(aoi_names),
-        "aoi_ids": [f"id-{i}" for i, _ in enumerate(aoi_names)],
+        "aoi_ids": list(aoi_ids)
+        if aoi_ids is not None
+        else [f"id-{i}" for i, _ in enumerate(aoi_names)],
+        "aoi_sources": ["gadm"] * len(aoi_names),
         "context_layer": context_layer,
         "parameters": parameters,
         # What the pull sent, as pull_data stores it.
@@ -167,11 +171,86 @@ async def test_state_has_the_fields_of_the_code_executor_path(run):
     }
 
 
-async def test_several_areas_go_to_the_code_executor(run):
+async def test_several_areas_get_the_two_rankings(run):
+    run.data = _tcl_data(areas=("BRA.14", "BRA.13"))
+
+    command = await _analyze(
+        _statistics(
+            aoi_names=("Pará, Brazil", "Mato Grosso, Brazil"),
+            aoi_ids=("BRA.14_1", "BRA.13_1"),
+        )
+    )
+
+    insight = run.persist.await_args.args[0]
+    # The loss ranking is first, as the annual loss is for one area.
+    assert [c.view_id for c in insight.charts] == [
+        "tcl.loss_ranking",
+        "tcl.emissions_ranking",
+    ]
+    assert [c.position for c in insight.charts] == [0, 1]
+    assert [c["type"] for c in command.update["charts_data"]] == [
+        "ranked-bar",
+        "ranked-bar",
+    ]
+    loss = insight.charts[0]
+    # Three years of the same figures for each area: a tie.
+    assert [
+        (r["rank"], r["aoi_id"], r["parent"]) for r in loss.chart_data
+    ] == [
+        (1, "BRA.13", "Brazil"),
+        (1, "BRA.14", "Brazil"),
+    ]
+
+
+async def test_several_areas_of_a_dataset_with_no_ranking_go_to_the_code_executor(
+    run,
+):
     run.data = _tcl_data(areas=("BRA.14", "BRA.13"))
 
     with pytest.raises(_Executor):
-        await _analyze(_statistics(aoi_names=("Pará", "Mato Grosso")))
+        await _analyze(
+            _statistics(
+                aoi_names=("Pará", "Mato Grosso"),
+                dataset_id=TREE_COVER_LOSS_BY_DRIVER_ID,
+            )
+        )
+
+
+async def test_a_ranking_of_rows_with_an_unknown_area_goes_to_the_code_executor(
+    run,
+):
+    run.data = _tcl_data(areas=("BRA.14", "BRA.99"))
+
+    # The failure is loud: the analyst logs it with its traceback (an
+    # error-level record) before it falls back.
+    with patch.object(analyst_tool.logger, "exception") as log_exception:
+        with pytest.raises(_Executor):
+            await _analyze(
+                _statistics(
+                    aoi_names=("Pará", "Mato Grosso"),
+                    aoi_ids=("BRA.14_1", "BRA.13_1"),
+                )
+            )
+    log_exception.assert_called_once()
+    run.persist.assert_not_awaited()
+
+
+async def test_a_pull_with_no_loss_in_any_area_goes_to_the_code_executor(run):
+    run.data = {
+        "aoi_id": ["BRA.14", "BRA.13"],
+        "name": ["Pará", "Mato Grosso"],
+        "tree_cover_loss_year": [2021, 2021],
+        "area_ha": [0, 0],
+        "carbon_emissions_MgCO2e": [0, 0],
+    }
+
+    with pytest.raises(_Executor):
+        await _analyze(
+            _statistics(
+                aoi_names=("Pará", "Mato Grosso"),
+                aoi_ids=("BRA.14_1", "BRA.13_1"),
+            )
+        )
 
 
 async def test_area_count_comes_from_the_rows(run):

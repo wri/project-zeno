@@ -869,6 +869,7 @@ async def _build_curated_insight(
         count_areas,
         view_gate,
     )
+    from src.api.services.charts.ranking import ranked_areas
 
     dataset_id = statistics["dataset_id"]
     raw = await _load_statistics_data(statistics)
@@ -882,6 +883,18 @@ async def _build_curated_insight(
     period = (start, end) if start and end else None
     charts: list[InsightChart] = []
     if rows and gate.passed:
+        # The areas of the pull, for a ranking. A pull of one area has no
+        # use for them, and an older pull may lack the lists.
+        areas = (
+            ranked_areas(
+                statistics.get("aoi_ids") or [],
+                statistics.get("aoi_names") or [],
+                statistics.get("aoi_sources") or [],
+                statistics.get("aoi_id_to_name"),
+            )
+            if len(statistics.get("aoi_names") or []) >= 2
+            else None
+        )
         charts = charts_with_data(
             await build_curated_charts(
                 dataset_id,
@@ -891,6 +904,7 @@ async def _build_curated_insight(
                 period=period,
                 context_layer=statistics.get("context_layer"),
                 for_agent=True,
+                areas=areas,
             )
         )
     if not charts:
