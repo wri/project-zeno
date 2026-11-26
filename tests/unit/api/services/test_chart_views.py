@@ -131,3 +131,11 @@ def test_view_provenance_goes_to_the_database_and_back():
     assert restored.view_revision == 1
     # Provenance is not part of the frontend chart.
     assert "view_id" not in chart.to_frontend_dict()
+
+
+def test_the_ranking_titles_have_every_language_of_the_annual_titles():
+    languages = set(MESSAGES["charts.tcl.annual_loss"])
+
+    for key in ("charts.tcl.loss_ranking", "charts.tcl.emissions_ranking"):
+        assert set(MESSAGES[key]) == languages
+        assert all(MESSAGES[key].values())
