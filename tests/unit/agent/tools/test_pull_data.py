@@ -113,3 +113,11 @@ async def test_the_statistics_in_state_carry_the_canopy_cover_the_pull_sent():
     command = await _pull("2025-03-01", "2025-03-31")
 
     assert command.update["statistics"][0]["canopy_cover"] == 30
+
+
+async def test_the_statistics_name_the_selection():
+    command = await _pull("2025-03-01", "2025-03-31")
+
+    statistics = command.update["statistics"][0]
+    assert statistics["aoi_selection_name"] == "Brazil"
+    assert statistics["aoi_names"] == ["Brazil"]
