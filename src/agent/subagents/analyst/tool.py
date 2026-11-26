@@ -988,9 +988,11 @@ SPEC = ToolSpec(
         "the standard chart of the dataset when one fits the pull, and "
         "returns its figures; when none fits, it draws a custom chart. Use "
         '"standard" for a first analysis of an area and a dataset, and when '
-        'you are not sure. Use "custom" only when the user asks for '
-        "something that the standard chart does not have: a ranking or a "
-        "comparison of areas, a different time step, a calculation across "
+        'you are not sure. Use "standard" also for a ranking of areas by '
+        "one measure; when no standard chart fits, the tool draws a custom "
+        'chart. Use "custom" only when the user asks for something that the '
+        "standard chart does not have: a comparison of areas, a different "
+        "time step, a calculation across "
         "two datasets, a derived metric, or a change that "
         "update_insight_display cannot make."
     ),
