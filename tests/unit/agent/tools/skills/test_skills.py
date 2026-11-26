@@ -1,13 +1,17 @@
 import pytest
 
-from src.agent.agent_config import FLAG_TOOL_VARIANTS
+from src.agent.agent_config import (
+    DEFAULT_PROFILE,
+    FLAG_TOOL_VARIANTS,
+    default_registry,
+)
+from src.agent.datasets.config import DATASETS
 from src.agent.skills import (
     all_skills,
     get_skill,
     get_skill_body,
     load_skills,
 )
-from src.agent.skills.capabilities import load_datasets_info
 from src.agent.skills.loader import apply_flags, flag_names
 from src.agent.skills.tool import read_skill
 from src.agent.tool_spec import Availability, set_bound_availability
@@ -77,30 +81,57 @@ def test_generate_insights_is_a_thin_subagent_tool():
     assert "**Avoid:**" in WORDING_GUIDE
 
 
-def test_capabilities_skill_includes_datasets():
+def test_capabilities_skill_body_starts_with_the_workflow():
     body = get_skill_body("capabilities")
     assert body is not None
-    assert "{{AVAILABLE_DATASETS}}" not in body
-    assert "## Available datasets" in body
     assert body.strip().startswith("# Workflow")
 
 
-def test_capabilities_listing_omits_excluded_dataset():
-    """The capabilities listing must hide datasets the current profile
-    excludes, so the agent never advertises one it can't select."""
-    set_bound_availability(
-        Availability(
-            skills=frozenset(),
-            tools=frozenset(),
-            excluded_datasets=frozenset({"Land GHG Monitoring System (LGMS)"}),
+_CAPABILITIES_PROFILES = [
+    cfg for cfg in default_registry.configs() if "capabilities" in cfg.skills
+]
+
+
+def _coverage_names(body: str) -> list[str]:
+    section = body.split("## Coverage", 1)[1].split("\n## ", 1)[0]
+    rows = [line for line in section.splitlines() if line.startswith("|")]
+    # Skip the header row and the separator row.
+    return [row.split("|")[1].strip() for row in rows[2:]]
+
+
+@pytest.mark.parametrize(
+    "cfg", _CAPABILITIES_PROFILES, ids=[c.name for c in _CAPABILITIES_PROFILES]
+)
+def test_capabilities_coverage_table_lists_the_profile_datasets(cfg):
+    """The Coverage table is built from the catalog for each profile: one
+    row for each dataset that the profile can select, and none for a
+    dataset that it excludes."""
+    set_bound_availability(cfg.availability())
+    body = get_skill_body("capabilities")
+    assert body is not None
+
+    names = _coverage_names(body)
+    catalog_names = {d["dataset_name"] for d in DATASETS}
+
+    assert "{{" not in body
+    assert len(names) == len(set(names))
+    assert set(names) == catalog_names - cfg.excluded_datasets
+
+
+def test_capabilities_coverage_table_shows_lgms_only_where_selectable():
+    """LGMS is excluded from the default profile; the lgms and experimental
+    profiles select it, so their Coverage table must name it."""
+    lgms = "Land GHG Monitoring System (LGMS)"
+    shown = {}
+    for cfg in _CAPABILITIES_PROFILES:
+        set_bound_availability(cfg.availability())
+        shown[cfg.name] = lgms in _coverage_names(
+            get_skill_body("capabilities") or ""
         )
-    )
-    assert "Land GHG Monitoring System (LGMS)" not in load_datasets_info()
 
-
-def test_capabilities_listing_shows_dataset_when_not_excluded():
-    set_bound_availability(_EMPTY)
-    assert "Land GHG Monitoring System (LGMS)" in load_datasets_info()
+    assert shown[DEFAULT_PROFILE] is False
+    assert shown["lgms"] is True
+    assert shown["experimental"] is True
 
 
 def test_get_skill_body():

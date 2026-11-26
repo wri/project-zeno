@@ -15,6 +15,13 @@ content_date: 2001-2025
 start_date: '2001-01-01'
 end_date: '2025-12-31'
 content_date_fixed: false
+coverage:
+  period: 2001 to 2025
+  time_step: One total for the whole period
+  limits: >-
+    Cannot be given for a shorter period or by year. The total divided by 25
+    is an average per year over 2001 to 2025, not a figure for any shorter
+    period. A flow (emissions minus removals), not carbon stock.
 keywords:
 - ghg flux
 - greenhouse gas

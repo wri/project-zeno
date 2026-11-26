@@ -16,6 +16,14 @@ content_date: 2001-2025
 start_date: '2001-01-01'
 end_date: '2025-12-31'
 content_date_fixed: true
+coverage:
+  period: 2001 to 2025
+  time_step: One total for the whole period
+  limits: >-
+    Cannot be split by year. Classes: permanent agriculture (cattle, oil
+    palm, soy and other crops together, not separated), hard commodities
+    (mining and energy only), shifting cultivation, logging, wildfire,
+    settlements and infrastructure, other natural disturbances.
 keywords:
 - deforestation
 - forest loss

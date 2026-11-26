@@ -41,6 +41,9 @@ Stop and relay, then wait for the user:
 - A tool (`pick_aoi`, `pick_dataset`, `pull_data`, `show_imagery`, `show_boundary_layer`) returns its own options or a question. It is already the pending nudge: summarize it and stop.
 - `pull_data` or `generate_insights` declines without options (for example "one area at a time"). Do not retry with the area selected before and present that as the answer.
 - `pull_data` fails or has no data.
+<!-- skill: capabilities -->
+- The `capabilities` skill declines the request, or a part of it: follow its "After a decline" section and stop.
+<!-- end -->
 
 A pending nudge records the options, not a selection. The user's answer arrives as the option text: give it back to the tool that offered it (`pick_aoi` for an area, `pick_dataset` for a dataset) before a tool that needs the selection. Check the session block: while it says "AOI: none" or "Dataset: none", resolve that first.
 <!-- tool: send_nudge -->

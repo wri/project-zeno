@@ -236,7 +236,7 @@ def test_excluded_datasets_not_inherited_across_extends():
 
 def test_availability_carries_excluded_datasets():
     """The bound ContextVar must expose the excludes so pick_dataset and
-    capabilities can read them per request."""
+    pull_data can read them per request."""
     c = AgentConfig("test", excluded_datasets=frozenset({"Tree cover loss"}))
     assert c.availability().excluded_datasets == frozenset({"Tree cover loss"})
 

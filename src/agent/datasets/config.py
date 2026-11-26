@@ -31,6 +31,30 @@ CANDIDATE_DATASET_REQUIRED_COLUMNS = [
     "parameters",
 ]
 
+# Every catalog dataset also needs a `coverage` block: the capabilities
+# skill builds its Coverage table from it. It is kept out of
+# CANDIDATE_DATASET_REQUIRED_COLUMNS, which also selects the columns of the
+# dataset selection prompt.
+DATASET_REQUIRED_COLUMNS = [*CANDIDATE_DATASET_REQUIRED_COLUMNS, "coverage"]
+COVERAGE_FIELDS = ("period", "time_step", "limits")
+
+
+def _check_coverage(record: dict, path: Path) -> None:
+    coverage = record["coverage"]
+    if not isinstance(coverage, dict) or set(coverage) != set(COVERAGE_FIELDS):
+        raise ValueError(
+            f"coverage in {path} must have exactly the fields {COVERAGE_FIELDS}"
+        )
+    not_text = [
+        f
+        for f in COVERAGE_FIELDS
+        if not isinstance(coverage[f], str) or not coverage[f].strip()
+    ]
+    if not_text:
+        raise ValueError(
+            f"coverage in {path} has empty or non-text fields: {not_text}"
+        )
+
 
 def _load_datasets() -> list[dict]:
     paths = sorted(DATASETS_DIR.glob("*.yml"))
@@ -43,14 +67,13 @@ def _load_datasets() -> list[dict]:
                 f"expected mapping in {path}, got {type(record).__name__}"
             )
         missing_columns = [
-            col
-            for col in CANDIDATE_DATASET_REQUIRED_COLUMNS
-            if col not in record
+            col for col in DATASET_REQUIRED_COLUMNS if col not in record
         ]
         if missing_columns:
             raise ValueError(
                 f"dataset {record.get('dataset_id', path.stem)} is missing required columns: {missing_columns}"
             )
+        _check_coverage(record, path)
         datasets.append(record)
     datasets.sort(key=lambda d: d["dataset_id"])
     if not len(datasets) == len(set(d["dataset_id"] for d in datasets)):
