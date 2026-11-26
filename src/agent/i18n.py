@@ -104,6 +104,15 @@ MESSAGES: dict[str, dict[str, str]] = {
         "pt": "Gráficos padrão de {dataset_name} para {area}, {period} ({filters}).",
         "id": "Bagan standar {dataset_name} untuk {area}, {period} ({filters}).",
     },
+    # The area of a caption when a pull has more than 10 areas and no
+    # selection name (a pull from before the name was kept).
+    "analyst.curated_area_count": {
+        "en": "{count} areas",
+        "es": "{count} áreas",
+        "fr": "{count} zones",
+        "pt": "{count} áreas",
+        "id": "{count} wilayah",
+    },
     "analyst.filter_canopy_cover": {
         "en": "canopy cover ≥ {threshold}%",
         "es": "cobertura de copa ≥ {threshold}%",

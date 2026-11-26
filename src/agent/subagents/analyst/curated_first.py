@@ -38,6 +38,10 @@ from src.api.services.charts.views import ChartView, get_view
 # alerts of each day of a long period).
 MAX_MESSAGE_ROWS = 120
 
+# Above this many areas, the caption and the header give the name of the
+# selection ("47 Counties in Kenya") in place of every area name.
+MAX_LISTED_AREAS = 10
+
 # The areas with no value that a ranking fact names; above this it gives the
 # count only.
 MAX_ZERO_AREA_NAMES = 20
@@ -132,6 +136,34 @@ def fill_missing_years(
     return chart
 
 
+def _selection_name(statistics: dict) -> Optional[str]:
+    """The name of the selection when there are too many areas to list;
+    None when the areas are listed, or when an older pull has no name."""
+    if len(statistics.get("aoi_names") or []) <= MAX_LISTED_AREAS:
+        return None
+    return statistics.get("aoi_selection_name") or None
+
+
+def area_text(statistics: dict) -> str:
+    """The areas of a pull for the tool message (English, model-facing):
+    each name, or above `MAX_LISTED_AREAS` the name of the selection, or
+    the count."""
+    names = statistics.get("aoi_names") or []
+    if len(names) <= MAX_LISTED_AREAS:
+        return ", ".join(names)
+    return _selection_name(statistics) or f"{len(names)} areas"
+
+
+async def _area_label(statistics: dict, language: str) -> str:
+    """The areas of a pull for the caption, in the reader's language."""
+    names = statistics.get("aoi_names") or []
+    if len(names) <= MAX_LISTED_AREAS:
+        return ", ".join(names)
+    return _selection_name(statistics) or await t(
+        "analyst.curated_area_count", language, count=len(names)
+    )
+
+
 async def curated_caption(statistics: dict, language: str) -> str:
     """The fixed caption of a curated insight: the dataset, the area, the
     period, the context layer and the canopy cover threshold. No figures."""
@@ -158,7 +190,7 @@ async def curated_caption(statistics: dict, language: str) -> str:
         )
     values = {
         "dataset_name": statistics.get("dataset_name", ""),
-        "area": ", ".join(statistics.get("aoi_names") or []),
+        "area": await _area_label(statistics, language),
         "period": period_label(
             statistics.get("start_date"), statistics.get("end_date")
         ),
@@ -359,7 +391,7 @@ def _header(
             lines.append(f"Chart {index} note: {view.agent_note}")
     lines += [
         "",
-        f"Area: {', '.join(statistics.get('aoi_names') or [])}",
+        f"Area: {area_text(statistics)}",
         f"Dataset: {statistics.get('dataset_name', '')}",
     ]
     start, end = data_period(charts, statistics)

@@ -974,3 +974,55 @@ async def test_the_tool_message_of_a_ranking_has_rows_facts_and_the_note(run):
         "tree_cover_loss_year"
         not in content.split("Columns of the pulled")[-1]
     )
+
+
+# --- many areas -------------------------------------------------------------
+
+
+def _many(count, selection_name="47 Counties in Kenya"):
+    statistics = _statistics(
+        aoi_names=[f"County {i}" for i in range(count)],
+        aoi_ids=[f"KEN.{i}_1" for i in range(count)],
+    )
+    if selection_name is not None:
+        statistics["aoi_selection_name"] = selection_name
+    return statistics
+
+
+async def test_ten_areas_are_listed_in_the_caption():
+    caption = await curated_caption(_many(10), "en")
+
+    assert caption.startswith(
+        "Standard Tree cover loss charts for County 0, County 1,"
+    )
+    assert "County 9," in caption
+
+
+async def test_above_ten_areas_the_caption_names_the_selection():
+    caption = await curated_caption(_many(11), "en")
+
+    assert caption == (
+        "Standard Tree cover loss charts for 47 Counties in Kenya, "
+        "2021–2023 (canopy cover ≥ 30%)."
+    )
+
+
+async def test_an_older_pull_without_a_selection_name_gives_the_count():
+    caption = await curated_caption(_many(47, None), "en")
+    spanish = await curated_caption(_many(47, None), "es")
+
+    assert "charts for 47 areas, 2021–2023" in caption
+    assert "para 47 áreas, 2021–2023" in spanish
+
+
+def test_the_message_header_names_the_selection_above_ten_areas():
+    charts = [_ranking_chart([_ranked_row(1, "A", 2.0)])]
+
+    many = build_curated_tool_message(charts, _many(11), "caption")
+    few = build_curated_tool_message(charts, _many(2), "caption")
+    old = build_curated_tool_message(charts, _many(11, None), "caption")
+
+    assert "Area: 47 Counties in Kenya\n" in many
+    assert "Area: County 0, County 1\n" in few
+    assert "Area: 11 areas\n" in old
+    assert "County 5" not in many
