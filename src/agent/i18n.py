@@ -104,8 +104,10 @@ MESSAGES: dict[str, dict[str, str]] = {
         "pt": "Gráficos padrão de {dataset_name} para {area}, {period} ({filters}).",
         "id": "Bagan standar {dataset_name} untuk {area}, {period} ({filters}).",
     },
-    # The area of a caption when a pull has more than 10 areas and no
-    # selection name (a pull from before the name was kept).
+    # The area of a caption when a pull has more than 10 areas. The
+    # selection name is English-only, so every language but English uses
+    # this; English uses it only when a pull has no selection name (a pull
+    # from before the name was kept).
     "analyst.curated_area_count": {
         "en": "{count} areas",
         "es": "{count} áreas",

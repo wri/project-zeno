@@ -155,13 +155,18 @@ def area_text(statistics: dict) -> str:
 
 
 async def _area_label(statistics: dict, language: str) -> str:
-    """The areas of a pull for the caption, in the reader's language."""
+    """The areas of a pull for the caption, in the reader's language.
+
+    Above `MAX_LISTED_AREAS` the selection name is used in English only: it
+    is an English phrase, so other languages get the translated count."""
     names = statistics.get("aoi_names") or []
     if len(names) <= MAX_LISTED_AREAS:
         return ", ".join(names)
-    return _selection_name(statistics) or await t(
-        "analyst.curated_area_count", language, count=len(names)
-    )
+    if language == DEFAULT_LANGUAGE:
+        selection_name = _selection_name(statistics)
+        if selection_name:
+            return selection_name
+    return await t("analyst.curated_area_count", language, count=len(names))
 
 
 async def curated_caption(statistics: dict, language: str) -> str:

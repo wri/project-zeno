@@ -1057,6 +1057,30 @@ async def test_an_older_pull_without_a_selection_name_gives_the_count():
     assert "para 47 áreas, 2021–2023" in spanish
 
 
+async def test_an_english_caption_above_ten_areas_without_a_name_counts():
+    caption = await curated_caption(_many(47, None), "en")
+
+    assert "charts for 47 areas, 2021–2023" in caption
+
+
+@pytest.mark.parametrize(
+    "language, count_text",
+    [
+        ("es", "47 áreas"),
+        ("fr", "47 zones"),
+        ("pt", "47 áreas"),
+        ("id", "47 wilayah"),
+    ],
+)
+async def test_a_translated_caption_above_ten_areas_gives_the_count(
+    language, count_text
+):
+    caption = await curated_caption(_many(47), language)
+
+    assert count_text in caption
+    assert "47 Counties in Kenya" not in caption
+
+
 def test_the_message_header_names_the_selection_above_ten_areas():
     charts = [_ranking_chart([_ranked_row(1, "A", 2.0)])]
 
