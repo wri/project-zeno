@@ -40,6 +40,7 @@ from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.inspect_view_context import format_chart_data
 from src.agent.tools.pull_data import fetch_statistics_from_url
 from src.api.repositories.insight_writer import persist_insight
+from src.api.services.analysis_inputs import inputs_from_statistics
 from src.shared.logging_config import get_logger
 from src.shared.request_context import current_user_id
 
@@ -83,12 +84,14 @@ async def _load_statistics_data(data: dict) -> dict | None:
 
 async def prepare_dataframes(
     statistics: list[dict],
-) -> tuple[List[tuple[pd.DataFrame, str]], List]:
+) -> tuple[List[tuple[pd.DataFrame, str]], List, List[dict]]:
     """
     Prepare DataFrames from raw data for code executor.
 
     Fetches ID-backed data by source URL, while keeping older inline-data
-    thread state working.
+    thread state working. A statistic whose data does not load gets no
+    dataframe, so `input_file_{i}` indexes the third list (the statistics
+    that loaded, parallel to the dataframes), not `statistics`.
     """
     raw_results = await asyncio.gather(
         *[_load_statistics_data(s) for s in statistics]
@@ -96,6 +99,7 @@ async def prepare_dataframes(
 
     dataframes = []
     source_urls = []
+    loaded = []
 
     for data, raw_data in zip(statistics, raw_results):
         if not raw_data:
@@ -119,22 +123,45 @@ async def prepare_dataframes(
         display_name = f"{', '.join(data['aoi_names'])} — {data['dataset_name']} ({data['start_date']} to {data['end_date']}){param_suffix}"
         dataframes.append((df, display_name))
         source_urls.append(data.get("source_url", ""))
+        loaded.append(data)
 
         logger.info(f"Prepared: {display_name}")
 
-    return dataframes, source_urls
+    return dataframes, source_urls, loaded
 
 
 def _extract_statistics_ids(statistics: list[dict]) -> list[str]:
-    return [
-        stat["id"]
-        for stat in statistics
-        if isinstance(stat, dict) and stat.get("id")
-    ]
+    """The ids of these pulls, in order, each once."""
+    return list(
+        dict.fromkeys(
+            stat["id"]
+            for stat in statistics
+            if isinstance(stat, dict) and stat.get("id")
+        )
+    )
+
+
+def _links_of(
+    pulls: list[dict],
+) -> tuple[list[str], bool, Optional[list[dict]]]:
+    """What an insight records of the pulls it used: the ids to link, whether
+    the links are exact, and its ``analysis_inputs``.
+
+    One place works out all three so the chat stream and the API agree. A
+    pull without an id (state from before pulls were stored) cannot be
+    linked, so the links are not exact and, as a partial label is worse than
+    none, the inputs are None.
+    """
+    exact = all(pull.get("id") for pull in pulls)
+    return (
+        _extract_statistics_ids(pulls),
+        exact,
+        inputs_from_statistics(pulls) if exact else None,
+    )
 
 
 def replace_csv_paths_with_urls(
-    code_block: str, source_urls: List[str]
+    code_block: str, source_urls: List[str], read_files: set[int]
 ) -> str:
     """
     Replace CSV file paths in code blocks with URL-based data loading.
@@ -145,6 +172,10 @@ def replace_csv_paths_with_urls(
     Args:
         code_block: Code block string that may contain CSV file references
         source_urls: List of source URLs corresponding to input_file_{i}.csv files
+        read_files: Receives the index {i} of every input file the code names,
+            also one with no source URL. A quoted file name counts as read,
+            also inside a comment. An unquoted mention, or a name built at
+            run time such as in an f-string, is not seen.
 
     Returns:
         List of code blocks with CSV paths replaced by URL-based loading
@@ -160,6 +191,7 @@ def replace_csv_paths_with_urls(
 
     def replace_match(match):
         file_index = int(match.group(1))
+        read_files.add(file_index)
         if file_index < len(source_urls) and source_urls[file_index]:
             url = source_urls[file_index]
             # Replace the entire pd.read_csv(...) call with URL-based loading
@@ -180,6 +212,7 @@ def replace_csv_paths_with_urls(
 
     def replace_standalone(match):
         file_index = int(match.group(1))
+        read_files.add(file_index)
         if file_index < len(source_urls) and source_urls[file_index]:
             url = source_urls[file_index]
             # Replace with URL string
@@ -402,12 +435,15 @@ async def _persist_curated(
 ) -> Command:
     """Persist a curated insight of one pull and return the state update.
     The update has the same fields as the code executor path."""
+    # Both curated routes build the charts from this one pull only.
+    statistics_ids, exact, analysis_inputs = _links_of([statistics])
     ctx = structlog.contextvars.get_contextvars()
     insight_id = await persist_insight(
         insight,
         user_id=current_user_id(),
         thread_id=ctx.get("thread_id", ""),
-        statistics_ids=_extract_statistics_ids([statistics]),
+        statistics_ids=statistics_ids,
+        statistics_ids_exact=exact,
         codeact_parts=[],
     )
     logger.info(f"Persisted curated insight to DB: {insight_id}")
@@ -415,6 +451,7 @@ async def _persist_curated(
     return Command(
         update={
             "insight_id": insight_id,
+            "analysis_inputs": analysis_inputs,
             "insight": insight.primary_insight,
             "follow_up_suggestions": [],
             "codeact_parts": [],
@@ -448,16 +485,24 @@ class Analyst:
         statistics: list[dict],
         dataset: dict,
         language: str = DEFAULT_LANGUAGE,
-    ) -> tuple[Optional[list[InsightChart]], list[dict], str, Optional[str]]:
+    ) -> tuple[
+        Optional[list[InsightChart]],
+        list[dict],
+        str,
+        list[dict],
+        Optional[str],
+    ]:
         """Build charts via the LLM code executor.
 
-        Returns (charts, encoded_codeact_parts, executor_context, error_message).
-        `executor_context` is the concatenated execution-output text (printed
-        totals, key statistics) for the text-generator stage. On success
-        `charts` is non-empty and error is None. On failure `charts` is None and
-        a user-facing error message is returned.
+        Returns (charts, encoded_codeact_parts, executor_context,
+        read_statistics, error_message). `executor_context` is the
+        concatenated execution-output text (printed totals, key statistics)
+        for the text-generator stage. `read_statistics` are the pulls the
+        code read, in pull order, which can be none. On success `charts` is
+        non-empty and error is None. On failure `charts` is None and a
+        user-facing error message is returned.
         """
-        dataframes, source_urls = await prepare_dataframes(statistics)
+        dataframes, source_urls, loaded = await prepare_dataframes(statistics)
         logger.info(f"Prepared {len(dataframes)} dataframes for analysis")
 
         # When a dataset provides code_instructions, use those and drop
@@ -506,13 +551,14 @@ class Analyst:
         )
         if result.error:
             logger.error(f"Code execution error: {result.error}")
-            return None, [], "", f"Analysis failed: {result.error}"
+            return None, [], "", [], f"Analysis failed: {result.error}"
         if not result.chart_data:
             logger.error("No chart data generated")
             return (
                 None,
                 [],
                 "",
+                [],
                 f"Failed to generate chart data. Feedback:{text_output}",
             )
         if result.insight is None or not result.insight.charts:
@@ -521,15 +567,34 @@ class Analyst:
                 None,
                 [],
                 "",
+                [],
                 f"Failed to generate chart insight. Feedback:{text_output}",
             )
 
-        # Make code blocks runnable anywhere by swapping CSV paths for URLs.
+        # The swap records which input files the code read. `statistics`
+        # holds every pull of the thread, so the insight links only these.
+        read_files: set[int] = set()
         for part in result.parts:
             if part.type == PartType.CODE_BLOCK:
                 part.content = replace_csv_paths_with_urls(
-                    part.content, source_urls
+                    part.content, source_urls, read_files
                 )
+        read_statistics = []
+        for index in sorted(read_files):
+            if index < len(loaded):
+                read_statistics.append(loaded[index])
+            else:
+                logger.warning(
+                    "statistics_unknown_input_file",
+                    index=index,
+                    input_files=len(loaded),
+                )
+        if not read_statistics:
+            logger.warning(
+                "statistics_not_linked",
+                reason="the code read no input file",
+                input_files=len(loaded),
+            )
 
         charts = [
             resolve_chart_colors(
@@ -551,7 +616,13 @@ class Analyst:
                 executor_context[:MAX_EXECUTOR_CONTEXT_CHARS]
                 + "\n...[truncated]"
             )
-        return charts, _encode_parts(result.parts), executor_context, None
+        return (
+            charts,
+            _encode_parts(result.parts),
+            executor_context,
+            read_statistics,
+            None,
+        )
 
     async def analyze(
         self,
@@ -603,6 +674,7 @@ class Analyst:
             charts,
             codeact_parts,
             executor_context,
+            read_statistics,
             error,
         ) = await self._resolve_charts(
             query,
@@ -634,17 +706,20 @@ class Analyst:
 
         # PERSIST + STATE.
         ctx = structlog.contextvars.get_contextvars()
+        statistics_ids, exact, analysis_inputs = _links_of(read_statistics)
         insight_id = await persist_insight(
             insight,
             user_id=current_user_id(),
             thread_id=ctx.get("thread_id", ""),
-            statistics_ids=_extract_statistics_ids(statistics),
+            statistics_ids=statistics_ids,
+            statistics_ids_exact=exact,
             codeact_parts=codeact_parts,
         )
         logger.info(f"Persisted insight to DB: {insight_id}")
 
         updated_state = {
             "insight_id": insight_id,
+            "analysis_inputs": analysis_inputs,
             "insight": insight.primary_insight,
             "follow_up_suggestions": insight.follow_up_suggestions,
             "codeact_parts": codeact_parts,

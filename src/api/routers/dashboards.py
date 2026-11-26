@@ -60,6 +60,7 @@ from src.api.schemas import (
     SectionFromTemplateResponse,
     UserModel,
 )
+from src.api.services.analysis_inputs import inputs_by_insight
 from src.api.services.analysis_templates.builder import (
     DashboardGoneError,
     NoAreaError,
@@ -117,14 +118,17 @@ def _row_to_response(
     row: DashboardOrm,
     insights_by_id: Optional[dict] = None,
     viewer: Optional[UserModel] = None,
+    inputs_by_id: Optional[dict] = None,
 ) -> DashboardResponse:
     """Map a dashboard row (aois + sections + widgets loaded) to the response.
 
     ``insights_by_id`` carries the pre-loaded insight rows the viewer may see;
-    widgets referencing anything else keep ``insight=None``. Subscriptions are
-    included only for a viewer allowed to see them.
+    widgets referencing anything else keep ``insight=None``. ``inputs_by_id``
+    holds their ``analysis_inputs`` (see ``inputs_by_insight``). Subscriptions
+    are included only for a viewer allowed to see them.
     """
     insights_by_id = insights_by_id or {}
+    inputs_by_id = inputs_by_id or {}
     return DashboardResponse(
         id=row.id,
         user_id=row.user_id,
@@ -151,7 +155,10 @@ def _row_to_response(
                 config=absolutize_widget_config(widget.config) or {},
                 created_at=widget.created_at,
                 insight=(
-                    _insight_row_to_response(insights_by_id[widget.insight_id])
+                    _insight_row_to_response(
+                        insights_by_id[widget.insight_id],
+                        inputs_by_id.get(widget.insight_id),
+                    )
                     if widget.insight_id in insights_by_id
                     else None
                 ),
@@ -196,6 +203,7 @@ async def _expanded_response(
     """
     insight_ids = [w.insight_id for w in row.widgets if w.insight_id]
     insights_by_id = {}
+    inputs_by_id: dict = {}
     if insight_ids:
         result = await session.execute(
             select(InsightOrm)
@@ -209,7 +217,10 @@ async def _expanded_response(
             if insight_is_visible_to_user(insight, user_id)
             or _is_privileged(user)
         }
-    return _row_to_response(row, insights_by_id, user)
+        inputs_by_id = await inputs_by_insight(
+            session, list(insights_by_id.values())
+        )
+    return _row_to_response(row, insights_by_id, user, inputs_by_id)
 
 
 @router.post(

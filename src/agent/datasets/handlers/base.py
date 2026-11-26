@@ -20,6 +20,9 @@ class DataPullResult(BaseModel):
     message: str
     data_points_count: int = 0
     analytics_api_url: Optional[str] = None
+    # The canopy cover threshold (percent) the request sent; None for a
+    # dataset that takes none, and for a pull that sent no request.
+    canopy_cover: Optional[int] = None
 
 
 class DataSourceHandler(ABC):

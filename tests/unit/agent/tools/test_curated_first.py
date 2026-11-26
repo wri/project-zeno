@@ -11,8 +11,10 @@ from src.agent.agent_config import (
     default_registry,
 )
 from src.agent.datasets.handlers.analytics_handler import (
+    DEFAULT_CANOPY_COVER,
     FOREST_CARBON_FLUX_ID,
     GRASSLANDS_ID,
+    NATURAL_FOREST_DEFAULT_CANOPY_COVER,
     SLUC_EMISSION_FACTORS_ID,
     TREE_COVER_LOSS_BY_DRIVER_ID,
     TREE_COVER_LOSS_ID,
@@ -66,6 +68,7 @@ def _statistics(
     dataset_id=TREE_COVER_LOSS_ID,
     context_layer=None,
     parameters=None,
+    canopy_cover=DEFAULT_CANOPY_COVER,
 ):
     return {
         "id": str(uuid4()),
@@ -78,6 +81,8 @@ def _statistics(
         "aoi_ids": [f"id-{i}" for i, _ in enumerate(aoi_names)],
         "context_layer": context_layer,
         "parameters": parameters,
+        # What the pull sent, as pull_data stores it.
+        "canopy_cover": canopy_cover,
     }
 
 
@@ -153,6 +158,7 @@ async def test_state_has_the_fields_of_the_code_executor_path(run):
 
     assert set(command.update) == {
         "insight_id",
+        "analysis_inputs",
         "insight",
         "follow_up_suggestions",
         "codeact_parts",
@@ -240,7 +246,12 @@ async def test_a_chart_with_no_data_is_left_out(run):
     # Natural forest below a 30% threshold: the API computes no emissions.
     run.data = _tcl_data(emissions=False)
 
-    command = await _analyze(_statistics(context_layer="natural_forest"))
+    command = await _analyze(
+        _statistics(
+            context_layer="natural_forest",
+            canopy_cover=NATURAL_FOREST_DEFAULT_CANOPY_COVER,
+        )
+    )
 
     insight = run.persist.await_args.args[0]
     assert [c.view_id for c in insight.charts] == ["tcl.annual_loss"]
@@ -261,6 +272,73 @@ async def test_the_gate_reads_the_latest_pull_only(run):
     )
 
     assert run.persist.await_args.kwargs["statistics_ids"] == [latest["id"]]
+    assert run.persist.await_args.kwargs["statistics_ids_exact"] is True
+
+
+async def test_a_curated_chart_records_the_latest_pull_only(run):
+    older = _statistics(dataset_id=GRASSLANDS_ID)
+    latest = {
+        **_statistics(),
+        "aoi_ids": ["BRA.14_1"],
+        "aoi_sources": ["gadm"],
+    }
+
+    command = await Analyst().analyze(
+        "tree cover loss",
+        statistics=[older, latest],
+        tool_call_id="call-1",
+        language="en",
+        chart="standard",
+    )
+
+    expected = [
+        {
+            "areas": [
+                {"name": "Pará", "source": "gadm", "src_id": "BRA.14_1"}
+            ],
+            "dataset_id": TREE_COVER_LOSS_ID,
+            "dataset_name": "Tree cover loss",
+            "pulled_start_date": "2021-01-01",
+            "pulled_end_date": "2023-12-31",
+            "canopy_cover": DEFAULT_CANOPY_COVER,
+            "context_layer": None,
+        }
+    ]
+    assert command.update["analysis_inputs"] == expected
+
+
+async def test_a_curated_pull_without_an_id_records_no_inputs(run):
+    old = _statistics()
+    del old["id"]
+
+    command = await Analyst().analyze(
+        "tree cover loss",
+        statistics=[old],
+        tool_call_id="call-1",
+        language="en",
+        chart="standard",
+    )
+
+    # The API reports null for links that are not exact, so the stream does.
+    assert run.persist.await_args.kwargs["statistics_ids"] == []
+    assert run.persist.await_args.kwargs["statistics_ids_exact"] is False
+    assert command.update["analysis_inputs"] is None
+
+
+async def test_a_curated_chart_records_the_threshold_its_caption_states(run):
+    command = await _analyze(
+        _statistics(
+            context_layer="natural_forest",
+            canopy_cover=NATURAL_FOREST_DEFAULT_CANOPY_COVER,
+        )
+    )
+
+    (entry,) = command.update["analysis_inputs"]
+    assert entry["canopy_cover"] == NATURAL_FOREST_DEFAULT_CANOPY_COVER
+    assert entry["context_layer"] == "natural_forest"
+    caption = run.persist.await_args.args[0].primary_insight
+    threshold = NATURAL_FOREST_DEFAULT_CANOPY_COVER
+    assert f"canopy cover ≥ {threshold}%" in caption
 
 
 # --- caption ----------------------------------------------------------------

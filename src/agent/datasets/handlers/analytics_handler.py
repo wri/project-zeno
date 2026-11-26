@@ -885,6 +885,7 @@ class AnalyticsHandler(DataSourceHandler):
                         message=f"Successfully pulled {dataset.get('dataset_name')} data from GFW Analytics for {aoi_names}. {message_detail}.",
                         data_points_count=data_points_count,
                         analytics_api_url=analytics_url,
+                        canopy_cover=payload.get("canopy_cover"),
                     )
             elif result["status"] in ["success", "saved"]:
                 (
@@ -899,6 +900,7 @@ class AnalyticsHandler(DataSourceHandler):
                     message=f"Successfully pulled {dataset.get('dataset_name')} data from GFW Analytics for {aoi_names}. {message_detail}.",
                     data_points_count=data_points_count,
                     analytics_api_url=analytics_url,
+                    canopy_cover=payload.get("canopy_cover"),
                 )
             else:
                 error_msg = f"Failed to pull {dataset.get('dataset_name')} data from GFW Analytics for {aoi_names} - URL: {endpoint_url}, payload: {payload}, response: {response.text}"

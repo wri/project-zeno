@@ -2,7 +2,9 @@ from typing import Optional
 from uuid import UUID, uuid4
 
 import pytest
+import structlog
 
+from src.agent.datasets.handlers.analytics_handler import TREE_COVER_LOSS_ID
 from src.agent.subagents.analyst.charts import Insight, InsightChart
 from src.api.services.analysis_job import AnalysisJobRunner
 from src.api.services.analyze import AnalyzeResult
@@ -28,6 +30,10 @@ class _Result:
     def __init__(self, success, message=""):
         self.success = success
         self.message = message
+        self.analytics_api_url = "https://analytics.example.com/result/1"
+        # What the handler reports it sent; the fake sends 30 whatever the
+        # request asked for.
+        self.canopy_cover = 30
 
 
 class FakeService:
@@ -46,6 +52,10 @@ class FakeService:
         canopy_cover=None,
     ):
         self.language = language
+        # The analytics handler strips the GADM suffix in place.
+        for aoi in aois:
+            if aoi["src_id"][-2:] in ["_1", "_2", "_3", "_4", "_5"]:
+                aoi["src_id"] = aoi["src_id"][:-2]
         return AnalyzeResult(
             data=_Result(self._success, "upstream error"),
             charts=self._charts if self._success else [],
@@ -69,6 +79,7 @@ class FakeJobRepository(JobRepository):
         user_id: str,
         thread_id: Optional[str],
         insight: Insight,
+        statistics_ids: list[str],
     ) -> str:
         self.insight_resources.append(
             {
@@ -76,6 +87,7 @@ class FakeJobRepository(JobRepository):
                 "user_id": user_id,
                 "thread_id": thread_id,
                 "insight": insight,
+                "statistics_ids": statistics_ids,
             }
         )
         return "insight-123"
@@ -84,8 +96,40 @@ class FakeJobRepository(JobRepository):
         return None
 
 
-def make_runner(repo, *, success=True, charts=CHARTS):
-    return AnalysisJobRunner(FakeService(success=success, charts=charts), repo)
+class FakeNames:
+    """The AOI name lookup, with the pairs it was asked for."""
+
+    def __init__(self, names=None):
+        self.names = names or {}
+        self.calls: list[list[tuple[str, str]]] = []
+
+    async def __call__(self, pairs):
+        self.calls.append(pairs)
+        return {pair: self.names[pair] for pair in pairs if pair in self.names}
+
+
+class FakeStatistics:
+    """The statistics writer, with the pulls it was given."""
+
+    def __init__(self):
+        self.written: list[dict] = []
+
+    async def __call__(self, pull, *, user_id, thread_id):
+        self.written.append(
+            {"pull": pull, "user_id": user_id, "thread_id": thread_id}
+        )
+        return f"statistics-{len(self.written)}"
+
+
+def make_runner(
+    repo, *, success=True, charts=CHARTS, names=None, statistics=None
+):
+    return AnalysisJobRunner(
+        FakeService(success=success, charts=charts),
+        repo,
+        names or FakeNames(),
+        statistics or FakeStatistics(),
+    )
 
 
 @pytest.mark.asyncio
@@ -167,7 +211,12 @@ async def test_run_forwards_the_readers_language_to_the_service():
     """Chart titles are localised in the service, so the language has to
     survive the hop through the background job."""
     service = FakeService(success=True, charts=[])
-    runner = AnalysisJobRunner(service=service, repo=FakeJobRepository())
+    runner = AnalysisJobRunner(
+        service=service,
+        repo=FakeJobRepository(),
+        aoi_names=FakeNames(),
+        write_statistics=FakeStatistics(),
+    )
 
     await runner.run(
         job_id=uuid4(),
@@ -180,3 +229,89 @@ async def test_run_forwards_the_readers_language_to_the_service():
     )
 
     assert service.language == "pt"
+
+
+# --- statistics ----------------------------------------------------------------
+
+
+async def _run(**run_kwargs):
+    names = run_kwargs.pop("names", FakeNames())
+    statistics = FakeStatistics()
+    repo = FakeJobRepository()
+    runner = make_runner(repo, names=names, statistics=statistics)
+    await runner.run(JOB_ID, USER_ID, **run_kwargs)
+    return repo, statistics, names
+
+
+async def test_the_request_is_written_as_one_pull_and_linked():
+    names = FakeNames({("gadm", "BRA.22_1"): "Rondônia, Brazil"})
+    repo, statistics, names = await _run(
+        aois=[{"source": "gadm", "src_id": "BRA.22_1", "subtype": "state"}],
+        dataset_id=TREE_COVER_LOSS_ID,
+        start_date="2020-01-01",
+        end_date="2022-12-31",
+        thread_id="thread-1",
+        context_layer="primary_forest",
+        canopy_cover=50,
+        names=names,
+    )
+
+    (written,) = statistics.written
+    pull = written["pull"]
+    # The id as requested, not as the handler rewrote it.
+    assert pull.areas == [
+        {"name": "Rondônia, Brazil", "source": "gadm", "src_id": "BRA.22_1"}
+    ]
+    assert pull.dataset_id == TREE_COVER_LOSS_ID
+    assert pull.dataset_name == "Tree cover loss"
+    assert (pull.start_date, pull.end_date) == ("2020-01-01", "2022-12-31")
+    assert pull.source_url == "https://analytics.example.com/result/1"
+    assert pull.parameters == [{"name": "canopy_cover", "values": [50]}]
+    assert pull.context_layer == "primary_forest"
+    # What the handler reported it sent, not what the request asked for.
+    assert pull.canopy_cover == 30
+    assert (written["user_id"], written["thread_id"]) == (USER_ID, "thread-1")
+    assert names.calls == [[("gadm", "BRA.22_1")]]
+    assert repo.insight_resources[0]["statistics_ids"] == ["statistics-1"]
+
+
+async def test_a_request_without_a_threshold_records_no_parameters():
+    _, statistics, _ = await _run(
+        aois=[AOI],
+        dataset_id=TREE_COVER_LOSS_ID,
+        start_date="2020-01-01",
+        end_date="2022-12-31",
+    )
+    assert statistics.written[0]["pull"].parameters is None
+
+
+async def test_an_area_without_a_name_is_named_by_its_id():
+    with structlog.testing.capture_logs() as logs:
+        _, statistics, _ = await _run(
+            aois=[AOI],
+            dataset_id=TREE_COVER_LOSS_ID,
+            start_date="2020-01-01",
+            end_date="2022-12-31",
+        )
+
+    assert statistics.written[0]["pull"].areas == [
+        {"name": "BRA", "source": "gadm", "src_id": "BRA"}
+    ]
+    assert any(
+        log["event"] == "analysis_inputs_area_name_missing" for log in logs
+    )
+
+
+async def test_a_failed_pull_writes_no_statistics_and_looks_up_no_names():
+    names = FakeNames()
+    statistics = FakeStatistics()
+    repo = FakeJobRepository()
+    runner = make_runner(
+        repo, success=False, names=names, statistics=statistics
+    )
+
+    await runner.run(JOB_ID, USER_ID, [AOI], 4, "2020-01-01", "2022-12-31")
+
+    assert names.calls == []
+    assert statistics.written == []
+    assert repo.insight_resources == []

@@ -49,6 +49,7 @@ from src.agent.subagents.analyst.charts import Insight, InsightChart
 from src.api.data_models import DashboardOrm
 from src.api.repositories import dashboard_writer
 from src.api.repositories.dashboard_writer import SectionWidget
+from src.api.repositories.statistics_writer import PulledStatistics
 from src.api.services.alerts_list import (
     AlertsList,
     AlertsListService,
@@ -56,6 +57,7 @@ from src.api.services.alerts_list import (
     LatestAlertDateSource,
     UnsupportedAreaError,
 )
+from src.api.services.analysis_inputs import pulled_statistics
 from src.api.services.analysis_templates.models import (
     AlertsWidgetSpec,
     AnalysisTemplate,
@@ -236,10 +238,11 @@ async def _pull_rows(
     start: str,
     end: str,
     **options,
-) -> list[dict]:
-    """The rows of one analytics pull for the period. A successful pull
-    with no rows gives [], as nothing happened in the period; a failed pull
-    raises. ``options`` go to ``AnalyzeService.analyze``."""
+) -> tuple[list[dict], PulledStatistics]:
+    """The rows of one analytics pull for the period, and the statistics
+    record of the pull. A successful pull with no rows gives [], as nothing
+    happened in the period; a failed pull raises. ``options`` go to
+    ``AnalyzeService.analyze``."""
     record = _dataset_record(dataset_id)
     # No generators: the caller builds the charts from the rows.
     service = AnalyzeService(context.handler, ())
@@ -255,7 +258,24 @@ async def _pull_rows(
             f"Could not get {record['dataset_name']} data for "
             f"'{context.aoi['name']}': {result.data.message}"
         )
-    return column_to_rows(result.data.data) if result.data.data else []
+    aoi = context.aoi
+    statistics = pulled_statistics(
+        result.data,
+        dataset_id=dataset_id,
+        areas=[
+            {
+                "name": aoi["name"],
+                "source": aoi["source"],
+                "src_id": aoi["src_id"],
+            }
+        ],
+        start_date=start,
+        end_date=end,
+        context_layer=options.get("context_layer"),
+        canopy_cover=options.get("canopy_cover"),
+    )
+    rows = column_to_rows(result.data.data) if result.data.data else []
+    return rows, statistics
 
 
 async def _curated_charts(
@@ -264,12 +284,13 @@ async def _curated_charts(
     start: str,
     end: str,
     titles: Optional[Sequence[str]] = None,
-) -> list[InsightChart]:
-    """The dataset's curated charts for the period. ``titles`` keeps the
-    charts with those title keys. With no rows the chart has no values:
-    nothing happened in the period, and that is a result."""
+) -> tuple[list[InsightChart], PulledStatistics]:
+    """The dataset's curated charts for the period, and the statistics
+    record of the pull they are built from. ``titles`` keeps the charts
+    with those title keys. With no rows the chart has no values: nothing
+    happened in the period, and that is a result."""
     record = _dataset_record(dataset_id)
-    rows = await _pull_rows(dataset_id, context, start, end)
+    rows, statistics = await _pull_rows(dataset_id, context, start, end)
     charts = await build_curated_charts(
         dataset_id,
         rows,
@@ -281,7 +302,7 @@ async def _curated_charts(
         raise WidgetFailedError(
             f"No chart is available for {record['dataset_name']}."
         )
-    return charts
+    return charts, statistics
 
 
 async def _build_chart(
@@ -289,7 +310,7 @@ async def _build_chart(
 ) -> BuiltWidget:
     record = _dataset_record(spec.dataset_id)
     start, end = await _period(spec.dataset_id, context)
-    charts = await _curated_charts(
+    charts, statistics = await _curated_charts(
         spec.dataset_id, context, start, end, titles=spec.charts
     )
     facts = await chart_facts(
@@ -305,6 +326,7 @@ async def _build_chart(
             widget_type="insight",
             config={},
             insight=Insight(charts=charts),
+            statistics=[statistics],
         ),
         summary=f"chart: {record['dataset_name']}, {start} to {end}",
         charts=charts,
@@ -389,7 +411,7 @@ async def _build_natural_forest_loss(
     """
     record = _dataset_record(spec.dataset_id)
     start, end = await _period(spec.dataset_id, context, "natural_forest")
-    natural_rows, all_rows = await asyncio.gather(
+    (natural_rows, natural_pull), (all_rows, all_pull) = await asyncio.gather(
         _pull_rows(
             spec.dataset_id,
             context,
@@ -446,6 +468,8 @@ async def _build_natural_forest_loss(
             widget_type="insight",
             config={},
             insight=Insight(charts=charts),
+            # The chart is the split of the two pulls above.
+            statistics=[natural_pull, all_pull],
         ),
         summary=(
             f"chart: {record['dataset_name']} per year, natural forest "

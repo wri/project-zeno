@@ -63,6 +63,7 @@ class JobRepository(ABC):
         user_id: str,
         thread_id: Optional[str],
         insight: Insight,
+        statistics_ids: list[str],
     ) -> str: ...
 
     @abstractmethod

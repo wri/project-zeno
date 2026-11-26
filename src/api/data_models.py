@@ -485,6 +485,10 @@ class StatisticsOrm(Base):
     aoi_sources = Column(JSONB, nullable=False, server_default="[]")
     parameters = Column(JSONB, nullable=True)
     context_layer = Column(String, nullable=True)
+    # The threshold (percent) the pull sent; `parameters` keeps meaning what
+    # the selection set. NULL for a dataset that takes none and for pulls
+    # stored before this column.
+    canopy_cover = Column(Integer, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.now)
 
 
@@ -501,6 +505,12 @@ class InsightOrm(Base):
     insight_text = Column(String, nullable=False)
     follow_up_suggestions = Column(JSONB, nullable=False, server_default="[]")
     statistics_ids = Column(JSONB, nullable=False, server_default="[]")
+    # Whether statistics_ids lists exactly the pulls the insight was computed
+    # from. Insights saved before the links were made exact linked every pull
+    # of their thread, so their links cannot be trusted.
+    statistics_ids_exact = Column(
+        Boolean, nullable=False, server_default=text("false")
+    )
     codeact_types = Column(ARRAY(String), nullable=False, server_default="{}")
     codeact_contents = Column(
         ARRAY(String), nullable=False, server_default="{}"

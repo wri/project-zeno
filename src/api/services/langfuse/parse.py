@@ -67,6 +67,7 @@ EXPECTED_STATE_KEYS = frozenset(
         "follow_up_suggestions",
         "charts_data",
         "codeact_parts",
+        "analysis_inputs",
     }
 )
 

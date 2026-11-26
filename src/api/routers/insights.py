@@ -16,6 +16,7 @@ from src.api.schemas import (
     InsightResponse,
     UserModel,
 )
+from src.api.services.analysis_inputs import inputs_by_insight
 from src.shared.database import get_session_from_pool_dependency
 from src.shared.logging_config import get_logger
 
@@ -24,7 +25,11 @@ logger = get_logger(__name__)
 router = APIRouter()
 
 
-def _row_to_response(row: InsightOrm) -> InsightResponse:
+def _row_to_response(
+    row: InsightOrm, analysis_inputs: Optional[list[dict]]
+) -> InsightResponse:
+    """``analysis_inputs`` comes from ``inputs_by_insight``, which reads the
+    pulls of a whole page of insights in one query."""
     return InsightResponse(
         id=row.id,
         user_id=row.user_id,
@@ -32,6 +37,7 @@ def _row_to_response(row: InsightOrm) -> InsightResponse:
         insight_text=row.insight_text,
         follow_up_suggestions=row.follow_up_suggestions or [],
         statistics_ids=row.statistics_ids or [],
+        analysis_inputs=analysis_inputs,
         charts=[
             InsightChartResponse(
                 id=chart.id,
@@ -61,6 +67,13 @@ def _row_to_response(row: InsightOrm) -> InsightResponse:
         is_public=row.is_public,
         created_at=row.created_at,
     )
+
+
+async def _response_with_inputs(
+    session: AsyncSession, row: InsightOrm
+) -> InsightResponse:
+    inputs = await inputs_by_insight(session, [row])
+    return _row_to_response(row, inputs[row.id])
 
 
 def _aoi_pair_match(aoi_source: str, aoi_id: str):
@@ -137,7 +150,8 @@ async def list_insights(
 
     result = await session.execute(stmt)
     rows = result.scalars().all()
-    return [_row_to_response(row) for row in rows]
+    inputs = await inputs_by_insight(session, rows)
+    return [_row_to_response(row, inputs[row.id]) for row in rows]
 
 
 @router.get("/api/insights/{insight_id}", response_model=InsightResponse)
@@ -163,7 +177,7 @@ async def get_insight(
         raise HTTPException(status_code=404, detail="Insight not found")
 
     if row.is_public:
-        return _row_to_response(row)
+        return await _response_with_inputs(session, row)
 
     if not user:
         raise HTTPException(
@@ -177,7 +191,7 @@ async def get_insight(
     ):
         raise HTTPException(status_code=404, detail="Insight not found")
 
-    return _row_to_response(row)
+    return await _response_with_inputs(session, row)
 
 
 @router.patch(
@@ -209,4 +223,4 @@ async def toggle_insight_public(
     row.is_public = body.is_public
     await session.commit()
     await session.refresh(row)
-    return _row_to_response(row)
+    return await _response_with_inputs(session, row)

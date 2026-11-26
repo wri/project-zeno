@@ -38,6 +38,7 @@ async def _create_insight(
     title: str = "Test Insight",
     is_public: bool = False,
     statistics_ids: list[str] | None = None,
+    statistics_ids_exact: bool = False,
 ) -> InsightOrm:
     async with async_session_maker() as session:
         row = InsightOrm(
@@ -46,6 +47,7 @@ async def _create_insight(
             insight_text="Sample insight text",
             follow_up_suggestions=["Try a different area"],
             statistics_ids=statistics_ids or [],
+            statistics_ids_exact=statistics_ids_exact,
             codeact_types=["code_block"],
             codeact_contents=["print('hi')"],
             is_public=is_public,
@@ -74,6 +76,7 @@ async def _create_statistics(
     aoi_ids: list[str] | None = None,
     aoi_sources: list[str] | None = None,
     aoi_names: list[str] | None = None,
+    canopy_cover: int | None = None,
 ) -> StatisticsOrm:
     async with async_session_maker() as session:
         row = StatisticsOrm(
@@ -84,6 +87,7 @@ async def _create_statistics(
             aoi_names=aoi_names or [],
             aoi_ids=aoi_ids or [],
             aoi_sources=aoi_sources or [],
+            canopy_cover=canopy_cover,
         )
         session.add(row)
         await session.commit()
@@ -656,6 +660,132 @@ async def test_make_public_then_access_without_auth(client, auth_override):
 
 
 # ---------------------------------------------------------------------------
+# analysis_inputs
+# ---------------------------------------------------------------------------
+async def _tcl_statistics(canopy_cover: int | None = 30) -> StatisticsOrm:
+    return await _create_statistics(
+        dataset_id=4,
+        dataset_name="Tree cover loss",
+        aoi_names=["Rondônia, Brazil"],
+        aoi_ids=["BRA.22"],
+        aoi_sources=["gadm"],
+        canopy_cover=canopy_cover,
+    )
+
+
+def _entry(canopy_cover: int | None = 30) -> dict:
+    return {
+        "areas": [
+            {"name": "Rondônia, Brazil", "source": "gadm", "src_id": "BRA.22"}
+        ],
+        "dataset_id": 4,
+        "dataset_name": "Tree cover loss",
+        "pulled_start_date": "2020-01-01",
+        "pulled_end_date": "2020-12-31",
+        "canopy_cover": canopy_cover,
+        "context_layer": None,
+    }
+
+
+@pytest.mark.asyncio
+async def test_list_builds_the_analysis_inputs_from_the_linked_pulls(
+    client, auth_override
+):
+    user = await _create_user("inputs-list-owner")
+    auth_override(user.id)
+    stat = await _tcl_statistics()
+    await _create_insight(
+        user_id=user.id,
+        statistics_ids=[str(stat.id)],
+        statistics_ids_exact=True,
+    )
+
+    response = await client.get(
+        "/api/insights", headers={"Authorization": "Bearer t"}
+    )
+    assert response.status_code == 200
+    assert response.json()[0]["analysis_inputs"] == [_entry()]
+
+
+@pytest.mark.asyncio
+async def test_detail_follows_statistics_ids_order_and_drops_repeats(
+    client, auth_override
+):
+    user = await _create_user("inputs-detail-owner")
+    auth_override(user.id)
+    first = await _tcl_statistics(canopy_cover=10)
+    second = await _tcl_statistics(canopy_cover=None)
+    row = await _create_insight(
+        user_id=user.id,
+        statistics_ids=[str(second.id), str(first.id), str(second.id)],
+        statistics_ids_exact=True,
+    )
+
+    response = await client.get(
+        f"/api/insights/{row.id}", headers={"Authorization": "Bearer t"}
+    )
+    assert response.status_code == 200
+    # A stored NULL canopy cover stays null, never recomputed.
+    assert response.json()["analysis_inputs"] == [
+        _entry(canopy_cover=None),
+        _entry(canopy_cover=10),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_links_that_are_not_exact_give_null_inputs(
+    client, auth_override
+):
+    user = await _create_user("inputs-old-owner")
+    auth_override(user.id)
+    stat = await _tcl_statistics()
+    row = await _create_insight(user_id=user.id, statistics_ids=[str(stat.id)])
+
+    response = await client.get(
+        f"/api/insights/{row.id}", headers={"Authorization": "Bearer t"}
+    )
+    body = response.json()
+    assert "analysis_inputs" in body
+    assert body["analysis_inputs"] is None
+    # The links are still listed, as before.
+    assert body["statistics_ids"] == [str(stat.id)]
+
+
+@pytest.mark.asyncio
+async def test_exact_links_to_no_pull_give_null(client, auth_override):
+    user = await _create_user("inputs-none-owner")
+    auth_override(user.id)
+    row = await _create_insight(user_id=user.id, statistics_ids_exact=True)
+
+    response = await client.get(
+        f"/api/insights/{row.id}", headers={"Authorization": "Bearer t"}
+    )
+    assert response.json()["analysis_inputs"] is None
+
+
+@pytest.mark.asyncio
+async def test_public_toggle_returns_the_analysis_inputs(
+    client, auth_override
+):
+    user = await _create_user("inputs-toggle-owner")
+    auth_override(user.id)
+    stat = await _tcl_statistics()
+    row = await _create_insight(
+        user_id=user.id,
+        statistics_ids=[str(stat.id)],
+        statistics_ids_exact=True,
+    )
+
+    response = await client.patch(
+        f"/api/insights/{row.id}/public",
+        json={"is_public": True},
+        headers={"Authorization": "Bearer t"},
+    )
+    assert response.status_code == 200
+    assert response.json()["analysis_inputs"] == [_entry()]
+
+
+# ---------------------------------------------------------------------------
 # Response shape
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
@@ -680,6 +810,7 @@ async def test_insight_response_shape(client, auth_override):
         "codeact_parts",
         "is_public",
         "statistics_ids",
+        "analysis_inputs",
         "created_at",
     }
     assert set(item.keys()) == expected_keys

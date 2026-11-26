@@ -26,6 +26,7 @@ from src.agent.tools.common import (
 )
 from src.api.data_models import InsightChartOrm, InsightOrm
 from src.api.repositories.insight_access import visible_insights_clause
+from src.api.services.analysis_inputs import recorded_inputs
 from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger
 
@@ -199,6 +200,7 @@ async def search_insights(
         insight,
         _recalled_message(best.id, insight, query),
         tool_call_id,
+        analysis_inputs=await recorded_inputs(best),
     )
 
 

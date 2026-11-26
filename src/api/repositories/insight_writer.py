@@ -40,12 +40,17 @@ def add_insight_rows(
     statistics_ids: Optional[list[str]] = None,
     codeact_parts: Optional[list[dict]] = None,
     is_public: bool = False,
+    statistics_ids_exact: bool,
 ) -> InsightOrm:
     """Add an insight and its charts to `session`; the caller commits.
 
     Lets another writer put the insight in its own transaction, so a later
     failure leaves no insight behind. The charts hang off the insight
     relationship, so they get the insight id when the session flushes.
+
+    `statistics_ids_exact` has no default, so every writer decides it: True
+    when `statistics_ids` lists exactly the pulls the insight was computed
+    from, False when the list may hold more or fewer.
     """
     statistics_ids = statistics_ids or []
     codeact_parts = codeact_parts or []
@@ -60,6 +65,7 @@ def add_insight_rows(
             for s in insight.follow_up_suggestions
         ],
         statistics_ids=statistics_ids,
+        statistics_ids_exact=statistics_ids_exact,
         codeact_types=[p["type"] for p in codeact_parts],
         codeact_contents=[p["content"] for p in codeact_parts],
         is_public=is_public,
@@ -76,6 +82,7 @@ async def persist_insight(
     thread_id: str,
     statistics_ids: Optional[list[str]] = None,
     codeact_parts: Optional[list[dict]] = None,
+    statistics_ids_exact: bool,
 ) -> str:
     """Persist an insight and its charts; return the new insight id (str).
 
@@ -90,6 +97,7 @@ async def persist_insight(
             thread_id=thread_id,
             statistics_ids=statistics_ids,
             codeact_parts=codeact_parts,
+            statistics_ids_exact=statistics_ids_exact,
         )
         await session.commit()
         await session.refresh(insight_orm)

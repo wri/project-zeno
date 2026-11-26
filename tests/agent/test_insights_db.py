@@ -21,9 +21,39 @@ from src.api.repositories.insight_writer import (
     persist_insight,
     update_insight,
 )
+from src.api.repositories.statistics_writer import (
+    PulledStatistics,
+    add_statistics_row,
+)
+from src.api.services.analysis_inputs import inputs_by_insight
 from src.shared import text_sanitize
 from src.shared.request_context import bound_user_id
 from tests.conftest import async_session_maker
+
+
+async def _insert_statistics():
+    """Write the pull row an insight links; return its id as a string."""
+    async with async_session_maker() as session:
+        row = add_statistics_row(
+            session,
+            PulledStatistics(
+                dataset_id=4,
+                dataset_name="Tree cover loss",
+                start_date="2020-01-01",
+                end_date="2020-12-31",
+                source_url=None,
+                areas=[{"name": "Brazil", "source": "gadm", "src_id": "BRA"}],
+                parameters=None,
+                context_layer=None,
+                canopy_cover=30,
+            ),
+            user_id=None,
+            thread_id="thread-1",
+        )
+        await session.flush()
+        statistics_id = str(row.id)
+        await session.commit()
+    return statistics_id
 
 
 async def _insert_insight(
@@ -34,6 +64,8 @@ async def _insert_insight(
     created_at=datetime(2026, 6, 1),
     chart_title="Annual tree cover loss",
     chart_data=None,
+    statistics_ids=None,
+    statistics_ids_exact=False,
 ):
     async with async_session_maker() as session:
         row = InsightOrm(
@@ -41,7 +73,8 @@ async def _insert_insight(
             thread_id="thread-1",
             insight_text=text,
             follow_up_suggestions=["old follow-up"],
-            statistics_ids=["stat-1"],
+            statistics_ids=statistics_ids or [],
+            statistics_ids_exact=statistics_ids_exact,
             codeact_types=["code"],
             codeact_contents=["cHJpbnQoKQ=="],
             is_public=is_public,
@@ -160,12 +193,34 @@ async def test_load_editable_insight_owner_only(user, user_ds):
 
 
 async def test_update_insight_replaces_charts_preserves_provenance(user):
-    insight_id = await _insert_insight(user_id=user.id, text="Old summary.")
+    statistics_id = await _insert_statistics()
+    insight_id = await _insert_insight(
+        user_id=user.id,
+        text="Old summary.",
+        statistics_ids=[statistics_id],
+        statistics_ids_exact=True,
+    )
+    async with async_session_maker() as session:
+        inputs_before = await inputs_by_insight(
+            session, [await session.get(InsightOrm, insight_id)]
+        )
+    assert inputs_before[insight_id] == [
+        {
+            "areas": [{"name": "Brazil", "source": "gadm", "src_id": "BRA"}],
+            "dataset_id": 4,
+            "dataset_name": "Tree cover loss",
+            "pulled_start_date": "2020-01-01",
+            "pulled_end_date": "2020-12-31",
+            "canopy_cover": 30,
+            "context_layer": None,
+        }
+    ]
 
     assert await update_insight(str(insight_id), _revised_insight()) is True
 
     async with async_session_maker() as session:
         row = await session.get(InsightOrm, insight_id)
+        inputs_after = await inputs_by_insight(session, [row])
         charts = (
             (
                 await session.execute(
@@ -193,7 +248,10 @@ async def test_update_insight_replaces_charts_preserves_provenance(user):
     # ...provenance untouched.
     assert row.user_id == user.id
     assert row.thread_id == "thread-1"
-    assert row.statistics_ids == ["stat-1"]
+    assert row.statistics_ids == [statistics_id]
+    assert row.statistics_ids_exact is True
+    # The inputs come from the linked pulls, so a restyle cannot change them.
+    assert inputs_after == inputs_before
     assert row.codeact_types == ["code"]
     assert row.codeact_contents == ["cHJpbnQoKQ=="]
     assert row.created_at == datetime(2026, 6, 1)
@@ -214,7 +272,10 @@ async def test_persist_insight_strips_nul_from_insight_text():
     )
 
     insight_id = await persist_insight(
-        insight, user_id=None, thread_id="thread-1"
+        insight,
+        user_id=None,
+        thread_id="thread-1",
+        statistics_ids_exact=True,
     )
 
     async with async_session_maker() as session:
@@ -230,7 +291,10 @@ async def test_persist_insight_strips_nul_from_follow_up_suggestions():
     )
 
     insight_id = await persist_insight(
-        insight, user_id=None, thread_id="thread-1"
+        insight,
+        user_id=None,
+        thread_id="thread-1",
+        statistics_ids_exact=True,
     )
 
     async with async_session_maker() as session:
@@ -263,7 +327,10 @@ async def test_persist_insight_strips_nul_from_chart_rows():
     )
 
     insight_id = await persist_insight(
-        insight, user_id=None, thread_id="thread-1"
+        insight,
+        user_id=None,
+        thread_id="thread-1",
+        statistics_ids_exact=True,
     )
 
     async with async_session_maker() as session:

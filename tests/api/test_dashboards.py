@@ -7,7 +7,12 @@ import pytest
 
 from src.agent.datasets.handlers.analytics_handler import INTEGRATED_ALERTS_ID
 from src.api.app import app
-from src.api.data_models import InsightChartOrm, InsightOrm, UserOrm
+from src.api.data_models import (
+    InsightChartOrm,
+    InsightOrm,
+    StatisticsOrm,
+    UserOrm,
+)
 from src.api.routers.dashboards import get_alerts_source
 from src.shared.config import SharedSettings
 from tests.conftest import async_session_maker
@@ -40,8 +45,43 @@ async def _create_user(user_id: str) -> UserOrm:
         return user
 
 
+async def _create_statistics() -> StatisticsOrm:
+    async with async_session_maker() as session:
+        row = StatisticsOrm(
+            dataset_id=4,
+            dataset_name="Tree cover loss",
+            start_date="2001-01-01",
+            end_date="2024-12-31",
+            aoi_names=["Paraná, Brazil"],
+            aoi_ids=["BRA.16"],
+            aoi_sources=["gadm"],
+            canopy_cover=30,
+        )
+        session.add(row)
+        await session.commit()
+        await session.refresh(row)
+        return row
+
+
+ANALYSIS_INPUT = {
+    "areas": [
+        {"name": "Paraná, Brazil", "source": "gadm", "src_id": "BRA.16"}
+    ],
+    "dataset_id": 4,
+    "dataset_name": "Tree cover loss",
+    "pulled_start_date": "2001-01-01",
+    "pulled_end_date": "2024-12-31",
+    "canopy_cover": 30,
+    "context_layer": None,
+}
+
+
 async def _create_insight(
-    *, user_id: str | None, is_public: bool = False
+    *,
+    user_id: str | None,
+    is_public: bool = False,
+    statistics_ids: list[str] | None = None,
+    statistics_ids_exact: bool = False,
 ) -> InsightOrm:
     async with async_session_maker() as session:
         row = InsightOrm(
@@ -49,6 +89,8 @@ async def _create_insight(
             thread_id="thread-1",
             insight_text="Sample insight text",
             is_public=is_public,
+            statistics_ids=statistics_ids or [],
+            statistics_ids_exact=statistics_ids_exact,
         )
         session.add(row)
         await session.commit()
@@ -216,7 +258,12 @@ async def test_get_dashboard_expands_insight_widgets(client, auth_override):
     user = await _create_user("expand-owner")
     auth_override(user.id)
     dashboard = await _create_dashboard(client)
-    insight = await _create_insight(user_id=user.id)
+    stat = await _create_statistics()
+    insight = await _create_insight(
+        user_id=user.id,
+        statistics_ids=[str(stat.id)],
+        statistics_ids_exact=True,
+    )
 
     response = await client.post(
         f"/api/dashboards/{dashboard['id']}/widgets",
@@ -234,6 +281,7 @@ async def test_get_dashboard_expands_insight_widgets(client, auth_override):
     # Same shape the insights endpoints return, nested in the widget.
     assert widget["insight"]["insight_text"] == "Sample insight text"
     assert widget["insight"]["id"] == str(insight.id)
+    assert widget["insight"]["analysis_inputs"] == [ANALYSIS_INPUT]
 
 
 # ---------------------------------------------------------------------------
@@ -1206,12 +1254,28 @@ def _new_insight(text="Alerts in the area"):
 
 def _section_widgets(insight=None):
     from src.api.repositories.dashboard_writer import SectionWidget
+    from src.api.repositories.statistics_writer import PulledStatistics
+
+    pull = PulledStatistics(
+        dataset_id=4,
+        dataset_name="Tree cover loss",
+        start_date="2001-01-01",
+        end_date="2024-12-31",
+        source_url="https://analytics.example.com/result/1",
+        areas=[
+            {"name": "Paraná, Brazil", "source": "gadm", "src_id": "BRA.16"}
+        ],
+        parameters=None,
+        context_layer=None,
+        canopy_cover=30,
+    )
 
     return [
         SectionWidget(
             widget_type="insight",
             config={"default_view": "chart"},
             insight=insight or _new_insight(),
+            statistics=[pull],
         ),
         SectionWidget(widget_type="text", config={"text": "A note"}),
     ]
@@ -1255,6 +1319,10 @@ async def test_section_with_widgets_writes_all_rows(client, auth_override):
     chart_widget = widgets[0]
     assert chart_widget["insight"]["insight_text"] == "Alerts in the area"
     assert chart_widget["insight"]["is_public"] is False
+    # The pull is written with the insight and linked to it.
+    assert chart_widget["insight"]["analysis_inputs"] == [ANALYSIS_INPUT]
+    assert len(chart_widget["insight"]["statistics_ids"]) == 1
+    assert widgets[1]["insight"] is None
 
 
 @pytest.mark.asyncio

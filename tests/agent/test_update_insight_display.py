@@ -34,6 +34,19 @@ def _original_chart():
     )
 
 
+ANALYSIS_INPUTS = [
+    {
+        "areas": [{"name": "Brazil", "source": "gadm", "src_id": "BRA"}],
+        "dataset_id": 4,
+        "dataset_name": "Tree cover loss",
+        "pulled_start_date": "2020-01-01",
+        "pulled_end_date": "2020-12-31",
+        "canopy_cover": 30,
+        "context_layer": None,
+    }
+]
+
+
 def _fake_orm_row(**kwargs):
     """Object shaped like InsightOrm (+ chart rows) for the load path."""
     defaults = dict(
@@ -247,6 +260,10 @@ async def test_update_insight_display_happy_path():
             "src.agent.tools.update_insight_display.update_insight",
             new=AsyncMock(return_value=True),
         ) as mock_update,
+        patch(
+            "src.agent.tools.update_insight_display.recorded_inputs",
+            new=AsyncMock(return_value=ANALYSIS_INPUTS),
+        ) as mock_inputs,
     ):
         command = await update_insight_display.coroutine(
             instruction="change to a line chart and reword",
@@ -256,6 +273,9 @@ async def test_update_insight_display_happy_path():
 
     assert command.update["insight"] == "New summary"
     assert command.update["follow_up_suggestions"] == ["f1"]
+    # A restyle keeps the data, so state keeps the inputs of the linked pulls.
+    mock_inputs.assert_awaited_once_with(row)
+    assert command.update["analysis_inputs"] == ANALYSIS_INPUTS
     charts_data = command.update["charts_data"]
     assert charts_data[0]["title"] == "New title"
     assert charts_data[0]["type"] == "line"

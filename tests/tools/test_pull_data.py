@@ -25,6 +25,9 @@ from tests.conftest import async_session_maker
 # "Event loop is closed" errors when running with other test modules
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 pull_data_module = importlib.import_module("src.agent.tools.pull_data")
+statistics_writer_module = importlib.import_module(
+    "src.api.repositories.statistics_writer"
+)
 
 
 @pytest.fixture(autouse=True)
@@ -35,7 +38,7 @@ def mock_pull_data_db_session(monkeypatch):
             yield session
 
     monkeypatch.setattr(
-        pull_data_module, "get_session_from_pool", fake_pool_session
+        statistics_writer_module, "get_session_from_pool", fake_pool_session
     )
 
 
@@ -232,6 +235,7 @@ async def test_pull_data_persists_statistics(monkeypatch):
                 message="Pulled data.",
                 data_points_count=1,
                 analytics_api_url="http://example.com/analytics/statistics",
+                canopy_cover=75,
             )
 
     async def fake_revise_date_range(
@@ -301,6 +305,8 @@ async def test_pull_data_persists_statistics(monkeypatch):
     assert statistics_row.parameters == [
         {"name": "canopy_cover", "values": [75]}
     ]
+    assert statistics_row.canopy_cover == 75
+    assert statistics[0]["canopy_cover"] == 75
 
 
 async def test_pull_data_blocks_dataset_excluded_by_profile(monkeypatch):

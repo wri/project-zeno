@@ -11,10 +11,15 @@ shape. These tests assert the current behaviour.
 """
 
 import pytest
+from sqlalchemy import text
 
 from src.shared import geocoding_helpers
-from src.shared.geocoding_helpers import fetch_aoi_bbox, get_geometry_data
-from tests.conftest import seed_reference_aoi
+from src.shared.geocoding_helpers import (
+    fetch_aoi_bbox,
+    fetch_aoi_names,
+    get_geometry_data,
+)
+from tests.conftest import async_session_maker, seed_reference_aoi
 
 AUTH = {"Authorization": "Bearer abc123"}
 _USER_ID = "test-user-wri"
@@ -275,3 +280,52 @@ async def test_fetch_bbox_logs_nothing_when_the_bbox_is_found(bbox_warnings):
 
     assert await fetch_aoi_bbox("wdpa", "777") == [1.0, 2.0, 3.0, 4.0]
     assert bbox_warnings == []
+
+
+# ---------------------------------------------------------------------------
+# fetch_aoi_names
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_names_are_found_by_source_and_id():
+    await seed_reference_aoi(
+        "gadm", "BRA.22_1", "Rondônia, Brazil", "state-province"
+    )
+    await seed_reference_aoi("wdpa", "BRA.22_1", "Not it", "protected-area")
+
+    names = await fetch_aoi_names([("gadm", "BRA.22_1"), ("gadm", "NOPE")])
+
+    assert names == {("gadm", "BRA.22_1"): "Rondônia, Brazil"}
+
+
+@pytest.mark.asyncio
+async def test_crossed_pairs_are_not_named():
+    """One pair's source with another pair's id is not a pair asked for."""
+    await seed_reference_aoi("gadm", "A", "Gadm A", "country")
+    await seed_reference_aoi("wdpa", "B", "Wdpa B", "protected-area")
+    await seed_reference_aoi("gadm", "B", "Gadm B", "country")
+
+    names = await fetch_aoi_names([("gadm", "A"), ("wdpa", "B")])
+
+    assert names == {("gadm", "A"): "Gadm A", ("wdpa", "B"): "Wdpa B"}
+
+
+@pytest.mark.asyncio
+async def test_a_deprecated_row_is_not_named():
+    await seed_reference_aoi("gadm", "OLD", "Old name", "country")
+    async with async_session_maker() as session:
+        await session.execute(
+            text(
+                "UPDATE aois SET is_deprecated = true "
+                "WHERE source = 'gadm' AND source_id = 'OLD'"
+            )
+        )
+        await session.commit()
+
+    assert await fetch_aoi_names([("gadm", "OLD")]) == {}
+
+
+@pytest.mark.asyncio
+async def test_no_pairs_give_no_names():
+    assert await fetch_aoi_names([]) == {}

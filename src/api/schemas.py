@@ -654,6 +654,51 @@ class InsightChartResponse(BaseModel):
     divergent_colors: Optional[Dict[str, str]] = None
 
 
+class AnalysisArea(BaseModel):
+    """One area of a data pull.
+
+    ``source`` and ``src_id`` identify the area together, never the name.
+    Both are null when the pull did not record them (older pulls kept
+    names only).
+    """
+
+    name: str
+    source: Optional[str]
+    src_id: Optional[str]
+
+
+class AnalysisInput(BaseModel):
+    """The inputs of one data pull that an insight was computed from.
+
+    Absence convention: every field is always present, and a nullable field
+    is an explicit ``null``, never omitted. A list of these is ``null`` when
+    the inputs were not recorded (the insight was saved before its pulls
+    were linked exactly, or its analysis read no pull), and never ``[]``.
+
+    ``canopy_cover`` is the threshold the pull sent to the analytics API
+    (the dataset default when none was selected), or ``null`` for a dataset
+    that takes none or a pull stored before the threshold was.
+    """
+
+    areas: List[AnalysisArea]
+    dataset_id: Optional[int]
+    dataset_name: str
+    pulled_start_date: str = Field(
+        description=(
+            "Start of the data pull, as an ISO date. It can be earlier than "
+            "the period the chart shows."
+        )
+    )
+    pulled_end_date: str = Field(
+        description=(
+            "End of the data pull, as an ISO date. It can be later than the "
+            "period the chart shows."
+        )
+    )
+    canopy_cover: Optional[int]
+    context_layer: Optional[str]
+
+
 class InsightResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -663,6 +708,12 @@ class InsightResponse(BaseModel):
     insight_text: str
     follow_up_suggestions: List[str]
     statistics_ids: List[str] = []
+    # One entry per pull the insight was computed from, in pull order.
+    # Always present: null when the inputs were not recorded, never [] (see
+    # AnalysisInput). No default, so every response must state it.
+    analysis_inputs: Optional[
+        Annotated[List[AnalysisInput], Field(min_length=1)]
+    ]
     charts: List[InsightChartResponse]
     codeact_parts: List[CodeActPartResponse]
     is_public: bool
