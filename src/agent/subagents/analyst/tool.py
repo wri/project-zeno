@@ -883,8 +883,10 @@ async def _build_curated_insight(
     period = (start, end) if start and end else None
     charts: list[InsightChart] = []
     if rows and gate.passed:
-        # The areas of the pull, for a ranking. A pull of one area has no
-        # use for them, and an older pull may lack the lists.
+        # The areas of the pull, for a ranking only. Another view needs none,
+        # and an older pull may lack `aoi_sources`: building them there
+        # would drop a curated chart that needs no ranking. A ranking with
+        # bad lists raises, and the route falls back to the code executor.
         areas = (
             ranked_areas(
                 statistics.get("aoi_ids") or [],
@@ -892,7 +894,8 @@ async def _build_curated_insight(
                 statistics.get("aoi_sources") or [],
                 statistics.get("aoi_id_to_name"),
             )
-            if len(statistics.get("aoi_names") or []) >= 2
+            if any(view.shape == "several_areas" for view in gate.views)
+            and len(statistics.get("aoi_names") or []) >= 2
             else None
         )
         charts = charts_with_data(

@@ -16,6 +16,7 @@ from src.agent.datasets.handlers.analytics_handler import (
     GRASSLANDS_ID,
     NATURAL_FOREST_DEFAULT_CANOPY_COVER,
     SLUC_EMISSION_FACTORS_ID,
+    TREE_COVER_ID,
     TREE_COVER_LOSS_BY_DRIVER_ID,
     TREE_COVER_LOSS_ID,
 )
@@ -217,6 +218,27 @@ async def test_several_areas_of_a_dataset_with_no_ranking_go_to_the_code_executo
                 dataset_id=TREE_COVER_LOSS_BY_DRIVER_ID,
             )
         )
+
+
+async def test_a_comparison_view_needs_no_area_lists_of_a_ranking(run):
+    # Tree cover extent compares areas but is no ranking: an older pull with
+    # no `aoi_sources` keeps its curated chart.
+    run.data = {
+        "aoi_id": ["BRA.14", "BRA.13"],
+        "name": ["Pará", "Mato Grosso"],
+        "area_ha": [900.0, 500.0],
+    }
+    statistics = _statistics(
+        aoi_names=("Pará", "Mato Grosso"),
+        dataset_id=TREE_COVER_ID,
+        aoi_ids=("BRA.14_1", "BRA.13_1"),
+    )
+    del statistics["aoi_sources"]
+
+    await _analyze(statistics)
+
+    insight = run.persist.await_args.args[0]
+    assert [c.view_id for c in insight.charts] == ["tree_cover.extent"]
 
 
 async def test_a_ranking_of_rows_with_an_unknown_area_goes_to_the_code_executor(
