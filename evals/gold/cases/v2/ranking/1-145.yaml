@@ -1,5 +1,5 @@
 id: 1-145
-uid: b0995f66820eec82
+uid: 92f3dffc9ec9802b
 status: todo
 group: ranking
 query: Rank the counties of Kenya by tree cover loss from 2001 to 2024. Which county lost
@@ -10,12 +10,16 @@ expected:
   dataset_id: '4'
   dataset_name: Tree cover loss
   chart_type: ranked-bar
+  answer: Narok (79,508 hectares)
   scope: analyse
 notes:
+  answer_source: '2026-11-26: production analytics API, the payload of the GOLD request builder
+    for this case (canopy 30, no context layer), summed per area for the asked years: Narok
+    79,507.86 ha, then Nakuru 32,906.23 and Kilifi 28,116.41; 47 counties, 1 with no loss,
+    total 400,387.18 ha (2001 to 2024).'
   status_reason: '2026-11-26: held until the curated ranking chart ships (PZB-1728). Before
-    that the first chart is a CodeAct chart, so chart_type_match fails. Add a verified answer
-    (the top county) from the local pull in Phase 4 of PRDs/curated-ranking-chart.md before
-    promoting; that edit mints the uid the case is verified at.'
+    that the first chart is a CodeAct chart, so chart_type_match fails. The answer is verified
+    (answer_source); promote after a 3-trial pass at this uid.'
   purpose: 'More than 10 areas (47 counties, GADM level 1 "County" in KEN): the paged ranking,
     the selection name in the caption, and a sum over a period of several years.'
   chart_route: ranked-bar is decided by the code gate once the agent picks the standard route,

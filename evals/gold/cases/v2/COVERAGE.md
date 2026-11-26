@@ -6,7 +6,7 @@ is stale (`--check`). Coverage counts use **gating** checks only;
 info-only checks are listed separately (they never enter a verdict).
 Terms are defined in the [README glossary](../../README.md#glossary).
 
-`caseset_version ac3100490a01b6de` · 157 cases · done 92 · not doing 33 · ready 27 · todo 5 · **124 active** (everything but `not doing` runs by default)
+`caseset_version aeb6cc9780c52cad` · 157 cases · done 92 · not doing 33 · ready 27 · todo 5 · **124 active** (everything but `not doing` runs by default)
 
 _Last updated: 2026-11-26_
 
@@ -48,8 +48,8 @@ exists.
 | bucket | via dedicated check | via shared only | total | of active |
 |---|---|---|---|---|
 | retrieval | 117 | 0 | 117 | 94% |
-| analysis | 0 | 74 | 74 | 60% |
-| explanation | 30 | 64 | 94 | 76% |
+| analysis | 0 | 77 | 77 | 62% |
+| explanation | 30 | 66 | 96 | 77% |
 | output | 86 | 3 | 89 | 72% |
 | scope | 106 | 9 | 115 | 93% |
 
@@ -62,7 +62,7 @@ exists.
 | aoi_source | 100 | no check of its own (dashboard_aoi_match also compares it) |
 | dataset_name | 96 | reference only |
 | aoi_ids | 95 | aoi_id_match |
-| answer | 74 | agent_answer, chart_produced, data_pull_exists, answered_without_data (+ charts_answer when a chart exists) |
+| answer | 77 | agent_answer, chart_produced, data_pull_exists, answered_without_data (+ charts_answer when a chart exists) |
 | text | 30 | expected_text_match |
 | context_layer | 19 | context_layer_match |
 | dashboard_created | 11 | dashboard_created |
@@ -100,7 +100,7 @@ answer-graded column) exercise the other three.
 | 1 | Global land cover | 6 | 6 | — | — |
 | 2 | Global natural/semi-natural grassland extent | 12 | 11 | — | — |
 | 3 | SBTN Natural Lands Map | 5 | 5 | — | — |
-| 4 | Tree cover loss | 52 | 36 | canopy_cover ×1 | primary_forest ×6, intact_forest ×4, natural_forest ×5 |
+| 4 | Tree cover loss | 52 | 38 | canopy_cover ×1 | primary_forest ×6, intact_forest ×4, natural_forest ×5 |
 | 5 | Tree cover gain | 5 | 5 | — | — |
 | 6 | Forest greenhouse gas net flux | 3 | 3 | canopy_cover ×0 ← gap | — |
 | 7 | Tree cover | 3 | 3 | canopy_cover ×0 ← gap | primary_forest ×0 ← gap |

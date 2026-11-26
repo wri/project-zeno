@@ -1,5 +1,5 @@
 id: 1-147
-uid: 06e7182810c3f2d5
+uid: 7ae3b333bddc6820
 status: todo
 group: ranking
 query: Rank the provinces of Bolivia by tree cover loss in 2024. Where does Cercado province
@@ -13,12 +13,17 @@ expected:
   text: Gives the rank of Cercado province in Beni department among Bolivia's provinces, and
     does not give the rank or loss of another province named Cercado (in Cochabamba, Oruro
     or Tarija) as Beni's.
+  answer: 26th of Bolivia's 112 provinces (4,981 hectares)
   scope: analyse
 notes:
+  answer_source: '2026-11-26: production analytics API, the payload of the GOLD request builder
+    for this case (canopy 30, no context layer), summed per area for the asked years: Cercado
+    (Beni) 4,980.56 ha, rank 26 of 112 (25th Nicolás Suárez 5,745.53, 27th Sud Yungas 4,207.62);
+    Cercado (Tarija) 1.15 ha, rank 55; Cercado (Cochabamba) and Cercado (Oruro) 0 ha; 51 provinces
+    with no loss (2024).'
   status_reason: '2026-11-26: held until the curated ranking chart ships (PZB-1728). Before
-    that the first chart is a CodeAct chart, so chart_type_match fails. Add a verified answer
-    (the rank of Cercado, Beni) from the local pull in Phase 4 of PRDs/curated-ranking-chart.md
-    before promoting; that edit mints the uid the case is verified at.'
+    that the first chart is a CodeAct chart, so chart_type_match fails. The answer is verified
+    (answer_source); promote after a 3-trial pass at this uid.'
   purpose: 'Repeated names: 4 of Bolivia''s 112 provinces (GADM level 2 "Province" in BOL)
     are named Cercado (BOL.2.8_2 Cochabamba, BOL.3.1_2 Beni, BOL.5.3_2 Oruro, BOL.9.3_2 Tarija).
     The tool message must tell them apart ("Cercado · Beni"), and the answer must use the
