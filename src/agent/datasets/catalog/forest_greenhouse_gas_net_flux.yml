@@ -48,8 +48,12 @@ code_instructions: 'CHART TYPES: - Net flux → split/diverging bar chart (emiss
   > emissions) - Use "net source" for net-positive flux (emissions > removals)
 
   '
-presentation_instructions: 'Clarify that values represent total flux over 2001-2025, not annual figures. Mention that users
-  can divide by 25 to estimate an annual average, but DO NOT perform this division — always present the raw totals as primary
+presentation_instructions: 'If the user asks for a period other than 2001-2025 (a single year, or a shorter range such as
+  2021-2025), say first, before any figure, that net flux cannot be given for that period because the data is one total for
+  2001-2025. Then give the 2001-2025 total and label it as the 2001-2025 total. Never present the total, or the total divided
+  by a number of years, as a figure for the requested period.
+  Clarify that values represent total flux over 2001-2025, not annual figures. Mention that users
+  can divide by 25 to estimate an average per year over 2001-2025, but DO NOT perform this division — always present the raw totals as primary
   values. Use "net sink" for negative values, "net source" for positive values. Note the 30% canopy density threshold is fixed.
   This is a modeled product with inherent uncertainty — higher in removals than emissions.
 
@@ -58,7 +62,7 @@ description: 'Maps the balance between emissions from forest disturbances and ca
   and 2025, using a globally consistent model. Negative values indicate forest areas acting as net carbon sinks, while positive
   values show net greenhouse gas sources. This dataset supports climate reporting, forest-based mitigation strategies, and
   greenhouse gas inventories by identifying where forests are contributing to or helping mitigate climate change. There is
-  no timeseries; values are annual averages.
+  no timeseries; values are totals for 2001-2025.
 
   '
 methodology: 'This net flux layer is part of the forest greenhouse gas flux model described in Harris et al. (2021). This
