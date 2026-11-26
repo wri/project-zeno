@@ -123,10 +123,21 @@ def _apply_revision(
                 )
             new_charts.append(original)
             continue
+        chart_type: str = rc.chart_type
+        # The reviser's chart types cannot name "ranked-bar", so any
+        # revision of a ranking comes back as a plain type. A "bar" of the
+        # same measure is the closest it can say: keep the ranking. Another
+        # type or measure is an explicit change and takes the plain chart.
+        if (
+            original.chart_type == "ranked-bar"
+            and chart_type == "bar"
+            and rc.y_axis == original.y_axis
+        ):
+            chart_type = "ranked-bar"
         chart = InsightChart(
             position=original.position,
             title=rc.title,
-            chart_type=rc.chart_type,
+            chart_type=chart_type,
             x_axis=rc.x_axis,
             y_axis=rc.y_axis,
             color_field=rc.color_field,

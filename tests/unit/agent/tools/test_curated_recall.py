@@ -137,3 +137,53 @@ def test_a_restyle_of_other_series_resolves_the_colours_again():
     ).charts
     assert chart.view_id == "integrated_alerts.by_confidence"
     assert chart.color_map != {"Highest": "#111111", "High": "#222222"}
+
+
+# --- a restyle keeps a ranking a ranked bar when its measure is kept --------
+
+
+def _ranking():
+    return InsightChart(
+        position=0,
+        title="Tree cover loss by area",
+        chart_type="ranked-bar",
+        x_axis="name",
+        y_axis="area_ha",
+        chart_data=[
+            {"rank": 1, "name": "A", "area_ha": 9.0, "other_ha": 1.0},
+            {"rank": 2, "name": "B", "area_ha": 5.0, "other_ha": 2.0},
+        ],
+        view_id="tcl.loss_ranking",
+    )
+
+
+def _revised(chart_type, y_axis="area_ha"):
+    return RevisedInsight(
+        charts=[
+            RevisedChart(
+                position=0,
+                title="Renamed",
+                chart_type=chart_type,
+                x_axis="name",
+                y_axis=y_axis,
+            )
+        ],
+        primary_insight="Summary.",
+        follow_up_suggestions=[],
+    )
+
+
+def test_a_restyle_with_the_same_measure_keeps_the_ranked_bar():
+    insight = _apply_revision([_ranking()], _revised("bar"))
+    assert insight.charts[0].chart_type == "ranked-bar"
+    assert insight.charts[0].title == "Renamed"
+
+
+def test_a_restyle_to_another_type_takes_the_revised_type():
+    insight = _apply_revision([_ranking()], _revised("pie"))
+    assert insight.charts[0].chart_type == "pie"
+
+
+def test_a_restyle_to_another_measure_takes_a_plain_bar():
+    insight = _apply_revision([_ranking()], _revised("bar", "other_ha"))
+    assert insight.charts[0].chart_type == "bar"
