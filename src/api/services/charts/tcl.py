@@ -13,6 +13,12 @@ LOSS_COLOR = PALETTES[TREE_COVER_LOSS_ID]["series_color"]
 if LOSS_COLOR is None:
     raise RuntimeError("The tree cover loss palette has no series_color")
 
+# (title key, measure column, series colour) of each ranking, in order.
+_RANKINGS = (
+    ("charts.tcl.loss_ranking", "area_ha", LOSS_COLOR),
+    ("charts.tcl.emissions_ranking", "carbon_emissions_MgCO2e", None),
+)
+
 
 class TCLChartGenerator(ChartGenerator):
     """Tree Cover Loss: annual loss area + annual GHG emissions, as two bars."""
@@ -25,55 +31,36 @@ class TCLChartGenerator(ChartGenerator):
     def for_areas(self, areas: Sequence[RankedArea]) -> "TCLChartGenerator":
         return TCLChartGenerator(areas)
 
-    def _rankings(self, rows: List[dict]) -> List[InsightChart]:
+    @staticmethod
+    def _rankings(
+        rows: List[dict], areas: Sequence[RankedArea]
+    ) -> List[InsightChart]:
         """The areas of the pull as bars, ranked by loss and by emissions.
         Built from every pulled row, also the rows of 0 that the annual
         charts drop, and in this order, as the annual pair. A measure that
         no row has gives no chart."""
-        charts = [
-            self._ranking(
-                rows,
-                title="charts.tcl.loss_ranking",
-                column="area_ha",
-                color=LOSS_COLOR,
-            ),
-            self._ranking(
-                rows,
-                title="charts.tcl.emissions_ranking",
-                column="carbon_emissions_MgCO2e",
-                color=None,
-            ),
-        ]
-        kept = [chart for chart in charts if chart is not None]
-        for position, chart in enumerate(kept):
-            chart.position = position
-        return kept
-
-    def _ranking(
-        self,
-        rows: List[dict],
-        title: str,
-        column: str,
-        color: Optional[str],
-    ) -> Optional[InsightChart]:
-        assert self._areas is not None
-        ranking = build_ranking(rows, self._areas, column)
-        if not ranking:
-            return None
-        return InsightChart(
-            position=0,
-            title=title,
-            chart_type="ranked-bar",
-            x_axis="name",
-            y_axis=column,
-            series_color=color,
-            chart_data=ranking,
-        )
+        charts: List[InsightChart] = []
+        for title_key, column, color in _RANKINGS:
+            ranking = build_ranking(rows, areas, column)
+            if ranking:
+                charts.append(
+                    InsightChart(
+                        position=len(charts),
+                        title=title_key,
+                        chart_type="ranked-bar",
+                        x_axis="name",
+                        y_axis=column,
+                        series_color=color,
+                        chart_data=ranking,
+                    )
+                )
+        return charts
 
     def generate(self, rows: List[dict]) -> List[InsightChart]:
-        # Two or more areas are ranked; one area has its years as bars.
-        if self._areas is not None and len(self._areas) >= 2:
-            return self._rankings(rows)
+        # Areas are given only for a ranking: `gate.shape_fits` owns how
+        # many a ranking needs. Without areas, the years are the bars.
+        if self._areas is not None:
+            return self._rankings(rows, self._areas)
         # The analytics API returns rows in arbitrary order; sort by year so
         # the chart's category x-axis reads 2001 → 2025 rather than a shuffle.
         rows = sorted(

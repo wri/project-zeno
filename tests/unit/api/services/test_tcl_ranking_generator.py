@@ -143,14 +143,20 @@ def test_a_row_of_an_unknown_area_raises():
         TCLChartGenerator().for_areas(AREAS).generate(rows)
 
 
-def test_one_area_or_no_areas_give_the_annual_pair():
-    one = [AREAS[0]]
-    expected = ["charts.tcl.annual_loss", "charts.tcl.annual_emissions"]
+def test_no_areas_give_the_annual_pair():
+    charts = TCLChartGenerator().generate(ROWS)
 
-    for generator in (
-        TCLChartGenerator(),
-        TCLChartGenerator().for_areas(one),
-    ):
-        charts = generator.generate(ROWS)
-        assert [chart.title for chart in charts] == expected
-        assert {chart.chart_type for chart in charts} == {"bar"}
+    assert [chart.title for chart in charts] == [
+        "charts.tcl.annual_loss",
+        "charts.tcl.annual_emissions",
+    ]
+    assert {chart.chart_type for chart in charts} == {"bar"}
+
+
+def test_any_areas_given_are_ranked_as_the_gate_owns_the_count():
+    charts = TCLChartGenerator().for_areas([AREAS[0]]).generate(ROWS)
+
+    assert [chart.title for chart in charts] == [
+        "charts.tcl.loss_ranking",
+        "charts.tcl.emissions_ranking",
+    ]
