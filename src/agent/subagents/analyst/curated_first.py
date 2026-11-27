@@ -264,9 +264,7 @@ def format_ranking_rows(chart: InsightChart) -> str:
         lines.append(" | ".join(cells))
     rest = rows[len(shown) :]
     if rest:
-        smaller = (rest[0].get(chart.y_axis) or 0) < (
-            shown[-1].get(chart.y_axis) or 0
-        )
+        smaller = rest[0][chart.y_axis] < shown[-1][chart.y_axis]
         lines.append(
             f"{len(rest)} more areas, each with "
             f"{'less' if smaller else 'the same or less'}"
@@ -289,7 +287,7 @@ def ranking_fact_sentences(chart: InsightChart) -> list[str]:
         "with the same value share a rank."
     ]
     if _has_shares(rows):
-        total = round_value(sum(row.get(chart.y_axis) or 0 for row in rows))
+        total = round_value(sum(row[chart.y_axis] for row in rows))
         sentences.append(
             f"Total over the {_areas(len(rows))}: {_cell(total)} "
             f"{unit_of(chart.y_axis)}. A share is the percent of this "
@@ -302,7 +300,7 @@ def ranking_fact_sentences(chart: InsightChart) -> list[str]:
         )
     labels = _area_labels(rows)
     zero = [
-        label for label, row in zip(labels, rows) if not row.get(chart.y_axis)
+        label for label, row in zip(labels, rows) if row[chart.y_axis] == 0
     ]
     if zero:
         names = (
