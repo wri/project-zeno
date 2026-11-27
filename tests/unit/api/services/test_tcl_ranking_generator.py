@@ -33,6 +33,10 @@ ROWS = [
 ]
 
 
+def _rank(rows):
+    return TCLChartGenerator().for_areas(AREAS).generate(rows)
+
+
 class _Plain(ChartGenerator):
     dataset_id = 0
 
@@ -47,7 +51,7 @@ def test_the_default_generator_ignores_the_areas():
 
 
 def test_several_areas_give_the_loss_ranking_first_and_emissions_second():
-    charts = TCLChartGenerator().for_areas(AREAS).generate(ROWS)
+    charts = _rank(ROWS)
 
     assert [chart.title for chart in charts] == [
         "charts.tcl.loss_ranking",
@@ -66,7 +70,7 @@ def test_several_areas_give_the_loss_ranking_first_and_emissions_second():
 
 
 def test_the_loss_ranking_sums_the_pulled_rows_and_lists_every_area():
-    loss = TCLChartGenerator().for_areas(AREAS).generate(ROWS)[0]
+    loss = _rank(ROWS)[0]
 
     assert [
         (r["rank"], r["aoi_id"], r["area_ha"], r["share_pct"])
@@ -87,7 +91,7 @@ def test_the_ranking_sums_the_rows_it_is_given_without_a_year_filter():
         {"aoi_id": "KEN.1", "tree_cover_loss_year": 2024, "area_ha": 4.0},
     ]
 
-    loss = TCLChartGenerator().for_areas(AREAS).generate(rows)[0]
+    loss = _rank(rows)[0]
 
     assert {r["aoi_id"]: r["area_ha"] for r in loss.chart_data}["KEN.1"] == 5.0
 
@@ -102,7 +106,7 @@ def test_rows_of_zero_still_count_for_an_area_of_the_ranking():
         }
     ]
 
-    loss = TCLChartGenerator().for_areas(AREAS).generate(rows)[0]
+    loss = _rank(rows)[0]
 
     assert len(loss.chart_data) == 3
 
@@ -112,7 +116,7 @@ def test_a_pull_with_no_loss_has_no_ranking():
         {"aoi_id": "KEN.1", "area_ha": 0, "carbon_emissions_MgCO2e": 0},
     ]
 
-    assert TCLChartGenerator().for_areas(AREAS).generate(rows) == []
+    assert _rank(rows) == []
 
 
 def test_no_emissions_anywhere_leaves_only_the_loss_ranking():
@@ -121,7 +125,7 @@ def test_no_emissions_anywhere_leaves_only_the_loss_ranking():
         {"aoi_id": "KEN.2", "area_ha": 3.0, "carbon_emissions_MgCO2e": None},
     ]
 
-    charts = TCLChartGenerator().for_areas(AREAS).generate(rows)
+    charts = _rank(rows)
 
     assert [chart.title for chart in charts] == ["charts.tcl.loss_ranking"]
 
@@ -133,14 +137,14 @@ def test_emissions_missing_for_one_area_only_raises():
     ]
 
     with pytest.raises(ValueError):
-        TCLChartGenerator().for_areas(AREAS).generate(rows)
+        _rank(rows)
 
 
 def test_a_row_of_an_unknown_area_raises():
     rows = ROWS + [{"aoi_id": "KEN.9", "area_ha": 1.0}]
 
     with pytest.raises(ValueError, match="not in the pull"):
-        TCLChartGenerator().for_areas(AREAS).generate(rows)
+        _rank(rows)
 
 
 def test_no_areas_give_the_annual_pair():
