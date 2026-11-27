@@ -88,9 +88,13 @@ The tool description gives the rule to the orchestrator:
 
 - Use `standard` for a first analysis of an area and a dataset, and when
   you are not sure.
+- Use `standard` also for a ranking of areas by one measure. The tool shows
+  the curated ranking when a ranking view fits (tree cover loss:
+  `tcl.loss_ranking`, `tcl.emissions_ranking`, PZB-1728). Else the gate
+  fails and CodeAct draws it.
 - Use `custom` only when the user names something that the standard chart
-  does not have: a ranking or a comparison of areas, a different time step,
-  a calculation across two datasets, a derived metric, or a change that
+  does not have: a comparison of areas, a different time step, a
+  calculation across two datasets, a derived metric, or a change that
   `update_insight_display` cannot make.
 
 The cards of the views are not in the system prompt. The tool result names
@@ -209,8 +213,8 @@ It can add the offer in one short sentence, and it does not repeat the
 offer in each turn. The tool makes no follow-up buttons for a curated
 chart.
 
-A request that names a custom cut in the first message ("rank the
-districts by loss") still goes to `custom` directly (section 1). That is
+A request that names a custom cut in the first message ("compare loss in
+Peru and Bolivia") still goes to `custom` directly (section 1). That is
 a request of the user.
 
 The restyle step stays before CodeAct: a request for a line in place of
