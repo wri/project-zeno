@@ -22,7 +22,9 @@ from src.api.services.charts.views import (
 )
 from tests.unit.api.services.test_chart_generators import LGMS_ROWS
 
-TITLE_KEY = re.compile(r'title="(charts\.[a-z0-9_.]+)"')
+# Also a key in a table of specs, not only a `title=` argument. The label
+# keys are series names, not chart titles.
+TITLE_KEY = re.compile(r'"(charts\.(?!label\.)[a-z0-9_.]+)"')
 
 
 def _title_keys_in_generators() -> set[str]:

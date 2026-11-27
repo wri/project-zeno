@@ -154,7 +154,9 @@ def test_no_areas_give_the_annual_pair():
 
 
 def test_any_areas_given_are_ranked_as_the_gate_owns_the_count():
-    charts = TCLChartGenerator().for_areas([AREAS[0]]).generate(ROWS)
+    one_area_rows = [row for row in ROWS if row["aoi_id"] == "KEN.1"]
+
+    charts = TCLChartGenerator().for_areas([AREAS[0]]).generate(one_area_rows)
 
     assert [chart.title for chart in charts] == [
         "charts.tcl.loss_ranking",
