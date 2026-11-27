@@ -869,7 +869,7 @@ async def _build_curated_insight(
         count_areas,
         view_gate,
     )
-    from src.api.services.charts.ranking import ranked_areas
+    from src.api.services.charts.ranking import build_ranked_areas
 
     dataset_id = statistics["dataset_id"]
     named = len(statistics.get("aoi_names") or [])
@@ -900,7 +900,7 @@ async def _build_curated_insight(
         # would drop a curated chart that needs no ranking. A ranking with
         # bad lists raises, and the route falls back to the code executor.
         areas = (
-            ranked_areas(
+            build_ranked_areas(
                 statistics.get("aoi_ids") or [],
                 statistics.get("aoi_names") or [],
                 statistics.get("aoi_sources") or [],

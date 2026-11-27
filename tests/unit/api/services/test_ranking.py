@@ -4,8 +4,8 @@ import pytest
 
 from src.api.services.charts.ranking import (
     RankedArea,
+    build_ranked_areas,
     build_ranking,
-    ranked_areas,
     shares_allowed,
     split_name,
 )
@@ -25,7 +25,7 @@ def test_a_name_with_one_part_has_no_parent():
 
 
 def test_the_areas_come_from_the_parallel_lists_of_the_pull():
-    areas = ranked_areas(
+    areas = build_ranked_areas(
         ["BOL.3.1_2", "KEN.33"],
         ["Cercado, Beni, Bolivia", "Narok, Kenya"],
         ["gadm", "gadm"],
@@ -39,7 +39,7 @@ def test_the_areas_come_from_the_parallel_lists_of_the_pull():
 
 
 def test_the_name_falls_back_to_the_first_part_of_the_full_name():
-    (area,) = ranked_areas(["KEN.33_1"], ["Narok, Kenya"], ["gadm"])
+    (area,) = build_ranked_areas(["KEN.33_1"], ["Narok, Kenya"], ["gadm"])
 
     assert area.name == "Narok"
     assert area.id == "KEN.33"
@@ -47,12 +47,12 @@ def test_the_name_falls_back_to_the_first_part_of_the_full_name():
 
 def test_lists_that_differ_in_length_raise():
     with pytest.raises(ValueError, match="do not agree"):
-        ranked_areas(["A.1"], ["A", "B"], ["gadm"])
+        build_ranked_areas(["A.1"], ["A", "B"], ["gadm"])
 
 
 def test_an_area_twice_in_the_pull_raises():
     with pytest.raises(ValueError, match="twice"):
-        ranked_areas(["A.1_1", "A.1"], ["A", "A"], ["gadm", "gadm"])
+        build_ranked_areas(["A.1_1", "A.1"], ["A", "A"], ["gadm", "gadm"])
 
 
 def test_values_are_summed_per_area_and_sorted_largest_first():
@@ -129,8 +129,12 @@ def test_a_repeated_name_keeps_both_areas_with_their_parent():
 
 
 def test_level_2_ids_with_a_suffix_match_the_rows():
-    (area,) = ranked_areas(["BOL.3.1_2"], ["Cercado, Beni, Bolivia"], ["gadm"])
-    other = ranked_areas(["BOL.3.2_2"], ["Loreto, Beni, Bolivia"], ["gadm"])[0]
+    (area,) = build_ranked_areas(
+        ["BOL.3.1_2"], ["Cercado, Beni, Bolivia"], ["gadm"]
+    )
+    other = build_ranked_areas(
+        ["BOL.3.2_2"], ["Loreto, Beni, Bolivia"], ["gadm"]
+    )[0]
 
     ranking = build_ranking(
         [_row("BOL.3.1", 4), _row("BOL.3.2", 6)], [area, other], "area_ha"

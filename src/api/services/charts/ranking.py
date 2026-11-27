@@ -41,7 +41,7 @@ def split_name(full_name: str) -> tuple[str, Optional[str]]:
     return parts[0], parts[1] if len(parts) > 1 else None
 
 
-def ranked_areas(
+def build_ranked_areas(
     ids: Sequence[str],
     names: Sequence[str],
     sources: Sequence[str],

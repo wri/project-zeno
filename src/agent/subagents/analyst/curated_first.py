@@ -137,7 +137,7 @@ def fill_missing_years(
     return chart
 
 
-def area_text(statistics: dict) -> str:
+def describe_areas(statistics: dict) -> str:
     """The areas of a pull for the tool message (English, model-facing):
     each name, or above `MAX_LISTED_AREAS` the name of the selection, or
     the count when an older pull has no name."""
@@ -147,14 +147,14 @@ def area_text(statistics: dict) -> str:
     return statistics.get("aoi_selection_name") or f"{len(names)} areas"
 
 
-async def _area_label(statistics: dict, language: str) -> str:
+async def _caption_areas(statistics: dict, language: str) -> str:
     """The areas of a pull for the caption, in the reader's language.
 
     Above `MAX_LISTED_AREAS` the selection name is used in English only: it
     is an English phrase, so other languages get the translated count."""
     names = statistics.get("aoi_names") or []
     if language == DEFAULT_LANGUAGE or len(names) <= MAX_LISTED_AREAS:
-        return area_text(statistics)
+        return describe_areas(statistics)
     return await t("analyst.curated_area_count", language, count=len(names))
 
 
@@ -184,7 +184,7 @@ async def curated_caption(statistics: dict, language: str) -> str:
         )
     values = {
         "dataset_name": statistics.get("dataset_name", ""),
-        "area": await _area_label(statistics, language),
+        "area": await _caption_areas(statistics, language),
         "period": period_label(
             statistics.get("start_date"), statistics.get("end_date")
         ),
@@ -221,7 +221,7 @@ def is_ranking(chart: InsightChart) -> bool:
     return view is not None and view.ranks_areas
 
 
-def _area_labels(rows: Sequence[dict]) -> list[str]:
+def _label_ranked_rows(rows: Sequence[dict]) -> list[str]:
     """The name of each ranked area; "name · parent" when the name repeats
     in the chart, and "(id)" after that when the label still repeats."""
     counts = Counter(row.get("name") for row in rows)
@@ -257,7 +257,7 @@ def format_ranking_rows(chart: InsightChart) -> str:
     if with_share:
         columns.append(_column_header("share_pct"))
     lines = [" | ".join(columns)]
-    for label, row in zip(_area_labels(rows), shown):
+    for label, row in zip(_label_ranked_rows(rows), shown):
         cells = [_cell(row.get("rank")), label, _cell(row.get(chart.y_axis))]
         if with_share:
             cells.append(_cell(row.get("share_pct")))
@@ -272,7 +272,7 @@ def format_ranking_rows(chart: InsightChart) -> str:
     return "\n".join(lines)
 
 
-def _areas(count: int) -> str:
+def _count_areas(count: int) -> str:
     return f"{count} area" if count == 1 else f"{count} areas"
 
 
@@ -283,13 +283,13 @@ def ranking_fact_sentences(chart: InsightChart) -> list[str]:
     rows = chart.chart_data
     measure = _column_header(chart.y_axis)
     sentences = [
-        f"{_areas(len(rows))} ranked by {measure}, largest first. Areas "
+        f"{_count_areas(len(rows))} ranked by {measure}, largest first. Areas "
         "with the same value share a rank."
     ]
     if _has_shares(rows):
         total = round_value(sum(row[chart.y_axis] for row in rows))
         sentences.append(
-            f"Total over the {_areas(len(rows))}: {_cell(total)} "
+            f"Total over the {_count_areas(len(rows))}: {_cell(total)} "
             f"{unit_of(chart.y_axis)}. A share is the percent of this "
             "total."
         )
@@ -298,7 +298,7 @@ def ranking_fact_sentences(chart: InsightChart) -> list[str]:
             "No total and no share are given: these areas may overlap, so "
             "a total over them could count the same ground twice."
         )
-    labels = _area_labels(rows)
+    labels = _label_ranked_rows(rows)
     zero = [
         label for label, row in zip(labels, rows) if row[chart.y_axis] == 0
     ]
@@ -307,7 +307,7 @@ def ranking_fact_sentences(chart: InsightChart) -> list[str]:
             f": {', '.join(zero)}" if len(zero) <= MAX_ZERO_AREA_NAMES else ""
         )
         sentences.append(
-            f"{_areas(len(zero))} with a value of 0 for {measure}{names}."
+            f"{_count_areas(len(zero))} with a value of 0 for {measure}{names}."
         )
     return sentences
 
@@ -396,7 +396,7 @@ def _header(
             lines.append(f"Chart {index} note: {view.agent_note}")
     lines += [
         "",
-        f"Area: {area_text(statistics)}",
+        f"Area: {describe_areas(statistics)}",
         f"Dataset: {statistics.get('dataset_name', '')}",
     ]
     start, end = data_period(charts, statistics)
