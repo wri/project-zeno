@@ -104,6 +104,17 @@ MESSAGES: dict[str, dict[str, str]] = {
         "pt": "Gráficos padrão de {dataset_name} para {area}, {period} ({filters}).",
         "id": "Bagan standar {dataset_name} untuk {area}, {period} ({filters}).",
     },
+    # The area of a caption when a pull has more than 10 areas. The
+    # selection name is English-only, so every language but English uses
+    # this; English uses it only when a pull has no selection name (a pull
+    # from before the name was kept).
+    "analyst.curated_area_count": {
+        "en": "{count} areas",
+        "es": "{count} áreas",
+        "fr": "{count} zones",
+        "pt": "{count} áreas",
+        "id": "{count} wilayah",
+    },
     "analyst.filter_canopy_cover": {
         "en": "canopy cover ≥ {threshold}%",
         "es": "cobertura de copa ≥ {threshold}%",
@@ -751,6 +762,40 @@ MESSAGES.update(
             "vi": "Phát thải KNK hằng năm do mất độ che phủ cây",
             "sw": "Uzalishaji wa Mwaka wa Gesi Chafu kutokana na Upotevu wa Uoto wa Miti",
             "tr": "Ağaç Örtüsü Kaybından Yıllık Sera Gazı Emisyonları",
+        },
+        "charts.tcl.loss_ranking": {
+            "en": "Tree Cover Loss by Area",
+            "es": "Pérdida de cobertura arbórea por área",
+            "fr": "Perte de couvert arboré par zone",
+            "pt": "Perda de cobertura arbórea por área",
+            "id": "Kehilangan Tutupan Pohon menurut Wilayah",
+            "de": "Baumbestandsverlust nach Gebiet",
+            "it": "Perdita di copertura arborea per area",
+            "nl": "Verlies aan boomkroonbedekking per gebied",
+            "ru": "Потеря древесного покрова по территориям",
+            "zh": "各区域的树木覆盖损失",
+            "ar": "فقدان الغطاء الشجري حسب المنطقة",
+            "hi": "क्षेत्र के अनुसार वृक्ष आवरण हानि",
+            "vi": "Mất độ che phủ cây theo khu vực",
+            "sw": "Upotevu wa Uoto wa Miti kwa Eneo",
+            "tr": "Alana Göre Ağaç Örtüsü Kaybı",
+        },
+        "charts.tcl.emissions_ranking": {
+            "en": "GHG Emissions from Tree Cover Loss by Area",
+            "es": "Emisiones de GEI por pérdida de cobertura arbórea por área",
+            "fr": "Émissions de GES dues à la perte de couvert arboré par zone",
+            "pt": "Emissões de GEE pela perda de cobertura arbórea por área",
+            "id": "Emisi GRK dari Kehilangan Tutupan Pohon menurut Wilayah",
+            "de": "THG-Emissionen aus Baumbestandsverlust nach Gebiet",
+            "it": "Emissioni di GHG da perdita di copertura arborea per area",
+            "nl": "Broeikasgasemissies door verlies aan boomkroonbedekking per gebied",
+            "ru": "Выбросы ПГ от потери древесного покрова по территориям",
+            "zh": "各区域树木覆盖损失的温室气体排放",
+            "ar": "انبعاثات غازات الدفيئة من فقدان الغطاء الشجري حسب المنطقة",
+            "hi": "क्षेत्र के अनुसार वृक्ष आवरण हानि से जीएचजी उत्सर्जन",
+            "vi": "Phát thải KNK do mất độ che phủ cây theo khu vực",
+            "sw": "Uzalishaji wa Gesi Chafu kutokana na Upotevu wa Uoto wa Miti kwa Eneo",
+            "tr": "Alana Göre Ağaç Örtüsü Kaybından Sera Gazı Emisyonları",
         },
         "charts.integrated_alerts.by_confidence": {
             "en": "Integrated Deforestation Alerts by Confidence",

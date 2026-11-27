@@ -6,9 +6,9 @@ is stale (`--check`). Coverage counts use **gating** checks only;
 info-only checks are listed separately (they never enter a verdict).
 Terms are defined in the [README glossary](../../README.md#glossary).
 
-`caseset_version 0f2b0737a9e27427` · 154 cases · done 92 · not doing 33 · ready 27 · todo 2 · **121 active** (everything but `not doing` runs by default)
+`caseset_version e903d834ec4371df` · 157 cases · done 92 · not doing 33 · ready 27 · todo 5 · **124 active** (everything but `not doing` runs by default)
 
-_Last updated: 2026-11-19_
+_Last updated: 2026-11-26_
 
 ## Groups
 
@@ -28,7 +28,7 @@ _Last updated: 2026-11-19_
 | multiturn | 16 | 11 | not doing 5, ready 11 |
 | nudge | 2 | 2 | ready 2 |
 | parent-child | 14 | 12 | done 11, not doing 2, ready 1 |
-| ranking | 1 | 1 | done 1 |
+| ranking | 4 | 4 | done 1, todo 3 |
 | refusal | 6 | 1 | done 1, not doing 5 |
 | temporal | 16 | 15 | done 14, not doing 1, ready 1 |
 
@@ -47,23 +47,23 @@ exists.
 
 | bucket | via dedicated check | via shared only | total | of active |
 |---|---|---|---|---|
-| retrieval | 114 | 0 | 114 | 94% |
-| analysis | 0 | 74 | 74 | 61% |
-| explanation | 29 | 64 | 93 | 77% |
-| output | 83 | 3 | 86 | 71% |
-| scope | 103 | 9 | 112 | 93% |
+| retrieval | 117 | 0 | 117 | 94% |
+| analysis | 0 | 77 | 77 | 62% |
+| explanation | 30 | 66 | 96 | 77% |
+| output | 86 | 3 | 89 | 72% |
+| scope | 106 | 9 | 115 | 93% |
 
 ## Expected-field census (active cases)
 
 | field | cases | switches on |
 |---|---|---|
-| scope | 102 | scope_match |
-| dataset_id | 101 | dataset_id_match |
-| aoi_source | 97 | no check of its own (dashboard_aoi_match also compares it) |
-| dataset_name | 93 | reference only |
-| aoi_ids | 92 | aoi_id_match |
-| answer | 74 | agent_answer, chart_produced, data_pull_exists, answered_without_data (+ charts_answer when a chart exists) |
-| text | 29 | expected_text_match |
+| scope | 105 | scope_match |
+| dataset_id | 104 | dataset_id_match |
+| aoi_source | 100 | no check of its own (dashboard_aoi_match also compares it) |
+| dataset_name | 96 | reference only |
+| aoi_ids | 95 | aoi_id_match |
+| answer | 77 | agent_answer, chart_produced, data_pull_exists, answered_without_data (+ charts_answer when a chart exists) |
+| text | 30 | expected_text_match |
 | context_layer | 19 | context_layer_match |
 | dashboard_created | 11 | dashboard_created |
 | end_date | 9 | date_extraction (with start_date) |
@@ -71,11 +71,11 @@ exists.
 | dashboard_widgets | 8 | dashboard_widgets_match (+ dashboard_widgets_valid when a dashboard exists) |
 | class_values | 6 | class_value_match (info-only) |
 | nudge_options | 6 | nudge_match |
+| chart_type | 4 | chart_type_match |
 | clarification | 3 | clarification_requested |
 | ground_truth | 3 | ground_truth_match, ground_truth_answer (info-only) |
 | nudge_type | 3 | nudge_match |
 | dashboard_sections | 2 | dashboard_sections_match |
-| chart_type | 1 | chart_type_match |
 | dashboard_text | 1 | dashboard_text_match |
 | dataset_parameters | 1 | dataset_parameter_match |
 | suggested_datasets | 0 ← unused | suggested_datasets_match (legacy: the agent now writes nudge; author nudge_type / nudge_options) |
@@ -100,7 +100,7 @@ answer-graded column) exercise the other three.
 | 1 | Global land cover | 6 | 6 | — | — |
 | 2 | Global natural/semi-natural grassland extent | 12 | 11 | — | — |
 | 3 | SBTN Natural Lands Map | 5 | 5 | — | — |
-| 4 | Tree cover loss | 49 | 35 | canopy_cover ×1 | primary_forest ×6, intact_forest ×4, natural_forest ×5 |
+| 4 | Tree cover loss | 52 | 38 | canopy_cover ×1 | primary_forest ×6, intact_forest ×4, natural_forest ×5 |
 | 5 | Tree cover gain | 5 | 5 | — | — |
 | 6 | Forest greenhouse gas net flux | 3 | 3 | canopy_cover ×0 ← gap | — |
 | 7 | Tree cover | 3 | 3 | canopy_cover ×0 ← gap | primary_forest ×0 ← gap |
@@ -153,6 +153,9 @@ answer-graded column) exercise the other three.
 | mt-012 | not doing | multiturn | 2026-09-16: not doing. The behaviour is unreleased - wri/project-zeno#827 was open at authoring time, and t... |
 | 1-027 | todo | direct | CHART aggregates results, hiding requested class |
 | 1-030 | todo | comparative | Expecting SBTN analysis but using the Blog skill |
+| 1-145 | todo | ranking | 2026-11-26: held until the curated ranking chart ships (PZB-1728). Before that the first chart is a CodeAct... |
+| 1-146 | todo | ranking | 2026-11-26: held until the curated ranking chart ships (PZB-1728). Before that the first chart is a CodeAct... |
+| 1-147 | todo | ranking | 2026-11-26: held until the curated ranking chart ships (PZB-1728). Before that the first chart is a CodeAct... |
 
 ## Known gaps
 

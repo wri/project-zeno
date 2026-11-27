@@ -1,0 +1,36 @@
+id: 1-147
+uid: f06f6f4391fabdf6
+status: todo
+group: ranking
+query: Rank the provinces of Bolivia by tree cover loss in 2024. Where does Cercado province
+  in Beni department rank?
+expected:
+  aoi_ids: BOL.1.1_2;BOL.1.2_2;BOL.1.3_2;BOL.1.4_2;BOL.1.5_2;BOL.1.6_2;BOL.1.7_2;BOL.1.8_2;BOL.1.9_2;BOL.1.10_2;BOL.2.1_2;BOL.2.2_2;BOL.2.3_2;BOL.2.4_2;BOL.2.5_2;BOL.2.6_2;BOL.2.7_2;BOL.2.8_2;BOL.2.9_2;BOL.2.10_2;BOL.2.11_2;BOL.2.12_2;BOL.2.13_2;BOL.2.14_2;BOL.2.15_2;BOL.2.16_2;BOL.3.1_2;BOL.3.2_2;BOL.3.3_2;BOL.3.4_2;BOL.3.5_2;BOL.3.6_2;BOL.3.7_2;BOL.3.8_2;BOL.4.2_2;BOL.4.3_2;BOL.4.4_2;BOL.4.5_2;BOL.4.6_2;BOL.4.7_2;BOL.4.8_2;BOL.4.9_2;BOL.4.10_2;BOL.4.11_2;BOL.4.12_2;BOL.4.13_2;BOL.4.14_2;BOL.4.15_2;BOL.4.16_2;BOL.4.17_2;BOL.4.18_2;BOL.4.19_2;BOL.4.20_2;BOL.4.21_2;BOL.5.1_2;BOL.5.2_2;BOL.5.3_2;BOL.5.4_2;BOL.5.5_2;BOL.5.6_2;BOL.5.7_2;BOL.5.8_2;BOL.5.9_2;BOL.5.10_2;BOL.5.11_2;BOL.5.12_2;BOL.5.13_2;BOL.5.14_2;BOL.5.15_2;BOL.5.16_2;BOL.6.1_2;BOL.6.2_2;BOL.6.3_2;BOL.6.4_2;BOL.6.5_2;BOL.7.1_2;BOL.7.2_2;BOL.7.3_2;BOL.7.4_2;BOL.7.5_2;BOL.7.6_2;BOL.7.7_2;BOL.7.8_2;BOL.7.9_2;BOL.7.10_2;BOL.7.11_2;BOL.7.12_2;BOL.7.13_2;BOL.7.14_2;BOL.7.15_2;BOL.7.16_2;BOL.8.1_2;BOL.8.2_2;BOL.8.3_2;BOL.8.4_2;BOL.8.5_2;BOL.8.6_2;BOL.8.7_2;BOL.8.8_2;BOL.8.9_2;BOL.8.10_2;BOL.8.11_2;BOL.8.12_2;BOL.8.13_2;BOL.8.14_2;BOL.8.15_2;BOL.9.1_2;BOL.9.2_2;BOL.9.3_2;BOL.9.4_2;BOL.9.5_2;BOL.9.6_2
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  chart_type: ranked-bar
+  text: Gives the rank of Cercado province in Beni department among Bolivia's provinces, and
+    does not give the rank or loss of another province named Cercado (in Cochabamba, Oruro
+    or Tarija) as Beni's.
+  answer: 4,981 hectares (26th of Bolivia's 112 provinces)
+  scope: analyse
+notes:
+  answer_source: '2026-11-26: production analytics API, the payload of the GOLD request builder
+    for this case (canopy 30, no context layer), summed per area for the asked years: Cercado
+    (Beni) 4,980.56 ha, rank 26 of 112 (25th Nicolás Suárez 5,745.53, 27th Sud Yungas 4,207.62);
+    Cercado (Tarija) 1.15 ha, rank 55; Cercado (Cochabamba) and Cercado (Oruro) 0 ha; 51 provinces
+    with no loss (2024).'
+  status_reason: '2026-11-26: held until the curated ranking chart ships (PZB-1728). Before
+    that the first chart is a CodeAct chart, so chart_type_match fails. The answer is verified
+    (answer_source); promote after a 3-trial pass at this uid.'
+  purpose: 'Repeated names: 4 of Bolivia''s 112 provinces (GADM level 2 "Province" in BOL)
+    are named Cercado (BOL.2.8_2 Cochabamba, BOL.3.1_2 Beni, BOL.5.3_2 Oruro, BOL.9.3_2 Tarija).
+    The tool message must tell them apart ("Cercado · Beni"), and the answer must use the
+    right one. 112 areas also gives 12 pages.'
+  answer_order: '2026-11-26: the value comes first in answer because the deterministic checks
+    (charts_answer, ground-truth match) take the first number in the answer. It was the rank
+    (26), which the ranked-bar chart never holds, so charts_answer failed on every run. The
+    rank stays in the text for the judged answer check and in expected.text.'
+  chart_route: ranked-bar is decided by the code gate once the agent picks the standard route,
+    so a CodeAct chart here is a routing regression, not chart-choice noise.

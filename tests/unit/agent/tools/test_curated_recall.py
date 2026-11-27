@@ -1,6 +1,8 @@
 """A recalled or an updated curated insight gives its facts: its summary
 is a caption with no figures."""
 
+import pytest
+
 from src.agent.datasets.handlers.analytics_handler import (
     INTEGRATED_ALERTS_ID,
     LAND_GHG_INVENTORY_ID,
@@ -137,3 +139,56 @@ def test_a_restyle_of_other_series_resolves_the_colours_again():
     ).charts
     assert chart.view_id == "integrated_alerts.by_confidence"
     assert chart.color_map != {"Highest": "#111111", "High": "#222222"}
+
+
+# --- a restyle keeps a ranking a ranked bar when its measure is kept --------
+
+
+def _ranking():
+    return InsightChart(
+        position=0,
+        title="Tree cover loss by area",
+        chart_type="ranked-bar",
+        x_axis="name",
+        y_axis="area_ha",
+        chart_data=[
+            {"rank": 1, "name": "A", "area_ha": 9.0, "other_ha": 1.0},
+            {"rank": 2, "name": "B", "area_ha": 5.0, "other_ha": 2.0},
+        ],
+        view_id="tcl.loss_ranking",
+    )
+
+
+def _revised(chart_type, y_axis="area_ha"):
+    return RevisedInsight(
+        charts=[
+            RevisedChart(
+                position=0,
+                title="Renamed",
+                chart_type=chart_type,
+                x_axis="name",
+                y_axis=y_axis,
+            )
+        ],
+        primary_insight="Summary.",
+        follow_up_suggestions=[],
+    )
+
+
+@pytest.mark.parametrize(
+    "chart_type, y_axis, expected",
+    [
+        # The same measure in a bar keeps the ranked bar.
+        ("bar", "area_ha", "ranked-bar"),
+        ("pie", "area_ha", "pie"),
+        # Another measure has no rank to show: a plain bar.
+        ("bar", "other_ha", "bar"),
+    ],
+)
+def test_a_restyle_of_a_ranking_takes_the_type_that_fits(
+    chart_type, y_axis, expected
+):
+    insight = _apply_revision([_ranking()], _revised(chart_type, y_axis))
+
+    assert insight.charts[0].chart_type == expected
+    assert insight.charts[0].title == "Renamed"

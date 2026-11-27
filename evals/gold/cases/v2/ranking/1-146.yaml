@@ -1,0 +1,29 @@
+id: 1-146
+uid: c8b6167dbf9b6003
+status: todo
+group: ranking
+query: Which five Brazilian states had the most tree cover loss in 2024, and how much did
+  each lose?
+expected:
+  aoi_ids: BRA.1_1;BRA.2_1;BRA.3_1;BRA.4_1;BRA.5_1;BRA.6_1;BRA.7_1;BRA.8_1;BRA.9_1;BRA.10_1;BRA.11_1;BRA.12_1;BRA.13_1;BRA.14_1;BRA.15_1;BRA.16_1;BRA.17_1;BRA.18_1;BRA.19_1;BRA.20_1;BRA.21_1;BRA.22_1;BRA.23_1;BRA.24_1;BRA.25_1;BRA.26_1;BRA.27_1
+  aoi_source: gadm
+  dataset_id: '4'
+  dataset_name: Tree cover loss
+  chart_type: ranked-bar
+  answer: Pará 1,599,086 hectares, Mato Grosso 752,078 hectares, Amazonas 475,035 hectares,
+    Maranhão 310,947 hectares, Rondônia 255,844 hectares
+  scope: analyse
+notes:
+  answer_source: '2026-11-26: production analytics API, the payload of the GOLD request builder
+    for this case (canopy 30, no context layer), summed per area for the asked years: Pará
+    1,599,085.99 ha, Mato Grosso 752,077.53, Amazonas 475,034.73, Maranhão 310,946.53, Rondônia
+    255,843.70; 6th is Roraima 161,036.66 (2024).'
+  status_reason: '2026-11-26: held until the curated ranking chart ships (PZB-1728). Before
+    that the first chart is a CodeAct chart, so chart_type_match fails. The answer is verified
+    (answer_source); promote after a 3-trial pass at this uid.'
+  purpose: 'One year out of the full pull: the ranking must sum 2024 only, not 2001 to 2025.
+    Over 2001 to 2025 the same five states come in another order (Pará 19,490,190 ha, Mato
+    Grosso, Maranhão, Rondônia, Amazonas), so the answer carries the 2024 figures: a ranking
+    that ignores the period is about ten times too high.'
+  chart_route: ranked-bar is decided by the code gate once the agent picks the standard route,
+    so a CodeAct chart here is a routing regression, not chart-choice noise.

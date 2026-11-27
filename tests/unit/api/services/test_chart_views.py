@@ -22,7 +22,9 @@ from src.api.services.charts.views import (
 )
 from tests.unit.api.services.test_chart_generators import LGMS_ROWS
 
-TITLE_KEY = re.compile(r'title="(charts\.[a-z0-9_.]+)"')
+# Also a key in a table of specs, not only a `title=` argument. The label
+# keys are series names, not chart titles.
+TITLE_KEY = re.compile(r'"(charts\.(?!label\.)[a-z0-9_.]+)"')
 
 
 def _title_keys_in_generators() -> set[str]:
@@ -69,6 +71,8 @@ def test_views_of_a_dataset_leave_out_template_only_views():
     assert [v.id for v in views_for_dataset(TREE_COVER_LOSS_ID)] == [
         "tcl.annual_loss",
         "tcl.annual_emissions",
+        "tcl.loss_ranking",
+        "tcl.emissions_ranking",
     ]
     assert "tcl_natural_forest.annual_split" in [
         v.id for v in views_for_dataset(TREE_COVER_LOSS_ID, from_pull=False)
@@ -131,3 +135,11 @@ def test_view_provenance_goes_to_the_database_and_back():
     assert restored.view_revision == 1
     # Provenance is not part of the frontend chart.
     assert "view_id" not in chart.to_frontend_dict()
+
+
+def test_the_ranking_titles_have_every_language_of_the_annual_titles():
+    languages = set(MESSAGES["charts.tcl.annual_loss"])
+
+    for key in ("charts.tcl.loss_ranking", "charts.tcl.emissions_ranking"):
+        assert set(MESSAGES[key]) == languages
+        assert all(MESSAGES[key].values())

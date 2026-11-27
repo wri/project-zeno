@@ -49,6 +49,8 @@ def count_areas(rows: Iterable[dict], default: int) -> int:
 def shape_fits(view: ChartView, area_count: int) -> bool:
     if view.shape == "one_area":
         return area_count == 1
+    if view.shape == "several_areas":
+        return area_count >= 2
     return area_count >= 1
 
 

@@ -1,11 +1,12 @@
 """Shared base class and helpers for deterministic chart generators."""
 
 from abc import ABC, abstractmethod
-from typing import ClassVar, Iterable, List
+from typing import ClassVar, Iterable, List, Sequence
 
 import numpy as np
 
 from src.agent.subagents.analyst.charts import InsightChart
+from src.api.services.charts.ranking import RankedArea
 
 
 def column_to_rows(data: dict) -> List[dict]:
@@ -81,6 +82,13 @@ class ChartGenerator(ABC):
         dates). Most charts read their rows alone, so this is the generator
         itself; a chart that gives every day of the period a slot returns
         one that knows the period."""
+        return self
+
+    def for_areas(self, areas: Sequence[RankedArea]) -> "ChartGenerator":
+        """The generator for a pull of these areas. Most charts read their
+        rows alone, so this is the generator itself; a chart that ranks the
+        areas needs to know them, because an area with no rows is still an
+        area of the ranking. Only the agent path calls it."""
         return self
 
     @abstractmethod

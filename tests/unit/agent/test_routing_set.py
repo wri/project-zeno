@@ -7,6 +7,7 @@ import pytest
 from src.agent.datasets.handlers.analytics_handler import (
     GRASSLANDS_ID,
     SLUC_EMISSION_FACTORS_ID,
+    TREE_COVER_GAIN_ID,
     TREE_COVER_LOSS_ID,
 )
 from tests.evals.routing.routing_set import (
@@ -109,11 +110,15 @@ def test_duplicate_ids_are_rejected(tmp_path):
 
 def test_shown_route_needs_the_router_and_the_gate():
     one_area = _case()
-    two_areas = _case(areas=2)
+    # Tree cover loss ranks several areas; tree cover gain has a one-area
+    # view only.
+    ranking = _case(areas=2)
+    two_areas = _case(dataset_id=TREE_COVER_GAIN_ID, areas=2)
     gain = _case(dataset_id=SLUC_EMISSION_FACTORS_ID)
 
     assert shown_route(one_area, "standard") == "standard"
     assert shown_route(one_area, "custom") == "custom"
+    assert shown_route(ranking, "standard") == "standard"
     assert shown_route(two_areas, "standard") == "custom"
     assert shown_route(gain, "standard") == "custom"
 
@@ -121,7 +126,12 @@ def test_shown_route_needs_the_router_and_the_gate():
 def test_score_counts_the_two_kinds_of_error():
     cases = [
         _case(id="ok-standard"),
-        _case(id="ok-custom", route="custom", areas=3),
+        _case(
+            id="ok-custom",
+            route="custom",
+            areas=3,
+            dataset_id=TREE_COVER_GAIN_ID,
+        ),
         # A one-area request that needs a custom chart: only the router
         # can send it to custom.
         _case(id="wrong-answer", route="custom"),

@@ -16,6 +16,7 @@ from src.agent.datasets.handlers.analytics_handler import (
     GRASSLANDS_ID,
     NATURAL_FOREST_DEFAULT_CANOPY_COVER,
     SLUC_EMISSION_FACTORS_ID,
+    TREE_COVER_ID,
     TREE_COVER_LOSS_BY_DRIVER_ID,
     TREE_COVER_LOSS_ID,
 )
@@ -26,9 +27,12 @@ from src.agent.subagents.analyst.curated_first import (
     CURATED_ANSWER_INSTRUCTION,
     MAX_MESSAGE_ROWS,
     build_curated_tool_message,
+    chart_fact_sentences,
     curated_caption,
+    curated_facts_text,
     format_rows,
     period_label,
+    unshown_columns,
 )
 from src.agent.subagents.analyst.tool import (
     SPEC,
@@ -69,6 +73,7 @@ def _statistics(
     context_layer=None,
     parameters=None,
     canopy_cover=DEFAULT_CANOPY_COVER,
+    aoi_ids=None,
 ):
     return {
         "id": str(uuid4()),
@@ -78,7 +83,10 @@ def _statistics(
         "end_date": "2023-12-31",
         "source_url": "https://analytics.example.com/result/tcl",
         "aoi_names": list(aoi_names),
-        "aoi_ids": [f"id-{i}" for i, _ in enumerate(aoi_names)],
+        "aoi_ids": list(aoi_ids)
+        if aoi_ids is not None
+        else [f"id-{i}" for i, _ in enumerate(aoi_names)],
+        "aoi_sources": ["gadm"] * len(aoi_names),
         "context_layer": context_layer,
         "parameters": parameters,
         # What the pull sent, as pull_data stores it.
@@ -102,8 +110,10 @@ def run():
     state = type("Run", (), {})()
     state.persist = persist
     state.data = _tcl_data()
+    state.loads = 0
 
     async def load(_statistics):
+        state.loads += 1
         return state.data
 
     with (
@@ -167,11 +177,121 @@ async def test_state_has_the_fields_of_the_code_executor_path(run):
     }
 
 
-async def test_several_areas_go_to_the_code_executor(run):
+async def test_several_areas_get_the_two_rankings(run):
+    run.data = _tcl_data(areas=("BRA.14", "BRA.13"))
+
+    command = await _analyze(
+        _statistics(
+            aoi_names=("Pará, Brazil", "Mato Grosso, Brazil"),
+            aoi_ids=("BRA.14_1", "BRA.13_1"),
+        )
+    )
+
+    insight = run.persist.await_args.args[0]
+    # The loss ranking is first, as the annual loss is for one area.
+    assert [c.view_id for c in insight.charts] == [
+        "tcl.loss_ranking",
+        "tcl.emissions_ranking",
+    ]
+    assert [c.position for c in insight.charts] == [0, 1]
+    assert [c["type"] for c in command.update["charts_data"]] == [
+        "ranked-bar",
+        "ranked-bar",
+    ]
+    loss = insight.charts[0]
+    # Three years of the same figures for each area: a tie.
+    assert [
+        (r["rank"], r["aoi_id"], r["parent"]) for r in loss.chart_data
+    ] == [
+        (1, "BRA.13", "Brazil"),
+        (1, "BRA.14", "Brazil"),
+    ]
+
+
+async def test_several_areas_of_a_dataset_with_no_ranking_go_to_the_code_executor(
+    run,
+):
     run.data = _tcl_data(areas=("BRA.14", "BRA.13"))
 
     with pytest.raises(_Executor):
-        await _analyze(_statistics(aoi_names=("Pará", "Mato Grosso")))
+        await _analyze(
+            _statistics(
+                aoi_names=("Pará", "Mato Grosso"),
+                dataset_id=TREE_COVER_LOSS_BY_DRIVER_ID,
+            )
+        )
+
+
+async def test_a_ranking_of_a_dataset_with_no_ranking_is_not_fetched(run):
+    # The gate has its answer from the names: the pull is not loaded for
+    # the curated route, as the code executor loads it again.
+    with pytest.raises(_Executor):
+        await _analyze(
+            _statistics(
+                aoi_names=("Pará", "Mato Grosso"),
+                dataset_id=TREE_COVER_LOSS_BY_DRIVER_ID,
+            )
+        )
+
+    assert run.loads == 0
+
+
+async def test_a_comparison_view_needs_no_area_lists_of_a_ranking(run):
+    # Tree cover extent compares areas but is no ranking: an older pull with
+    # no `aoi_sources` keeps its curated chart.
+    run.data = {
+        "aoi_id": ["BRA.14", "BRA.13"],
+        "name": ["Pará", "Mato Grosso"],
+        "area_ha": [900.0, 500.0],
+    }
+    statistics = _statistics(
+        aoi_names=("Pará", "Mato Grosso"),
+        dataset_id=TREE_COVER_ID,
+        aoi_ids=("BRA.14_1", "BRA.13_1"),
+    )
+    del statistics["aoi_sources"]
+
+    await _analyze(statistics)
+
+    insight = run.persist.await_args.args[0]
+    assert [c.view_id for c in insight.charts] == ["tree_cover.extent"]
+
+
+async def test_a_ranking_of_rows_with_an_unknown_area_goes_to_the_code_executor(
+    run,
+):
+    run.data = _tcl_data(areas=("BRA.14", "BRA.99"))
+
+    # The failure is loud: the analyst logs it with its traceback (an
+    # error-level record) before it falls back.
+    with patch.object(analyst_tool.logger, "exception") as log_exception:
+        with pytest.raises(_Executor):
+            await _analyze(
+                _statistics(
+                    aoi_names=("Pará", "Mato Grosso"),
+                    aoi_ids=("BRA.14_1", "BRA.13_1"),
+                )
+            )
+    log_exception.assert_called_once()
+    run.persist.assert_not_awaited()
+
+
+async def test_a_pull_with_no_loss_in_any_area_goes_to_the_code_executor(run):
+    run.data = {
+        "aoi_id": ["BRA.14", "BRA.13"],
+        "name": ["Pará", "Mato Grosso"],
+        "tree_cover_loss_year": [2021, 2021],
+        "area_ha": [0, 0],
+        "carbon_emissions_MgCO2e": [0, 0],
+    }
+
+    with pytest.raises(_Executor):
+        await _analyze(
+            _statistics(
+                aoi_names=("Pará", "Mato Grosso"),
+                aoi_ids=("BRA.14_1", "BRA.13_1"),
+            )
+        )
 
 
 async def test_area_count_comes_from_the_rows(run):
@@ -649,3 +769,341 @@ async def test_a_dataset_without_dates_states_the_period_of_its_data(run):
     assert "Requested period: 2015-01-01 to 2020-12-31." in content
     # The chart pivots the three flux columns: they are drawn.
     assert "carbon_net_flux_Mg_CO2e" not in content.split("no chart shows")[-1]
+
+
+# --- the ranking of areas ---------------------------------------------------
+
+
+def _ranking_chart(rows, y_axis="area_ha", view_id="tcl.loss_ranking"):
+    return InsightChart(
+        title="Tree Cover Loss by Area",
+        chart_type="ranked-bar",
+        x_axis="name",
+        y_axis=y_axis,
+        chart_data=rows,
+        view_id=view_id,
+    )
+
+
+def _ranked_row(rank, name, value, parent="Kenya", share=None, area_id=None):
+    row = {
+        "rank": rank,
+        "aoi_id": area_id or f"KEN.{rank}",
+        "name": name,
+        "parent": parent,
+        "area_ha": value,
+    }
+    if share is not None:
+        row["share_pct"] = share
+    return row
+
+
+def test_ranking_rows_have_rank_name_value_and_share():
+    chart = _ranking_chart(
+        [
+            _ranked_row(1, "Narok", 72050.31, share=60.0),
+            _ranked_row(2, "Nakuru", 36210.04, share=30.0),
+            _ranked_row(3, "Nairobi", 0, share=0.0),
+        ]
+    )
+
+    assert format_rows(chart).splitlines() == [
+        "rank | name | area_ha (ha) | share_pct (%)",
+        "1 | Narok | 72050.31 | 60",
+        "2 | Nakuru | 36210.04 | 30",
+        "3 | Nairobi | 0 | 0",
+    ]
+
+
+def test_ranking_rows_name_the_parent_of_a_repeated_name_only():
+    chart = _ranking_chart(
+        [
+            _ranked_row(1, "Bom Jesus", 9, "Piauí", area_id="BRA.1.1"),
+            _ranked_row(
+                2, "Bom Jesus", 5, "Rio Grande do Sul", area_id="BRA.2.1"
+            ),
+            _ranked_row(3, "Belém", 1, "Pará", area_id="BRA.3.1"),
+        ]
+    )
+
+    lines = format_rows(chart).splitlines()
+
+    assert lines[1] == "1 | Bom Jesus · Piauí | 9"
+    assert lines[2] == "2 | Bom Jesus · Rio Grande do Sul | 5"
+    assert lines[3] == "3 | Belém | 1"
+
+
+def test_ranking_rows_with_the_same_label_name_their_id():
+    chart = _ranking_chart(
+        [
+            _ranked_row(1, "Reserva", 9, None, area_id="555123"),
+            _ranked_row(2, "Reserva", 5, None, area_id="555124"),
+            _ranked_row(3, "Bom Jesus", 3, "Piauí", area_id="BRA.1.1"),
+            _ranked_row(4, "Bom Jesus", 2, "Piauí", area_id="BRA.1.2"),
+            _ranked_row(5, "Belém", 1, "Pará", area_id="BRA.3.1"),
+        ]
+    )
+
+    lines = format_rows(chart).splitlines()
+
+    assert lines[1] == "1 | Reserva (555123) | 9"
+    assert lines[2] == "2 | Reserva (555124) | 5"
+    assert lines[3] == "3 | Bom Jesus · Piauí (BRA.1.1) | 3"
+    assert lines[4] == "4 | Bom Jesus · Piauí (BRA.1.2) | 2"
+    assert lines[5] == "5 | Belém | 1"
+
+
+def test_ranking_rows_without_shares_have_no_share_column():
+    chart = _ranking_chart([_ranked_row(1, "A", 2), _ranked_row(2, "B", 1)])
+
+    assert format_rows(chart).splitlines()[0] == "rank | name | area_ha (ha)"
+
+
+def test_a_ranking_over_the_row_cap_counts_the_rest():
+    rows = [
+        _ranked_row(rank, f"Area {rank}", 1000 - rank, area_id=f"X.{rank}")
+        for rank in range(1, MAX_MESSAGE_ROWS + 31)
+    ]
+
+    lines = format_rows(_ranking_chart(rows)).splitlines()
+
+    assert len(lines) == 1 + MAX_MESSAGE_ROWS + 1
+    assert lines[-2].startswith(
+        f"{MAX_MESSAGE_ROWS} | Area {MAX_MESSAGE_ROWS} |"
+    )
+    assert lines[-1] == "30 more areas, each with less"
+
+
+def test_a_tie_at_the_row_cap_does_not_say_less():
+    rows = [
+        _ranked_row(1, f"Area {i}", 5.0, area_id=f"X.{i}")
+        for i in range(MAX_MESSAGE_ROWS + 2)
+    ]
+
+    assert format_rows(_ranking_chart(rows)).endswith(
+        "2 more areas, each with the same or less"
+    )
+
+
+def test_ranking_facts_give_the_count_the_total_and_the_empty_areas():
+    chart = _ranking_chart(
+        [
+            _ranked_row(1, "Narok", 75.0, share=75.0),
+            _ranked_row(2, "Nakuru", 25.0, share=25.0),
+            _ranked_row(3, "Nairobi", 0, share=0.0),
+            _ranked_row(3, "Mombasa", 0, share=0.0),
+        ]
+    )
+
+    assert chart_fact_sentences(chart) == [
+        "4 areas ranked by area_ha (ha), largest first. Areas with the same "
+        "value share a rank.",
+        "Total over the 4 areas: 100 ha. A share is the percent of this "
+        "total.",
+        "2 areas with a value of 0 for area_ha (ha): Nairobi, Mombasa.",
+    ]
+
+
+def test_ranking_facts_without_shares_give_no_total():
+    chart = _ranking_chart([_ranked_row(1, "A", 2), _ranked_row(2, "B", 1)])
+
+    facts = chart_fact_sentences(chart)
+
+    assert len(facts) == 2
+    assert facts[1].startswith("No total and no share are given")
+
+
+def test_many_empty_areas_are_counted_not_named():
+    rows = [_ranked_row(1, "Big", 9.0, share=100.0)] + [
+        _ranked_row(2, f"Empty {i}", 0, share=0.0, area_id=f"X.{i}")
+        for i in range(21)
+    ]
+
+    facts = chart_fact_sentences(_ranking_chart(rows))
+
+    assert facts[-1] == "21 areas with a value of 0 for area_ha (ha)."
+
+
+def test_a_restyled_ranking_keeps_its_ranking_facts():
+    # update_insight_display keeps the view and the rows and changes the type.
+    chart = _ranking_chart([_ranked_row(1, "A", 2), _ranked_row(2, "B", 1)])
+    chart.chart_type = "bar"
+
+    assert chart_fact_sentences(chart)[0].startswith("2 areas ranked by")
+    assert format_rows(chart).startswith("rank | name")
+
+
+def test_a_saved_ranking_gives_its_facts_on_a_recall():
+    chart = _ranking_chart(
+        [
+            _ranked_row(1, "A", 3.0, share=75.0),
+            _ranked_row(2, "B", 1.0, share=25.0),
+        ]
+    )
+    chart.dataset_id = TREE_COVER_LOSS_ID
+
+    text = curated_facts_text([chart])
+
+    assert text.startswith(
+        "Facts of Tree Cover Loss by Area (computed in code):"
+    )
+    assert "- Total over the 2 areas: 4 ha." in text
+
+
+def _annual_chart(y_axis, view_id, value):
+    return InsightChart(
+        title="Annual Tree Cover Loss",
+        chart_type="bar",
+        x_axis="tree_cover_loss_year",
+        y_axis=y_axis,
+        chart_data=[{"tree_cover_loss_year": 2024, y_axis: value}],
+        view_id=view_id,
+    )
+
+
+def test_the_ranking_chart_does_not_list_the_columns_that_it_consumes():
+    rows = [
+        {
+            "aoi_id": "KEN.1",
+            "aoi_type": "admin",
+            "name": "Baringo",
+            "tree_cover_loss_year": 2024,
+            "area_ha": 3.0,
+            "carbon_emissions_MgCO2e": 30.0,
+        },
+        {
+            "aoi_id": "KEN.2",
+            "aoi_type": "admin",
+            "name": "Bomet",
+            "tree_cover_loss_year": 2024,
+            "area_ha": 9.0,
+            "carbon_emissions_MgCO2e": 20.0,
+        },
+    ]
+    pair = [
+        _annual_chart("area_ha", "tcl.annual_loss", 3.0),
+        _annual_chart("carbon_emissions_MgCO2e", "tcl.annual_emissions", 3.0),
+    ]
+    ranking = [
+        _ranking_chart([_ranked_row(1, "A", 2.0)]),
+        _ranking_chart(
+            [
+                {
+                    **_ranked_row(1, "A", 2.0),
+                    "carbon_emissions_MgCO2e": 1.0,
+                }
+            ],
+            y_axis="carbon_emissions_MgCO2e",
+            view_id="tcl.emissions_ranking",
+        ),
+    ]
+
+    # For the pair the year is drawn; the ranking sums it, so only the
+    # year differs. aoi_type is listed for both.
+    assert unshown_columns(rows, pair) == [
+        "aoi_id",
+        "aoi_type",
+        "name",
+    ]
+    assert unshown_columns(rows, ranking) == ["aoi_type"]
+
+
+async def test_the_tool_message_of_a_ranking_has_rows_facts_and_the_note(run):
+    run.data = _tcl_data(areas=("BRA.14", "BRA.13"))
+    # A different total for the second area: three years of 100 more.
+    run.data["area_ha"][3:] = [v + 100 for v in run.data["area_ha"][3:]]
+
+    command = await _analyze(
+        _statistics(
+            aoi_names=("Pará, Brazil", "Mato Grosso, Brazil"),
+            aoi_ids=("BRA.14_1", "BRA.13_1"),
+        )
+    )
+    content = _content(command)
+
+    assert "Standard charts shown to the user: 2." in content
+    assert (
+        "Chart 1: Tree Cover Loss by Area (view tcl.loss_ranking)" in content
+    )
+    assert "Chart 1 note: Each bar is the total tree cover loss" in content
+    assert (
+        "Chart 1 rows:\nrank | name | area_ha (ha) | share_pct (%)" in content
+    )
+    assert "1 | Mato Grosso |" in content
+    assert "Chart 1 facts (computed in code):\n- 2 areas ranked by" in content
+    assert "Total over the 2 areas:" in content
+    # The year is summed away, not an unshown column.
+    assert (
+        "tree_cover_loss_year"
+        not in content.split("Columns of the pulled")[-1]
+    )
+
+
+# --- many areas -------------------------------------------------------------
+
+
+def _many(count, selection_name="47 Counties in Kenya"):
+    statistics = _statistics(
+        aoi_names=[f"County {i}" for i in range(count)],
+        aoi_ids=[f"KEN.{i}_1" for i in range(count)],
+    )
+    if selection_name is not None:
+        statistics["aoi_selection_name"] = selection_name
+    return statistics
+
+
+async def test_ten_areas_are_listed_in_the_caption():
+    caption = await curated_caption(_many(10), "en")
+
+    assert caption.startswith(
+        "Standard Tree cover loss charts for County 0, County 1,"
+    )
+    assert "County 9," in caption
+
+
+async def test_above_ten_areas_the_caption_names_the_selection():
+    caption = await curated_caption(_many(11), "en")
+
+    assert caption == (
+        "Standard Tree cover loss charts for 47 Counties in Kenya, "
+        "2021–2023 (canopy cover ≥ 30%)."
+    )
+
+
+async def test_an_older_pull_without_a_selection_name_gives_the_count():
+    caption = await curated_caption(_many(47, None), "en")
+    spanish = await curated_caption(_many(47, None), "es")
+
+    assert "charts for 47 areas, 2021–2023" in caption
+    assert "para 47 áreas, 2021–2023" in spanish
+
+
+@pytest.mark.parametrize(
+    "language, count_text",
+    [
+        ("es", "47 áreas"),
+        ("fr", "47 zones"),
+        ("pt", "47 áreas"),
+        ("id", "47 wilayah"),
+    ],
+)
+async def test_a_translated_caption_above_ten_areas_gives_the_count(
+    language, count_text
+):
+    caption = await curated_caption(_many(47), language)
+
+    assert count_text in caption
+    assert "47 Counties in Kenya" not in caption
+
+
+def test_the_message_header_names_the_selection_above_ten_areas():
+    charts = [_ranking_chart([_ranked_row(1, "A", 2.0)])]
+
+    many = build_curated_tool_message(charts, _many(11), "caption")
+    few = build_curated_tool_message(charts, _many(2), "caption")
+    old = build_curated_tool_message(charts, _many(11, None), "caption")
+
+    assert "Area: 47 Counties in Kenya\n" in many
+    assert "Area: County 0, County 1\n" in few
+    assert "Area: 11 areas\n" in old
+    assert "County 5" not in many

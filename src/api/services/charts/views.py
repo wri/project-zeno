@@ -51,8 +51,10 @@ class ChartView:
     card: str
     revision: int = 1
     # How many areas the rows can cover. A "one_area" view sums or mixes
-    # the rows of several areas, so it is wrong for a comparison.
-    shape: Literal["one_area", "many_areas"] = "one_area"
+    # the rows of several areas, so it is wrong for a comparison. A
+    # "several_areas" view compares 2 or more areas (a ranking); a
+    # "many_areas" view shows 1 or more.
+    shape: Literal["one_area", "many_areas", "several_areas"] = "one_area"
     # False for a view that only an analysis template can build, because
     # its rows do not come from a plain pull of the dataset.
     from_pull: bool = True
@@ -87,6 +89,13 @@ class ChartView:
     source_columns: tuple[str, ...] = ()
 
     @property
+    def ranks_areas(self) -> bool:
+        """True for a ranking of areas: one owner for what the shape means
+        to the callers that treat a ranking differently (rows, facts,
+        routing)."""
+        return self.shape == "several_areas"
+
+    @property
     def title_key(self) -> str:
         """The i18n key of the chart title that the generator emits."""
         return TITLE_PREFIX + self.id
@@ -109,6 +118,42 @@ VIEWS: tuple[ChartView, ...] = (
         "year, as bars. Answers how much carbon the loss emitted.",
         agent_enabled=True,
         zero_fill_years=True,
+    ),
+    ChartView(
+        "tcl.loss_ranking",
+        TREE_COVER_LOSS_ID,
+        "Tree cover loss area (ha) of each of several areas, summed over "
+        "the pulled period, as bars ranked from the largest. Answers which "
+        "area lost the most or the least, the top few, and where an area "
+        "ranks.",
+        agent_enabled=True,
+        shape="several_areas",
+        agent_note=(
+            "Each bar is the total tree cover loss of one area over the "
+            "pulled period, ranked from the largest (a tie shares a rank). "
+            "Every area of the pull has a row; an area with no loss has 0. "
+            "A share is the percent of all the loss in these areas, and "
+            "the rows have it only when the areas cannot overlap."
+        ),
+        source_columns=("tree_cover_loss_year",),
+    ),
+    ChartView(
+        "tcl.emissions_ranking",
+        TREE_COVER_LOSS_ID,
+        "Greenhouse gas emissions (MgCO2e) from tree cover loss in each of "
+        "several areas, summed over the pulled period, as bars ranked from "
+        "the largest. Answers which area emitted the most or the least.",
+        agent_enabled=True,
+        shape="several_areas",
+        agent_note=(
+            "Each bar is the total greenhouse gas emissions from tree "
+            "cover loss in one area over the pulled period, ranked from "
+            "the largest (a tie shares a rank). Every area of the pull has "
+            "a row; an area with no emissions has 0. A share is the percent "
+            "of all the emissions in these areas, and the rows have it only "
+            "when the areas cannot overlap."
+        ),
+        source_columns=("tree_cover_loss_year",),
     ),
     ChartView(
         "tcl_natural_forest.annual_split",

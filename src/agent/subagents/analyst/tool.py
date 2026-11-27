@@ -869,19 +869,46 @@ async def _build_curated_insight(
         count_areas,
         view_gate,
     )
+    from src.api.services.charts.ranking import build_ranked_areas
 
     dataset_id = statistics["dataset_id"]
+    named = len(statistics.get("aoi_names") or [])
+    if named >= 2:
+        # The rows can only raise the count, and any count of 2 or more
+        # gives the same answer: gate before the fetch, so that a pull with
+        # no ranking view does not load the data that the code executor
+        # then loads again.
+        early = view_gate(dataset_id, named)
+        if not early.passed:
+            logger.info(
+                "ANALYST: curated gate failed, using the code executor",
+                dataset_id=dataset_id,
+                reason=early.reason,
+            )
+            return None
     raw = await _load_statistics_data(statistics)
     rows = column_to_rows(raw) if raw else []
     # The larger of the two counts: an area with no rows still counts.
-    area_count = max(
-        count_areas(rows, default=0), len(statistics.get("aoi_names") or [])
-    )
+    area_count = max(count_areas(rows, default=0), named)
     gate = view_gate(dataset_id, area_count)
     start, end = statistics.get("start_date"), statistics.get("end_date")
     period = (start, end) if start and end else None
     charts: list[InsightChart] = []
     if rows and gate.passed:
+        # The areas of the pull, for a ranking only. Another view needs none,
+        # and an older pull may lack `aoi_sources`: building them there
+        # would drop a curated chart that needs no ranking. A ranking with
+        # bad lists raises, and the route falls back to the code executor.
+        areas = (
+            build_ranked_areas(
+                statistics.get("aoi_ids") or [],
+                statistics.get("aoi_names") or [],
+                statistics.get("aoi_sources") or [],
+                statistics.get("aoi_id_to_name"),
+            )
+            if any(view.ranks_areas for view in gate.views) and named >= 2
+            else None
+        )
         charts = charts_with_data(
             await build_curated_charts(
                 dataset_id,
@@ -891,6 +918,7 @@ async def _build_curated_insight(
                 period=period,
                 context_layer=statistics.get("context_layer"),
                 for_agent=True,
+                areas=areas,
             )
         )
     if not charts:
@@ -974,9 +1002,10 @@ SPEC = ToolSpec(
         "the standard chart of the dataset when one fits the pull, and "
         "returns its figures; when none fits, it draws a custom chart. Use "
         '"standard" for a first analysis of an area and a dataset, and when '
-        'you are not sure. Use "custom" only when the user asks for '
-        "something that the standard chart does not have: a ranking or a "
-        "comparison of areas, a different time step, a calculation across "
+        'you are not sure. Use "standard" also for a ranking of areas by '
+        'one measure. Use "custom" only when the user asks for something that the '
+        "standard chart does not have: a comparison of areas, a different "
+        "time step, a calculation across "
         "two datasets, a derived metric, or a change that "
         "update_insight_display cannot make."
     ),
