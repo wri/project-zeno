@@ -21,7 +21,7 @@ from src.agent.subagents.analyst.charts import InsightChart
 from src.api.services.charts.base import ChartGenerator
 from src.api.services.charts.ranking import RankedArea
 from src.api.services.charts.registry import DETERMINISTIC_GENERATORS
-from src.api.services.charts.views import get_view, view_for_title
+from src.api.services.charts.views import view_for_title
 
 
 async def _localise(
@@ -94,14 +94,7 @@ def drawn_columns(chart: InsightChart) -> list[str]:
 def drawn_rows(chart: InsightChart) -> list[dict]:
     """The rows of a chart with only the columns that it draws. The pull
     also has the area id, its type and its name, and other measures; the
-    curated tool message names the columns that no chart shows.
-
-    A ranking of areas keeps every column that its builder gives: the rank,
-    the area id (the front end keys a bar by it, as names repeat), the name,
-    the parent and the share."""
-    view = get_view(chart.view_id) if chart.view_id else None
-    if view is not None and view.shape == "several_areas":
-        return [dict(row) for row in chart.chart_data]
+    curated tool message names the columns that no chart shows."""
     columns = drawn_columns(chart)
     return [
         {column: row[column] for column in columns if column in row}
@@ -167,7 +160,11 @@ async def build_curated_charts(
                 if view is not None:
                     chart.view_id = view.id
                     chart.view_revision = view.revision
-                    if for_agent and view.agent_enabled:
+                    if (
+                        for_agent
+                        and view.agent_enabled
+                        and not view.ranks_areas
+                    ):
                         chart.chart_data = drawn_rows(chart)
             if titles is not None:
                 charts = [chart for chart in charts if chart.title in titles]

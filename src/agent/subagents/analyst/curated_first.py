@@ -229,7 +229,7 @@ def is_ranking(chart: InsightChart) -> bool:
     view, not from the chart type: a restyled ranking keeps its view and
     its rows."""
     view = get_view(chart.view_id) if chart.view_id else None
-    return view is not None and view.shape == "several_areas"
+    return view is not None and view.ranks_areas
 
 
 def _area_labels(rows: Sequence[dict]) -> list[str]:

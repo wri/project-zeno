@@ -89,6 +89,13 @@ class ChartView:
     source_columns: tuple[str, ...] = ()
 
     @property
+    def ranks_areas(self) -> bool:
+        """True for a ranking of areas: one owner for what the shape means
+        to the callers that treat a ranking differently (rows, facts,
+        routing)."""
+        return self.shape == "several_areas"
+
+    @property
     def title_key(self) -> str:
         """The i18n key of the chart title that the generator emits."""
         return TITLE_PREFIX + self.id
@@ -121,7 +128,6 @@ VIEWS: tuple[ChartView, ...] = (
         "ranks.",
         agent_enabled=True,
         shape="several_areas",
-        fact_kinds=(),
         agent_note=(
             "Each bar is the total tree cover loss of one area over the "
             "pulled period, ranked from the largest (a tie shares a rank). "
@@ -139,7 +145,6 @@ VIEWS: tuple[ChartView, ...] = (
         "the largest. Answers which area emitted the most or the least.",
         agent_enabled=True,
         shape="several_areas",
-        fact_kinds=(),
         agent_note=(
             "Each bar is the total greenhouse gas emissions from tree "
             "cover loss in one area over the pulled period, ranked from "

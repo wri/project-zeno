@@ -894,7 +894,7 @@ async def _build_curated_insight(
                 statistics.get("aoi_sources") or [],
                 statistics.get("aoi_id_to_name"),
             )
-            if any(view.shape == "several_areas" for view in gate.views)
+            if any(view.ranks_areas for view in gate.views)
             and len(statistics.get("aoi_names") or []) >= 2
             else None
         )
