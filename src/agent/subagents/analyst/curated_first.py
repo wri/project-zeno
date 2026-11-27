@@ -136,22 +136,14 @@ def fill_missing_years(
     return chart
 
 
-def _selection_name(statistics: dict) -> Optional[str]:
-    """The name of the selection when there are too many areas to list;
-    None when the areas are listed, or when an older pull has no name."""
-    if len(statistics.get("aoi_names") or []) <= MAX_LISTED_AREAS:
-        return None
-    return statistics.get("aoi_selection_name") or None
-
-
 def area_text(statistics: dict) -> str:
     """The areas of a pull for the tool message (English, model-facing):
     each name, or above `MAX_LISTED_AREAS` the name of the selection, or
-    the count."""
+    the count when an older pull has no name."""
     names = statistics.get("aoi_names") or []
     if len(names) <= MAX_LISTED_AREAS:
         return ", ".join(names)
-    return _selection_name(statistics) or f"{len(names)} areas"
+    return statistics.get("aoi_selection_name") or f"{len(names)} areas"
 
 
 async def _area_label(statistics: dict, language: str) -> str:
@@ -160,12 +152,8 @@ async def _area_label(statistics: dict, language: str) -> str:
     Above `MAX_LISTED_AREAS` the selection name is used in English only: it
     is an English phrase, so other languages get the translated count."""
     names = statistics.get("aoi_names") or []
-    if len(names) <= MAX_LISTED_AREAS:
-        return ", ".join(names)
-    if language == DEFAULT_LANGUAGE:
-        selection_name = _selection_name(statistics)
-        if selection_name:
-            return selection_name
+    if language == DEFAULT_LANGUAGE or len(names) <= MAX_LISTED_AREAS:
+        return area_text(statistics)
     return await t("analyst.curated_area_count", language, count=len(names))
 
 
