@@ -872,12 +872,24 @@ async def _build_curated_insight(
     from src.api.services.charts.ranking import ranked_areas
 
     dataset_id = statistics["dataset_id"]
+    named = len(statistics.get("aoi_names") or [])
+    if named >= 2:
+        # The rows can only raise the count, and any count of 2 or more
+        # gives the same answer: gate before the fetch, so that a pull with
+        # no ranking view does not load the data that the code executor
+        # then loads again.
+        early = view_gate(dataset_id, named)
+        if not early.passed:
+            logger.info(
+                "ANALYST: curated gate failed, using the code executor",
+                dataset_id=dataset_id,
+                reason=early.reason,
+            )
+            return None
     raw = await _load_statistics_data(statistics)
     rows = column_to_rows(raw) if raw else []
     # The larger of the two counts: an area with no rows still counts.
-    area_count = max(
-        count_areas(rows, default=0), len(statistics.get("aoi_names") or [])
-    )
+    area_count = max(count_areas(rows, default=0), named)
     gate = view_gate(dataset_id, area_count)
     start, end = statistics.get("start_date"), statistics.get("end_date")
     period = (start, end) if start and end else None
@@ -894,8 +906,7 @@ async def _build_curated_insight(
                 statistics.get("aoi_sources") or [],
                 statistics.get("aoi_id_to_name"),
             )
-            if any(view.ranks_areas for view in gate.views)
-            and len(statistics.get("aoi_names") or []) >= 2
+            if any(view.ranks_areas for view in gate.views) and named >= 2
             else None
         )
         charts = charts_with_data(

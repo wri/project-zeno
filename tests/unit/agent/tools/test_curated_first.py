@@ -110,8 +110,10 @@ def run():
     state = type("Run", (), {})()
     state.persist = persist
     state.data = _tcl_data()
+    state.loads = 0
 
     async def load(_statistics):
+        state.loads += 1
         return state.data
 
     with (
@@ -218,6 +220,20 @@ async def test_several_areas_of_a_dataset_with_no_ranking_go_to_the_code_executo
                 dataset_id=TREE_COVER_LOSS_BY_DRIVER_ID,
             )
         )
+
+
+async def test_a_ranking_of_a_dataset_with_no_ranking_is_not_fetched(run):
+    # The gate has its answer from the names: the pull is not loaded for
+    # the curated route, as the code executor loads it again.
+    with pytest.raises(_Executor):
+        await _analyze(
+            _statistics(
+                aoi_names=("Pará", "Mato Grosso"),
+                dataset_id=TREE_COVER_LOSS_BY_DRIVER_ID,
+            )
+        )
+
+    assert run.loads == 0
 
 
 async def test_a_comparison_view_needs_no_area_lists_of_a_ranking(run):
