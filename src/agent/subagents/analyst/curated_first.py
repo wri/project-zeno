@@ -31,6 +31,7 @@ from src.api.services.charts.facts import (
     unit_of,
 )
 from src.api.services.charts.gate import measures
+from src.api.services.charts.ranking import round_value
 from src.api.services.charts.view_facts import VIEW_FACTS
 from src.api.services.charts.views import ChartView, get_view
 
@@ -239,13 +240,19 @@ def _area_labels(rows: Sequence[dict]) -> list[str]:
     ]
 
 
+def _has_shares(rows: Sequence[dict]) -> bool:
+    """True when the ranking has shares: `build_ranking` gives them on all
+    rows or on none."""
+    return bool(rows) and all("share_pct" in row for row in rows)
+
+
 def format_ranking_rows(chart: InsightChart) -> str:
     """The ranked areas as a table of rank, name, value and share (when the
     rows have it). The first `MAX_MESSAGE_ROWS` areas; a note counts the
     rest."""
     rows = chart.chart_data
     shown = rows[:MAX_MESSAGE_ROWS]
-    with_share = any("share_pct" in row for row in shown)
+    with_share = _has_shares(shown)
     columns = ["rank", "name", _column_header(chart.y_axis)]
     if with_share:
         columns.append(_column_header("share_pct"))
@@ -281,8 +288,8 @@ def ranking_fact_sentences(chart: InsightChart) -> list[str]:
         f"{_areas(len(rows))} ranked by {measure}, largest first. Areas "
         "with the same value share a rank."
     ]
-    if rows and all("share_pct" in row for row in rows):
-        total = round(sum(row.get(chart.y_axis) or 0 for row in rows), 2)
+    if _has_shares(rows):
+        total = round_value(sum(row.get(chart.y_axis) or 0 for row in rows))
         sentences.append(
             f"Total over the {_areas(len(rows))}: {_cell(total)} "
             f"{unit_of(chart.y_axis)}. A share is the percent of this "

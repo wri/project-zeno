@@ -89,7 +89,7 @@ def shares_allowed(areas: Iterable[RankedArea]) -> bool:
     return True
 
 
-def _round(value: float) -> float:
+def round_value(value: float) -> float:
     return round(value, VALUE_DECIMALS)
 
 
@@ -139,7 +139,7 @@ def build_ranking(
             "areas have it"
         )
 
-    values = {area.id: _round(totals.get(area.id, 0.0)) for area in areas}
+    values = {area.id: round_value(totals.get(area.id, 0.0)) for area in areas}
     grand_total = sum(values.values())
     if grand_total <= 0:
         return []
@@ -164,6 +164,6 @@ def build_ranking(
             value_column: value,
         }
         if with_share:
-            row["share_pct"] = _round(value / grand_total * 100)
+            row["share_pct"] = round_value(value / grand_total * 100)
         ranked.append(row)
     return ranked
