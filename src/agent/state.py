@@ -53,7 +53,7 @@ class Statistics(TypedDict):
     # The name of the area selection the pull used, for the caption of a
     # ranking. State only: not stored in the statistics table, so a reloaded
     # row has none and the caption falls back to the area count.
-    aoi_selection_name: NotRequired[str | None]
+    aoi_selection_name: NotRequired[str]
 
 
 class EncodedCodeActPart(TypedDict):

@@ -296,7 +296,7 @@ async def pull_data(
         # The name of the whole selection ("47 Counties in Kenya"), for a
         # caption of many areas. Not stored in the database: a pull from
         # before this key has none.
-        "aoi_selection_name": state["aoi_selection"].get("name"),
+        "aoi_selection_name": state["aoi_selection"]["name"],
         # src_id is only unique per source, so sources are kept parallel to ids.
         "aoi_ids": [aoi["src_id"] for aoi in aois],
         "aoi_sources": [aoi["source"] for aoi in aois],
