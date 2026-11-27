@@ -1,6 +1,8 @@
 """A recalled or an updated curated insight gives its facts: its summary
 is a caption with no figures."""
 
+import pytest
+
 from src.agent.datasets.handlers.analytics_handler import (
     INTEGRATED_ALERTS_ID,
     LAND_GHG_INVENTORY_ID,
@@ -173,17 +175,20 @@ def _revised(chart_type, y_axis="area_ha"):
     )
 
 
-def test_a_restyle_with_the_same_measure_keeps_the_ranked_bar():
-    insight = _apply_revision([_ranking()], _revised("bar"))
-    assert insight.charts[0].chart_type == "ranked-bar"
+@pytest.mark.parametrize(
+    "chart_type, y_axis, expected",
+    [
+        # The same measure in a bar keeps the ranked bar.
+        ("bar", "area_ha", "ranked-bar"),
+        ("pie", "area_ha", "pie"),
+        # Another measure has no rank to show: a plain bar.
+        ("bar", "other_ha", "bar"),
+    ],
+)
+def test_a_restyle_of_a_ranking_takes_the_type_that_fits(
+    chart_type, y_axis, expected
+):
+    insight = _apply_revision([_ranking()], _revised(chart_type, y_axis))
+
+    assert insight.charts[0].chart_type == expected
     assert insight.charts[0].title == "Renamed"
-
-
-def test_a_restyle_to_another_type_takes_the_revised_type():
-    insight = _apply_revision([_ranking()], _revised("pie"))
-    assert insight.charts[0].chart_type == "pie"
-
-
-def test_a_restyle_to_another_measure_takes_a_plain_bar():
-    insight = _apply_revision([_ranking()], _revised("bar", "other_ha"))
-    assert insight.charts[0].chart_type == "bar"
