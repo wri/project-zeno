@@ -950,6 +950,17 @@ def test_a_saved_ranking_gives_its_facts_on_a_recall():
     assert "- Total over the 2 areas: 4 ha." in text
 
 
+def _annual_chart(y_axis, view_id, value):
+    return InsightChart(
+        title="Annual Tree Cover Loss",
+        chart_type="bar",
+        x_axis="tree_cover_loss_year",
+        y_axis=y_axis,
+        chart_data=[{"tree_cover_loss_year": 2024, y_axis: value}],
+        view_id=view_id,
+    )
+
+
 def test_the_ranking_chart_does_not_list_the_columns_that_it_consumes():
     rows = [
         {
@@ -970,14 +981,8 @@ def test_the_ranking_chart_does_not_list_the_columns_that_it_consumes():
         },
     ]
     pair = [
-        _ranking_chart(
-            [{"tree_cover_loss_year": 2024, "area_ha": 3.0}],
-            view_id="tcl.annual_loss",
-        ),
-        _ranking_chart(
-            [{"tree_cover_loss_year": 2024, "carbon_emissions_MgCO2e": 3.0}],
-            view_id="tcl.annual_emissions",
-        ),
+        _annual_chart("area_ha", "tcl.annual_loss", 3.0),
+        _annual_chart("carbon_emissions_MgCO2e", "tcl.annual_emissions", 3.0),
     ]
     ranking = [
         _ranking_chart([_ranked_row(1, "A", 2.0)]),
@@ -1071,12 +1076,6 @@ async def test_an_older_pull_without_a_selection_name_gives_the_count():
 
     assert "charts for 47 areas, 2021–2023" in caption
     assert "para 47 áreas, 2021–2023" in spanish
-
-
-async def test_an_english_caption_above_ten_areas_without_a_name_counts():
-    caption = await curated_caption(_many(47, None), "en")
-
-    assert "charts for 47 areas, 2021–2023" in caption
 
 
 @pytest.mark.parametrize(
